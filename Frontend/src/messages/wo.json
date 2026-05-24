@@ -1,0 +1,100 @@
+{
+  "nav": {
+    "listings": "Xët yi",
+    "search": "Seet",
+    "regions": "Réegi yi",
+    "mySpace": "Sa benn",
+    "login": "Dugg",
+    "register": "Bindal sa tur",
+    "openMenu": "Ubbi mbëggël",
+    "closeMenu": "Tëj mbëggël",
+    "searchPlaceholder": "Dëkk, gox..."
+  },
+  "theme": {
+    "toDark": "Dem ci guddi",
+    "toLight": "Dem ci tërang"
+  },
+  "home": {
+    "badge": "AlloVérifié™ — Kerri yu gënal wëral",
+    "title1": "Seet sa kër",
+    "titleGold": "ci Senegaal",
+    "subtitle": "Dëkki yu bare gi ak villa ak studio yu gënal wëral gi jàngalekat yi. Jënd sa kër ak xam-xam.",
+    "searchPlaceholder": "Foo bëgg dëkk?",
+    "searchAriaLabel": "Dëkk wala gox",
+    "searchBtn": "Seet",
+    "popular": "Yu jëm na :",
+    "stats": {
+      "listings": "Xët yu am",
+      "regions": "Réegi yu gënal",
+      "verified": "Kerri yu wëral",
+      "rating": "Sàmm bu mëna"
+    },
+    "typesTitle": "Looy bëgg?",
+    "typesSubtitle": "Tànn sa wàllu seet",
+    "types": {
+      "APPARTEMENT": "Appartement",
+      "STUDIO": "Studio",
+      "VILLA": "Villa",
+      "BUREAU": "Biroo",
+      "CHAMBRE": "Néeg"
+    },
+    "howTitle": "Naka tax na?",
+    "howSubtitle": "Ci seet ba ci sign ci njëkk yu ñaar ak ñett",
+    "how": [
+      {
+        "title": "Seet",
+        "desc": "Tànn dëkk, wàllu kër ak jëf yi ci saa yu toy."
+      },
+      {
+        "title": "Wëral ci àddina",
+        "desc": "Jàngalekat yi dem na ci kër bii. Dangay gis looy jënd."
+      },
+      {
+        "title": "Jënd ak yëgël",
+        "desc": "Faay ak xam-xam, kontraa digital, ak jëm 7 fan ci 7."
+      }
+    ],
+    "ownerTitle": "Yaa nit ku am kër?",
+    "ownerDesc": "Bindal sa kër ci kanam ak dëkënte. Jàngalekat yi wëralal na ko ci àddina.",
+    "ownerCta": "Bindal sa kër yëgëlul",
+    "ownerSecondary": "Xool naka tax na",
+    "ownerBadge": "Ci moom yu am kër",
+    "recentTitle": "Xët yu mujj",
+    "recentSub": "Kerri yu wëral yu am kañ",
+    "seeAll": "Xool xët yëpp",
+    "newBadge": "Bees",
+    "typeLabel": "Looy bëgg",
+    "budgetLabel": "Xaalis bu dëkk",
+    "perMonth": "fan"
+  },
+  "footer": {
+    "tagline": "Plateforme immobilière yu gënal ci Senegaal. Kerri yu wëral ci àddina ak jàngalekat yi.",
+    "nav": "Mbëggël",
+    "navListings": "Xët yi",
+    "navSearch": "Seet",
+    "navRegions": "Réegi yi",
+    "navFavorites": "Yu nëbbël",
+    "navMessages": "Wàll yi",
+    "services": "Jëfandikoo",
+    "svcVerified": "AlloVérifié™",
+    "svcPayment": "Faay bu yëgël",
+    "svcGuide": "Mbindaan u jëgël",
+    "svcLandlord": "Benn u bailleur",
+    "svcAgent": "Dem agent",
+    "contact": "Jokkoo",
+    "address": "Plateau, Dakar — Senegaal",
+    "badge": "AlloVérifié™ Certifié",
+    "rights": "Réeru bu bees.",
+    "privacy": "Confidentialité",
+    "terms": "CGU",
+    "cookies": "Cookies"
+  },
+  "listings": {
+    "title": "Xët yu am",
+    "empty": "Xët du am.",
+    "countOne": "xët ci kanam",
+    "countMany": "xët yi ci kanam",
+    "verified": "AlloWëral",
+    "perMonth": "fan"
+  }
+}

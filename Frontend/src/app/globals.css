@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/* ── Keyframes ─────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to   { opacity: 1; transform: translateX(0);     }
+}
+@keyframes float {
+  0%,100% { transform: translateY(0) translateX(0);       }
+  50%     { transform: translateY(-20px) translateX(10px); }
+}
+@keyframes softBounce {
+  0%,100% { transform: translateY(0);    }
+  50%     { transform: translateY(-8px); }
+}
+@keyframes zoomIn {
+  0%   { transform: scale(1);    }
+  100% { transform: scale(1.08); }
+}
+
+/* ── CSS Variables ─────────────────────────────────────────────────── */
+:root {
+  --aa-bg:   #FAFAFA;
+  --aa-card: #FFFFFF;
+  --aa-text: #1C1C1C;
+  --aa-sub:  #6B7280;
+  --aa-line: #E5E7EB;
+}
+.dark {
+  --aa-bg:   #0f172a;
+  --aa-card: #1e293b;
+  --aa-text: #e2e8f0;
+  --aa-sub:  #94a3b8;
+  --aa-line: #334155;
+}
+
+/* ── Tailwind @theme inline ────────────────────────────────────────── */
+@theme inline {
+  --color-bg:         var(--aa-bg);
+  --color-card:       var(--aa-card);
+  --color-text:       var(--aa-text);
+  --color-sub:        var(--aa-sub);
+  --color-line:       var(--aa-line);
+
+  --color-gold:       #facc15;
+  --color-gold-dark:  #b58900;
+  --color-gold-light: #F9E4B7;
+  --color-gold-pale:  #fff5d6;
+  --color-dark:       #0f172a;
+
+  --font-sans:    var(--font-inter);
+  --font-heading: var(--font-poppins);
+}
+
+/* ── Base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  background-color: var(--aa-bg);
+  color: var(--aa-text);
+  font-family: var(--font-inter, 'Inter', system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-poppins, 'Poppins', sans-serif);
+}
+
+/* Container centré 1200 px */
+.aa-container {
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+@media (min-width: 640px) { .aa-container { padding-inline: 1.5rem; } }
+
+/* ── Glassmorphism ─────────────────────────────────────────────────── */
+.glass {
+  background: rgba(255,255,255,0.70);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(245,232,182,0.30);
+}
+.dark .glass {
+  background: rgba(15,23,42,0.80);
+  border-color: rgba(250,204,21,0.15);
+}
+.glass-dark {
+  background: rgba(12,12,15,0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(250,204,21,0.25);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.30);
+  transition: background 0.3s, transform 0.3s, box-shadow 0.3s;
+}
+.glass-dark:hover {
+  background: rgba(25,25,30,0.85);
+  transform: translateY(-3px);
+  box-shadow: 0 0 18px rgba(250,204,21,0.25);
+}
+
+/* ── Bouton primaire (doré) ────────────────────────────────────────── */
+.btn-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #facc15, #fbbf24);
+  color: #1e1e1e;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(250,204,21,0.30);
+}
+.btn-gold:hover {
+  transform: scale(1.05);
+  filter: brightness(0.96);
+  box-shadow: 0 6px 20px rgba(250,204,21,0.40);
+}
+
+/* Bouton secondaire outline */
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(250,204,21,0.60);
+  background: transparent;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+.btn-outline:hover {
+  background: rgba(250,204,21,0.10);
+  transform: scale(1.05);
+}
+
+/* ── Input field ───────────────────────────────────────────────────── */
+.input-field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-line);
+  background: var(--color-bg);
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input-field::placeholder { color: var(--color-sub); }
+.input-field:focus {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px rgba(250,204,21,0.15);
+}
+
+/* ── Animation utilities ───────────────────────────────────────────── */
+.animate-fadeUp     { animation: fadeUp      1s   ease      both; }
+.animate-fadeIn     { animation: fadeIn      0.4s ease-out  both; }
+.animate-fadeInLeft { animation: fadeInLeft  0.8s ease-out  both; }
+.animate-float      { animation: float       8s   ease-in-out infinite; }
+.animate-softBounce { animation: softBounce  3s   ease-in-out infinite; }
+.animate-zoomIn     { animation: zoomIn      18s  ease-in-out infinite alternate; }
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+/* ── Cards listing ─────────────────────────────────────────────────── */
+.listing-card {
+  background: rgba(255,255,255,0.70);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(245,232,182,0.30);
+  border-radius: 1rem;
+  box-shadow: 0 12px 35px -20px rgba(0,0,0,0.25);
+  transition: transform 0.5s ease, box-shadow 0.5s ease;
+  overflow: hidden;
+}
+.listing-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 20px 40px -15px rgba(0,0,0,0.35);
+}
+.dark .listing-card {
+  background: rgba(30,41,59,0.80);
+  border-color: rgba(250,204,21,0.15);
+}
+
+/* ── Focus & scrollbar ─────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #facc15;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar              { width: 6px; }
+::-webkit-scrollbar-track        { background: var(--aa-bg); }
+::-webkit-scrollbar-thumb        { background: var(--aa-line); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover  { background: #facc15; }

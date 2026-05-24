@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  clerkId       String         @unique
+  email         String         @unique
+  phone         String?
+  firstName     String
+  lastName      String
+  roles         Role[]         @default([LOCATAIRE])
+  isVerified    Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  bookings      Booking[]      @relation("TenantBookings")
+  listings      Listing[]
+  sentMessages  Message[]
+  reviews       Review[]       @relation("AuthorReviews")
+  verifications Verification[] @relation("AgentVerifications")
+  rooms         MessageRoom[]  @relation("RoomParticipants")
+  favorites     Listing[]      @relation("UserFavorites")
+
+  @@map("users")
+}
+
+model Listing {
+  id           String        @id @default(uuid())
+  title        String
+  description  String
+  price        Decimal       @db.Decimal(12, 2)
+  type         ListingType
+  status       ListingStatus @default(DRAFT)
+  isVerified   Boolean       @default(false)
+  verifiedAt   DateTime?
+  lat          Float
+  lng          Float
+  city         String
+  region       String
+  address      String?
+  rooms        Int?
+  surface      Float?
+  boostUntil   DateTime?
+  boostScore   Int           @default(0)
+  images       String[]
+  amenities    String[]
+  ownerId      String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  baths        Int?
+  beds         Int?
+  bookings     Booking[]
+  owner        User          @relation(fields: [ownerId], references: [id])
+  messageRooms MessageRoom[]
+  reviews      Review[]
+  verification Verification?
+  favoritedBy  User[]        @relation("UserFavorites")
+
+  @@map("listings")
+}
+
+model Booking {
+  id           String        @id @default(uuid())
+  listingId    String
+  tenantId     String
+  status       BookingStatus @default(PENDING)
+  startDate    DateTime
+  endDate      DateTime?
+  totalAmount  Decimal       @db.Decimal(12, 2)
+  escrowStatus EscrowStatus  @default(HELD)
+  paymentRef   String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  listing      Listing       @relation(fields: [listingId], references: [id])
+  tenant       User          @relation("TenantBookings", fields: [tenantId], references: [id])
+  review       Review?
+
+  @@map("bookings")
+}
+
+model Verification {
+  id          String      @id @default(uuid())
+  listingId   String      @unique
+  agentId     String?
+  status      VerifStatus @default(REQUESTED)
+  reportUrl   String?
+  auditType   AuditType   @default(BASIC)
+  scheduledAt DateTime
+  completedAt DateTime?
+  notes       String?
+  photos      String[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  agent       User?       @relation("AgentVerifications", fields: [agentId], references: [id])
+  listing     Listing     @relation(fields: [listingId], references: [id])
+
+  @@map("verifications")
+}
+
+model MessageRoom {
+  id           String    @id @default(uuid())
+  listingId    String
+  createdAt    DateTime  @default(now())
+  listing      Listing   @relation(fields: [listingId], references: [id])
+  messages     Message[]
+  participants User[]    @relation("RoomParticipants")
+
+  @@map("message_rooms")
+}
+
+model Message {
+  id        String      @id @default(uuid())
+  roomId    String
+  senderId  String
+  content   String
+  readAt    DateTime?
+  createdAt DateTime    @default(now())
+  room      MessageRoom @relation(fields: [roomId], references: [id])
+  sender    User        @relation(fields: [senderId], references: [id])
+
+  @@map("messages")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  bookingId String   @unique
+  listingId String
+  authorId  String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  author    User     @relation("AuthorReviews", fields: [authorId], references: [id])
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  listing   Listing  @relation(fields: [listingId], references: [id])
+
+  @@map("reviews")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+}
+
+enum Role {
+  LOCATAIRE
+  BAILLEUR
+  AGENT_TERRAIN
+  PRO_AGENCE
+  ADMIN
+}
+
+enum ListingType {
+  APPARTEMENT
+  VILLA
+  CHAMBRE
+  STUDIO
+  BUREAU
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  RENTED
+  SUSPENDED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum EscrowStatus {
+  HELD
+  RELEASED
+  REFUNDED
+}
+
+enum VerifStatus {
+  REQUESTED
+  SCHEDULED
+  IN_PROGRESS
+  DONE
+  REJECTED
+}
+
+enum AuditType {
+  BASIC
+  FULL
+}
