@@ -47,7 +47,10 @@ export class ListingsService {
     const [data, total] = await Promise.all([
       this.prisma.listing.findMany({
         where,
-        include: { owner: { select: { id: true, firstName: true, lastName: true } } },
+        include: {
+          owner: { select: { id: true, firstName: true, lastName: true } },
+          _count: { select: { reviews: true } },
+        },
         orderBy: [{ boostScore: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,

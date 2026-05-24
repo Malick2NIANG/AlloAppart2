@@ -85,26 +85,23 @@ const STEP_FIELDS: (keyof FormValues)[][] = [
 
 type DemoRole = 'visitor' | 'locataire' | 'bailleur' | 'dual' | 'admin' | 'agent';
 
+const DRAFT_KEY = 'aa_listing_draft';
+
 /* ── Page principale ─────────────────────────────────────────────────── */
 
 export default function PublierPage() {
   const { isSignedIn, getToken } = useAuth();
   const router = useRouter();
 
-  const [step,      setStep]      = useState(0);
-  const [demoRole,  setDemoRole]  = useState<DemoRole>('visitor');
-  const [mounted,   setMounted]   = useState(false);
-  const [success,   setSuccess]   = useState(false);
-  const [apiError,  setApiError]  = useState<string | null>(null);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
-    if (stored && ['visitor','locataire','bailleur','dual','admin','agent'].includes(stored)) setDemoRole(stored);
-    setMounted(true);
-    const handler = (e: Event) => setDemoRole((e as CustomEvent<DemoRole>).detail);
-    window.addEventListener('aa-demo-change', handler);
-    return () => window.removeEventListener('aa-demo-change', handler);
-  }, []);
+  const [step,          setStep]          = useState(0);
+  const [demoRole,      setDemoRole]      = useState<DemoRole>('visitor');
+  const [mounted,       setMounted]       = useState(false);
+  const [success,       setSuccess]       = useState(false);
+  const [apiError,      setApiError]      = useState<string | null>(null);
+  const [userRoles,     setUserRoles]     = useState<string[]>([]);
+  const [rolesLoaded,   setRolesLoaded]   = useState(false);
+  const [activating,    setActivating]    = useState(false);
+  const [activateError, setActivateError] = useState<string | null>(null);
 
   const { register, handleSubmit, watch, setValue, trigger,
     formState: { errors, isSubmitting } } = useForm<FormValues>({
@@ -118,9 +115,66 @@ export default function PublierPage() {
     },
   });
 
+  useEffect(() => {
+    // Restore draft saved from a previous session
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const draft = JSON.parse(saved) as Partial<FormValues>;
+        (Object.entries(draft) as [keyof FormValues, FormValues[keyof FormValues]][]).forEach(
+          ([key, val]) => setValue(key, val),
+        );
+      }
+    } catch {}
+
+    if (process.env.NODE_ENV !== 'production') {
+      const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
+      if (stored && ['visitor','locataire','bailleur','dual','admin','agent'].includes(stored)) setDemoRole(stored);
+      const handler = (e: Event) => setDemoRole((e as CustomEvent<DemoRole>).detail);
+      window.addEventListener('aa-demo-change', handler);
+      setMounted(true);
+      return () => window.removeEventListener('aa-demo-change', handler);
+    }
+    setMounted(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Récupère les rôles réels dès que l'utilisateur est connecté
+  useEffect(() => {
+    if (!isSignedIn) return;
+    getToken().then(async (token) => {
+      if (!token) return;
+      try {
+        const { api } = await import('@/lib/api');
+        const me = await api.get<{ roles: string[] }>('/auth/me', token);
+        setUserRoles(me.roles);
+      } catch {
+        setUserRoles([]);
+      } finally {
+        setRolesLoaded(true);
+      }
+    });
+  }, [isSignedIn, getToken]);
+
+  const activateBailleur = async () => {
+    setActivating(true);
+    setActivateError(null);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Non authentifié');
+      const { api } = await import('@/lib/api');
+      const updated = await api.patch<{ roles: string[] }>('/auth/me/activate-bailleur', {}, token);
+      setUserRoles(updated.roles);
+    } catch {
+      setActivateError('Impossible d\'activer le rôle. Réessaie.');
+    } finally {
+      setActivating(false);
+    }
+  };
+
   const values    = watch();
   const isDemo    = !isSignedIn && demoRole !== 'visitor';
   const canAccess = isSignedIn || demoRole !== 'visitor';
+  const isBailleur = isDemo || userRoles.some((r) => ['BAILLEUR', 'PRO_AGENCE', 'ADMIN'].includes(r));
 
   if (!mounted) return null;
 
@@ -136,6 +190,62 @@ export default function PublierPage() {
           <p className="mt-2 text-sm text-sub">Connectez-vous pour déposer votre annonce gratuitement.</p>
           <Link href="/sign-in" className="btn-gold mt-6 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold">
             <i className="fa-solid fa-arrow-right-to-bracket" /> Se connecter
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  /* ── Chargement des rôles ── */
+  if (isSignedIn && !rolesLoaded) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg">
+        <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
+      </main>
+    );
+  }
+
+  /* ── Utilisateur connecté mais LOCATAIRE seulement ── */
+  if (isSignedIn && !isBailleur) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg px-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-gold-pale ring-4 ring-gold/20">
+            <i className="fa-solid fa-key text-2xl text-gold-dark" />
+          </div>
+          <h1 className="text-xl font-extrabold text-text">Devenir bailleur</h1>
+          <p className="mt-2 text-sm text-sub">
+            Pour publier des annonces, activez votre rôle Bailleur. C&apos;est gratuit et instantané.
+          </p>
+          <ul className="mt-5 space-y-2 text-left text-sm text-sub">
+            {[
+              'Publiez vos annonces de location',
+              'Gérez vos réservations',
+              'Recevez vos paiements en sécurité',
+            ].map((item) => (
+              <li key={item} className="flex items-center gap-2">
+                <i className="fa-solid fa-circle-check text-gold-dark text-xs" /> {item}
+              </li>
+            ))}
+          </ul>
+          {activateError && (
+            <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-red-500">
+              <i className="fa-solid fa-circle-exclamation" /> {activateError}
+            </p>
+          )}
+          <button
+            onClick={activateBailleur}
+            disabled={activating}
+            className="btn-gold mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-50"
+          >
+            {activating
+              ? <><i className="fa-solid fa-spinner fa-spin text-xs" /> Activation…</>
+              : <><i className="fa-solid fa-house-chimney-user text-xs" /> Activer le rôle Bailleur</>
+            }
+          </button>
+          <Link href="/espace"
+            className="mt-3 inline-flex items-center gap-1.5 text-xs text-sub hover:text-gold-dark transition-colors">
+            <i className="fa-solid fa-arrow-left text-[10px]" /> Retour à mon espace
           </Link>
         </div>
       </main>
@@ -162,7 +272,7 @@ export default function PublierPage() {
             <Link href="/espace" className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold">
               <i className="fa-solid fa-house-chimney" /> Mon espace
             </Link>
-            <button onClick={() => { setSuccess(false); setStep(0); }}
+            <button onClick={() => { localStorage.removeItem(DRAFT_KEY); setSuccess(false); setStep(0); }}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all">
               <i className="fa-solid fa-plus" /> Publier une autre annonce
             </button>
@@ -174,8 +284,12 @@ export default function PublierPage() {
 
   /* ── Avancement étape ── */
   const advance = async () => {
-    const valid = await trigger(STEP_FIELDS[step]);
-    if (valid) setStep((s) => s + 1);
+    // En mode démo, step 4 (photos) est verrouillé : on passe directement
+    const valid = (isDemo && step === 4) ? true : await trigger(STEP_FIELDS[step]);
+    if (valid) {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(values));
+      setStep((s) => s + 1);
+    }
   };
 
   /* ── Soumission finale ── */
@@ -185,6 +299,7 @@ export default function PublierPage() {
     try {
       const token = await getToken();
       await api.post('/listings', data, token ?? undefined);
+      localStorage.removeItem(DRAFT_KEY);
       setSuccess(true);
     } catch (err: unknown) {
       setApiError((err as Error)?.message ?? 'Une erreur est survenue.');
@@ -375,12 +490,28 @@ export default function PublierPage() {
             {step === 4 && (
               <>
                 <StepHeader title="Photos" sub="Ajoutez au moins une photo de votre bien (jpg, png, webp — 8 Mo max)" />
-                <ImageUploadZone
-                  images={values.images || []}
-                  onChange={(imgs) => setValue('images', imgs, { shouldValidate: true })}
-                  getToken={getToken}
-                />
-                {errors.images && (
+                {isDemo ? (
+                  <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50 px-6 py-10 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
+                      <i className="fa-solid fa-lock text-xl text-amber-600" />
+                    </div>
+                    <p className="text-sm font-semibold text-amber-700">Upload désactivé en mode démo</p>
+                    <p className="text-xs text-amber-600 max-w-xs">
+                      Créez un compte pour uploader de vraies photos. En mode démo l&apos;annonce ne sera pas enregistrée.
+                    </p>
+                    <a href="/sign-up"
+                      className="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-500 text-white px-5 py-2 text-xs font-semibold hover:bg-amber-600 transition-colors">
+                      <i className="fa-solid fa-user-plus text-xs" /> Créer un compte
+                    </a>
+                  </div>
+                ) : (
+                  <ImageUploadZone
+                    images={values.images || []}
+                    onChange={(imgs) => setValue('images', imgs, { shouldValidate: true })}
+                    getToken={getToken}
+                  />
+                )}
+                {!isDemo && errors.images && (
                   <p className="flex items-center gap-1.5 text-xs text-red-500">
                     <i className="fa-solid fa-circle-exclamation" /> Au moins une photo est requise
                   </p>

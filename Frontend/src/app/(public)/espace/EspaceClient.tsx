@@ -5,9 +5,8 @@ import Link from 'next/link';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
-import { MOCK_LISTINGS } from '@/lib/mockListings';
 import { api } from '@/lib/api';
-import type { User as ApiUser, MessageRoom } from '@/types';
+import type { User as ApiUser, Listing, MessageRoom, Verification, AdminStats, Booking } from '@/types';
 
 type DemoRole = 'visitor' | 'locataire' | 'bailleur' | 'dual' | 'admin' | 'agent';
 type ActiveMode = 'locataire' | 'bailleur';
@@ -18,15 +17,6 @@ const DEMO_DUAL      = { name: 'Ousmane Thiaw',  initials: 'OT', email: 'ousmane
 const DEMO_ADMIN     = { name: 'Modou Kane',      initials: 'MK', email: 'admin@demo.sn',   roles: ['admin']                };
 const DEMO_AGENT     = { name: 'Awa Diop',        initials: 'AD', email: 'agent@demo.sn',   roles: ['agent']                };
 
-const MOCK_FAVORITES   = [MOCK_LISTINGS[0], MOCK_LISTINGS[2], MOCK_LISTINGS[5]].filter(Boolean);
-const MOCK_MY_LISTINGS = [MOCK_LISTINGS[10], MOCK_LISTINGS[11], MOCK_LISTINGS[12]].filter(Boolean);
-
-
-const MOCK_DEMANDES = [
-  { id: 'd1', from: 'Abdou Diagne',  avatar: 'AD', listing: 'Appartement 3P Plateau', date: '19/05', status: 'pending'  },
-  { id: 'd2', from: 'Rokhaya Gueye', avatar: 'RG', listing: 'Studio Meublé Point E',  date: '18/05', status: 'accepted' },
-  { id: 'd3', from: 'Seydou Mbaye',  avatar: 'SM', listing: 'Chambre Mermoz',          date: '16/05', status: 'rejected' },
-];
 
 function useGreeting(t: ReturnType<typeof useTranslations<'espace'>>) {
   const h = new Date().getHours();
@@ -45,11 +35,10 @@ function MiniCard({
   perMonth,
   onRemove,
 }: {
-  listing: (typeof MOCK_LISTINGS)[0];
+  listing: Listing;
   perMonth: string;
   onRemove?: () => void;
 }) {
-  if (!listing) return null;
   return (
     <div className="group relative flex gap-3 rounded-2xl border border-line bg-card p-3 hover:border-gold/40 transition-all">
       <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-xl">
@@ -63,7 +52,7 @@ function MiniCard({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-text">{listing.title}</p>
         <p className="truncate text-xs text-sub">{listing.city}</p>
-        <p className="mt-1 text-xs font-bold text-gold-dark">{formatPrice(listing.price)}{perMonth}</p>
+        <p className="mt-1 text-xs font-bold text-gold-dark">{formatPrice(Number(listing.price))}{perMonth}</p>
       </div>
       {onRemove && (
         <button
@@ -96,23 +85,25 @@ function StatusBadge({ status, t }: { status: string; t: ReturnType<typeof useTr
   );
 }
 
-const MOCK_ADMIN_STATS = [
-  { count: 1247, labelKey: 'statUtilisateurs', icon: 'fa-users',         color: 'text-blue-500'    },
-  { count: 3891, labelKey: 'statAnnoncesTotal', icon: 'fa-house',        color: 'text-gold-dark'   },
-  { count: 14,   labelKey: 'statVerifs',        icon: 'fa-shield-check', color: 'text-emerald-600' },
-  { count: 3,    labelKey: 'statSignalements',  icon: 'fa-flag',         color: 'text-red-500'     },
-];
-
-const MOCK_VERIF_QUEUE = [
-  { id: 'v1', listing: 'Appart. 3P Dakar Plateau',   owner: 'Binta Sarr',    date: '19/05', status: 'pending'  },
-  { id: 'v2', listing: 'Villa 5P Almadies',           owner: 'Cheikh Ndoye',  date: '18/05', status: 'pending'  },
-  { id: 'v3', listing: 'Studio Meublé Point E',       owner: 'Rokhaya Gueye', date: '15/05', status: 'verified' },
-  { id: 'v4', listing: 'Chambre Mermoz Sacré-Cœur',  owner: 'Absa Diallo',   date: '14/05', status: 'verified' },
-];
-
 /* ── VIEW: Admin ─────────────────────────────────────────────────────── */
-function AdminView({ userName, initials, t }: { userName: string; initials: string; t: ReturnType<typeof useTranslations<'espace'>> }) {
+function AdminView({ userName, initials, t, stats, verifQueue }: {
+  userName: string;
+  initials: string;
+  t: ReturnType<typeof useTranslations<'espace'>>;
+  stats: AdminStats | null;
+  verifQueue: Verification[];
+}) {
   const greeting = useGreeting(t);
+
+  const statItems = [
+    { count: stats?.totalUsers       ?? 0, labelKey: 'statUtilisateurs', icon: 'fa-users',         color: 'text-blue-500'    },
+    { count: stats?.totalListings    ?? 0, labelKey: 'statAnnoncesTotal', icon: 'fa-house',         color: 'text-gold-dark'   },
+    { count: stats?.pendingVerifications ?? 0, labelKey: 'statVerifs',   icon: 'fa-shield-check',  color: 'text-emerald-600' },
+    { count: stats?.totalBookings    ?? 0, labelKey: 'statDemandes',     icon: 'fa-calendar-check', color: 'text-indigo-500'  },
+  ];
+
+  const pendingQueue = verifQueue.filter((v) => v.status !== 'DONE' && v.status !== 'REJECTED');
+
   return (
     <div className="space-y-8">
       <div className="rounded-3xl border border-line bg-card p-6">
@@ -134,7 +125,7 @@ function AdminView({ userName, initials, t }: { userName: string; initials: stri
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {MOCK_ADMIN_STATS.map((s) => (
+        {statItems.map((s) => (
           <div key={s.labelKey} className="rounded-2xl border border-line bg-card p-4 text-center">
             <i className={`fa-solid ${s.icon} ${s.color} text-xl mb-2 block`} />
             <p className="text-2xl font-extrabold text-text">{s.count.toLocaleString('fr-SN')}</p>
@@ -147,37 +138,60 @@ function AdminView({ userName, initials, t }: { userName: string; initials: stri
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-semibold text-text flex items-center gap-2">
             <i className="fa-solid fa-shield-halved text-gold-dark text-sm" /> {t('sectionVerifQueue')}
-            <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[10px] font-bold text-amber-700">2</span>
+            {pendingQueue.length > 0 && (
+              <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[10px] font-bold text-amber-700">
+                {pendingQueue.length}
+              </span>
+            )}
           </h3>
           <Link href="/dashboard/admin/listings" className="text-xs text-sub hover:text-gold-dark transition-colors">{t('seeAll')}</Link>
         </div>
-        <div className="rounded-2xl border border-line overflow-hidden">
-          {MOCK_VERIF_QUEUE.map((v, i) => (
-            <div key={v.id} className={`flex items-center gap-4 px-4 py-3.5 ${i < MOCK_VERIF_QUEUE.length - 1 ? 'border-b border-line/50' : ''}`}>
-              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs ${v.status === 'verified' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                <i className={`fa-solid ${v.status === 'verified' ? 'fa-check' : 'fa-clock'} text-[11px]`} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-text">{v.listing}</p>
-                <p className="text-xs text-sub">{v.owner}</p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${v.status === 'verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                  {v.status === 'verified' ? t('verifStatusVerified') : t('verifStatusPending')}
-                </span>
-                <p className="text-[10px] text-sub">{v.date}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        {verifQueue.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-sub">
+            {t('noVerifQueue')}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-line overflow-hidden">
+            {verifQueue.slice(0, 4).map((v, i) => {
+              const isDone = v.status === 'DONE';
+              return (
+                <div key={v.id} className={`flex items-center gap-4 px-4 py-3.5 ${i < Math.min(verifQueue.length, 4) - 1 ? 'border-b border-line/50' : ''}`}>
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs ${isDone ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                    <i className={`fa-solid ${isDone ? 'fa-check' : 'fa-clock'} text-[11px]`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-text">{v.listing?.title ?? v.listingId}</p>
+                    <p className="text-xs text-sub">{v.listing?.city ?? ''}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${isDone ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                      {isDone ? t('verifStatusVerified') : t('verifStatusPending')}
+                    </span>
+                    <p className="text-[10px] text-sub">
+                      {new Date(v.scheduledAt).toLocaleDateString('fr-SN', { day: '2-digit', month: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );
 }
 
 /* ── VIEW: Agent ─────────────────────────────────────────────────────── */
-function AgentView({ userName, initials, t }: { userName: string; initials: string; t: ReturnType<typeof useTranslations<'espace'>> }) {
+function AgentView({ userName, initials, t, verifQueue }: {
+  userName: string;
+  initials: string;
+  t: ReturnType<typeof useTranslations<'espace'>>;
+  verifQueue: Verification[];
+}) {
   const greeting = useGreeting(t);
+  const pendingCount = verifQueue.filter((v) => v.status === 'SCHEDULED' || v.status === 'IN_PROGRESS').length;
+  const doneCount    = verifQueue.filter((v) => v.status === 'DONE').length;
+
   return (
     <div className="space-y-8">
       <div className="rounded-3xl border border-line bg-card p-6">
@@ -193,8 +207,8 @@ function AgentView({ userName, initials, t }: { userName: string; initials: stri
           </div>
           <div className="flex gap-3">
             {([
-              { count: 8,  labelKey: 'verifDone'   },
-              { count: 2,  labelKey: 'verifPending' },
+              { count: doneCount,    labelKey: 'verifDone'    },
+              { count: pendingCount, labelKey: 'verifPending' },
             ] as const).map((s) => (
               <div key={s.labelKey} className="rounded-2xl border border-line bg-bg px-4 py-2.5 text-center min-w-20">
                 <p className="text-lg font-extrabold text-gold-dark">{s.count}</p>
@@ -209,32 +223,47 @@ function AgentView({ userName, initials, t }: { userName: string; initials: stri
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-semibold text-text flex items-center gap-2">
             <i className="fa-solid fa-shield-check text-gold-dark text-sm" /> {t('sectionVerifQueue')}
-            <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[10px] font-bold text-amber-700">2</span>
+            {pendingCount > 0 && (
+              <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[10px] font-bold text-amber-700">
+                {pendingCount}
+              </span>
+            )}
           </h3>
           <Link href="/dashboard/agent/verifications" className="text-xs text-sub hover:text-gold-dark transition-colors">{t('seeAll')}</Link>
         </div>
-        <div className="rounded-2xl border border-line overflow-hidden">
-          {MOCK_VERIF_QUEUE.map((v, i) => (
-            <div key={v.id} className={`flex items-center gap-4 px-4 py-3.5 ${i < MOCK_VERIF_QUEUE.length - 1 ? 'border-b border-line/50' : ''}`}>
-              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs ${v.status === 'verified' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                <i className={`fa-solid ${v.status === 'verified' ? 'fa-check' : 'fa-clock'} text-[11px]`} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-text">{v.listing}</p>
-                <p className="text-xs text-sub">{v.owner}</p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${v.status === 'verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                  {v.status === 'verified' ? t('verifStatusVerified') : t('verifStatusPending')}
-                </span>
-                <p className="text-[10px] text-sub">{v.date}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <button className="mt-4 btn-gold rounded-full px-5 py-2 text-sm inline-flex items-center gap-2">
+        {verifQueue.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-sub">
+            {t('noVerifQueue')}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-line overflow-hidden">
+            {verifQueue.slice(0, 4).map((v, i) => {
+              const isDone = v.status === 'DONE';
+              return (
+                <div key={v.id} className={`flex items-center gap-4 px-4 py-3.5 ${i < Math.min(verifQueue.length, 4) - 1 ? 'border-b border-line/50' : ''}`}>
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs ${isDone ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                    <i className={`fa-solid ${isDone ? 'fa-check' : 'fa-clock'} text-[11px]`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-text">{v.listing?.title ?? v.listingId}</p>
+                    <p className="text-xs text-sub">{v.listing?.city ?? ''}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${isDone ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                      {isDone ? t('verifStatusVerified') : t('verifStatusPending')}
+                    </span>
+                    <p className="text-[10px] text-sub">
+                      {new Date(v.scheduledAt).toLocaleDateString('fr-SN', { day: '2-digit', month: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <Link href="/dashboard/agent/verifications" className="mt-4 btn-gold rounded-full px-5 py-2 text-sm inline-flex items-center gap-2">
           <i className="fa-solid fa-shield-halved" /> {t('verifStart')}
-        </button>
+        </Link>
       </section>
     </div>
   );
@@ -351,8 +380,8 @@ function MessagesPreview({ t, rooms, currentUserId }: {
 }
 
 /* ── VIEW: Locataire dashboard ───────────────────────────────────────── */
-function LocataireView({ userName, initials, t, rooms, currentUserId }: { userName: string; initials: string; t: ReturnType<typeof useTranslations<'espace'>>; rooms: MessageRoom[]; currentUserId?: string }) {
-  const [favorites, setFavorites] = useState(MOCK_FAVORITES);
+function LocataireView({ userName, initials, t, rooms, currentUserId, favorites: initialFavorites }: { userName: string; initials: string; t: ReturnType<typeof useTranslations<'espace'>>; rooms: MessageRoom[]; currentUserId?: string; favorites: Listing[] }) {
+  const [favorites, setFavorites] = useState(initialFavorites);
   const greeting = useGreeting(t);
 
   return (
@@ -412,7 +441,15 @@ function LocataireView({ userName, initials, t, rooms, currentUserId }: { userNa
 }
 
 /* ── VIEW: Bailleur dashboard ────────────────────────────────────────── */
-function BailleurView({ userName, initials, t, rooms, currentUserId }: { userName: string; initials: string; t: ReturnType<typeof useTranslations<'espace'>>; rooms: MessageRoom[]; currentUserId?: string }) {
+function BailleurView({ userName, initials, t, rooms, currentUserId, myListings, bookings }: {
+  userName: string;
+  initials: string;
+  t: ReturnType<typeof useTranslations<'espace'>>;
+  rooms: MessageRoom[];
+  currentUserId?: string;
+  myListings: Listing[];
+  bookings: Booking[];
+}) {
   const greeting = useGreeting(t);
 
   return (
@@ -430,9 +467,9 @@ function BailleurView({ userName, initials, t, rooms, currentUserId }: { userNam
           </div>
           <div className="flex gap-3">
             {[
-              { count: MOCK_MY_LISTINGS.length, labelKey: 'statAnnonces'  },
-              { count: rooms.length,            labelKey: 'statMessages'  },
-              { count: MOCK_DEMANDES.length,    labelKey: 'statDemandes'  },
+              { count: myListings.length, labelKey: 'statAnnonces' },
+              { count: rooms.length,      labelKey: 'statMessages' },
+              { count: bookings.length,   labelKey: 'statDemandes' },
             ].map((s) => (
               <div key={s.labelKey} className="rounded-2xl border border-line bg-bg px-4 py-2.5 text-center min-w-16">
                 <p className="text-lg font-extrabold text-gold-dark">{s.count}</p>
@@ -452,11 +489,11 @@ function BailleurView({ userName, initials, t, rooms, currentUserId }: { userNam
             <i className="fa-solid fa-plus text-[10px]" /> {t('publish')}
           </Link>
         </div>
-        {MOCK_MY_LISTINGS.length === 0 ? (
+        {myListings.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-line p-8 text-center text-sm text-sub">{t('noAnnonces')}</div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {MOCK_MY_LISTINGS.map((l) => (
+            {myListings.map((l) => (
               <Link key={l.id} href={`/listings/${l.id}`}>
                 <MiniCard listing={l} perMonth={t('perMonth')} />
               </Link>
@@ -472,23 +509,36 @@ function BailleurView({ userName, initials, t, rooms, currentUserId }: { userNam
           </h3>
           <Link href="/messages" className="text-xs text-sub hover:text-gold-dark transition-colors">{t('seeAll')}</Link>
         </div>
-        <div className="rounded-2xl border border-line overflow-hidden">
-          {MOCK_DEMANDES.map((d, i) => (
-            <div key={d.id} className={`flex items-center gap-4 px-4 py-3.5 ${i < MOCK_DEMANDES.length - 1 ? 'border-b border-line/50' : ''}`}>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-pale text-xs font-bold text-gold-dark">
-                {d.avatar}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-text">{d.from}</p>
-                <p className="truncate text-xs text-sub">{d.listing}</p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                <StatusBadge status={d.status} t={t} />
-                <p className="text-[10px] text-sub">{d.date}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        {bookings.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-sub">
+            Aucune demande de réservation.
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-line overflow-hidden">
+            {bookings.slice(0, 5).map((b, i) => {
+              const tenantName = b.tenant ? `${b.tenant.firstName} ${b.tenant.lastName}` : b.tenantId;
+              const initials2  = b.tenant ? `${b.tenant.firstName[0]}${b.tenant.lastName?.[0] ?? ''}`.toUpperCase() : '?';
+              const statusMap: Record<string, string> = { PENDING: 'pending', CONFIRMED: 'accepted', CANCELLED: 'rejected', COMPLETED: 'accepted' };
+              return (
+                <div key={b.id} className={`flex items-center gap-4 px-4 py-3.5 ${i < Math.min(bookings.length, 5) - 1 ? 'border-b border-line/50' : ''}`}>
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-pale text-xs font-bold text-gold-dark">
+                    {initials2}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-text">{tenantName}</p>
+                    <p className="truncate text-xs text-sub">{b.listing?.title ?? b.listingId}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <StatusBadge status={statusMap[b.status] ?? 'pending'} t={t} />
+                    <p className="text-[10px] text-sub">
+                      {new Date(b.createdAt).toLocaleDateString('fr-SN', { day: '2-digit', month: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <MessagesPreview t={t} rooms={rooms} currentUserId={currentUserId} />
@@ -497,7 +547,11 @@ function BailleurView({ userName, initials, t, rooms, currentUserId }: { userNam
 }
 
 /* ── VIEW: Dual-role toggle ───────────────────────────────────────────── */
-function DualRoleView({ userName, initials, t, rooms, currentUserId }: { userName: string; initials: string; t: ReturnType<typeof useTranslations<'espace'>>; rooms: MessageRoom[]; currentUserId?: string }) {
+function DualRoleView({ userName, initials, t, rooms, currentUserId, favorites, myListings, bookings }: {
+  userName: string; initials: string; t: ReturnType<typeof useTranslations<'espace'>>;
+  rooms: MessageRoom[]; currentUserId?: string;
+  favorites: Listing[]; myListings: Listing[]; bookings: Booking[];
+}) {
   const [mode, setMode] = useState<ActiveMode>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem('aa_active_mode') as ActiveMode) || 'locataire';
@@ -522,8 +576,8 @@ function DualRoleView({ userName, initials, t, rooms, currentUserId }: { userNam
         ))}
       </div>
       {mode === 'locataire'
-        ? <LocataireView userName={userName} initials={initials} t={t} rooms={rooms} currentUserId={currentUserId} />
-        : <BailleurView  userName={userName} initials={initials} t={t} rooms={rooms} currentUserId={currentUserId} />
+        ? <LocataireView userName={userName} initials={initials} t={t} rooms={rooms} currentUserId={currentUserId} favorites={favorites} />
+        : <BailleurView  userName={userName} initials={initials} t={t} rooms={rooms} currentUserId={currentUserId} myListings={myListings} bookings={bookings} />
       }
     </div>
   );
@@ -534,18 +588,26 @@ export default function EspaceClient() {
   const { isSignedIn, getToken, userId } = useAuth();
   const { user } = useUser();
   const t = useTranslations('espace');
-  const [demoRole, setDemoRole] = useState<DemoRole>('visitor');
-  const [apiUser, setApiUser] = useState<ApiUser | null>(null);
-  const [apiRooms, setApiRooms] = useState<MessageRoom[]>([]);
+  const [demoRole,    setDemoRole]    = useState<DemoRole>('visitor');
+  const [apiUser,     setApiUser]     = useState<ApiUser | null>(null);
+  const [apiRooms,    setApiRooms]    = useState<MessageRoom[]>([]);
+  const [apiFavorites, setApiFavorites] = useState<Listing[]>([]);
+  const [apiMyListings, setApiMyListings] = useState<Listing[]>([]);
+  const [apiBookings,   setApiBookings]   = useState<Booking[]>([]);
+  const [apiAdminStats, setApiAdminStats] = useState<AdminStats | null>(null);
+  const [apiVerifQueue, setApiVerifQueue] = useState<Verification[]>([]);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
-    if (stored && ['visitor', 'locataire', 'bailleur', 'dual', 'admin', 'agent'].includes(stored)) setDemoRole(stored);
+    if (process.env.NODE_ENV !== 'production') {
+      const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
+      if (stored && ['visitor', 'locataire', 'bailleur', 'dual', 'admin', 'agent'].includes(stored)) setDemoRole(stored);
+      const handler = (e: Event) => setDemoRole((e as CustomEvent<DemoRole>).detail);
+      window.addEventListener('aa-demo-change', handler);
+      setMounted(true);
+      return () => window.removeEventListener('aa-demo-change', handler);
+    }
     setMounted(true);
-    const handler = (e: Event) => setDemoRole((e as CustomEvent<DemoRole>).detail);
-    window.addEventListener('aa-demo-change', handler);
-    return () => window.removeEventListener('aa-demo-change', handler);
   }, []);
 
   // Fetch real user + rooms when signed in
@@ -559,13 +621,35 @@ export default function EspaceClient() {
       ]).then(([u, rooms]) => {
         if (u) {
           setApiUser(u);
-          // Sync to localStorage as cache for offline/ssr fallback
           localStorage.setItem('aa_user_roles', JSON.stringify(u.roles));
         }
         setApiRooms(rooms);
       });
     });
   }, [isSignedIn, getToken]);
+
+  // Fetch role-specific data once user roles are known
+  useEffect(() => {
+    if (!isSignedIn || !apiUser) return;
+    getToken().then((token) => {
+      if (!token) return;
+      const roles = apiUser.roles;
+      if (roles.includes('LOCATAIRE')) {
+        api.get<Listing[]>('/listings/favorites', token).then(setApiFavorites).catch(() => setApiFavorites([]));
+      }
+      if (roles.includes('BAILLEUR') || roles.includes('PRO_AGENCE')) {
+        api.get<{ data: Listing[] }>('/listings/mine', token).then((r) => setApiMyListings(r.data)).catch(() => setApiMyListings([]));
+        api.get<Booking[]>('/bookings/received', token).catch(() => [] as Booking[]).then(setApiBookings);
+      }
+      if (roles.includes('ADMIN')) {
+        api.get<AdminStats>('/analytics/admin', token).then(setApiAdminStats).catch(() => setApiAdminStats(null));
+        api.get<Verification[]>('/verifications/pending', token).then(setApiVerifQueue).catch(() => setApiVerifQueue([]));
+      }
+      if (roles.includes('AGENT_TERRAIN')) {
+        api.get<Verification[]>('/verifications/pending', token).then(setApiVerifQueue).catch(() => setApiVerifQueue([]));
+      }
+    });
+  }, [isSignedIn, apiUser, getToken]);
 
   if (!mounted) {
     return (
@@ -586,15 +670,15 @@ export default function EspaceClient() {
                    : demoRole === 'agent'    ? DEMO_AGENT
                    :                          DEMO_LOCATAIRE;
     const emptyRooms: MessageRoom[] = [];
-    if (demoUser.roles.includes('admin'))    return <AdminView     userName={demoUser.name} initials={demoUser.initials} t={t} />;
-    if (demoUser.roles.includes('agent'))    return <AgentView     userName={demoUser.name} initials={demoUser.initials} t={t} />;
-    if (demoUser.roles.length > 1)           return <DualRoleView  userName={demoUser.name} initials={demoUser.initials} t={t} rooms={emptyRooms} />;
-    if (demoUser.roles.includes('bailleur')) return <BailleurView  userName={demoUser.name} initials={demoUser.initials} t={t} rooms={emptyRooms} />;
-    return                                          <LocataireView userName={demoUser.name} initials={demoUser.initials} t={t} rooms={emptyRooms} />;
+    if (demoUser.roles.includes('admin'))    return <AdminView     userName={demoUser.name} initials={demoUser.initials} t={t} stats={null} verifQueue={[]} />;
+    if (demoUser.roles.includes('agent'))    return <AgentView     userName={demoUser.name} initials={demoUser.initials} t={t} verifQueue={[]} />;
+    if (demoUser.roles.length > 1)           return <DualRoleView  userName={demoUser.name} initials={demoUser.initials} t={t} rooms={emptyRooms} favorites={[]} myListings={[]} bookings={[]} />;
+    if (demoUser.roles.includes('bailleur')) return <BailleurView  userName={demoUser.name} initials={demoUser.initials} t={t} rooms={emptyRooms} myListings={[]} bookings={[]} />;
+    return                                          <LocataireView userName={demoUser.name} initials={demoUser.initials} t={t} rooms={emptyRooms} favorites={[]} />;
   }
 
   /* ── Real Clerk user ── */
-  const realName    = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Utilisateur';
+  const realName     = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'Utilisateur';
   const realInitials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase() || '?';
 
   // Use API roles if loaded; fall back to localStorage cache while loading
@@ -609,9 +693,12 @@ export default function EspaceClient() {
   );
   if (userRoles.length === 0) return <OnboardingView userName={realName} t={t} />;
 
-  const hasBailleur  = userRoles.includes('BAILLEUR');
+  if (userRoles.includes('ADMIN'))        return <AdminView    userName={realName} initials={realInitials} t={t} stats={apiAdminStats} verifQueue={apiVerifQueue} />;
+  if (userRoles.includes('AGENT_TERRAIN')) return <AgentView   userName={realName} initials={realInitials} t={t} verifQueue={apiVerifQueue} />;
+
+  const hasBailleur  = userRoles.includes('BAILLEUR') || userRoles.includes('PRO_AGENCE');
   const hasLocataire = userRoles.includes('LOCATAIRE');
-  if (hasBailleur && hasLocataire) return <DualRoleView   userName={realName} initials={realInitials} t={t} rooms={apiRooms} currentUserId={userId ?? undefined} />;
-  if (hasBailleur)                 return <BailleurView   userName={realName} initials={realInitials} t={t} rooms={apiRooms} currentUserId={userId ?? undefined} />;
-  return                                  <LocataireView  userName={realName} initials={realInitials} t={t} rooms={apiRooms} currentUserId={userId ?? undefined} />;
+  if (hasBailleur && hasLocataire) return <DualRoleView  userName={realName} initials={realInitials} t={t} rooms={apiRooms} currentUserId={userId ?? undefined} favorites={apiFavorites} myListings={apiMyListings} bookings={apiBookings} />;
+  if (hasBailleur)                 return <BailleurView  userName={realName} initials={realInitials} t={t} rooms={apiRooms} currentUserId={userId ?? undefined} myListings={apiMyListings} bookings={apiBookings} />;
+  return                                  <LocataireView userName={realName} initials={realInitials} t={t} rooms={apiRooms} currentUserId={userId ?? undefined} favorites={apiFavorites} />;
 }

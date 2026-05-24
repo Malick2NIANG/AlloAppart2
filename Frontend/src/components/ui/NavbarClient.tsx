@@ -71,6 +71,7 @@ export default function NavbarClient({ locale, labels }: Props) {
 
   /* ── Demo mode ───────────────────────────────────────────── */
   useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
     const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
     if (stored && ['visitor', 'locataire', 'bailleur', 'dual', 'admin', 'agent'].includes(stored)) setDemoRole(stored);
     const onDemoChange = (e: CustomEvent<DemoRole>) => setDemoRole(e.detail);

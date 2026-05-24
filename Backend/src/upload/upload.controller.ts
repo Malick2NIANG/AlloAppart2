@@ -7,14 +7,13 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '@prisma/client';
 import { UploadService } from './upload.service';
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 const MAX_SIZE_BYTES = 8 * 1024 * 1024; // 8 MB
 
-@Roles(Role.BAILLEUR, Role.PRO_AGENCE, Role.ADMIN)
+// Tout utilisateur authentifié peut uploader des images.
+// La restriction BAILLEUR s'applique à la création d'annonce (ListingsController).
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}

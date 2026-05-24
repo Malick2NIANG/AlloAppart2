@@ -11,8 +11,11 @@ export default function AgentVerificationsPage() {
   const [verifications, setVerifications] = useState<Verification[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [rejectModal, setRejectModal] = useState<{ id: string } | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
+  const [rejectModal,   setRejectModal]   = useState<{ id: string } | null>(null);
+  const [rejectReason,  setRejectReason]  = useState('');
+  const [completeModal, setCompleteModal] = useState<{ id: string } | null>(null);
+  const [completeNotes,    setCompleteNotes]    = useState('');
+  const [completeReportUrl, setCompleteReportUrl] = useState('');
 
   useEffect(() => {
     getToken().then((token) => {
@@ -42,6 +45,17 @@ export default function AgentVerificationsPage() {
     await handleAction(rejectModal.id, 'reject', { reason: rejectReason });
     setRejectModal(null);
     setRejectReason('');
+  };
+
+  const submitComplete = async () => {
+    if (!completeModal) return;
+    await handleAction(completeModal.id, 'complete', {
+      notes:     completeNotes.trim() || undefined,
+      reportUrl: completeReportUrl.trim() || undefined,
+    });
+    setCompleteModal(null);
+    setCompleteNotes('');
+    setCompleteReportUrl('');
   };
 
   if (loading) {
@@ -111,7 +125,7 @@ export default function AgentVerificationsPage() {
 
                   {v.status === 'IN_PROGRESS' && (
                     <button
-                      onClick={() => handleAction(v.id, 'complete', {})}
+                      onClick={() => setCompleteModal({ id: v.id })}
                       disabled={actionLoading === v.id + 'complete'}
                       className="text-xs font-medium bg-green-600 hover:bg-green-700 text-white rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
                     >
@@ -165,6 +179,59 @@ export default function AgentVerificationsPage() {
                 className="text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50"
               >
                 Confirmer le rejet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Complete modal */}
+      {completeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-text mb-4">
+              <i className="fa-solid fa-circle-check text-green-600 mr-2" />
+              Terminer la vérification
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-sub mb-1">
+                  Notes de rapport <span className="text-sub">(optionnel)</span>
+                </label>
+                <textarea
+                  className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold-dark resize-none"
+                  rows={3}
+                  placeholder="Observations, état du bien, remarques importantes..."
+                  value={completeNotes}
+                  onChange={(e) => setCompleteNotes(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-sub mb-1">
+                  URL du rapport <span className="text-sub">(optionnel)</span>
+                </label>
+                <input
+                  type="url"
+                  className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold-dark"
+                  placeholder="https://drive.google.com/..."
+                  value={completeReportUrl}
+                  onChange={(e) => setCompleteReportUrl(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5 justify-end">
+              <button
+                onClick={() => { setCompleteModal(null); setCompleteNotes(''); setCompleteReportUrl(''); }}
+                className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={submitComplete}
+                disabled={actionLoading !== null}
+                className="text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50"
+              >
+                {actionLoading ? <i className="fa-solid fa-spinner fa-spin" /> : 'Confirmer'}
               </button>
             </div>
           </div>

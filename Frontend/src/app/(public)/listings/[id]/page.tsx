@@ -7,7 +7,6 @@ import ListingHeroCarousel from './ListingHeroCarousel';
 import ListingContactCard from './ListingContactCard';
 import ListingBookingCard from './ListingBookingCard';
 import ListingReviewForm from './ListingReviewForm';
-import { getMockListing, MOCK_LISTINGS } from '@/lib/mockListings';
 import { type Listing, priceToNumber, ownerFullName } from '@/types/listing';
 
 const AMENITY_ICONS: Record<string, string> = {
@@ -57,7 +56,6 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   const [t, locale] = await Promise.all([getTranslations('detail'), getLocale()]);
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
 
-  /* Try API first, fall back to mock data */
   let listing: Listing | null = null;
   let similar: Listing[] = [];
   try {
@@ -69,12 +67,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     listing = data;
     similar = Array.isArray(sim) ? sim : [];
   } catch {
-    listing = getMockListing(id) as unknown as Listing | null;
-    if (listing) {
-      similar = (MOCK_LISTINGS as unknown as Listing[])
-        .filter((l) => l.id !== id && l.type === listing!.type)
-        .slice(0, 3);
-    }
+    notFound();
   }
 
   if (!listing) notFound();
@@ -244,7 +237,6 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               listingId={listing.id}
               price={price}
               landlordName={ownerFullName(listing.owner)}
-              landlordPhone={listing.owner?.phone}
               perMonth={t('perMonth')}
               priceRaw={priceToNumber(listing.price)}
               numLocale={numLocale}

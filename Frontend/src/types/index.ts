@@ -6,7 +6,7 @@ export type ListingType = 'APPARTEMENT' | 'VILLA' | 'STUDIO' | 'CHAMBRE' | 'BURE
 export type ListingStatus = 'DRAFT' | 'ACTIVE' | 'RENTED' | 'SUSPENDED';
 
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
-export type EscrowStatus = 'HELD' | 'RELEASED' | 'REFUNDED';
+export type EscrowStatus = 'AWAITING_PAYMENT' | 'HELD' | 'RELEASED' | 'REFUNDED';
 
 export type VerifStatus = 'REQUESTED' | 'SCHEDULED' | 'IN_PROGRESS' | 'DONE' | 'REJECTED';
 export type AuditType = 'BASIC' | 'FULL';
@@ -47,7 +47,8 @@ export interface Listing {
   images: string[];
   amenities: string[];
   ownerId: string;
-  owner?: Pick<User, 'id' | 'firstName' | 'lastName' | 'phone'>;
+  owner?: Pick<User, 'id' | 'firstName' | 'lastName'>;
+  _count?: { reviews: number };
   verification?: Verification;
   reviews?: Review[];
   createdAt: string;
@@ -81,11 +82,22 @@ export interface Booking {
   updatedAt: string;
 }
 
+export interface AdminStats {
+  totalUsers: number;
+  totalListings: number;
+  publishedListings: number;
+  totalBookings: number;
+  confirmedBookings: number;
+  totalRevenue: string;
+  pendingVerifications: number;
+  completedVerifications: number;
+}
+
 export interface Verification {
   id: string;
   listingId: string;
   listing?: Listing;
-  agentId: string;
+  agentId?: string | null;
   agent?: User;
   status: VerifStatus;
   auditType: AuditType;
