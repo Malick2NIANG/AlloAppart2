@@ -61,15 +61,14 @@ export class PaymentsService {
   }
 
   async handleWebhook(payload: CinetpayWebhookDto) {
-    const secret = this.config.get<string>('CINETPAY_SECRET_KEY') ?? '';
+    const secret = this.config.get<string>('CINETPAY_SECRET_KEY');
+    if (!secret) throw new BadRequestException('CINETPAY_SECRET_KEY manquant');
 
-    if (secret) {
-      const expected = createHmac('sha256', secret)
-        .update(payload.cpm_site_id + payload.cpm_trans_id + payload.cpm_trans_date)
-        .digest('hex');
-      if (expected !== payload.signature) {
-        throw new BadRequestException('Signature invalide');
-      }
+    const expected = createHmac('sha256', secret)
+      .update(payload.cpm_site_id + payload.cpm_trans_id + payload.cpm_trans_date)
+      .digest('hex');
+    if (expected !== payload.signature) {
+      throw new BadRequestException('Signature invalide');
     }
 
     const booking = await this.prisma.booking.findFirst({

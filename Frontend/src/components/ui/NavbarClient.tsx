@@ -29,8 +29,6 @@ const LISTING_TYPES = [
   { key: 'VILLA',       icon: 'fa-house-user',     fr: 'Villas',       en: 'Villas'      },
   { key: 'BUREAU',      icon: 'fa-briefcase',      fr: 'Bureaux',      en: 'Offices'     },
   { key: 'CHAMBRE',     icon: 'fa-door-open',      fr: 'Chambres',     en: 'Rooms'       },
-  { key: 'LOCAL',       icon: 'fa-store',          fr: 'Locaux comm.', en: 'Commercial'  },
-  { key: 'TERRAIN',     icon: 'fa-mountain-sun',   fr: 'Terrains',     en: 'Land'        },
 ];
 
 

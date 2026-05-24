@@ -1,4 +1,4 @@
-﻿import { Body, Controller, Delete, ForbiddenException, Get, Headers, HttpCode, Param, Patch, Post, Query, RawBodyRequest, Req } from '@nestjs/common';
+﻿import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Query, RawBodyRequest, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -28,14 +28,17 @@ export class AuthController {
     );
   }
 
-  // Appelé par le client après inscription Clerk — synchronise le compte en BDD
-  // @Public() retiré intentionnellement : le guard crée l'utilisateur automatiquement via
-  // l'API Clerk lors de la première requête authentifiée. On vérifie que le clerkId
-  // soumis correspond bien au token JWT pour éviter toute injection de compte.
+  // Appelé par le client après inscription Clerk — synchronise le compte en BDD.
+  // Les données viennent du user authentifié (trusté), pas du body client.
   @Post('sync')
-  sync(@CurrentUser() user: User, @Body() dto: SyncUserDto) {
-    if (dto.clerkId !== user.clerkId) throw new ForbiddenException('clerkId mismatch');
-    return this.authService.syncUser(dto);
+  sync(@CurrentUser() user: User) {
+    return this.authService.syncUser({
+      clerkId: user.clerkId,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone ?? undefined,
+    });
   }
 
   @Get('me')
