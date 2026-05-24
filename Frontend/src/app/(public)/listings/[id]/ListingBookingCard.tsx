@@ -49,12 +49,11 @@ export default function ListingBookingCard({ listingId, pricePerMonth, numLocale
     try {
       const token = await getToken();
 
-      // Étape 1 : créer la réservation
+      // Étape 1 : créer la réservation — totalAmount calculé côté serveur
       const booking = await api.post<{ id: string }>('/bookings', {
         listingId,
         startDate,
         ...(endDate ? { endDate } : {}),
-        totalAmount,
       }, token ?? undefined);
 
       // Étape 2 : initier le paiement CinetPay

@@ -1,5 +1,4 @@
-﻿import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+﻿import { IsDateString, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateBookingDto {
   @IsUUID()
@@ -12,9 +11,4 @@ export class CreateBookingDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
-
-  @IsNumber()
-  @Min(0)
-  @Type(() => Number)
-  totalAmount!: number;
 }

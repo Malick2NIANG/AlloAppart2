@@ -1,6 +1,6 @@
 ﻿import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { BookingStatus, ListingStatus, Role, User } from '@prisma/client';
+import { BookingStatus, ListingStatus, Role, User, VerifStatus } from '@prisma/client';
 
 @Injectable()
 export class AnalyticsService {
@@ -57,7 +57,7 @@ export class AnalyticsService {
       totalListings,
       publishedListings,
       totalBookings,
-      completedBookings,
+      revenueAgg,
       pendingVerifications,
       confirmedBookings,
       completedVerifications,
@@ -66,20 +66,20 @@ export class AnalyticsService {
       this.prisma.listing.count(),
       this.prisma.listing.count({ where: { status: ListingStatus.ACTIVE } }),
       this.prisma.booking.count(),
-      this.prisma.booking.findMany({
+      this.prisma.booking.aggregate({
         where: { status: BookingStatus.COMPLETED },
-        select: { totalAmount: true },
+        _sum: { totalAmount: true },
       }),
       this.prisma.verification.count({
-        where: { status: { in: ['SCHEDULED', 'IN_PROGRESS'] } },
+        where: { status: { in: [VerifStatus.SCHEDULED, VerifStatus.IN_PROGRESS] } },
       }),
       this.prisma.booking.count({
         where: { status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] } },
       }),
-      this.prisma.verification.count({ where: { status: 'DONE' } }),
+      this.prisma.verification.count({ where: { status: VerifStatus.DONE } }),
     ]);
 
-    const totalRevenue = completedBookings.reduce((sum, b) => sum + Number(b.totalAmount), 0);
+    const totalRevenue = Number(revenueAgg._sum.totalAmount ?? 0);
 
     return {
       totalUsers,

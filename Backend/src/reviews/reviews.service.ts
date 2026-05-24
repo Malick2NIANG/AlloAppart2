@@ -1,5 +1,6 @@
 ﻿import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
@@ -27,6 +28,11 @@ export class ReviewsService {
     if (booking.listingId !== dto.listingId) {
       throw new BadRequestException('La réservation ne correspond pas à cette annonce');
     }
+
+    const existing = await this.prisma.review.findFirst({
+      where: { bookingId: dto.bookingId },
+    });
+    if (existing) throw new ConflictException('Un avis existe déjà pour cette réservation');
 
     return this.prisma.review.create({
       data: {

@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsBoolean, IsString } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsBoolean, IsString, Max } from 'class-validator';
 import { ListingType } from '@prisma/client';
 import { Type, Transform } from 'class-transformer';
 
@@ -41,6 +41,7 @@ export class FilterListingsDto {
 
   @IsOptional()
   @IsNumber()
+  @Max(100)
   @Type(() => Number)
   limit?: number = 20;
 }

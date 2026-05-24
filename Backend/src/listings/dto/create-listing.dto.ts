@@ -5,6 +5,8 @@
   IsOptional,
   IsString,
   IsArray,
+  IsUrl,
+  MaxLength,
   Min,
 } from 'class-validator';
 import { ListingType } from '@prisma/client';
@@ -13,10 +15,12 @@ import { Type } from 'class-transformer';
 export class CreateListingDto {
   @IsNotEmpty()
   @IsString()
+  @MaxLength(120)
   title!: string;
 
   @IsNotEmpty()
   @IsString()
+  @MaxLength(5000)
   description!: string;
 
   @IsNumber()
@@ -69,7 +73,7 @@ export class CreateListingDto {
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @IsUrl({}, { each: true })
   images?: string[];
 
   @IsOptional()

@@ -12,8 +12,24 @@ export class UploadService {
     });
   }
 
+  private hasMagicBytes(buf: Buffer): boolean {
+    if (buf.length < 12) return false;
+    // JPEG: FF D8 FF
+    if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return true;
+    // PNG: 89 50 4E 47
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return true;
+    // WebP: RIFF????WEBP
+    if (buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP') return true;
+    // HEIC/HEIF: ftyp box at offset 4
+    if (buf.slice(4, 8).toString('ascii') === 'ftyp') return true;
+    return false;
+  }
+
   async uploadFile(file: Express.Multer.File): Promise<{ url: string; publicId: string }> {
     if (!file) throw new BadRequestException('Aucun fichier fourni');
+    if (!this.hasMagicBytes(file.buffer)) {
+      throw new BadRequestException('Fichier invalide : signature non reconnue');
+    }
 
     const cloudName = this.config.get<string>('CLOUDINARY_CLOUD_NAME');
     if (!cloudName) throw new BadRequestException('Cloudinary non configuré');

@@ -13,16 +13,33 @@ export class BookingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(tenantId: string, dto: CreateBookingDto) {
+    const listing = await this.prisma.listing.findUniqueOrThrow({
+      where: { id: dto.listingId },
+      select: { price: true },
+    });
+
+    const startDate = new Date(dto.startDate);
+    const endDate = dto.endDate ? new Date(dto.endDate) : null;
+
+    // Server-side month calculation — never trust client-supplied amounts
+    const months = endDate
+      ? Math.max(
+          1,
+          (endDate.getFullYear() - startDate.getFullYear()) * 12
+            + (endDate.getMonth() - startDate.getMonth())
+            + (endDate.getDate() > startDate.getDate() ? 1 : 0),
+        )
+      : 1;
+    const totalAmount = Number(listing.price) * months;
+
     return this.prisma.booking.create({
       data: {
         listingId: dto.listingId,
         tenantId,
-        startDate: new Date(dto.startDate),
-        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
-        totalAmount: dto.totalAmount,
+        startDate,
+        endDate: endDate ?? undefined,
+        totalAmount,
         status: BookingStatus.PENDING,
-        // escrowStatus relies on schema default (HELD); will be set explicitly by the
-        // CinetPay webhook once payment is confirmed. No payment has occurred yet here.
       },
       include: { listing: true, tenant: true },
     });

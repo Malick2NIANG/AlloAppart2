@@ -1,4 +1,5 @@
 ﻿import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Query, RawBodyRequest, Req } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -13,6 +14,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   // Webhook Clerk (production) — vérification de signature via svix
+  @SkipThrottle()
   @Public()
   @HttpCode(200)
   @Post('webhook')

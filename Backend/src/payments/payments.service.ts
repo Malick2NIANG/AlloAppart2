@@ -104,6 +104,10 @@ export class PaymentsService {
   }
 
   async release(bookingId: string) {
+    const booking = await this.prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+    if (booking.escrowStatus !== EscrowStatus.HELD) {
+      throw new BadRequestException(`Impossible de libérer un escrow en statut ${booking.escrowStatus}`);
+    }
     return this.prisma.booking.update({
       where: { id: bookingId },
       data: { escrowStatus: EscrowStatus.RELEASED },
@@ -111,6 +115,10 @@ export class PaymentsService {
   }
 
   async refund(bookingId: string) {
+    const booking = await this.prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+    if (booking.escrowStatus === EscrowStatus.RELEASED || booking.escrowStatus === EscrowStatus.REFUNDED) {
+      throw new BadRequestException(`Impossible de rembourser un escrow en statut ${booking.escrowStatus}`);
+    }
     return this.prisma.booking.update({
       where: { id: bookingId },
       data: { escrowStatus: EscrowStatus.REFUNDED },

@@ -62,7 +62,7 @@ export class ListingsService {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
       include: {
-        owner: { select: { id: true, firstName: true, lastName: true, phone: true } },
+        owner: { select: { id: true, firstName: true, lastName: true } },
         reviews: { include: { author: { select: { id: true, firstName: true, lastName: true } } } },
         verification: true,
       },
@@ -124,12 +124,13 @@ export class ListingsService {
 
     if (listing.ownerId !== user.id) throw new ForbiddenException('Non autorisé');
 
+    const BOOST_MAX = 100;
     const boostUntil = new Date();
     boostUntil.setDate(boostUntil.getDate() + 30);
 
     return this.prisma.listing.update({
       where: { id },
-      data: { boostUntil, boostScore: listing.boostScore + 10 },
+      data: { boostUntil, boostScore: Math.min(listing.boostScore + 10, BOOST_MAX) },
     });
   }
 
