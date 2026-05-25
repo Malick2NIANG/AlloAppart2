@@ -284,8 +284,7 @@ export default function PublierPage() {
 
   /* ── Avancement étape ── */
   const advance = async () => {
-    // En mode démo, step 4 (photos) est verrouillé : on passe directement
-    const valid = (isDemo && step === 4) ? true : await trigger(STEP_FIELDS[step]);
+    const valid = await trigger(STEP_FIELDS[step]);
     if (valid) {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(values));
       setStep((s) => s + 1);
@@ -490,28 +489,12 @@ export default function PublierPage() {
             {step === 4 && (
               <>
                 <StepHeader title="Photos" sub="Ajoutez au moins une photo de votre bien (jpg, png, webp — 8 Mo max)" />
-                {isDemo ? (
-                  <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50 px-6 py-10 text-center">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
-                      <i className="fa-solid fa-lock text-xl text-amber-600" />
-                    </div>
-                    <p className="text-sm font-semibold text-amber-700">Upload désactivé en mode démo</p>
-                    <p className="text-xs text-amber-600 max-w-xs">
-                      Créez un compte pour uploader de vraies photos. En mode démo l&apos;annonce ne sera pas enregistrée.
-                    </p>
-                    <a href="/sign-up"
-                      className="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-500 text-white px-5 py-2 text-xs font-semibold hover:bg-amber-600 transition-colors">
-                      <i className="fa-solid fa-user-plus text-xs" /> Créer un compte
-                    </a>
-                  </div>
-                ) : (
-                  <ImageUploadZone
-                    images={values.images || []}
-                    onChange={(imgs) => setValue('images', imgs, { shouldValidate: true })}
-                    getToken={getToken}
-                  />
-                )}
-                {!isDemo && errors.images && (
+                <ImageUploadZone
+                  images={values.images || []}
+                  onChange={(imgs) => setValue('images', imgs, { shouldValidate: true })}
+                  getToken={getToken}
+                />
+                {errors.images && (
                   <p className="flex items-center gap-1.5 text-xs text-red-500">
                     <i className="fa-solid fa-circle-exclamation" /> Au moins une photo est requise
                   </p>
