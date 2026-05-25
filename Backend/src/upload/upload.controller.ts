@@ -25,7 +25,10 @@ export class UploadController {
       limits: { fileSize: MAX_SIZE_BYTES },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_MIME.includes(file.mimetype)) {
-          return cb(new BadRequestException('Format non supporté (jpg, png, webp)'), false);
+          return cb(
+            new BadRequestException('Format non supporté (jpg, png, webp)'),
+            false,
+          );
         }
         cb(null, true);
       },

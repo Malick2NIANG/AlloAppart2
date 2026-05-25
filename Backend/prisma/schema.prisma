@@ -112,6 +112,7 @@ model MessageRoom {
   messages     Message[]
   participants User[]    @relation("RoomParticipants")
 
+  @@index([listingId])
   @@map("message_rooms")
 }
 
@@ -125,6 +126,8 @@ model Message {
   room      MessageRoom @relation(fields: [roomId], references: [id])
   sender    User        @relation(fields: [senderId], references: [id])
 
+  @@index([roomId])
+  @@index([senderId])
   @@map("messages")
 }
 
@@ -140,6 +143,8 @@ model Review {
   booking   Booking  @relation(fields: [bookingId], references: [id])
   listing   Listing  @relation(fields: [listingId], references: [id])
 
+  @@index([listingId])
+  @@index([authorId])
   @@map("reviews")
 }
 

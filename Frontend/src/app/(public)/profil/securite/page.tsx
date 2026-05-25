@@ -33,6 +33,7 @@ export default function SecuritePage() {
 
   useEffect(() => {
     const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydration on mount
     if (stored && ['visitor', 'locataire', 'bailleur', 'dual', 'admin', 'agent'].includes(stored)) setDemoRole(stored);
     setMounted(true);
     const handler = (e: Event) => setDemoRole((e as CustomEvent<DemoRole>).detail);
@@ -42,6 +43,7 @@ export default function SecuritePage() {
 
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 2FA state synced from user object
       setTotpEnabled(user.twoFactorEnabled ?? false);
     }
   }, [user]);
@@ -228,6 +230,7 @@ export default function SecuritePage() {
               <p className="text-xs text-sub">{t('totpScan')}</p>
               {/* QR code via Google Charts API */}
               <div className="flex justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element -- external QR API, next/image requires configured domains */}
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(totpUri)}`}
                   alt="QR code 2FA"

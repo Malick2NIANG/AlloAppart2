@@ -9,6 +9,7 @@ export default function ThemeToggle() {
   const router = useRouter();
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- DOM read on mount for theme init
     setDark(document.documentElement.classList.contains('dark'));
   }, []);
 

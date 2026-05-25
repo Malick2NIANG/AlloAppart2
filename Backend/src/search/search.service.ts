@@ -18,7 +18,8 @@ export class SearchService {
     private readonly config: ConfigService,
   ) {
     this.meilisearch = new MeiliSearch({
-      host: this.config.get<string>('MEILISEARCH_HOST') ?? 'http://localhost:7700',
+      host:
+        this.config.get<string>('MEILISEARCH_HOST') ?? 'http://localhost:7700',
       apiKey: this.config.get<string>('MEILISEARCH_MASTER_KEY'),
     });
   }
@@ -55,13 +56,17 @@ export class SearchService {
         type: listing.type,
         city: listing.city,
         region: listing.region,
-        price: typeof listing.price === 'number' ? listing.price : listing.price.toNumber(),
+        price:
+          typeof listing.price === 'number'
+            ? listing.price
+            : listing.price.toNumber(),
         isVerified: listing.isVerified,
         boostScore: listing.boostScore,
         createdAt: listing.createdAt.toISOString(),
-        _geo: listing.lat != null && listing.lng != null
-          ? { lat: listing.lat, lng: listing.lng }
-          : undefined,
+        _geo:
+          listing.lat != null && listing.lng != null
+            ? { lat: listing.lat, lng: listing.lng }
+            : undefined,
       },
     ]);
   }

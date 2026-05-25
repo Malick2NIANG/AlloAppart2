@@ -17,7 +17,7 @@ interface Props {
   numLocale: string;
 }
 
-export default function ListingContactCard({ listingId, price, landlordName, landlordPhone, perMonth, priceRaw, numLocale }: Props) {
+export default function ListingContactCard({ listingId, landlordName, landlordPhone, perMonth, priceRaw, numLocale }: Props) {
   const { isSignedIn } = useUser();
   const { getToken } = useAuth();
   const router   = useRouter();

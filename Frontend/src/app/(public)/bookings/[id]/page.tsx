@@ -40,6 +40,7 @@ function BookingResultContent() {
       router.push(`/sign-in?redirect_url=${encodeURIComponent(window.location.href)}`);
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async data fetch triggered by effect
     fetchBooking();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isSignedIn]);

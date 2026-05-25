@@ -53,11 +53,33 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Poll every 3s
+  // Poll with exponential backoff
   useEffect(() => {
-    const id = setInterval(() => fetchMessages(true), 3000);
-    return () => clearInterval(id);
-  }, [fetchMessages]);
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let delay = 3000;
+    const MAX_DELAY = 30000;
+    let lastCount = messages.length;
+
+    const poll = async () => {
+      const token = await getToken();
+      if (!token) return;
+      try {
+        const data = await api.get<Message[]>(`/messages/rooms/${roomId}`, token);
+        const reversed = [...data].reverse();
+        if (reversed.length !== lastCount) {
+          delay = 3000;
+          lastCount = reversed.length;
+          setMessages(reversed);
+        } else {
+          delay = Math.min(delay * 1.5, MAX_DELAY);
+        }
+      } catch {}
+      timeoutId = setTimeout(poll, delay);
+    };
+
+    timeoutId = setTimeout(poll, delay);
+    return () => clearTimeout(timeoutId);
+  }, [roomId, getToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSend = async () => {
     const text = input.trim();

@@ -73,7 +73,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   if (!listing) notFound();
 
   const price = `${priceToNumber(listing.price).toLocaleString(numLocale)} FCFA/${t('perMonth')}`;
-  const isNew = (Date.now() - new Date(listing.createdAt).getTime()) < 10 * 24 * 60 * 60 * 1000;
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  const isNew = (now - new Date(listing.createdAt).getTime()) < 10 * 24 * 60 * 60 * 1000;
 
   const CARD = 'bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-6 md:p-8 shadow-lg';
 
@@ -147,6 +149,39 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 </div>
               ))}
             </div>
+
+            {/* AlloVérifié */}
+            {listing.isVerified && listing.verification && (
+              <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <i className="fa-solid fa-shield-halved text-green-700" />
+                  <span className="font-semibold text-green-800 text-sm">
+                    AlloVérifié — Audit {listing.verification.auditType === 'FULL' ? 'Complet' : 'Basique'}
+                  </span>
+                  {listing.verification.completedAt && (
+                    <span className="ml-auto text-xs text-green-600">
+                      {new Date(listing.verification.completedAt).toLocaleDateString('fr-SN', {
+                        day: '2-digit', month: 'long', year: 'numeric',
+                      })}
+                    </span>
+                  )}
+                </div>
+                {listing.verification.notes && (
+                  <p className="text-sm text-green-700 leading-relaxed">{listing.verification.notes}</p>
+                )}
+                {listing.verification.reportUrl && (
+                  <a
+                    href={listing.verification.reportUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-green-700 hover:text-green-900 underline underline-offset-2"
+                  >
+                    <i className="fa-solid fa-file-lines text-[10px]" />
+                    Voir le rapport d&apos;audit complet
+                  </a>
+                )}
+              </div>
+            )}
 
             {/* Description */}
             <div className="mt-6">

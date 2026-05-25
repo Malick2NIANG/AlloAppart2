@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { getTranslations, getLocale } from 'next-intl/server';
+import { auth } from '@clerk/nextjs/server';
 import FavoriteButton from '@/components/ui/FavoriteButton';
 import { priceToNumber, type Listing, type PaginatedResponse } from '@/types';
 
@@ -41,6 +42,24 @@ export default async function HomePage() {
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
   const formatPrice = (n: number | string) =>
     priceToNumber(n).toLocaleString(numLocale) + ' FCFA/' + t('perMonth');
+
+  const { getToken } = await auth();
+  const token = await getToken();
+  let favoriteIds: string[] = [];
+  if (token) {
+    try {
+      const res = await fetch(`${API_URL}/listings/favorites`, {
+        headers: { Authorization: `Bearer ${token}` },
+        next: { revalidate: 0 },
+      });
+      if (res.ok) {
+        const favs = (await res.json()) as { id: string }[];
+        favoriteIds = favs.map((f) => f.id);
+      }
+    } catch {
+      favoriteIds = [];
+    }
+  }
 
   return (
     <main>
@@ -232,7 +251,7 @@ export default async function HomePage() {
                       </span>
                     )}
                     {/* Bouton favori */}
-                    <FavoriteButton listingId={l.id} className="absolute top-3 right-3" />
+                    <FavoriteButton listingId={l.id} initialFavorite={favoriteIds.includes(l.id)} className="absolute top-3 right-3" />
                   </div>
 
                   {/* Corps */}
@@ -242,6 +261,15 @@ export default async function HomePage() {
                       <i className="fa-solid fa-location-dot text-gold-dark text-xs" />
                       {l.city}
                     </p>
+                    {l.avgRating != null && (
+                      <div className="mt-1 flex items-center gap-1 text-xs text-amber-500 font-medium">
+                        <i className="fa-solid fa-star text-[10px]" />
+                        <span>{l.avgRating.toFixed(1)}</span>
+                        {l._count && (
+                          <span className="text-sub font-normal">({l._count.reviews})</span>
+                        )}
+                      </div>
+                    )}
                     {/* Infos */}
                     <div className="mt-3 flex items-center gap-3 text-sm text-sub">
                       {l.beds != null && (

@@ -82,7 +82,9 @@ export class AuthService {
 
   // Activation du rôle BAILLEUR depuis le dashboard — sans recréer de compte
   async activateBailleur(userId: string): Promise<User> {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
 
     if (user.roles.includes(Role.BAILLEUR)) {
       return user; // Déjà bailleur, rien à faire
@@ -95,14 +97,21 @@ export class AuthService {
   }
 
   // Création d'un AGENT_TERRAIN par l'ADMIN uniquement (pas de formulaire public)
-  async createAgentTerrain(adminId: string, dto: CreateAgentDto): Promise<User> {
-    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+  async createAgentTerrain(
+    adminId: string,
+    dto: CreateAgentDto,
+  ): Promise<User> {
+    const admin = await this.prisma.user.findUniqueOrThrow({
+      where: { id: adminId },
+    });
 
     if (!admin.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Réservé aux administrateurs');
     }
 
-    const existing = await this.prisma.user.findUnique({ where: { clerkId: dto.clerkId } });
+    const existing = await this.prisma.user.findUnique({
+      where: { clerkId: dto.clerkId },
+    });
     if (existing) throw new ConflictException('Cet agent existe déjà');
 
     return this.prisma.user.create({
@@ -170,8 +179,12 @@ export class AuthService {
         data: {
           ...(primaryEmail && { email: primaryEmail.email_address }),
           ...(data.first_name && { firstName: data.first_name }),
-          ...(data.last_name !== undefined && { lastName: data.last_name ?? '' }),
-          ...(data.phone_numbers?.[0] && { phone: data.phone_numbers[0].phone_number }),
+          ...(data.last_name !== undefined && {
+            lastName: data.last_name ?? '',
+          }),
+          ...(data.phone_numbers?.[0] && {
+            phone: data.phone_numbers[0].phone_number,
+          }),
         },
       });
       this.logger.log(`Webhook user.updated → ${data.id}`);
@@ -192,9 +205,16 @@ export class AuthService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         select: {
-          id: true, clerkId: true, email: true, phone: true,
-          firstName: true, lastName: true, roles: true,
-          isVerified: true, createdAt: true, updatedAt: true,
+          id: true,
+          clerkId: true,
+          email: true,
+          phone: true,
+          firstName: true,
+          lastName: true,
+          roles: true,
+          isVerified: true,
+          createdAt: true,
+          updatedAt: true,
         },
       }),
       this.prisma.user.count(),
@@ -203,14 +223,21 @@ export class AuthService {
   }
 
   // Désactivation du rôle BAILLEUR (admin)
-  async deactivateBailleur(targetUserId: string, adminId: string): Promise<User> {
-    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+  async deactivateBailleur(
+    targetUserId: string,
+    adminId: string,
+  ): Promise<User> {
+    const admin = await this.prisma.user.findUniqueOrThrow({
+      where: { id: adminId },
+    });
 
     if (!admin.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Réservé aux administrateurs');
     }
 
-    const target = await this.prisma.user.findUnique({ where: { id: targetUserId } });
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
     if (!target) throw new NotFoundException('Utilisateur introuvable');
 
     const newRoles = target.roles.filter((r) => r !== Role.BAILLEUR);

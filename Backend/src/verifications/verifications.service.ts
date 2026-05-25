@@ -39,7 +39,15 @@ export class VerificationsService {
 
   async findPending() {
     return this.prisma.verification.findMany({
-      where: { status: { in: [VerifStatus.REQUESTED, VerifStatus.SCHEDULED, VerifStatus.IN_PROGRESS] } },
+      where: {
+        status: {
+          in: [
+            VerifStatus.REQUESTED,
+            VerifStatus.SCHEDULED,
+            VerifStatus.IN_PROGRESS,
+          ],
+        },
+      },
       include: { listing: true, agent: true },
       orderBy: { scheduledAt: 'asc' },
     });
@@ -53,7 +61,9 @@ export class VerificationsService {
   }
 
   async start(id: string, agentId: string) {
-    const v = await this.prisma.verification.findUniqueOrThrow({ where: { id } });
+    const v = await this.prisma.verification.findUniqueOrThrow({
+      where: { id },
+    });
 
     if (!v.agentId) throw new ForbiddenException('Aucun agent assigné');
     if (v.agentId !== agentId) throw new ForbiddenException('Non autorisé');
@@ -65,7 +75,9 @@ export class VerificationsService {
   }
 
   async complete(id: string, agentId: string, dto: CompleteVerificationDto) {
-    const v = await this.prisma.verification.findUniqueOrThrow({ where: { id } });
+    const v = await this.prisma.verification.findUniqueOrThrow({
+      where: { id },
+    });
 
     if (!v.agentId) throw new ForbiddenException('Aucun agent assigné');
     if (v.agentId !== agentId) throw new ForbiddenException('Non autorisé');
@@ -88,7 +100,9 @@ export class VerificationsService {
   }
 
   async reject(id: string, user: User, reason: string) {
-    const v = await this.prisma.verification.findUniqueOrThrow({ where: { id } });
+    const v = await this.prisma.verification.findUniqueOrThrow({
+      where: { id },
+    });
 
     const isAgent = v.agentId !== null && v.agentId === user.id;
     const isAdmin = user.roles.includes(Role.ADMIN);

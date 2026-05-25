@@ -42,6 +42,7 @@ function MiniCard({
   return (
     <div className="group relative flex gap-3 rounded-2xl border border-line bg-card p-3 hover:border-gold/40 transition-all">
       <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-xl">
+        {/* eslint-disable-next-line @next/next/no-img-element -- dynamic Cloudinary URL from API */}
         <img src={listing.images[0]} alt={listing.title} className="h-full w-full object-cover" />
         {listing.isVerified && (
           <div className="absolute top-1 left-1">
@@ -601,6 +602,7 @@ export default function EspaceClient() {
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production') {
       const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydration on mount
       if (stored && ['visitor', 'locataire', 'bailleur', 'dual', 'admin', 'agent'].includes(stored)) setDemoRole(stored);
       const handler = (e: Event) => setDemoRole((e as CustomEvent<DemoRole>).detail);
       window.addEventListener('aa-demo-change', handler);

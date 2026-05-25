@@ -18,7 +18,22 @@ export class ListingsService {
   ) {}
 
   async findAll(filters: FilterListingsDto) {
-    const { q, region, city, type, minPrice, maxPrice, isVerified, page = 1, limit = 20 } = filters;
+    const {
+      q,
+      region,
+      city,
+      type,
+      minPrice,
+      maxPrice,
+      isVerified,
+      minRooms,
+      maxRooms,
+      minSurface,
+      maxSurface,
+      amenities,
+      page = 1,
+      limit = 20,
+    } = filters;
 
     const where = {
       status: ListingStatus.ACTIVE,
@@ -34,12 +49,32 @@ export class ListingsService {
             },
           }
         : {}),
+      ...(minRooms !== undefined || maxRooms !== undefined
+        ? {
+            rooms: {
+              ...(minRooms !== undefined && { gte: minRooms }),
+              ...(maxRooms !== undefined && { lte: maxRooms }),
+            },
+          }
+        : {}),
+      ...(minSurface !== undefined || maxSurface !== undefined
+        ? {
+            surface: {
+              ...(minSurface !== undefined && { gte: minSurface }),
+              ...(maxSurface !== undefined && { lte: maxSurface }),
+            },
+          }
+        : {}),
+      ...(amenities &&
+        amenities.length > 0 && {
+          amenities: { hasEvery: amenities },
+        }),
       ...(q && {
         OR: [
-          { title:       { contains: q, mode: 'insensitive' as const } },
+          { title: { contains: q, mode: 'insensitive' as const } },
           { description: { contains: q, mode: 'insensitive' as const } },
-          { city:        { contains: q, mode: 'insensitive' as const } },
-          { region:      { contains: q, mode: 'insensitive' as const } },
+          { city: { contains: q, mode: 'insensitive' as const } },
+          { region: { contains: q, mode: 'insensitive' as const } },
         ],
       }),
     };
@@ -50,6 +85,7 @@ export class ListingsService {
         include: {
           owner: { select: { id: true, firstName: true, lastName: true } },
           _count: { select: { reviews: true } },
+          reviews: { select: { rating: true } },
         },
         orderBy: [{ boostScore: 'desc' }, { createdAt: 'desc' }],
         skip: (page - 1) * limit,
@@ -58,7 +94,20 @@ export class ListingsService {
       this.prisma.listing.count({ where }),
     ]);
 
-    return { data, total, page, limit };
+    const enriched = data.map((listing) => {
+      const ratings = listing.reviews.map((r) => r.rating);
+      const avgRating =
+        ratings.length > 0
+          ? Math.round(
+              (ratings.reduce((s, r) => s + r, 0) / ratings.length) * 10,
+            ) / 10
+          : null;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { reviews: _reviews, ...rest } = listing;
+      return { ...rest, avgRating };
+    });
+
+    return { data: enriched, total, page, limit };
   }
 
   async findOne(id: string) {
@@ -66,8 +115,22 @@ export class ListingsService {
       where: { id },
       include: {
         owner: { select: { id: true, firstName: true, lastName: true } },
-        reviews: { include: { author: { select: { id: true, firstName: true, lastName: true } } } },
-        verification: true,
+        _count: { select: { reviews: true } },
+        reviews: {
+          include: {
+            author: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+        verification: {
+          select: {
+            status: true,
+            auditType: true,
+            scheduledAt: true,
+            completedAt: true,
+            notes: true,
+            reportUrl: true,
+          },
+        },
       },
     });
 
@@ -102,7 +165,10 @@ export class ListingsService {
       throw new ForbiddenException('Non autorisé');
     }
 
-    const updated = await this.prisma.listing.update({ where: { id }, data: dto });
+    const updated = await this.prisma.listing.update({
+      where: { id },
+      data: dto,
+    });
     void this.search.indexListing(updated).catch(() => undefined);
     return updated;
   }
@@ -125,7 +191,8 @@ export class ListingsService {
   async boost(id: string, user: User) {
     const listing = await this.findOne(id);
 
-    if (listing.ownerId !== user.id) throw new ForbiddenException('Non autorisé');
+    if (listing.ownerId !== user.id)
+      throw new ForbiddenException('Non autorisé');
 
     const BOOST_MAX = 100;
     const boostUntil = new Date();
@@ -133,14 +200,19 @@ export class ListingsService {
 
     return this.prisma.listing.update({
       where: { id },
-      data: { boostUntil, boostScore: Math.min(listing.boostScore + 10, BOOST_MAX) },
+      data: {
+        boostUntil,
+        boostScore: Math.min(listing.boostScore + 10, BOOST_MAX),
+      },
     });
   }
 
   async findAll_admin(page = 1, limit = 20) {
     const [data, total] = await Promise.all([
       this.prisma.listing.findMany({
-        include: { owner: { select: { id: true, firstName: true, lastName: true } } },
+        include: {
+          owner: { select: { id: true, firstName: true, lastName: true } },
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -184,7 +256,9 @@ export class ListingsService {
       where: { id: userId },
       include: {
         favorites: {
-          include: { owner: { select: { id: true, firstName: true, lastName: true } } },
+          include: {
+            owner: { select: { id: true, firstName: true, lastName: true } },
+          },
           orderBy: { createdAt: 'desc' },
         },
       },

@@ -1,4 +1,13 @@
-﻿import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+﻿import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ListingsService } from './listings.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
@@ -48,7 +57,9 @@ export class ListingsController {
 
   @Get(':id/favorite')
   checkFavorite(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.listingsService.isFavorite(id, user.id).then((favorited) => ({ favorited }));
+    return this.listingsService
+      .isFavorite(id, user.id)
+      .then((favorited) => ({ favorited }));
   }
 
   @Post(':id/favorite')

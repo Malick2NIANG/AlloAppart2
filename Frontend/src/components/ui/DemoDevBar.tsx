@@ -20,6 +20,7 @@ export default function DemoDevBar() {
 
   useEffect(() => {
     const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydration on mount
     if (stored && ['visitor', 'locataire', 'bailleur', 'dual', 'admin', 'agent'].includes(stored)) setRole(stored);
     setMounted(true);
   }, []);

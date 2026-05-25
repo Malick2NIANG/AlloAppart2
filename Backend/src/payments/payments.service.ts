@@ -32,9 +32,9 @@ export class PaymentsService {
       amount: Number(booking.totalAmount),
       currency: 'XOF',
       description: `Réservation — ${booking.listing.title}`,
-      return_url: `${this.config.get<string>('FRONTEND_URL')}/bookings/${bookingId}?status=success`,
+      return_url: `${this.config.get<string>('FRONTEND_URL')}/paiement/confirmation?booking_id=${bookingId}`,
       cancel_url: `${this.config.get<string>('FRONTEND_URL')}/bookings/${bookingId}?status=cancel`,
-      notify_url: `${this.config.get<string>('API_URL')}/api/v1/payments/webhook`,
+      notify_url: `${this.config.get<string>('BACKEND_URL')}/api/v1/payments/webhook`,
       customer_name: booking.tenant.firstName,
       customer_surname: booking.tenant.lastName,
       customer_phone_number: booking.tenant.phone ?? '',
@@ -44,12 +44,13 @@ export class PaymentsService {
     };
 
     const response = await axios
-      .post<{ data: { payment_url: string } }>(
-        'https://api-checkout.cinetpay.com/v2/payment',
-        payload,
-      )
+      .post<{
+        data: { payment_url: string };
+      }>('https://api-checkout.cinetpay.com/v2/payment', payload)
       .catch(() => {
-        throw new BadRequestException('Service de paiement indisponible. Veuillez réessayer plus tard.');
+        throw new BadRequestException(
+          'Service de paiement indisponible. Veuillez réessayer plus tard.',
+        );
       });
 
     await this.prisma.booking.update({
@@ -65,7 +66,9 @@ export class PaymentsService {
     if (!secret) throw new BadRequestException('CINETPAY_SECRET_KEY manquant');
 
     const expected = createHmac('sha256', secret)
-      .update(payload.cpm_site_id + payload.cpm_trans_id + payload.cpm_trans_date)
+      .update(
+        payload.cpm_site_id + payload.cpm_trans_id + payload.cpm_trans_date,
+      )
       .digest('hex');
     if (expected !== payload.signature) {
       throw new BadRequestException('Signature invalide');
@@ -78,7 +81,10 @@ export class PaymentsService {
     if (!booking) return { ok: true };
 
     // Idempotence : ne pas retraiter un booking déjà confirmé ou complété
-    if (booking.status === BookingStatus.CONFIRMED || booking.status === BookingStatus.COMPLETED) {
+    if (
+      booking.status === BookingStatus.CONFIRMED ||
+      booking.status === BookingStatus.COMPLETED
+    ) {
       return { ok: true };
     }
 
@@ -104,9 +110,13 @@ export class PaymentsService {
   }
 
   async release(bookingId: string) {
-    const booking = await this.prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+    const booking = await this.prisma.booking.findUniqueOrThrow({
+      where: { id: bookingId },
+    });
     if (booking.escrowStatus !== EscrowStatus.HELD) {
-      throw new BadRequestException(`Impossible de libérer un escrow en statut ${booking.escrowStatus}`);
+      throw new BadRequestException(
+        `Impossible de libérer un escrow en statut ${booking.escrowStatus}`,
+      );
     }
     return this.prisma.booking.update({
       where: { id: bookingId },
@@ -115,9 +125,13 @@ export class PaymentsService {
   }
 
   async refund(bookingId: string) {
-    const booking = await this.prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+    const booking = await this.prisma.booking.findUniqueOrThrow({
+      where: { id: bookingId },
+    });
     if (booking.escrowStatus !== EscrowStatus.HELD) {
-      throw new BadRequestException(`Impossible de rembourser un escrow en statut ${booking.escrowStatus}`);
+      throw new BadRequestException(
+        `Impossible de rembourser un escrow en statut ${booking.escrowStatus}`,
+      );
     }
     return this.prisma.booking.update({
       where: { id: bookingId },

@@ -20,14 +20,15 @@ export class MessagesController {
     @CurrentUser() user: User,
     @Query('page') page?: string,
   ) {
-    return this.messagesService.findMessages(id, user.id, page ? parseInt(page) : 1);
+    return this.messagesService.findMessages(
+      id,
+      user.id,
+      page ? parseInt(page) : 1,
+    );
   }
 
   @Post('rooms')
-  createRoom(
-    @CurrentUser() user: User,
-    @Body() dto: CreateRoomDto,
-  ) {
+  createRoom(@CurrentUser() user: User, @Body() dto: CreateRoomDto) {
     return this.messagesService.createRoom(dto.listingId, user.id);
   }
 

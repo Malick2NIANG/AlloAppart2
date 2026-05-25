@@ -1,4 +1,17 @@
-﻿import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Query, RawBodyRequest, Req } from '@nestjs/common';
+﻿import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  RawBodyRequest,
+  Req,
+} from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -24,10 +37,11 @@ export class AuthController {
     @Headers('svix-timestamp') svixTimestamp: string,
     @Headers('svix-signature') svixSignature: string,
   ) {
-    return this.authService.handleWebhook(
-      req.rawBody ?? Buffer.alloc(0),
-      { 'svix-id': svixId, 'svix-timestamp': svixTimestamp, 'svix-signature': svixSignature },
-    );
+    return this.authService.handleWebhook(req.rawBody ?? Buffer.alloc(0), {
+      'svix-id': svixId,
+      'svix-timestamp': svixTimestamp,
+      'svix-signature': svixSignature,
+    });
   }
 
   // Appelé par le client après inscription Clerk — synchronise le compte en BDD.
@@ -62,19 +76,13 @@ export class AuthController {
   // Création d'un compte AGENT_TERRAIN — réservé à l'ADMIN, pas de formulaire public
   @Roles(Role.ADMIN)
   @Post('agents')
-  createAgentTerrain(
-    @CurrentUser() admin: User,
-    @Body() dto: SyncUserDto,
-  ) {
+  createAgentTerrain(@CurrentUser() admin: User, @Body() dto: SyncUserDto) {
     return this.authService.createAgentTerrain(admin.id, dto);
   }
 
   @Roles(Role.ADMIN)
   @Get('users')
-  getUsers(
-    @Query('page') page = '1',
-    @Query('limit') limit = '20',
-  ) {
+  getUsers(@Query('page') page = '1', @Query('limit') limit = '20') {
     return this.authService.getUsers(parseInt(page), parseInt(limit));
   }
 

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { getTranslations, getLocale } from 'next-intl/server';
+import { auth } from '@clerk/nextjs/server';
 import FavoriteButton from '@/components/ui/FavoriteButton';
 import { MOCK_LISTINGS } from '@/lib/mockListings';
 import ListingsFilters from './ListingsFilters';
@@ -16,6 +17,19 @@ export default async function ListingsPage({
   const perPage     = [6, 12, 24].includes(parseInt(limitParam ?? '', 10)) ? parseInt(limitParam!, 10) : 6;
   const [t, locale] = await Promise.all([getTranslations('listings'), getLocale()]);
   const numLocale   = locale === 'en' ? 'en-US' : 'fr-FR';
+
+  const { getToken } = await auth();
+  const token = await getToken();
+  let favoriteIds: string[] = [];
+  if (token) {
+    try {
+      const { api } = await import('@/lib/api');
+      const favs = await api.get<{ id: string }[]>('/listings/favorites', token);
+      favoriteIds = favs.map((f) => f.id);
+    } catch {
+      favoriteIds = [];
+    }
+  }
 
   let listings: Listing[] = [];
   let total = 0;
@@ -52,6 +66,8 @@ export default async function ListingsPage({
   }
 
   const totalPages = Math.max(1, Math.ceil(total / perPage));
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
 
   const pageUrl = (p: number) => {
     const params = new URLSearchParams();
@@ -107,7 +123,7 @@ export default async function ListingsPage({
             <div className={`grid gap-8 sm:grid-cols-2 ${perPage === 24 ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
               {listings.map((listing) => {
                 const img = listing.images?.[0] ?? 'https://via.placeholder.com/600x400?text=AlloAppart';
-                const isNew = (Date.now() - new Date(listing.createdAt).getTime()) < 10 * 24 * 60 * 60 * 1000;
+                const isNew = (now - new Date(listing.createdAt).getTime()) < 10 * 24 * 60 * 60 * 1000;
 
                 return (
                   <Link key={listing.id} href={`/listings/${listing.id}`} className="listing-card group block">
@@ -124,7 +140,7 @@ export default async function ListingsPage({
                           {t('newBadge')}
                         </span>
                       )}
-                      <FavoriteButton listingId={listing.id} className="absolute top-3 right-3" />
+                      <FavoriteButton listingId={listing.id} initialFavorite={favoriteIds.includes(listing.id)} className="absolute top-3 right-3" />
                     </div>
 
                     <div className="p-4">
@@ -138,6 +154,15 @@ export default async function ListingsPage({
                         <span className="mt-1 inline-flex items-center gap-1 text-xs text-green-700 font-medium">
                           <i className="fa-solid fa-shield-halved" />{t('verified')}
                         </span>
+                      )}
+                      {listing.avgRating != null && (
+                        <div className="mt-1 flex items-center gap-1 text-xs text-amber-500 font-medium">
+                          <i className="fa-solid fa-star text-[10px]" />
+                          <span>{listing.avgRating.toFixed(1)}</span>
+                          {listing._count && (
+                            <span className="text-sub font-normal">({listing._count.reviews})</span>
+                          )}
+                        </div>
                       )}
                       <div className="mt-3 flex items-center gap-3 text-sm text-sub">
                         <span className="flex items-center gap-1"><i className="fa-solid fa-bed text-gold-dark text-xs" />{listing.beds}</span>

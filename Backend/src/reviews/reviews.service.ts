@@ -26,13 +26,16 @@ export class ReviewsService {
     }
 
     if (booking.listingId !== dto.listingId) {
-      throw new BadRequestException('La réservation ne correspond pas à cette annonce');
+      throw new BadRequestException(
+        'La réservation ne correspond pas à cette annonce',
+      );
     }
 
     const existing = await this.prisma.review.findFirst({
       where: { bookingId: dto.bookingId },
     });
-    if (existing) throw new ConflictException('Un avis existe déjà pour cette réservation');
+    if (existing)
+      throw new ConflictException('Un avis existe déjà pour cette réservation');
 
     return this.prisma.review.create({
       data: {
@@ -48,7 +51,9 @@ export class ReviewsService {
   async findByListing(listingId: string, page = 1, limit = 20) {
     return this.prisma.review.findMany({
       where: { listingId },
-      include: { author: { select: { id: true, firstName: true, lastName: true } } },
+      include: {
+        author: { select: { id: true, firstName: true, lastName: true } },
+      },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,

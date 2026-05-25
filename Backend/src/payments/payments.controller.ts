@@ -14,10 +14,7 @@ export class PaymentsController {
 
   @Roles(Role.LOCATAIRE)
   @Post('initiate')
-  initiate(
-    @CurrentUser() user: User,
-    @Body() dto: InitiatePaymentDto,
-  ) {
+  initiate(@CurrentUser() user: User, @Body() dto: InitiatePaymentDto) {
     return this.paymentsService.initiate(dto.bookingId, user.id);
   }
 

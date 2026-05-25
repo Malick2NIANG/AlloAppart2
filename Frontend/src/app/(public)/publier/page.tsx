@@ -5,7 +5,6 @@ import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
@@ -91,7 +90,6 @@ const DRAFT_KEY = 'aa_listing_draft';
 
 export default function PublierPage() {
   const { isSignedIn, getToken } = useAuth();
-  const router = useRouter();
 
   const [step,          setStep]          = useState(0);
   const [demoRole,      setDemoRole]      = useState<DemoRole>('visitor');
@@ -171,6 +169,7 @@ export default function PublierPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const values    = watch();
   const isDemo    = !isSignedIn && demoRole !== 'visitor';
   const canAccess = isSignedIn || demoRole !== 'visitor';
@@ -596,6 +595,7 @@ function RecapCard({ values }: { values: FormValues }) {
     <div className="space-y-5">
       {/* Aperçu image */}
       {values.images?.[0] && (
+        // eslint-disable-next-line @next/next/no-img-element
         <img src={values.images[0]} alt="Aperçu"
           className="h-52 w-full rounded-xl object-cover border border-line" />
       )}
@@ -663,6 +663,7 @@ function RecapCard({ values }: { values: FormValues }) {
           </p>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {values.images.map((url, i) => (
+              // eslint-disable-next-line @next/next/no-img-element -- dynamic Cloudinary URL from upload
               <img key={i} src={url} alt=""
                 className="h-14 w-20 shrink-0 rounded-lg border border-line object-cover"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />

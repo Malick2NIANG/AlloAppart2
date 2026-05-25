@@ -16,7 +16,7 @@ interface Props {
   listingId: string;
 }
 
-export default function ListingHeroCarousel({ images, title, city, price, listingId }: Props) {
+export default function ListingHeroCarousel({ images, title, city, price }: Props) {
   const t        = useTranslations('detail');
   const { isSignedIn } = useUser();
   const router   = useRouter();
@@ -48,7 +48,7 @@ export default function ListingHeroCarousel({ images, title, city, price, listin
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [lightbox, current]);
+  }, [lightbox, current]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* close share on outside click */
   useEffect(() => {

@@ -32,6 +32,7 @@ export default function ProfilPage() {
 
   useEffect(() => {
     const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydration on mount
     if (stored && ['visitor', 'locataire', 'bailleur', 'dual', 'admin', 'agent'].includes(stored)) setDemoRole(stored);
     setMounted(true);
     const handler = (e: Event) => setDemoRole((e as CustomEvent<DemoRole>).detail);
@@ -42,6 +43,7 @@ export default function ProfilPage() {
   /* Populate form once user is known */
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- form population from user data
       setFirstName(user.firstName ?? '');
       setLastName(user.lastName ?? '');
       setPhone(user.phoneNumbers?.[0]?.phoneNumber ?? '');

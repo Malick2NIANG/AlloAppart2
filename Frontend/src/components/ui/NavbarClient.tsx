@@ -31,6 +31,81 @@ const LISTING_TYPES = [
   { key: 'CHAMBRE',     icon: 'fa-door-open',      fr: 'Chambres',     en: 'Rooms'       },
 ];
 
+interface ListingsDropdownProps {
+  locale: Locale;
+  allListings: string;
+  byType: string;
+  onClose: () => void;
+}
+
+function ListingsDropdown({ locale, allListings, byType, onClose }: ListingsDropdownProps) {
+  return (
+    <div className="absolute top-full left-0 mt-2 w-56 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-line rounded-2xl shadow-xl p-2 z-50">
+      <Link href="/listings" onClick={onClose}
+        className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-text hover:bg-gold-pale hover:text-gold-dark transition">
+        <i className="fa-solid fa-list text-gold-dark text-xs w-4" />{allListings}
+      </Link>
+      <div className="border-t border-line my-1.5" />
+      <p className="px-3 py-1 text-[11px] text-sub font-medium uppercase tracking-wide">{byType}</p>
+      {LISTING_TYPES.map((type) => (
+        <Link key={type.key} href={`/listings?type=${type.key}`} onClick={onClose}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
+          <i className={`fa-solid ${type.icon} text-gold-dark text-xs w-4`} />
+          {locale === 'en' ? type.en : type.fr}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+interface ProfileDropdownProps {
+  userName: string;
+  userEmail: string;
+  isDemo: boolean;
+  locale: Locale;
+  onClose: () => void;
+  onSignOut: () => void;
+}
+
+function ProfileDropdown({ userName, userEmail, isDemo, locale, onClose, onSignOut }: ProfileDropdownProps) {
+  return (
+    <div className="absolute top-full right-0 mt-2 w-56 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-line rounded-2xl shadow-xl p-2 z-50">
+      {/* User info */}
+      <div className="px-3 py-2.5">
+        <p className="text-sm font-semibold text-text truncate">{userName}</p>
+        <p className="text-xs text-sub truncate">{userEmail}</p>
+        {isDemo && (
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+            <i className="fa-solid fa-flask text-[9px]" /> Mode démo
+          </span>
+        )}
+      </div>
+      <div className="border-t border-line my-1" />
+
+      {/* Settings */}
+      {[
+        { href: '/profil',          icon: 'fa-solid fa-user-circle',   label: locale === 'en' ? 'Profile'  : 'Mon profil' },
+        { href: '/profil/securite', icon: 'fa-solid fa-shield-halved', label: locale === 'en' ? 'Security' : 'Sécurité'   },
+      ].map((item) => (
+        <Link key={item.href} href={item.href} onClick={onClose}
+          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
+          <i className={`${item.icon} text-gold-dark text-xs w-4 text-center`} />
+          {item.label}
+        </Link>
+      ))}
+
+      <div className="border-t border-line my-1" />
+
+      {/* Déconnexion */}
+      <button onClick={onSignOut}
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition">
+        <i className="fa-solid fa-right-from-bracket text-xs w-4 text-center" />
+        Déconnexion
+      </button>
+    </div>
+  );
+}
+
 
 
 /* Demo users */
@@ -73,6 +148,7 @@ export default function NavbarClient({ locale, labels }: Props) {
   useEffect(() => {
     if (process.env.NODE_ENV === 'production') return;
     const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydration on mount
     if (stored && ['visitor', 'locataire', 'bailleur', 'dual', 'admin', 'agent'].includes(stored)) setDemoRole(stored);
     const onDemoChange = (e: CustomEvent<DemoRole>) => setDemoRole(e.detail);
     window.addEventListener('aa-demo-change', onDemoChange as EventListener);
@@ -139,6 +215,7 @@ export default function NavbarClient({ locale, labels }: Props) {
   /* ── Sync search bar ─────────────────────────────────────── */
   useEffect(() => {
     if (!pathname.startsWith('/listings')) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchVal(searchParams.get('q') ?? '');
     setMinPrice(searchParams.get('min') ?? '');
     setMaxPrice(searchParams.get('max') ?? '');
@@ -169,63 +246,6 @@ export default function NavbarClient({ locale, labels }: Props) {
   };
 
   const spaceHref = '/espace';
-
-  /* ── Sub-components ──────────────────────────────────────── */
-  const ListingsDropdown = () => (
-    <div className="absolute top-full left-0 mt-2 w-56 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-line rounded-2xl shadow-xl p-2 z-50">
-      <Link href="/listings" onClick={() => setOpenDropdown(null)}
-        className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-text hover:bg-gold-pale hover:text-gold-dark transition">
-        <i className="fa-solid fa-list text-gold-dark text-xs w-4" />{L.allListings}
-      </Link>
-      <div className="border-t border-line my-1.5" />
-      <p className="px-3 py-1 text-[11px] text-sub font-medium uppercase tracking-wide">{L.byType}</p>
-      {LISTING_TYPES.map((type) => (
-        <Link key={type.key} href={`/listings?type=${type.key}`} onClick={() => setOpenDropdown(null)}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
-          <i className={`fa-solid ${type.icon} text-gold-dark text-xs w-4`} />
-          {locale === 'en' ? type.en : type.fr}
-        </Link>
-      ))}
-    </div>
-  );
-
-
-  const ProfileDropdown = () => (
-    <div className="absolute top-full right-0 mt-2 w-56 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-line rounded-2xl shadow-xl p-2 z-50">
-      {/* User info */}
-      <div className="px-3 py-2.5">
-        <p className="text-sm font-semibold text-text truncate">{userName}</p>
-        <p className="text-xs text-sub truncate">{userEmail}</p>
-        {isDemo && (
-          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-            <i className="fa-solid fa-flask text-[9px]" /> Mode démo
-          </span>
-        )}
-      </div>
-      <div className="border-t border-line my-1" />
-
-      {/* Settings */}
-      {[
-        { href: '/profil',          icon: 'fa-solid fa-user-circle',   label: locale === 'en' ? 'Profile'  : 'Mon profil' },
-        { href: '/profil/securite', icon: 'fa-solid fa-shield-halved', label: locale === 'en' ? 'Security' : 'Sécurité'   },
-      ].map((item) => (
-        <Link key={item.href} href={item.href} onClick={() => setOpenDropdown(null)}
-          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
-          <i className={`${item.icon} text-gold-dark text-xs w-4 text-center`} />
-          {item.label}
-        </Link>
-      ))}
-
-      <div className="border-t border-line my-1" />
-
-      {/* Déconnexion */}
-      <button onClick={handleSignOut}
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition">
-        <i className="fa-solid fa-right-from-bracket text-xs w-4 text-center" />
-        Déconnexion
-      </button>
-    </div>
-  );
 
   /* ── RENDER ──────────────────────────────────────────────── */
   return (
@@ -292,7 +312,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                 {L.discover}
                 <i className={`fa-solid fa-chevron-down text-[10px] transition-transform duration-200 ${openDropdown === 'listings' ? 'rotate-180' : ''}`} />
               </button>
-              {openDropdown === 'listings' && <ListingsDropdown />}
+              {openDropdown === 'listings' && <ListingsDropdown locale={locale} allListings={L.allListings} byType={L.byType} onClose={() => setOpenDropdown(null)} />}
             </div>
 
             {/* Espace — visible uniquement si connecté */}
@@ -347,7 +367,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                     }`}>
                     {userInitials}
                   </button>
-                  {openDropdown === 'profile' && <ProfileDropdown />}
+                  {openDropdown === 'profile' && <ProfileDropdown userName={userName ?? ''} userEmail={userEmail ?? ''} isDemo={isDemo} locale={locale} onClose={() => setOpenDropdown(null)} onSignOut={handleSignOut} />}
                 </div>
               </div>
             ) : (

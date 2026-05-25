@@ -57,6 +57,7 @@ export default function MessagesPage() {
   const pollingRoomsRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingMsgsRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard pattern
   useEffect(() => { setMounted(true); }, []);
 
   const loadRooms = useCallback(async () => {
@@ -118,6 +119,7 @@ export default function MessagesPage() {
     if (!activeRoom) return;
     if (pollingMsgsRef.current) clearInterval(pollingMsgsRef.current);
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading state set in effect body
     setLoadingMessages(true);
     loadMessages(activeRoom.id).then(() => setLoadingMessages(false));
     markRead(activeRoom.id);
@@ -127,7 +129,7 @@ export default function MessagesPage() {
     }, 4000);
 
     return () => { if (pollingMsgsRef.current) clearInterval(pollingMsgsRef.current); };
-  }, [activeRoom?.id]);
+  }, [activeRoom?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll to bottom when messages load
   useEffect(() => {

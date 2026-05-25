@@ -34,7 +34,9 @@ export class ClerkAuthGuard implements CanActivate {
 
     if (isPublic) return true;
 
-    const request = context.switchToHttp().getRequest<Request & { user?: unknown }>();
+    const request = context
+      .switchToHttp()
+      .getRequest<Request & { user?: unknown }>();
     const authHeader = request.headers.authorization;
 
     if (!authHeader?.startsWith('Bearer ')) {
@@ -74,7 +76,9 @@ export class ClerkAuthGuard implements CanActivate {
       request.user = user;
       return true;
     } catch {
-      throw new UnauthorizedException('Token invalide ou utilisateur introuvable');
+      throw new UnauthorizedException(
+        'Token invalide ou utilisateur introuvable',
+      );
     }
   }
 }

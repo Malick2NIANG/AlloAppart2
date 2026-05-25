@@ -52,7 +52,10 @@ async function bootstrap() {
       .setTitle('Allo-Appart API')
       .setDescription('API REST de la marketplace immobilière Allo-Appart')
       .setVersion('1.0')
-      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'clerk-jwt')
+      .addBearerAuth(
+        { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        'clerk-jwt',
+      )
       .build();
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('api/docs', app, document, {
@@ -68,4 +71,4 @@ async function bootstrap() {
   }
 }
 
-bootstrap();
+void bootstrap();

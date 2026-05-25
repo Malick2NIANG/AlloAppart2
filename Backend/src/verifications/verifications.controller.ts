@@ -26,10 +26,7 @@ export class VerificationsController {
 
   @Roles(Role.ADMIN)
   @Patch(':id/assign')
-  assignAgent(
-    @Param('id') id: string,
-    @Body() dto: AssignAgentDto,
-  ) {
+  assignAgent(@Param('id') id: string, @Body() dto: AssignAgentDto) {
     return this.verificationsService.assignAgent(id, dto.agentId);
   }
 

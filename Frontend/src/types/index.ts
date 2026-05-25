@@ -49,6 +49,7 @@ export interface Listing {
   ownerId: string;
   owner?: Pick<User, 'id' | 'firstName' | 'lastName'>;
   _count?: { reviews: number };
+  avgRating?: number | null;
   verification?: Verification;
   reviews?: Review[];
   createdAt: string;

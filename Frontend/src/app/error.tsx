@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect } from 'react';
 
 export default function GlobalError({
@@ -27,10 +28,10 @@ export default function GlobalError({
           <i className="fa-solid fa-rotate-right mr-2" />
           Réessayer
         </button>
-        <a href="/" className="rounded-full border border-line px-6 py-2.5 text-sm font-medium text-text hover:bg-card transition">
+        <Link href="/" className="rounded-full border border-line px-6 py-2.5 text-sm font-medium text-text hover:bg-card transition">
           <i className="fa-solid fa-house mr-2" />
           Accueil
-        </a>
+        </Link>
       </div>
     </main>
   );

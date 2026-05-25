@@ -1,6 +1,12 @@
 ﻿import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { BookingStatus, ListingStatus, Role, User, VerifStatus } from '@prisma/client';
+import {
+  BookingStatus,
+  ListingStatus,
+  Role,
+  User,
+  VerifStatus,
+} from '@prisma/client';
 
 @Injectable()
 export class AnalyticsService {
@@ -12,11 +18,13 @@ export class AnalyticsService {
       publishedListings,
       totalBookings,
       confirmedBookings,
-      completedAmounts,
+      revenueAgg,
       ratingAgg,
     ] = await Promise.all([
       this.prisma.listing.count({ where: { ownerId } }),
-      this.prisma.listing.count({ where: { ownerId, status: ListingStatus.ACTIVE } }),
+      this.prisma.listing.count({
+        where: { ownerId, status: ListingStatus.ACTIVE },
+      }),
       this.prisma.booking.count({ where: { listing: { ownerId } } }),
       this.prisma.booking.count({
         where: {
@@ -24,9 +32,9 @@ export class AnalyticsService {
           status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
         },
       }),
-      this.prisma.booking.findMany({
+      this.prisma.booking.aggregate({
         where: { listing: { ownerId }, status: BookingStatus.COMPLETED },
-        select: { totalAmount: true },
+        _sum: { totalAmount: true },
       }),
       this.prisma.review.aggregate({
         where: { listing: { ownerId } },
@@ -34,7 +42,7 @@ export class AnalyticsService {
       }),
     ]);
 
-    const totalRevenue = completedAmounts.reduce((sum, b) => sum + Number(b.totalAmount), 0);
+    const totalRevenue = Number(revenueAgg._sum.totalAmount ?? 0);
     const avgRating = ratingAgg._avg.rating;
 
     return {
@@ -71,10 +79,14 @@ export class AnalyticsService {
         _sum: { totalAmount: true },
       }),
       this.prisma.verification.count({
-        where: { status: { in: [VerifStatus.SCHEDULED, VerifStatus.IN_PROGRESS] } },
+        where: {
+          status: { in: [VerifStatus.SCHEDULED, VerifStatus.IN_PROGRESS] },
+        },
       }),
       this.prisma.booking.count({
-        where: { status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] } },
+        where: {
+          status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
+        },
       }),
       this.prisma.verification.count({ where: { status: VerifStatus.DONE } }),
     ]);

@@ -152,6 +152,7 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
                   <p className="text-[10px] text-red-500 truncate w-full">{item.name}</p>
                 </div>
               ) : (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.url} alt="" className="h-full w-full object-cover" />
               )}
               {idx === 0 && item.status === 'done' && (

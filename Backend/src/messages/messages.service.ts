@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -22,7 +27,9 @@ export class MessagesService {
 
     return this.prisma.message.findMany({
       where: { roomId },
-      include: { sender: { select: { id: true, firstName: true, lastName: true } } },
+      include: {
+        sender: { select: { id: true, firstName: true, lastName: true } },
+      },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
@@ -30,9 +37,14 @@ export class MessagesService {
   }
 
   async createRoom(listingId: string, tenantId: string) {
-    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+    });
     if (!listing) throw new NotFoundException('Annonce introuvable');
-    if (listing.ownerId === tenantId) throw new BadRequestException('Vous ne pouvez pas vous envoyer un message à vous-même');
+    if (listing.ownerId === tenantId)
+      throw new BadRequestException(
+        'Vous ne pouvez pas vous envoyer un message à vous-même',
+      );
 
     // Une seule room par couple locataire-bailleur-listing
     const existing = await this.prisma.messageRoom.findFirst({
@@ -60,7 +72,9 @@ export class MessagesService {
 
     return this.prisma.message.create({
       data: { roomId, senderId, content },
-      include: { sender: { select: { id: true, firstName: true, lastName: true } } },
+      include: {
+        sender: { select: { id: true, firstName: true, lastName: true } },
+      },
     });
   }
 

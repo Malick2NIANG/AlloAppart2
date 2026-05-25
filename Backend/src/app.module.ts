@@ -38,8 +38,6 @@ import { UploadModule } from './upload/upload.module';
     SearchModule,
     UploadModule,
   ],
-  providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-  ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

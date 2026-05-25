@@ -1,4 +1,13 @@
-import { IsEnum, IsNumber, IsOptional, IsBoolean, IsString, Max } from 'class-validator';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  IsString,
+  IsArray,
+  Max,
+  Min,
+} from 'class-validator';
 import { ListingType } from '@prisma/client';
 import { Type, Transform } from 'class-transformer';
 
@@ -44,4 +53,36 @@ export class FilterListingsDto {
   @Max(100)
   @Type(() => Number)
   limit?: number = 20;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  minRooms?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  maxRooms?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  minSurface?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  maxSurface?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }: { value: string | string[] }) =>
+    typeof value === 'string' ? value.split(',').filter(Boolean) : value,
+  )
+  amenities?: string[];
 }

@@ -21,6 +21,7 @@ export default function DashboardShell({ userName, navItems, children }: Props) 
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset navigation state on route change
   useEffect(() => { setOpen(false); }, [pathname]);
 
   return (

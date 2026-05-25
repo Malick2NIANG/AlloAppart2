@@ -36,6 +36,7 @@ export default function AdminVerificationsPage() {
     setLoading(false);
   }, [getToken]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- triggers async data fetch, not direct setState
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleAssign = async () => {
