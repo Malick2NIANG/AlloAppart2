@@ -1,5 +1,5 @@
 ﻿import { Body, Controller, Param, Post } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { PaymentsService } from './payments.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
@@ -12,6 +12,7 @@ import { CinetpayWebhookDto } from './dto/cinetpay-webhook.dto';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Roles(Role.LOCATAIRE)
   @Post('initiate')
   initiate(@CurrentUser() user: User, @Body() dto: InitiatePaymentDto) {

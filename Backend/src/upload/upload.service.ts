@@ -30,8 +30,23 @@ export class UploadService {
       buf.slice(8, 12).toString('ascii') === 'WEBP'
     )
       return true;
-    // HEIC/HEIF: ftyp box at offset 4
-    if (buf.slice(4, 8).toString('ascii') === 'ftyp') return true;
+    // HEIC/HEIF: ftyp box at offset 4, brand doit être HEIC/HEIF/HEIX/HEVC/MIF1/MSF1
+    if (buf.slice(4, 8).toString('ascii') === 'ftyp') {
+      const brand = buf.slice(8, 12).toString('ascii');
+      if (
+        [
+          'heic',
+          'heix',
+          'hevc',
+          'hevx',
+          'mif1',
+          'msf1',
+          'MiHE',
+          'MiHB',
+        ].includes(brand)
+      )
+        return true;
+    }
     return false;
   }
 

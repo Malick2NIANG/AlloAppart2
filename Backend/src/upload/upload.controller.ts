@@ -5,6 +5,7 @@ import {
   UseInterceptors,
   BadRequestException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { UploadService } from './upload.service';
@@ -18,6 +19,7 @@ const MAX_SIZE_BYTES = 8 * 1024 * 1024; // 8 MB
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {

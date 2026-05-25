@@ -6,6 +6,8 @@
   IsString,
   IsArray,
   IsUrl,
+  Matches,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -32,10 +34,14 @@ export class CreateListingDto {
   type!: ListingType;
 
   @IsNumber()
+  @Min(-90)
+  @Max(90)
   @Type(() => Number)
   lat!: number;
 
   @IsNumber()
+  @Min(-180)
+  @Max(180)
   @Type(() => Number)
   lng!: number;
 
@@ -74,6 +80,10 @@ export class CreateListingDto {
   @IsOptional()
   @IsArray()
   @IsUrl({}, { each: true })
+  @Matches(/^https:\/\/res\.cloudinary\.com\//, {
+    each: true,
+    message: 'Les images doivent être hébergées sur Cloudinary',
+  })
   images?: string[];
 
   @IsOptional()

@@ -17,6 +17,7 @@ import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { SyncUserDto } from './dto/sync-user.dto';
+import { PaginationDto } from './dto/pagination.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -82,8 +83,8 @@ export class AuthController {
 
   @Roles(Role.ADMIN)
   @Get('users')
-  getUsers(@Query('page') page = '1', @Query('limit') limit = '20') {
-    return this.authService.getUsers(parseInt(page), parseInt(limit));
+  getUsers(@Query() dto: PaginationDto) {
+    return this.authService.getUsers(dto.page ?? 1, dto.limit ?? 20);
   }
 
   // Désactivation du rôle BAILLEUR par l'ADMIN

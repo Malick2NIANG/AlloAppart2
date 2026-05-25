@@ -2,6 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 export interface BookingNotificationData {
   tenantEmail: string;
   tenantName: string;
@@ -53,14 +62,20 @@ export class NotificationsService {
   }
 
   async notifyBookingCreated(data: BookingNotificationData): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const city = escapeHtml(data.listingCity);
+    const tenant = escapeHtml(data.tenantName);
+    const landlord = escapeHtml(data.landlordName);
+    const ref = escapeHtml(data.bookingId);
+
     await this.send(
       data.tenantEmail,
       `Votre demande de réservation — ${data.listingTitle}`,
       `
-        <h2>Bonjour ${data.tenantName},</h2>
-        <p>Votre demande de réservation pour <strong>${data.listingTitle}</strong> à <strong>${data.listingCity}</strong> a bien été reçue.</p>
+        <h2>Bonjour ${tenant},</h2>
+        <p>Votre demande de réservation pour <strong>${title}</strong> à <strong>${city}</strong> a bien été reçue.</p>
         <p>Montant total : <strong>${data.totalAmount.toLocaleString('fr-SN')} FCFA</strong></p>
-        <p>Référence : <code>${data.bookingId}</code></p>
+        <p>Référence : <code>${ref}</code></p>
         <p>Le bailleur vous contactera prochainement pour confirmer.</p>
         <p>L'équipe Allo-Appart</p>
       `,
@@ -70,8 +85,8 @@ export class NotificationsService {
       data.landlordEmail,
       `Nouvelle demande de réservation — ${data.listingTitle}`,
       `
-        <h2>Bonjour ${data.landlordName},</h2>
-        <p><strong>${data.tenantName}</strong> a effectué une demande de réservation pour votre annonce <strong>${data.listingTitle}</strong>.</p>
+        <h2>Bonjour ${landlord},</h2>
+        <p><strong>${tenant}</strong> a effectué une demande de réservation pour votre annonce <strong>${title}</strong>.</p>
         <p>Montant : <strong>${data.totalAmount.toLocaleString('fr-SN')} FCFA</strong></p>
         <p>Connectez-vous à votre espace bailleur pour confirmer ou refuser cette demande.</p>
         <p>L'équipe Allo-Appart</p>
@@ -80,13 +95,18 @@ export class NotificationsService {
   }
 
   async notifyBookingConfirmed(data: BookingNotificationData): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const city = escapeHtml(data.listingCity);
+    const tenant = escapeHtml(data.tenantName);
+    const ref = escapeHtml(data.bookingId);
+
     await this.send(
       data.tenantEmail,
       `Réservation confirmée — ${data.listingTitle}`,
       `
-        <h2>Bonne nouvelle, ${data.tenantName} !</h2>
-        <p>Votre réservation pour <strong>${data.listingTitle}</strong> à <strong>${data.listingCity}</strong> a été <strong>confirmée</strong> par le bailleur.</p>
-        <p>Référence : <code>${data.bookingId}</code></p>
+        <h2>Bonne nouvelle, ${tenant} !</h2>
+        <p>Votre réservation pour <strong>${title}</strong> à <strong>${city}</strong> a été <strong>confirmée</strong> par le bailleur.</p>
+        <p>Référence : <code>${ref}</code></p>
         <p>L'équipe Allo-Appart</p>
       `,
     );
@@ -98,13 +118,17 @@ export class NotificationsService {
       'tenantEmail' | 'tenantName' | 'listingTitle' | 'bookingId'
     >,
   ): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const tenant = escapeHtml(data.tenantName);
+    const ref = escapeHtml(data.bookingId);
+
     await this.send(
       data.tenantEmail,
       `Réservation annulée — ${data.listingTitle}`,
       `
-        <h2>Bonjour ${data.tenantName},</h2>
-        <p>Votre réservation pour <strong>${data.listingTitle}</strong> a été annulée.</p>
-        <p>Référence : <code>${data.bookingId}</code></p>
+        <h2>Bonjour ${tenant},</h2>
+        <p>Votre réservation pour <strong>${title}</strong> a été annulée.</p>
+        <p>Référence : <code>${ref}</code></p>
         <p>Si vous avez des questions, contactez-nous via la messagerie.</p>
         <p>L'équipe Allo-Appart</p>
       `,

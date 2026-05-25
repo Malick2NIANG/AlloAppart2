@@ -63,6 +63,27 @@ async function bootstrap() {
     });
   }
 
+  // Fail-fast en production si des variables critiques manquent
+  if (config.get<string>('NODE_ENV') === 'production') {
+    const required = [
+      'FRONTEND_URL',
+      'BACKEND_URL',
+      'DATABASE_URL',
+      'CLERK_SECRET_KEY',
+      'CLERK_WEBHOOK_SECRET',
+      'CINETPAY_API_KEY',
+      'CINETPAY_SECRET_KEY',
+      'CLOUDINARY_API_SECRET',
+    ];
+    for (const key of required) {
+      if (!config.get<string>(key)) {
+        throw new Error(
+          `Variable d'environnement manquante en production : ${key}`,
+        );
+      }
+    }
+  }
+
   const port = config.get<number>('PORT') ?? 4000;
   await app.listen(port);
   console.log(`API Allo-Appart démarrée sur le port ${port}`);

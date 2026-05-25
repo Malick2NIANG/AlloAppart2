@@ -129,8 +129,9 @@ export class AuthService {
   ): Promise<{ received: boolean }> {
     const secret = this.config.get<string>('CLERK_WEBHOOK_SECRET');
     if (!secret) {
-      this.logger.warn('CLERK_WEBHOOK_SECRET non configuré — webhook ignoré');
-      return { received: true };
+      throw new UnauthorizedException(
+        'CLERK_WEBHOOK_SECRET non configuré — webhook refusé',
+      );
     }
 
     const wh = new Webhook(secret);

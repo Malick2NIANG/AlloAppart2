@@ -1,13 +1,15 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { BookingStatus, EscrowStatus } from '@prisma/client';
-import { createHmac } from 'crypto';
+import { timingSafeEqual, createHmac } from 'crypto';
 import axios from 'axios';
 import { CinetpayWebhookDto } from './dto/cinetpay-webhook.dto';
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -70,7 +72,13 @@ export class PaymentsService {
         payload.cpm_site_id + payload.cpm_trans_id + payload.cpm_trans_date,
       )
       .digest('hex');
-    if (expected !== payload.signature) {
+
+    const expectedBuf = Buffer.from(expected, 'hex');
+    const actualBuf = Buffer.from(payload.signature ?? '', 'hex');
+    if (
+      expectedBuf.length !== actualBuf.length ||
+      !timingSafeEqual(expectedBuf, actualBuf)
+    ) {
       throw new BadRequestException('Signature invalide');
     }
 
@@ -86,6 +94,16 @@ export class PaymentsService {
       booking.status === BookingStatus.COMPLETED
     ) {
       return { ok: true };
+    }
+
+    // Vérification du montant — le montant payé doit correspondre au montant attendu
+    const expectedAmount = Number(booking.totalAmount);
+    const paidAmount = Number(payload.cpm_amount);
+    if (Math.abs(paidAmount - expectedAmount) > 1) {
+      this.logger.warn(
+        `Montant webhook incohérent : attendu ${expectedAmount}, reçu ${paidAmount} pour booking ${booking.id}`,
+      );
+      throw new BadRequestException('Montant du paiement incohérent');
     }
 
     if (payload.cpm_result === '00') {
