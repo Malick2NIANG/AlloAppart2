@@ -108,7 +108,10 @@ export class BookingsService {
 
     return this.prisma.booking.update({
       where: { id },
-      data: { status: BookingStatus.CANCELLED, escrowStatus: EscrowStatus.REFUNDED },
+      data: {
+        status: BookingStatus.CANCELLED,
+        ...(booking.escrowStatus === EscrowStatus.HELD && { escrowStatus: EscrowStatus.REFUNDED }),
+      },
     });
   }
 

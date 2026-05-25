@@ -9,6 +9,9 @@ import { formatDate, formatPrice } from '@/lib/utils';
 import type { Booking } from '@/types';
 import Link from 'next/link';
 
+const MAX_POLLS = 5;
+const POLL_INTERVAL_MS = 4000;
+
 function BookingResultContent() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
@@ -18,23 +21,47 @@ function BookingResultContent() {
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pollCount, setPollCount] = useState(0);
+
+  const fetchBooking = async () => {
+    const token = await getToken();
+    if (!token) return;
+    try {
+      const data = await api.get<Booking>(`/bookings/${id}`, token);
+      setBooking(data);
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isSignedIn) {
       router.push(`/sign-in?redirect_url=${encodeURIComponent(window.location.href)}`);
       return;
     }
-    getToken().then(async (token) => {
-      if (!token) return;
-      try {
-        const data = await api.get<Booking>(`/bookings/${id}`, token);
-        setBooking(data);
-      } catch {
-      } finally {
-        setLoading(false);
-      }
-    });
-  }, [id, isSignedIn, getToken, router]);
+    fetchBooking();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isSignedIn]);
+
+  // Auto-poll when status=success but booking not yet CONFIRMED (webhook delay)
+  useEffect(() => {
+    if (
+      status !== 'success' ||
+      loading ||
+      booking?.status === 'CONFIRMED' ||
+      booking?.status === 'CANCELLED' ||
+      pollCount >= MAX_POLLS
+    ) return;
+
+    const timer = setTimeout(() => {
+      setPollCount((n) => n + 1);
+      fetchBooking();
+    }, POLL_INTERVAL_MS);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, loading, booking?.status, pollCount]);
 
   if (loading) {
     return (
@@ -46,25 +73,36 @@ function BookingResultContent() {
 
   const isSuccess = status === 'success' && booking?.status === 'CONFIRMED';
   const isCancelled = status === 'cancel' || booking?.status === 'CANCELLED';
+  const isProcessing = status === 'success' && !isSuccess && !isCancelled;
 
   return (
     <div className="aa-container py-16 flex flex-col items-center text-center">
 
       {/* Icon */}
-      <div className={`mb-6 flex h-20 w-20 items-center justify-center rounded-full ${isSuccess ? 'bg-green-100' : 'bg-red-100'}`}>
-        <i className={`text-3xl ${isSuccess ? 'fa-solid fa-circle-check text-green-600' : 'fa-solid fa-circle-xmark text-red-500'}`} />
+      <div className={`mb-6 flex h-20 w-20 items-center justify-center rounded-full ${
+        isSuccess ? 'bg-green-100' : isCancelled ? 'bg-red-100' : 'bg-gold-pale'
+      }`}>
+        <i className={`text-3xl ${
+          isSuccess
+            ? 'fa-solid fa-circle-check text-green-600'
+            : isCancelled
+            ? 'fa-solid fa-circle-xmark text-red-500'
+            : 'fa-solid fa-clock text-gold-dark'
+        }`} />
       </div>
 
       {/* Title */}
       <h1 className="text-2xl font-bold text-text">
-        {isSuccess ? 'Paiement confirmé !' : isCancelled ? 'Paiement annulé' : 'Statut du paiement'}
+        {isSuccess ? 'Paiement confirmé !' : isCancelled ? 'Paiement annulé' : 'Vérification en cours…'}
       </h1>
       <p className="mt-2 text-sub max-w-md">
         {isSuccess
           ? 'Votre réservation est confirmée. Le bailleur a été notifié et vous contactera prochainement.'
           : isCancelled
           ? 'Votre paiement a été annulé. Vous pouvez réessayer depuis vos réservations.'
-          : 'Votre paiement est en cours de traitement. Vérifiez vos réservations dans quelques instants.'}
+          : isProcessing && pollCount < MAX_POLLS
+          ? 'Votre paiement est en cours de vérification. Cette page se rafraîchit automatiquement…'
+          : 'La confirmation prend plus de temps que prévu. Vérifiez vos réservations dans quelques minutes.'}
       </p>
 
       {/* Booking summary */}
@@ -81,8 +119,12 @@ function BookingResultContent() {
             <span className="font-bold text-gold-dark">{formatPrice(booking.totalAmount)}</span>
           </div>
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-sm text-sub">Statut</span>
+            <span className="text-sm text-sub">Réservation</span>
             <StatusBadge status={booking.status} />
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-sm text-sub">Paiement</span>
+            <EscrowBadge status={booking.escrowStatus} />
           </div>
         </div>
       )}
@@ -131,6 +173,26 @@ function StatusBadge({ status }: { status: string }) {
     PENDING:   'En attente',
     CANCELLED: 'Annulée',
     COMPLETED: 'Terminée',
+  };
+  return (
+    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${styles[status] ?? 'bg-card text-sub border border-line'}`}>
+      {labels[status] ?? status}
+    </span>
+  );
+}
+
+function EscrowBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    AWAITING_PAYMENT: 'bg-gold-pale text-gold-dark',
+    HELD:             'bg-blue-100 text-blue-700',
+    RELEASED:         'bg-green-100 text-green-700',
+    REFUNDED:         'bg-red-100 text-red-700',
+  };
+  const labels: Record<string, string> = {
+    AWAITING_PAYMENT: 'En attente',
+    HELD:             'Sécurisé',
+    RELEASED:         'Versé',
+    REFUNDED:         'Remboursé',
   };
   return (
     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${styles[status] ?? 'bg-card text-sub border border-line'}`}>
