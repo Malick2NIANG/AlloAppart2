@@ -1,4 +1,5 @@
 ﻿import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -89,6 +90,14 @@ export class AuthService {
     if (user.roles.includes(Role.BAILLEUR)) {
       return user; // Déjà bailleur, rien à faire
     }
+
+    if (!user.phone) {
+      throw new BadRequestException(
+        'Un numéro de téléphone est requis pour activer le rôle bailleur',
+      );
+    }
+
+    this.logger.log(`Activation rôle BAILLEUR → userId=${userId}`);
 
     return this.prisma.user.update({
       where: { id: userId },

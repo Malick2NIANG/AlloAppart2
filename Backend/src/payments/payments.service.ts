@@ -63,6 +63,17 @@ export class PaymentsService {
     return { payment_url: response.data.data.payment_url, transId };
   }
 
+  private parseWebhookDate(raw: string): Date {
+    // CinetPay format : YYYYMMDDHHMMSS
+    const y = parseInt(raw.slice(0, 4), 10);
+    const mo = parseInt(raw.slice(4, 6), 10) - 1;
+    const d = parseInt(raw.slice(6, 8), 10);
+    const h = parseInt(raw.slice(8, 10), 10);
+    const mi = parseInt(raw.slice(10, 12), 10);
+    const s = parseInt(raw.slice(12, 14), 10);
+    return new Date(Date.UTC(y, mo, d, h, mi, s));
+  }
+
   async handleWebhook(payload: CinetpayWebhookDto) {
     const secret = this.config.get<string>('CINETPAY_SECRET_KEY');
     if (!secret) throw new BadRequestException('CINETPAY_SECRET_KEY manquant');
@@ -80,6 +91,17 @@ export class PaymentsService {
       !timingSafeEqual(expectedBuf, actualBuf)
     ) {
       throw new BadRequestException('Signature invalide');
+    }
+
+    // Rejeter les webhooks trop anciens (protection contre replay)
+    const webhookDate = this.parseWebhookDate(payload.cpm_trans_date);
+    const ageMs = Date.now() - webhookDate.getTime();
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    if (isNaN(ageMs) || ageMs > ONE_HOUR_MS || ageMs < -60_000) {
+      this.logger.warn(
+        `Webhook CinetPay rejeté — horodatage hors fenêtre : ${payload.cpm_trans_date}`,
+      );
+      throw new BadRequestException('Webhook expiré ou horodatage invalide');
     }
 
     const booking = await this.prisma.booking.findFirst({

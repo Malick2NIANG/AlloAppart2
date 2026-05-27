@@ -1,6 +1,6 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { ClerkAuthGuard } from './common/guards/clerk-auth.guard';
@@ -86,9 +86,10 @@ async function bootstrap() {
 
   const port = config.get<number>('PORT') ?? 4000;
   await app.listen(port);
-  console.log(`API Allo-Appart démarrée sur le port ${port}`);
+  const logger = new Logger('Bootstrap');
+  logger.log(`API Allo-Appart démarrée sur le port ${port}`);
   if (config.get<string>('NODE_ENV') !== 'production') {
-    console.log(`Swagger UI : http://localhost:${port}/api/docs`);
+    logger.log(`Swagger UI : http://localhost:${port}/api/docs`);
   }
 }
 

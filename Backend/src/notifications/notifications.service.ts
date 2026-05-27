@@ -57,7 +57,9 @@ export class NotificationsService {
       await this.transporter.sendMail({ from: this.from, to, subject, html });
       this.logger.log(`Email envoyé → ${to} : ${subject}`);
     } catch (err) {
-      this.logger.error(`Erreur envoi email → ${to}`, err);
+      this.logger.error(
+        `Erreur envoi email → ${to} : ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 

@@ -25,14 +25,17 @@ export class MessagesService {
   async findMessages(roomId: string, userId: string, page = 1, limit = 50) {
     await this.assertParticipant(roomId, userId);
 
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(Math.max(1, limit), 100);
+
     return this.prisma.message.findMany({
       where: { roomId },
       include: {
         sender: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
     });
   }
 

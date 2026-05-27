@@ -12,14 +12,30 @@ const ALLOWED_FILTER_FIELDS = [
 ];
 const ALLOWED_SORT_FIELDS = ['boostScore', 'createdAt', 'price'];
 
+// Mots-clés syntaxiques Meilisearch — ne sont pas des noms de champs
+const FILTER_KEYWORDS = new Set([
+  'AND',
+  'OR',
+  'NOT',
+  'IN',
+  'TO',
+  'EXISTS',
+  'IS',
+  'NULL',
+  'TRUE',
+  'FALSE',
+  'EMPTY',
+]);
+
 function validateMeilisearchFilter(filter: string): void {
-  const fieldPattern = /([a-zA-Z_][a-zA-Z0-9_.]*)\s*[=<>!]/g;
-  let match: RegExpExecArray | null;
-  while ((match = fieldPattern.exec(filter)) !== null) {
-    if (!ALLOWED_FILTER_FIELDS.includes(match[1])) {
-      throw new BadRequestException(
-        `Champ de filtre non autorisé : ${match[1]}`,
-      );
+  // Supprimer les valeurs entre guillemets pour ne pas traiter leur contenu
+  const stripped = filter.replace(/'[^']*'|"[^"]*"/g, '""');
+  // Extraire tous les identifiants (champs, mots-clés, fonctions)
+  const tokens = stripped.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) ?? [];
+  for (const token of tokens) {
+    if (FILTER_KEYWORDS.has(token.toUpperCase())) continue;
+    if (!ALLOWED_FILTER_FIELDS.includes(token)) {
+      throw new BadRequestException(`Champ de filtre non autorisé : ${token}`);
     }
   }
 }
@@ -69,10 +85,14 @@ export class SearchController {
         'Longitude invalide (doit être entre -180 et 180)',
       );
     }
+    const MAX_RADIUS_M = 50_000; // 50 km
+    const radiusNum = radius
+      ? Math.min(parseInt(radius, 10), MAX_RADIUS_M)
+      : 5000;
     return this.searchService.geoSearch({
       lat: latNum,
       lng: lngNum,
-      radius: radius ? parseInt(radius, 10) : 5000,
+      radius: radiusNum,
     });
   }
 }

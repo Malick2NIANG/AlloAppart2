@@ -18,10 +18,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
+    const isProduction = process.env.NODE_ENV === 'production';
     const message =
       exception instanceof HttpException
         ? exception.getResponse()
-        : 'Erreur interne du serveur';
+        : isProduction
+          ? 'Erreur interne du serveur'
+          : String(exception);
 
     response.status(status).json({
       statusCode: status,

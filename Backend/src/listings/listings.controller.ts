@@ -15,6 +15,7 @@ import { FilterListingsDto } from './dto/filter-listings.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { PaginationDto } from '../auth/dto/pagination.dto';
 import { type User, Role } from '@prisma/client';
 
 @Controller('listings')
@@ -29,8 +30,8 @@ export class ListingsController {
 
   @Roles(Role.ADMIN)
   @Get('all')
-  findAllAdmin(@Query('page') page = '1', @Query('limit') limit = '20') {
-    return this.listingsService.findAll_admin(parseInt(page), parseInt(limit));
+  findAllAdmin(@Query() dto: PaginationDto) {
+    return this.listingsService.findAll_admin(dto.page ?? 1, dto.limit ?? 20);
   }
 
   @Get('mine')
@@ -98,5 +99,17 @@ export class ListingsController {
   @Post(':id/boost')
   boost(@Param('id') id: string, @CurrentUser() user: User) {
     return this.listingsService.boost(id, user);
+  }
+
+  @Roles(Role.ADMIN, Role.AGENT_TERRAIN)
+  @Patch(':id/activate')
+  activate(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.listingsService.activateListing(id, user);
+  }
+
+  @Roles(Role.ADMIN)
+  @Patch(':id/suspend')
+  suspend(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.listingsService.suspendListing(id, user);
   }
 }

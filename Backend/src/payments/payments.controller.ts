@@ -1,5 +1,5 @@
 ﻿import { Body, Controller, Param, Post } from '@nestjs/common';
-import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { PaymentsService } from './payments.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
@@ -19,8 +19,8 @@ export class PaymentsController {
     return this.paymentsService.initiate(dto.bookingId, user.id);
   }
 
-  // CinetPay appelle ce webhook — vérifié par signature HMAC, IP whitelist via reverse proxy
-  @SkipThrottle()
+  // CinetPay appelle ce webhook — vérifié par signature HMAC + fenêtre temporelle
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @Public()
   @Post('webhook')
   webhook(@Body() dto: CinetpayWebhookDto) {

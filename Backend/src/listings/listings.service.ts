@@ -173,6 +173,35 @@ export class ListingsService {
     return updated;
   }
 
+  async activateListing(id: string, user: User) {
+    if (
+      !user.roles.includes(Role.ADMIN) &&
+      !user.roles.includes(Role.AGENT_TERRAIN)
+    ) {
+      throw new ForbiddenException(
+        'Réservé aux administrateurs et agents terrain',
+      );
+    }
+    const updated = await this.prisma.listing.update({
+      where: { id },
+      data: { status: ListingStatus.ACTIVE },
+    });
+    void this.search.indexListing(updated).catch(() => undefined);
+    return updated;
+  }
+
+  async suspendListing(id: string, user: User) {
+    if (!user.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Réservé aux administrateurs');
+    }
+    const updated = await this.prisma.listing.update({
+      where: { id },
+      data: { status: ListingStatus.SUSPENDED },
+    });
+    void this.search.deleteListingFromIndex(id).catch(() => undefined);
+    return updated;
+  }
+
   async remove(id: string, user: User) {
     const listing = await this.findOne(id);
 

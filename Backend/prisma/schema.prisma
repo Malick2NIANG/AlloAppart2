@@ -82,6 +82,7 @@ model Booking {
 
   @@index([tenantId])
   @@index([listingId])
+  @@index([paymentRef])
   @@map("bookings")
 }
 
