@@ -112,8 +112,8 @@ export default async function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <i className="fa-solid fa-envelope text-gold-dark shrink-0" />
-                <a href="mailto:contact@alloappart.sn" className="hover:text-gold-dark transition-colors">
-                  contact@alloappart.sn
+                <a href="mailto:alloappart221@gmail.com" className="hover:text-gold-dark transition-colors">
+                  alloappart221@gmail.com
                 </a>
               </li>
             </ul>
