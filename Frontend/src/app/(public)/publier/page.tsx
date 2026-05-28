@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -101,6 +101,8 @@ export default function PublierPage() {
   const [activating,    setActivating]    = useState(false);
   const [activateError, setActivateError] = useState<string | null>(null);
 
+  const prevSignedIn = useRef<boolean | undefined>(undefined);
+
   const { register, handleSubmit, watch, setValue, trigger,
     formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
@@ -112,6 +114,14 @@ export default function PublierPage() {
       lng: -17.4441,
     },
   });
+
+  // Efface le brouillon quand l'utilisateur se déconnecte
+  useEffect(() => {
+    if (prevSignedIn.current === true && isSignedIn === false) {
+      localStorage.removeItem(DRAFT_KEY);
+    }
+    if (isSignedIn !== undefined) prevSignedIn.current = isSignedIn;
+  }, [isSignedIn]);
 
   useEffect(() => {
     // Restore draft saved from a previous session
