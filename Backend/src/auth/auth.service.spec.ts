@@ -1,6 +1,7 @@
 // Mocker createClerkClient avant tout import pour éviter les appels réseau au constructeur
 jest.mock('@clerk/backend', () => {
-  const actual = jest.requireActual<typeof import('@clerk/backend')>('@clerk/backend');
+  const actual =
+    jest.requireActual<typeof import('@clerk/backend')>('@clerk/backend');
   return {
     ...actual,
     createClerkClient: jest.fn(() => ({})),

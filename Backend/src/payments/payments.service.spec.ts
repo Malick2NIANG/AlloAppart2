@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { BookingStatus, EscrowStatus } from '@prisma/client';
 import { createHmac } from 'crypto';
+import { CinetpayWebhookDto } from './dto/cinetpay-webhook.dto';
 
 const TEST_SECRET = 'test-cinetpay-secret';
 const SITE_ID = 'site123';
@@ -40,7 +41,9 @@ function sign(siteId: string, transId: string, transDate: string): string {
     .digest('hex');
 }
 
-function validPayload(overrides: Record<string, string> = {}) {
+function validPayload(
+  overrides: Record<string, string> = {},
+): CinetpayWebhookDto {
   const date = overrides.cpm_trans_date ?? nowCinetPay();
   return {
     cpm_site_id: SITE_ID,
@@ -104,20 +107,22 @@ describe('PaymentsService — handleWebhook', () => {
 
   // --- HMAC ---
   it('accepte un webhook avec signature valide', async () => {
-    const result = await service.handleWebhook(validPayload() as any);
+    const result = await service.handleWebhook(validPayload());
     expect(result).toEqual({ ok: true });
   });
 
   it('rejette une signature invalide', async () => {
-    const payload = validPayload({ signature: 'aabbccddeeff' + '00'.repeat(26) });
-    await expect(service.handleWebhook(payload as any)).rejects.toThrow(
+    const payload = validPayload({
+      signature: 'aabbccddeeff' + '00'.repeat(26),
+    });
+    await expect(service.handleWebhook(payload)).rejects.toThrow(
       BadRequestException,
     );
   });
 
   it('rejette une signature vide', async () => {
     const payload = validPayload({ signature: '' });
-    await expect(service.handleWebhook(payload as any)).rejects.toThrow(
+    await expect(service.handleWebhook(payload)).rejects.toThrow(
       BadRequestException,
     );
   });
@@ -129,7 +134,7 @@ describe('PaymentsService — handleWebhook', () => {
       cpm_trans_date: oldDate,
       signature: sign(SITE_ID, TRANS_ID, oldDate),
     });
-    await expect(service.handleWebhook(payload as any)).rejects.toThrow(
+    await expect(service.handleWebhook(payload)).rejects.toThrow(
       BadRequestException,
     );
   });
@@ -139,7 +144,7 @@ describe('PaymentsService — handleWebhook', () => {
       cpm_trans_date: 'invalid',
       signature: sign(SITE_ID, TRANS_ID, 'invalid'),
     });
-    await expect(service.handleWebhook(payload as any)).rejects.toThrow(
+    await expect(service.handleWebhook(payload)).rejects.toThrow(
       BadRequestException,
     );
   });
@@ -150,7 +155,7 @@ describe('PaymentsService — handleWebhook', () => {
       cpm_trans_date: recentDate,
       signature: sign(SITE_ID, TRANS_ID, recentDate),
     });
-    await expect(service.handleWebhook(payload as any)).resolves.toEqual({
+    await expect(service.handleWebhook(payload)).resolves.toEqual({
       ok: true,
     });
   });
@@ -158,7 +163,7 @@ describe('PaymentsService — handleWebhook', () => {
   // --- Booking introuvable ---
   it('retourne ok si aucun booking trouvé', async () => {
     prismaMock.booking.findFirst.mockResolvedValueOnce(null);
-    const result = await service.handleWebhook(validPayload() as any);
+    const result = await service.handleWebhook(validPayload());
     expect(result).toEqual({ ok: true });
     expect(prismaMock.booking.update).not.toHaveBeenCalled();
   });
@@ -169,7 +174,7 @@ describe('PaymentsService — handleWebhook', () => {
       ...pendingBooking,
       status: BookingStatus.CONFIRMED,
     });
-    const result = await service.handleWebhook(validPayload() as any);
+    const result = await service.handleWebhook(validPayload());
     expect(result).toEqual({ ok: true });
     expect(prismaMock.booking.update).not.toHaveBeenCalled();
   });
@@ -179,7 +184,7 @@ describe('PaymentsService — handleWebhook', () => {
       ...pendingBooking,
       status: BookingStatus.COMPLETED,
     });
-    const result = await service.handleWebhook(validPayload() as any);
+    const result = await service.handleWebhook(validPayload());
     expect(result).toEqual({ ok: true });
     expect(prismaMock.booking.update).not.toHaveBeenCalled();
   });
@@ -187,23 +192,24 @@ describe('PaymentsService — handleWebhook', () => {
   // --- Vérification montant ---
   it('rejette si le montant payé ne correspond pas', async () => {
     const payload = validPayload({ cpm_amount: '1' });
-    await expect(service.handleWebhook(payload as any)).rejects.toThrow(
+    await expect(service.handleWebhook(payload)).rejects.toThrow(
       BadRequestException,
     );
   });
 
   it('accepte une différence de 1 XOF (tolérance arrondis)', async () => {
     const payload = validPayload({ cpm_amount: '50001' });
-    await expect(service.handleWebhook(payload as any)).resolves.toEqual({
+    await expect(service.handleWebhook(payload)).resolves.toEqual({
       ok: true,
     });
   });
 
   // --- Succès / Échec paiement ---
   it('passe le booking en CONFIRMED + HELD sur cpm_result=00', async () => {
-    await service.handleWebhook(validPayload({ cpm_result: '00' }) as any);
+    await service.handleWebhook(validPayload({ cpm_result: '00' }));
     expect(prismaMock.booking.update).toHaveBeenCalledWith(
       expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         data: expect.objectContaining({
           status: BookingStatus.CONFIRMED,
           escrowStatus: EscrowStatus.HELD,
@@ -213,9 +219,10 @@ describe('PaymentsService — handleWebhook', () => {
   });
 
   it('passe le booking en CANCELLED + REFUNDED sur cpm_result non-00', async () => {
-    await service.handleWebhook(validPayload({ cpm_result: 'XX' }) as any);
+    await service.handleWebhook(validPayload({ cpm_result: 'XX' }));
     expect(prismaMock.booking.update).toHaveBeenCalledWith(
       expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         data: expect.objectContaining({
           status: BookingStatus.CANCELLED,
           escrowStatus: EscrowStatus.REFUNDED,
@@ -234,7 +241,7 @@ describe('PaymentsService — handleWebhook', () => {
       ],
     }).compile();
     const svc = mod.get<PaymentsService>(PaymentsService);
-    await expect(svc.handleWebhook(validPayload() as any)).rejects.toThrow(
+    await expect(svc.handleWebhook(validPayload())).rejects.toThrow(
       BadRequestException,
     );
   });

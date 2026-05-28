@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { Readable } from 'stream';
 import { UploadService } from './upload.service';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary } from 'cloudinary';
@@ -44,7 +45,7 @@ function multerFile(buffer: Buffer): Express.Multer.File {
     encoding: '7bit',
     mimetype: 'image/jpeg',
     size: buffer.length,
-    stream: null as any,
+    stream: null as unknown as Readable,
     destination: '',
     filename: '',
     path: '',
@@ -74,7 +75,9 @@ describe('UploadService — hasMagicBytes', () => {
 
     service = module.get<UploadService>(UploadService);
 
-    (jest.spyOn(cloudinary.uploader, 'upload_stream') as jest.Mock).mockImplementation(
+    (
+      jest.spyOn(cloudinary.uploader, 'upload_stream') as jest.Mock
+    ).mockImplementation(
       (_opts: unknown, callback: (err: unknown, result: unknown) => void) => {
         callback(null, {
           secure_url: 'https://res.cloudinary.com/test/image/upload/test.jpg',
@@ -93,19 +96,27 @@ describe('UploadService — hasMagicBytes', () => {
   });
 
   it('accepte un PNG valide', async () => {
-    await expect(service.uploadFile(multerFile(pngBuf()))).resolves.toBeDefined();
+    await expect(
+      service.uploadFile(multerFile(pngBuf())),
+    ).resolves.toBeDefined();
   });
 
   it('accepte un WebP valide', async () => {
-    await expect(service.uploadFile(multerFile(webpBuf()))).resolves.toBeDefined();
+    await expect(
+      service.uploadFile(multerFile(webpBuf())),
+    ).resolves.toBeDefined();
   });
 
   it('accepte un HEIC valide (brand heic)', async () => {
-    await expect(service.uploadFile(multerFile(heicBuf('heic')))).resolves.toBeDefined();
+    await expect(
+      service.uploadFile(multerFile(heicBuf('heic'))),
+    ).resolves.toBeDefined();
   });
 
   it('accepte un HEIC valide (brand mif1)', async () => {
-    await expect(service.uploadFile(multerFile(heicBuf('mif1')))).resolves.toBeDefined();
+    await expect(
+      service.uploadFile(multerFile(heicBuf('mif1'))),
+    ).resolves.toBeDefined();
   });
 
   it('rejette un MP4 (ftyp brand mp42)', async () => {

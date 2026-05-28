@@ -15,9 +15,7 @@ describe('SearchController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SearchController],
-      providers: [
-        { provide: SearchService, useValue: searchServiceMock },
-      ],
+      providers: [{ provide: SearchService, useValue: searchServiceMock }],
     }).compile();
 
     controller = module.get<SearchController>(SearchController);
@@ -29,13 +27,21 @@ describe('SearchController', () => {
       // Les valeurs enum doivent être entre guillemets pour ne pas être confondues
       // avec des noms de champs par le validateur token-based
       await expect(
-        controller.search('appart', "type = 'APPARTEMENT' AND price < 200000", undefined),
+        controller.search(
+          'appart',
+          "type = 'APPARTEMENT' AND price < 200000",
+          undefined,
+        ),
       ).resolves.toBeDefined();
     });
 
     it('accepte un filtre avec isVerified et boostScore', async () => {
       await expect(
-        controller.search('', 'isVerified = true AND boostScore > 0', undefined),
+        controller.search(
+          '',
+          'isVerified = true AND boostScore > 0',
+          undefined,
+        ),
       ).resolves.toBeDefined();
     });
 
@@ -47,16 +53,16 @@ describe('SearchController', () => {
 
     // Les méthodes search/geoSearch lèvent leurs exceptions de façon synchrone
     // (avant le return de la Promise) → utiliser .toThrow() et non .rejects.toThrow()
-    it("rejette un champ non autorisé (injection)", () => {
+    it('rejette un champ non autorisé (injection)', () => {
       expect(() =>
         controller.search('', 'clerkId = abc123', undefined),
       ).toThrow(BadRequestException);
     });
 
     it("rejette une tentative d'accès à totalAmount", () => {
-      expect(() =>
-        controller.search('', 'totalAmount > 0', undefined),
-      ).toThrow(BadRequestException);
+      expect(() => controller.search('', 'totalAmount > 0', undefined)).toThrow(
+        BadRequestException,
+      );
     });
 
     it('accepte filtre undefined (pas de filtre)', async () => {
@@ -81,9 +87,9 @@ describe('SearchController', () => {
     });
 
     it('rejette un champ de tri non autorisé', () => {
-      expect(() =>
-        controller.search('', undefined, 'clerkId:asc'),
-      ).toThrow(BadRequestException);
+      expect(() => controller.search('', undefined, 'clerkId:asc')).toThrow(
+        BadRequestException,
+      );
     });
   });
 

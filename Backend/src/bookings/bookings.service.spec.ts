@@ -133,6 +133,7 @@ describe('BookingsService', () => {
 
       expect(prismaMock.booking.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           data: expect.objectContaining({ totalAmount: 200000 }),
         }),
       );
@@ -158,6 +159,7 @@ describe('BookingsService', () => {
 
       expect(prismaMock.booking.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           data: expect.objectContaining({ totalAmount: 300000 }),
         }),
       );
@@ -196,13 +198,17 @@ describe('BookingsService', () => {
   // --- confirm ---
   describe('confirm', () => {
     it('confirme la réservation si owner et statut PENDING', async () => {
-      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(pendingBooking);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        pendingBooking,
+      );
       const result = await service.confirm('booking1', 'owner1');
       expect(result.status).toBe(BookingStatus.CONFIRMED);
     });
 
     it("lève ForbiddenException si l'utilisateur n'est pas l'owner", async () => {
-      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(pendingBooking);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        pendingBooking,
+      );
       await expect(service.confirm('booking1', 'autre-user')).rejects.toThrow(
         ForbiddenException,
       );
@@ -254,6 +260,7 @@ describe('BookingsService', () => {
       await service.cancel('booking1', tenant);
       expect(prismaMock.booking.update).toHaveBeenCalledWith(
         expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           data: expect.objectContaining({
             status: BookingStatus.CANCELLED,
             escrowStatus: EscrowStatus.REFUNDED,
