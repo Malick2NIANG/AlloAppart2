@@ -100,6 +100,7 @@ export default function PublierPage() {
   const [rolesLoaded,   setRolesLoaded]   = useState(false);
   const [activating,    setActivating]    = useState(false);
   const [activateError, setActivateError] = useState<string | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
 
   const prevSignedIn = useRef<boolean | undefined>(undefined);
 
@@ -124,6 +125,12 @@ export default function PublierPage() {
   }, [isSignedIn]);
 
   useEffect(() => {
+    if (!draftRestored) return;
+    const t = setTimeout(() => setDraftRestored(false), 5000);
+    return () => clearTimeout(t);
+  }, [draftRestored]);
+
+  useEffect(() => {
     // Restore draft saved from a previous session
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
@@ -132,6 +139,7 @@ export default function PublierPage() {
         (Object.entries(draft) as [keyof FormValues, FormValues[keyof FormValues]][]).forEach(
           ([key, val]) => setValue(key, val),
         );
+        setDraftRestored(true);
       }
     } catch {}
 
@@ -328,6 +336,16 @@ export default function PublierPage() {
         <h1 className="mb-6 flex items-center gap-2 text-xl font-extrabold text-text">
           <i className="fa-solid fa-circle-plus text-gold-dark" /> Publier une annonce
         </h1>
+
+        {/* Bannière brouillon restauré */}
+        {draftRestored && (
+          <div className="mb-4 flex items-center justify-between gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            <span><i className="fa-solid fa-floppy-disk mr-2" />Brouillon restauré — vos données ont été récupérées.</span>
+            <button onClick={() => setDraftRestored(false)} className="shrink-0 text-blue-400 hover:text-blue-700 transition-colors">
+              <i className="fa-solid fa-xmark" />
+            </button>
+          </div>
+        )}
 
         {/* Bannière démo */}
         {isDemo && (

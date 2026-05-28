@@ -55,7 +55,9 @@ export default function MessagesPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollingRoomsRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollingMsgsRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingMsgsRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const msgBackoffMs = useRef(2000);
+  const lastMsgCountRef = useRef(-1);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard pattern
   useEffect(() => { setMounted(true); }, []);
@@ -73,15 +75,16 @@ export default function MessagesPage() {
     }
   }, [isSignedIn, getToken]);
 
-  const loadMessages = useCallback(async (roomId: string) => {
+  const loadMessages = useCallback(async (roomId: string): Promise<number> => {
     const token = await getToken();
-    if (!token) return;
+    if (!token) return -1;
     try {
       const data = await api.get<Message[]>(`/messages/rooms/${roomId}`, token);
-      // API returns desc order, reverse for display
-      setMessages([...data].reverse());
+      const reversed = [...data].reverse();
+      setMessages(reversed);
+      return reversed.length;
     } catch {
-      // ignore
+      return -1;
     }
   }, [getToken]);
 
@@ -114,21 +117,37 @@ export default function MessagesPage() {
     return () => { if (pollingRoomsRef.current) clearInterval(pollingRoomsRef.current); };
   }, [isSignedIn, mounted, loadRooms, preSelectedRoomId]);
 
-  // Load messages + poll every 4s when activeRoom changes
+  // Load messages + poll avec exponential backoff (2s → 30s si pas de nouveaux msgs)
   useEffect(() => {
     if (!activeRoom) return;
-    if (pollingMsgsRef.current) clearInterval(pollingMsgsRef.current);
+    if (pollingMsgsRef.current) clearTimeout(pollingMsgsRef.current);
+
+    msgBackoffMs.current = 2000;
+    lastMsgCountRef.current = -1;
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loading state set in effect body
     setLoadingMessages(true);
-    loadMessages(activeRoom.id).then(() => setLoadingMessages(false));
+    loadMessages(activeRoom.id).then((count) => {
+      setLoadingMessages(false);
+      lastMsgCountRef.current = count;
+    });
     markRead(activeRoom.id);
 
-    pollingMsgsRef.current = setInterval(() => {
-      loadMessages(activeRoom.id);
-    }, 4000);
+    const schedule = () => {
+      pollingMsgsRef.current = setTimeout(async () => {
+        const newCount = await loadMessages(activeRoom.id);
+        if (newCount >= 0 && newCount > lastMsgCountRef.current) {
+          msgBackoffMs.current = 2000; // nouveau message → reset backoff
+          lastMsgCountRef.current = newCount;
+        } else if (newCount >= 0) {
+          msgBackoffMs.current = Math.min(msgBackoffMs.current * 1.5, 30_000); // ralentir
+        }
+        schedule();
+      }, msgBackoffMs.current);
+    };
+    schedule();
 
-    return () => { if (pollingMsgsRef.current) clearInterval(pollingMsgsRef.current); };
+    return () => { if (pollingMsgsRef.current) clearTimeout(pollingMsgsRef.current); };
   }, [activeRoom?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll to bottom when messages load
