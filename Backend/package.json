@@ -30,11 +30,13 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/mapped-types": "^2.1.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/schedule": "^6.1.3",
     "@nestjs/swagger": "^11.4.3",
     "@nestjs/throttler": "^6.5.0",
-    "@nestjs/websockets": "^11.1.21",
+    "@onesignal/node-onesignal": "^5.7.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@types/pdfkit": "^0.17.6",
     "axios": "^1.16.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
@@ -42,11 +44,14 @@
     "helmet": "^8.1.0",
     "meilisearch": "^0.40.0",
     "nodemailer": "^8.0.8",
+    "pdfkit": "^0.18.0",
     "pg": "^8.20.0",
+    "pusher": "^5.3.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "svix": "^1.94.0",
     "swagger-ui-express": "^5.0.1",
+    "twilio": "^6.0.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -61,8 +66,8 @@
     "@types/node": "^24.0.0",
     "@types/nodemailer": "^8.0.0",
     "@types/pg": "^8.20.0",
-    "@types/socket.io": "^3.0.1",
     "@types/supertest": "^7.0.0",
+    "@types/twilio": "^3.19.2",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
@@ -95,5 +100,8 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "ws": ">=8.17.1"
   }
 }

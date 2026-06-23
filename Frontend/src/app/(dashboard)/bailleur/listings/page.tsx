@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { api } from '@/lib/api';
 import type { Listing, PaginatedResponse } from '@/types';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/utils';
+import { SkeletonCard } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
 
 interface VerifModal {
   listingId: string;
@@ -14,21 +16,27 @@ interface VerifModal {
 
 export default function BailleurListingsPage() {
   const { getToken } = useAuth();
+  const { toast } = useToast();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [verifModal, setVerifModal] = useState<VerifModal | null>(null);
   const [verifForm, setVerifForm] = useState({ auditType: 'BASIC', scheduledAt: '' });
   const [verifLoading, setVerifLoading] = useState(false);
-  const [verifSuccess, setVerifSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     getToken().then((token) => {
-      if (!token) return;
+      if (!token) { setLoading(false); return; }
       api.get<PaginatedResponse<Listing>>('/listings/mine', token)
         .then((res) => setListings(res.data))
+        .catch(() => setError('Impossible de charger vos annonces.'))
         .finally(() => setLoading(false));
     });
   }, [getToken]);
+
+  useEffect(() => { load(); }, [load]);
 
   const requestVerif = async () => {
     if (!verifModal || !verifForm.scheduledAt) return;
@@ -41,10 +49,11 @@ export default function BailleurListingsPage() {
         auditType: verifForm.auditType,
         scheduledAt: new Date(verifForm.scheduledAt).toISOString(),
       }, token);
-      setVerifSuccess(verifModal.title);
+      toast.success(`Demande AlloVérifié envoyée pour "${verifModal.title}"`);
       setVerifModal(null);
       setVerifForm({ auditType: 'BASIC', scheduledAt: '' });
     } catch {
+      toast.error('Erreur lors de la demande. Veuillez réessayer.');
     } finally {
       setVerifLoading(false);
     }
@@ -56,8 +65,20 @@ export default function BailleurListingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} height="100px" />)}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
+        <p className="text-sm text-sub">{error}</p>
+        <button onClick={load} className="mt-4 btn-gold text-sm">
+          <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+        </button>
       </div>
     );
   }
@@ -74,16 +95,6 @@ export default function BailleurListingsPage() {
           Nouvelle annonce
         </Link>
       </div>
-
-      {verifSuccess && (
-        <div className="mb-6 flex items-center gap-3 rounded-xl bg-green-50 border border-green-200 p-4 text-sm text-green-700">
-          <i className="fa-solid fa-circle-check text-green-500" />
-          Demande AlloVérifié envoyée pour &quot;{verifSuccess}&quot;. Un agent sera assigné prochainement.
-          <button onClick={() => setVerifSuccess(null)} className="ml-auto text-green-500 hover:text-green-700">
-            <i className="fa-solid fa-xmark" />
-          </button>
-        </div>
-      )}
 
       {listings.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">

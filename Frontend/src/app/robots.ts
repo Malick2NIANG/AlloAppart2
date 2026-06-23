@@ -11,9 +11,8 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/bailleur/',
           '/locataire/',
-          '/admin/',
+          '/espace/',
           '/agent/',
-          '/espace',
           '/onboarding',
           '/profil',
           '/sign-in',

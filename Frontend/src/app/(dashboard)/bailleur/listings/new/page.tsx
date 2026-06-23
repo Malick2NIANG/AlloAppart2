@@ -1,15 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
+import LocationPicker from '@/components/map/LocationPicker';
 
 const LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
+
+const AMENITIES = [
+  { key: 'wifi',       icon: 'fa-wifi',         label: 'Wi-Fi'             },
+  { key: 'clim',       icon: 'fa-snowflake',     label: 'Climatisation'     },
+  { key: 'tv',         icon: 'fa-tv',            label: 'Television'        },
+  { key: 'cuisine',    icon: 'fa-utensils',      label: 'Cuisine equipee'   },
+  { key: 'douche',     icon: 'fa-shower',        label: 'Douche / SdB'      },
+  { key: 'gardien',    icon: 'fa-shield-halved', label: 'Gardiennage'       },
+  { key: 'parking',    icon: 'fa-car',           label: 'Parking'           },
+  { key: 'piscine',    icon: 'fa-water',         label: 'Piscine'           },
+  { key: 'balcon',     icon: 'fa-door-open',     label: 'Balcon / Terrasse' },
+  { key: 'generateur', icon: 'fa-bolt',          label: 'Generateur'        },
+];
 
 const schema = z.object({
   title:       z.string().min(5, 'Titre trop court'),
@@ -22,7 +36,10 @@ const schema = z.object({
   city:        z.string().min(2),
   region:      z.string().min(2),
   surface:     z.number().positive().optional(),
-  rooms:       z.number().int().positive().optional(),
+  rooms:       z.number().int().min(0).optional(),
+  beds:        z.number().int().min(0).optional(),
+  baths:       z.number().int().min(0).optional(),
+  amenities:   z.array(z.string()).default([]),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -31,10 +48,13 @@ export default function NewListingPage() {
   const { getToken } = useAuth();
   const router = useRouter();
   const [images, setImages] = useState<string[]>([]);
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { lat: 14.6937, lng: -17.4441 },
+  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormValues>({
+    resolver: zodResolver(schema) as Resolver<FormValues>,
+    defaultValues: { lat: 14.6937, lng: -17.4441, amenities: [] },
   });
+  const lat       = watch('lat');
+  const lng       = watch('lng');
+  const amenities = watch('amenities') ?? [];
 
   async function onSubmit(values: FormValues) {
     const token = await getToken();
@@ -52,11 +72,11 @@ export default function NewListingPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
         <Field label="Titre" error={errors.title?.message}>
-          <input {...register('title')} placeholder="Ex : Appartement 3 pièces meublé" className={inputCls} />
+          <input {...register('title')} placeholder="Ex : Appartement 3 pieces meuble" className={inputCls} />
         </Field>
 
         <Field label="Description" error={errors.description?.message}>
-          <textarea {...register('description')} rows={4} placeholder="Décrivez votre bien..." className={inputCls} />
+          <textarea {...register('description')} rows={4} placeholder="Decrivez votre bien..." className={inputCls} />
         </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -70,35 +90,77 @@ export default function NewListingPage() {
           </Field>
         </div>
 
-        <Field label="Adresse complète" error={errors.address?.message}>
-          <input {...register('address')} placeholder="Rue, numéro..." className={inputCls} />
+        <Field label="Adresse complete" error={errors.address?.message}>
+          <input {...register('address')} placeholder="Rue, numero..." className={inputCls} />
         </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Ville" error={errors.city?.message}>
             <input {...register('city')} placeholder="Ex : Dakar" className={inputCls} />
           </Field>
-          <Field label="Région" error={errors.region?.message}>
+          <Field label="Region" error={errors.region?.message}>
             <input {...register('region')} placeholder="Ex : Dakar" className={inputCls} />
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Latitude" error={errors.lat?.message}>
-            <input type="number" step="any" {...register('lat', { valueAsNumber: true })} className={inputCls} />
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-text">Position sur la carte</label>
+          <div className="h-64 overflow-hidden rounded-xl border border-line">
+            <LocationPicker
+              defaultLat={lat ?? 14.6937}
+              defaultLng={lng ?? -17.4441}
+              onChange={(la, ln) => { setValue('lat', la); setValue('lng', ln); }}
+            />
+          </div>
+          <p className="mt-1 text-xs text-sub">
+            <i className="fa-solid fa-location-crosshairs mr-1 text-gold-dark" />
+            Lat : {lat?.toFixed(4)} - Lng : {lng?.toFixed(4)}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Field label="Surface (m2)">
+            <input type="number" {...register('surface', { valueAsNumber: true })} placeholder="85" className={inputCls} />
           </Field>
-          <Field label="Longitude" error={errors.lng?.message}>
-            <input type="number" step="any" {...register('lng', { valueAsNumber: true })} className={inputCls} />
+          <Field label="Pieces">
+            <input type="number" {...register('rooms', { valueAsNumber: true })} placeholder="3" className={inputCls} />
+          </Field>
+          <Field label="Chambres">
+            <input type="number" {...register('beds', { valueAsNumber: true })} placeholder="2" className={inputCls} />
+          </Field>
+          <Field label="SDB">
+            <input type="number" {...register('baths', { valueAsNumber: true })} placeholder="1" className={inputCls} />
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Surface (m²)">
-            <input type="number" {...register('surface', { valueAsNumber: true })} placeholder="Ex : 85" className={inputCls} />
-          </Field>
-          <Field label="Nombre de pièces">
-            <input type="number" {...register('rooms', { valueAsNumber: true })} placeholder="Ex : 3" className={inputCls} />
-          </Field>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-text">Equipements</label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {AMENITIES.map(({ key, icon, label }) => {
+              const active = amenities.includes(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() =>
+                    setValue(
+                      'amenities',
+                      active ? amenities.filter((a) => a !== key) : [...amenities, key],
+                    )
+                  }
+                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all ${
+                    active
+                      ? 'border-gold bg-gold-pale text-gold-dark'
+                      : 'border-line bg-bg text-sub hover:border-gold/40'
+                  }`}
+                >
+                  <i className={`fa-solid ${icon} text-sm shrink-0`} />
+                  <span className="font-medium">{label}</span>
+                  {active && <i className="fa-solid fa-check ml-auto text-[10px]" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div>

@@ -1,28 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@clerk/nextjs';
 import { api } from '@/lib/api';
 import { priceToNumber } from '@/types';
 import type { Listing } from '@/types';
+import { SkeletonCard } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
 
 export default function FavoritesPage() {
   const { getToken } = useAuth();
+  const { toast } = useToast();
   const [favorites, setFavorites] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     getToken().then((token) => {
       if (!token) { setLoading(false); return; }
       api.get<Listing[]>('/listings/favorites', token)
         .then(setFavorites)
-        .catch(() => {})
+        .catch(() => setError('Impossible de charger vos favoris.'))
         .finally(() => setLoading(false));
     });
   }, [getToken]);
+
+  useEffect(() => { load(); }, [load]);
 
   const remove = async (listingId: string) => {
     const token = await getToken();
@@ -31,25 +39,50 @@ export default function FavoritesPage() {
     try {
       await api.delete(`/listings/${listingId}/favorite`, token);
       setFavorites((prev) => prev.filter((f) => f.id !== listingId));
+      toast.success('Retiré des favoris');
+    } catch {
+      toast.error('Erreur lors de la suppression.');
     } finally {
       setRemoving(null);
     }
   };
+
+  if (loading) {
+    return (
+      <div>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-text">Favoris</h1>
+          <p className="mt-1 text-sm text-sub">Chargement…</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} height="220px" />)}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
+        <p className="text-sm text-sub">{error}</p>
+        <button onClick={load} className="mt-4 btn-gold text-sm">
+          <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-text">Favoris</h1>
         <p className="mt-1 text-sm text-sub">
-          {loading ? 'Chargement…' : `${favorites.length} annonce${favorites.length > 1 ? 's' : ''} sauvegardée${favorites.length > 1 ? 's' : ''}`}
+          {`${favorites.length} annonce${favorites.length > 1 ? 's' : ''} sauvegardée${favorites.length > 1 ? 's' : ''}`}
         </p>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
-        </div>
-      ) : favorites.length === 0 ? (
+      {favorites.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
             <i className="fa-solid fa-heart text-2xl text-gold-dark" />

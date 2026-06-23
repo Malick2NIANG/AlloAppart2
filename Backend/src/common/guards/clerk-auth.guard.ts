@@ -73,9 +73,14 @@ export class ClerkAuthGuard implements CanActivate {
         });
       }
 
+      if (user.isSuspended) {
+        throw new UnauthorizedException('Compte suspendu');
+      }
+
       request.user = user;
       return true;
-    } catch {
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
       throw new UnauthorizedException(
         'Token invalide ou utilisateur introuvable',
       );

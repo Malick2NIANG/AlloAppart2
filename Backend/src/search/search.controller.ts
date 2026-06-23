@@ -1,4 +1,6 @@
-import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Role } from '@prisma/client';
 import { SearchService } from './search.service';
 import { Public } from '../common/decorators/public.decorator';
 
@@ -94,5 +96,11 @@ export class SearchController {
       lng: lngNum,
       radius: radiusNum,
     });
+  }
+
+  @Post('reindex')
+  @Roles(Role.ADMIN)
+  reindex() {
+    return this.searchService.reindexAll();
   }
 }

@@ -20,6 +20,8 @@ export interface User {
   lastName: string;
   roles: Role[];
   isVerified: boolean;
+  isSuspended: boolean;
+  agencyName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -136,6 +138,7 @@ export interface Review {
   listingId: string;
   authorId: string;
   author?: Pick<User, 'id' | 'firstName' | 'lastName'>;
+  listing?: Pick<Listing, 'id' | 'title' | 'city'>;
   rating: number;
   comment?: string;
   createdAt: string;
@@ -149,3 +152,20 @@ export interface PaginatedResponse<T> {
 }
 
 export type ListingsResponse = PaginatedResponse<Listing>;
+
+export type SubscriptionPlan = 'STARTER' | 'PRO';
+export type SubscriptionStatus = 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  user?: Pick<User, 'id' | 'firstName' | 'lastName' | 'email' | 'agencyName'>;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  monthlyFee: string;
+  startDate: string;
+  endDate?: string | null;
+  paymentRef?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

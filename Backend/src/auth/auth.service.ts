@@ -7,12 +7,14 @@
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { type User, Role } from '@prisma/client';
 import { createClerkClient } from '@clerk/backend';
 import { ConfigService } from '@nestjs/config';
 import { Webhook } from 'svix';
+import { MailService } from '../mail/mail.service';
 
 interface ClerkUserData {
   clerkId: string;
@@ -23,10 +25,17 @@ interface ClerkUserData {
 }
 
 interface CreateAgentDto {
-  clerkId: string;
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
+}
+
+interface CreateProAgenceDto {
+  email: string;
+  firstName: string;
+  lastName: string;
+  agencyName: string;
   phone?: string;
 }
 
@@ -38,10 +47,18 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {
     this.clerkClient = createClerkClient({
       secretKey: this.config.get<string>('CLERK_SECRET_KEY'),
     });
+  }
+
+  private generatePassword(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    return Array.from(randomBytes(12))
+      .map((b) => chars[b % chars.length])
+      .join('');
   }
 
   // Appelé côté client après chaque inscription Clerk — crée l'utilisateur BDD si inexistant
@@ -101,34 +118,58 @@ export class AuthService {
 
     return this.prisma.user.update({
       where: { id: userId },
-      data: { roles: { push: Role.BAILLEUR } },
+      data: {
+        roles: { push: Role.BAILLEUR },
+        bailleurTermsAcceptedAt: new Date(),
+      },
     });
   }
 
-  // Création d'un AGENT_TERRAIN par l'ADMIN uniquement (pas de formulaire public)
+  // Création d'un AGENT_TERRAIN par l'ADMIN — compte Clerk créé automatiquement, credentials envoyés par mail
   async createAgentTerrain(
     adminId: string,
     dto: CreateAgentDto,
   ): Promise<User> {
-    const admin = await this.prisma.user.findUniqueOrThrow({
-      where: { id: adminId },
-    });
-
+    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
     if (!admin.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Réservé aux administrateurs');
     }
 
-    const existing = await this.prisma.user.findUnique({
-      where: { clerkId: dto.clerkId },
-    });
-    if (existing) throw new ConflictException('Cet agent existe déjà');
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw new ConflictException('Email déjà utilisé');
 
-    return this.prisma.user.create({
+    const password = this.generatePassword();
+
+    let clerkId: string;
+    try {
+      const clerkUser = await this.clerkClient.users.createUser({
+        emailAddress: [dto.email],
+        password,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+      });
+      clerkId = clerkUser.id;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ConflictException(`Erreur Clerk : ${msg}`);
+    }
+
+    this.logger.log(`Création AGENT_TERRAIN → clerkId=${clerkId} email=${dto.email}`);
+
+    const user = await this.prisma.user.create({
       data: {
-        ...dto,
+        clerkId,
+        email: dto.email,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        phone: dto.phone ?? null,
         roles: [Role.AGENT_TERRAIN],
       },
     });
+
+    void this.mail.sendCredentials({ to: dto.email, firstName: dto.firstName, role: 'agent', password });
+
+    return user;
   }
 
   // Webhook Clerk — vérifie la signature et synchronise les événements user.*
@@ -208,9 +249,24 @@ export class AuthService {
     return { received: true };
   }
 
-  async getUsers(page: number, limit: number) {
+  async getUsers(page: number, limit: number, q?: string, role?: Role) {
+    const where = {
+      ...(role
+        ? { roles: { has: role } }
+        : { roles: { hasSome: [Role.BAILLEUR, Role.PRO_AGENCE, Role.AGENT_TERRAIN, Role.ADMIN] } }
+      ),
+      ...(q && {
+        OR: [
+          { firstName: { contains: q, mode: 'insensitive' as const } },
+          { lastName: { contains: q, mode: 'insensitive' as const } },
+          { email: { contains: q, mode: 'insensitive' as const } },
+        ],
+      }),
+    };
+
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
+        where,
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -223,13 +279,137 @@ export class AuthService {
           lastName: true,
           roles: true,
           isVerified: true,
+          isSuspended: true,
+          agencyName: true,
           createdAt: true,
           updatedAt: true,
         },
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({ where }),
     ]);
     return { data, total, page, limit };
+  }
+
+  async updateUser(
+    targetId: string,
+    adminId: string,
+    dto: { firstName?: string; lastName?: string; phone?: string | null; agencyName?: string | null },
+  ) {
+    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+    if (!admin.roles.includes(Role.ADMIN)) throw new ForbiddenException('Réservé aux administrateurs');
+
+    const target = await this.prisma.user.findUnique({ where: { id: targetId } });
+    if (!target) throw new NotFoundException('Utilisateur introuvable');
+    if (target.roles.includes(Role.ADMIN)) throw new ForbiddenException('Impossible de modifier un administrateur');
+
+    return this.prisma.user.update({
+      where: { id: targetId },
+      data: {
+        ...(dto.firstName  !== undefined ? { firstName:  dto.firstName  } : {}),
+        ...(dto.lastName   !== undefined ? { lastName:   dto.lastName   } : {}),
+        ...(dto.phone      !== undefined ? { phone:      dto.phone      } : {}),
+        ...(dto.agencyName !== undefined ? { agencyName: dto.agencyName } : {}),
+      },
+      select: {
+        id: true, clerkId: true, email: true, phone: true,
+        firstName: true, lastName: true, roles: true,
+        isVerified: true, isSuspended: true, agencyName: true,
+        createdAt: true, updatedAt: true,
+      },
+    });
+  }
+
+  async suspendUser(targetId: string, adminId: string): Promise<{ isSuspended: boolean }> {
+    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+    if (!admin.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Réservé aux administrateurs');
+    }
+
+    const target = await this.prisma.user.findUnique({ where: { id: targetId } });
+    if (!target) throw new NotFoundException('Utilisateur introuvable');
+    if (target.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Impossible de suspendre un administrateur');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: targetId },
+      data: { isSuspended: !target.isSuspended },
+      select: { isSuspended: true },
+    });
+    this.logger.log(`suspendUser → targetId=${targetId} isSuspended=${String(updated.isSuspended)}`);
+
+    if (updated.isSuspended) {
+      void this.mail.sendAccountSuspended({ to: target.email, firstName: target.firstName });
+    } else {
+      void this.mail.sendAccountReactivated({ to: target.email, firstName: target.firstName });
+    }
+
+    return updated;
+  }
+
+  async deleteUser(targetId: string, adminId: string): Promise<{ deleted: boolean }> {
+    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+    if (!admin.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Réservé aux administrateurs');
+    }
+
+    const target = await this.prisma.user.findUnique({ where: { id: targetId } });
+    if (!target) throw new NotFoundException('Utilisateur introuvable');
+    if (target.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Impossible de supprimer un administrateur');
+    }
+
+    await this.prisma.user.delete({ where: { id: targetId } });
+    this.logger.warn(`deleteUser → targetId=${targetId} by admin=${adminId}`);
+    return { deleted: true };
+  }
+
+  // Création d'un compte PRO_AGENCE par l'ADMIN — compte Clerk créé automatiquement, credentials envoyés par mail + SMS
+  async createProAgence(
+    adminId: string,
+    dto: CreateProAgenceDto,
+  ): Promise<User> {
+    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+    if (!admin.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Réservé aux administrateurs');
+    }
+
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw new ConflictException('Email déjà utilisé');
+
+    const password = this.generatePassword();
+
+    let clerkId: string;
+    try {
+      const clerkUser = await this.clerkClient.users.createUser({
+        emailAddress: [dto.email],
+        password,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+      });
+      clerkId = clerkUser.id;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ConflictException(`Erreur Clerk : ${msg}`);
+    }
+
+    this.logger.log(`Création PRO_AGENCE → clerkId=${clerkId} email=${dto.email} agence=${dto.agencyName}`);
+
+    const user = await this.prisma.user.create({
+      data: {
+        clerkId,
+        email:      dto.email,
+        firstName:  dto.firstName,
+        lastName:   dto.lastName,
+        phone:      dto.phone ?? null,
+        agencyName: dto.agencyName,
+        roles:      [Role.PRO_AGENCE],
+      },
+    });
+
+    void this.mail.sendCredentials({ to: dto.email, firstName: dto.firstName, role: 'agence', password, agencyName: dto.agencyName });
+
+    return user;
   }
 
   // Désactivation du rôle BAILLEUR (admin)

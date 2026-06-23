@@ -17,7 +17,10 @@ const owner: User = {
   lastName: 'Diallo',
   phone: '+221770000001',
   roles: [Role.LOCATAIRE, Role.BAILLEUR],
+  agencyName: null,
+  bailleurTermsAcceptedAt: null,
   isVerified: true,
+  isSuspended: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -30,7 +33,10 @@ const tenant: User = {
   lastName: 'Ba',
   phone: '+221770000002',
   roles: [Role.LOCATAIRE],
+  agencyName: null,
+  bailleurTermsAcceptedAt: null,
   isVerified: false,
+  isSuspended: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -68,6 +74,7 @@ describe('BookingsService', () => {
     booking: {
       create: jest.Mock;
       findMany: jest.Mock;
+      findFirst: jest.Mock;
       findUnique: jest.Mock;
       findUniqueOrThrow: jest.Mock;
       update: jest.Mock;
@@ -85,6 +92,7 @@ describe('BookingsService', () => {
       booking: {
         create: jest.fn(),
         findMany: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn(),
         findUniqueOrThrow: jest.fn(),
         update: jest.fn().mockResolvedValue({
@@ -113,7 +121,7 @@ describe('BookingsService', () => {
 
   // --- create ---
   describe('create', () => {
-    it('calcule totalAmount côté serveur (1 mois)', async () => {
+    it('calcule totalAmount cote serveur (1 mois)', async () => {
       prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
         price: 200000,
         title: 'Appart Plateau',
@@ -143,7 +151,7 @@ describe('BookingsService', () => {
       prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
         price: 100000,
         title: 'Studio',
-        city: 'Thiès',
+        city: 'Thies',
         owner,
       });
       prismaMock.booking.create.mockResolvedValueOnce({
@@ -164,30 +172,48 @@ describe('BookingsService', () => {
         }),
       );
     });
+
+    it('leve BadRequestException si dates chevauchement', async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        price: 200000,
+        title: 'Appart',
+        city: 'Dakar',
+        owner,
+      });
+      prismaMock.booking.findFirst.mockResolvedValueOnce(pendingBooking);
+
+      await expect(
+        service.create('tenant1', {
+          listingId: 'listing1',
+          startDate: '2026-07-01',
+          endDate: '2026-08-01',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   // --- findOne ---
   describe('findOne', () => {
-    it("retourne la réservation si l'utilisateur est le locataire", async () => {
+    it("retourne la reservation si l'utilisateur est le locataire", async () => {
       prismaMock.booking.findUnique.mockResolvedValueOnce(pendingBooking);
       const result = await service.findOne('booking1', 'tenant1');
       expect(result).toEqual(pendingBooking);
     });
 
-    it("retourne la réservation si l'utilisateur est le propriétaire", async () => {
+    it("retourne la reservation si l'utilisateur est le proprietaire", async () => {
       prismaMock.booking.findUnique.mockResolvedValueOnce(pendingBooking);
       const result = await service.findOne('booking1', 'owner1');
       expect(result).toEqual(pendingBooking);
     });
 
-    it('lève NotFoundException si booking inexistant', async () => {
+    it('leve NotFoundException si booking inexistant', async () => {
       prismaMock.booking.findUnique.mockResolvedValueOnce(null);
       await expect(service.findOne('unknown', 'tenant1')).rejects.toThrow(
         NotFoundException,
       );
     });
 
-    it("lève ForbiddenException si l'utilisateur n'est ni tenant ni owner", async () => {
+    it("leve ForbiddenException si l'utilisateur n'est ni tenant ni owner", async () => {
       prismaMock.booking.findUnique.mockResolvedValueOnce(pendingBooking);
       await expect(service.findOne('booking1', 'hacker-id')).rejects.toThrow(
         ForbiddenException,
@@ -197,24 +223,20 @@ describe('BookingsService', () => {
 
   // --- confirm ---
   describe('confirm', () => {
-    it('confirme la réservation si owner et statut PENDING', async () => {
-      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
-        pendingBooking,
-      );
+    it('confirme la reservation si owner et statut PENDING', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(pendingBooking);
       const result = await service.confirm('booking1', 'owner1');
       expect(result.status).toBe(BookingStatus.CONFIRMED);
     });
 
-    it("lève ForbiddenException si l'utilisateur n'est pas l'owner", async () => {
-      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
-        pendingBooking,
-      );
+    it("leve ForbiddenException si l'utilisateur n'est pas l'owner", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(pendingBooking);
       await expect(service.confirm('booking1', 'autre-user')).rejects.toThrow(
         ForbiddenException,
       );
     });
 
-    it('lève BadRequestException si statut != PENDING', async () => {
+    it('leve BadRequestException si statut != PENDING', async () => {
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
         ...pendingBooking,
         status: BookingStatus.CONFIRMED,
@@ -227,7 +249,7 @@ describe('BookingsService', () => {
 
   // --- cancel ---
   describe('cancel', () => {
-    it('lève BadRequestException si déjà CANCELLED', async () => {
+    it('leve BadRequestException si deja CANCELLED', async () => {
       prismaMock.booking.findUnique.mockResolvedValueOnce({
         ...pendingBooking,
         status: BookingStatus.CANCELLED,
@@ -237,7 +259,7 @@ describe('BookingsService', () => {
       );
     });
 
-    it('lève BadRequestException si déjà COMPLETED', async () => {
+    it('leve BadRequestException si deja COMPLETED', async () => {
       prismaMock.booking.findUnique.mockResolvedValueOnce({
         ...pendingBooking,
         status: BookingStatus.COMPLETED,
@@ -247,7 +269,7 @@ describe('BookingsService', () => {
       );
     });
 
-    it("annule et libère l'escrow si statut HELD", async () => {
+    it("annule et libere l'escrow si statut HELD", async () => {
       prismaMock.booking.findUnique.mockResolvedValueOnce({
         ...pendingBooking,
         escrowStatus: EscrowStatus.HELD,

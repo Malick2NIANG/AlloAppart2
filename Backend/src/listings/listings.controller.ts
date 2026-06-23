@@ -1,4 +1,4 @@
-﻿import {
+import {
   Body,
   Controller,
   Delete,
@@ -16,7 +16,9 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { PaginationDto } from '../auth/dto/pagination.dto';
-import { type User, Role } from '@prisma/client';
+import { type User, Role, ListingStatus } from '@prisma/client';
+import { Throttle } from '@nestjs/throttler';
+import { PaydunyaWebhookDto } from '../payments/dto/paydunya-webhook.dto';
 
 @Controller('listings')
 export class ListingsController {
@@ -30,8 +32,15 @@ export class ListingsController {
 
   @Roles(Role.ADMIN)
   @Get('all')
-  findAllAdmin(@Query() dto: PaginationDto) {
-    return this.listingsService.findAll_admin(dto.page ?? 1, dto.limit ?? 20);
+  findAllAdmin(
+    @Query() dto: PaginationDto,
+    @Query('status') status?: string,
+    @Query('city') city?: string,
+  ) {
+    const listingStatus = Object.values(ListingStatus).includes(status as ListingStatus)
+      ? (status as ListingStatus)
+      : undefined;
+    return this.listingsService.findAll_admin(dto.page ?? 1, dto.limit ?? 20, listingStatus, city);
   }
 
   @Get('mine')
@@ -111,5 +120,12 @@ export class ListingsController {
   @Patch(':id/suspend')
   suspend(@Param('id') id: string, @CurrentUser() user: User) {
     return this.listingsService.suspendListing(id, user);
+  }
+
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @Public()
+  @Post('webhook/boost/paydunya')
+  boostWebhookPaydunya(@Body() dto: PaydunyaWebhookDto) {
+    return this.listingsService.handleBoostWebhookPayDunya(dto);
   }
 }

@@ -56,7 +56,7 @@ export default function ListingBookingCard({ listingId, pricePerMonth, numLocale
         ...(endDate ? { endDate } : {}),
       }, token ?? undefined);
 
-      // Étape 2 : initier le paiement CinetPay
+      // Étape 2 : initier le paiement PayDunya
       setLoading(false);
       setRedirecting(true);
       const { payment_url } = await api.post<{ payment_url: string }>(
@@ -65,7 +65,7 @@ export default function ListingBookingCard({ listingId, pricePerMonth, numLocale
         token ?? undefined,
       );
 
-      // Étape 3 : rediriger vers CinetPay
+      // Étape 3 : rediriger vers PayDunya
       window.location.href = payment_url;
     } catch {
       setLoading(false);

@@ -1,14 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { api } from '@/lib/api';
 import type { BookingStatus } from '@/types';
+import { useToast } from '@/components/ui/Toast';
 
 interface Props {
   bookingId: string;
   status: BookingStatus;
+  onActionDone: () => void;
+  toast: ReturnType<typeof useToast>['toast'];
 }
 
 type Action = 'confirm' | 'cancel' | 'complete';
@@ -19,21 +21,25 @@ const ACTION_LABELS: Record<Action, string> = {
   complete: 'Marquer terminé',
 };
 
-export default function BookingActions({ bookingId, status }: Props) {
+const ACTION_SUCCESS: Record<Action, string> = {
+  confirm:  'Réservation confirmée',
+  cancel:   'Réservation refusée',
+  complete: 'Réservation marquée terminée',
+};
+
+export default function BookingActions({ bookingId, status, onActionDone, toast }: Props) {
   const { getToken } = useAuth();
-  const router = useRouter();
   const [loading, setLoading] = useState<Action | null>(null);
-  const [error,   setError]   = useState<string | null>(null);
 
   const act = async (action: Action) => {
     setLoading(action);
-    setError(null);
     try {
       const token = await getToken();
       await api.patch(`/bookings/${bookingId}/${action}`, {}, token ?? undefined);
-      router.refresh();
-    } catch {
-      setError('Erreur. Réessayez.');
+      toast.success(ACTION_SUCCESS[action]);
+      onActionDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Une erreur est survenue');
     } finally {
       setLoading(null);
     }
@@ -54,25 +60,22 @@ export default function BookingActions({ bookingId, status }: Props) {
   );
 
   return (
-    <div className="flex flex-col items-end gap-1.5 shrink-0">
-      <div className="flex gap-2">
-        {status === 'PENDING' && (
-          <>
-            {btn('confirm',  'bg-green-100 text-green-700 hover:bg-green-200')}
-            {btn('cancel',   'bg-red-100 text-red-700 hover:bg-red-200')}
-          </>
-        )}
-        {status === 'CONFIRMED' && (
-          <>
-            <StatusChip status={status} />
-            {btn('complete', 'bg-blue-100 text-blue-700 hover:bg-blue-200')}
-          </>
-        )}
-        {(status === 'CANCELLED' || status === 'COMPLETED') && (
+    <div className="flex items-end gap-2 shrink-0 flex-wrap">
+      {status === 'PENDING' && (
+        <>
+          {btn('confirm',  'bg-green-100 text-green-700 hover:bg-green-200')}
+          {btn('cancel',   'bg-red-100 text-red-700 hover:bg-red-200')}
+        </>
+      )}
+      {status === 'CONFIRMED' && (
+        <>
           <StatusChip status={status} />
-        )}
-      </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+          {btn('complete', 'bg-blue-100 text-blue-700 hover:bg-blue-200')}
+        </>
+      )}
+      {(status === 'CANCELLED' || status === 'COMPLETED') && (
+        <StatusChip status={status} />
+      )}
     </div>
   );
 }

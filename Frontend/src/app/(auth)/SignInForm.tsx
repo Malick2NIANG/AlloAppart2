@@ -7,53 +7,14 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 
-type DemoRole = 'locataire' | 'bailleur' | 'dual' | 'admin' | 'agent';
-
-const DEMO_USERS: {
-  email: string; name: string; initials: string;
-  role: DemoRole; roleLabel: string; roleBadge: string;
-  href: string; actif: boolean;
-}[] = [
-  {
-    email: 'mamadou@demo.sn', name: 'Mamadou Diallo', initials: 'MD',
-    role: 'locataire', roleLabel: 'Locataire',
-    roleBadge: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-    href: '/espace', actif: true,
-  },
-  {
-    email: 'binta@demo.sn', name: 'Binta Sarr', initials: 'BS',
-    role: 'bailleur', roleLabel: 'Bailleur',
-    roleBadge: 'bg-gold-pale text-gold-dark',
-    href: '/espace', actif: true,
-  },
-  {
-    email: 'ousmane@demo.sn', name: 'Ousmane Thiaw', initials: 'OT',
-    role: 'dual', roleLabel: 'Loc. + Bailleur',
-    roleBadge: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300',
-    href: '/espace', actif: true,
-  },
-  {
-    email: 'admin@demo.sn', name: 'Modou Kane', initials: 'MK',
-    role: 'admin', roleLabel: 'Administrateur',
-    roleBadge: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
-    href: '/espace', actif: true,
-  },
-  {
-    email: 'agent@demo.sn', name: 'Awa Diop', initials: 'AD',
-    role: 'agent', roleLabel: 'Agent vérif.',
-    roleBadge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300',
-    href: '/espace', actif: true,
-  },
-];
-
 const slide = {
   enter:  { x: 20, opacity: 0 },
   center: { x: 0,  opacity: 1 },
   exit:   { x: -20, opacity: 0 },
 };
 
-type View = 'login' | 'forgot1' | 'forgot2';
-interface Flash { type: 'error' | 'success'; message: string; }
+type View = 'login' | 'forgot1' | 'forgot2' | 'forgot3' | 'second_factor';
+interface Flash { type: 'error' | 'success' | 'info'; message: string; }
 
 export default function SignInForm() {
   const { isLoaded, signIn, setActive } = useSignIn();
@@ -61,14 +22,18 @@ export default function SignInForm() {
   const t  = useTranslations('auth');
   const ts = useTranslations('auth.signIn');
 
-  const [view, setView]         = useState<View>('login');
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
-  const [showPwd, setShowPwd]   = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [flash, setFlash]       = useState<Flash | null>(null);
-  const [attempts, setAttempts] = useState(3);
-  const [showDemo, setShowDemo] = useState(false);
+  const [view, setView]               = useState<View>('login');
+  const [email, setEmail]             = useState('');
+  const [password, setPassword]       = useState('');
+  const [showPwd, setShowPwd]         = useState(false);
+  const [code, setCode]               = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPwd, setConfirmPwd]   = useState('');
+  const [showNewPwd, setShowNewPwd]   = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading]         = useState(false);
+  const [flash, setFlash]             = useState<Flash | null>(null);
+  const [attempts, setAttempts]       = useState(3);
 
   useEffect(() => {
     if (!flash) return;
@@ -84,7 +49,13 @@ export default function SignInForm() {
       const res = await signIn.create({ identifier: email, password });
       if (res.status === 'complete') {
         await setActive({ session: res.createdSessionId });
-        router.push('/'); router.refresh();
+        router.push('/redirect');
+        router.refresh();
+      }
+      if (res.status === 'needs_second_factor') {
+        setView('second_factor');
+        setFlash({ type: 'info', message: 'Un code de vérification a été envoyé à votre email.' });
+        return;
       }
     } catch (err: unknown) {
       const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? 'Email ou mot de passe incorrect.';
@@ -92,33 +63,89 @@ export default function SignInForm() {
     } finally { setLoading(false); }
   };
 
+  const handleSecondFactor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoaded) return;
+    setLoading(true);
+    try {
+      const res = await signIn.attemptSecondFactor({ strategy: 'email_code', code });
+      if (res.status === 'complete') {
+        await setActive({ session: res.createdSessionId });
+        router.push('/redirect');
+        router.refresh();
+      }
+    } catch (err: unknown) {
+      const msg =
+        (err as { errors?: { message: string }[] })?.errors?.[0]?.message ??
+        'Code invalide ou expiré.';
+      setFlash({ type: 'error', message: msg });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogle = async () => {
     if (!isLoaded) return;
     await signIn.authenticateWithRedirect({ strategy: 'oauth_google', redirectUrl: '/sign-in', redirectUrlComplete: '/' });
   };
 
-  const handleForgot = async (e: React.FormEvent) => {
+  // Étape 1 — envoyer le code OTP par email
+  const handleForgot1 = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoaded || attempts <= 0) return;
     setLoading(true);
     try {
       await signIn.create({ strategy: 'reset_password_email_code', identifier: email });
       setView('forgot2');
+      setFlash(null);
     } catch {
       setAttempts((n) => n - 1);
       setFlash({ type: 'error', message: 'Adresse email introuvable.' });
     } finally { setLoading(false); }
   };
 
-  const quickLogin = (user: typeof DEMO_USERS[number]) => {
-    localStorage.setItem('aa_demo_role', user.role);
-    window.dispatchEvent(new CustomEvent('aa-demo-change', { detail: user.role }));
-    router.push(user.href);
+  // Étape 2 — vérifier le code OTP
+  const handleForgot2 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoaded) return;
+    setLoading(true);
+    try {
+      const res = await signIn.attemptFirstFactor({ strategy: 'reset_password_email_code', code });
+      if (res.status === 'needs_new_password') {
+        setView('forgot3');
+        setFlash(null);
+      }
+    } catch (err: unknown) {
+      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? 'Code invalide ou expiré.';
+      setFlash({ type: 'error', message: msg });
+    } finally { setLoading(false); }
   };
 
-  const goLogin = () => { setView('login'); setFlash(null); };
+  // Étape 3 — définir le nouveau mot de passe
+  const handleForgot3 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoaded) return;
+    if (newPassword !== confirmPwd) {
+      setFlash({ type: 'error', message: 'Les mots de passe ne correspondent pas.' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await signIn.resetPassword({ password: newPassword });
+      if (res.status === 'complete') {
+        await setActive({ session: res.createdSessionId });
+        router.push('/'); router.refresh();
+      }
+    } catch (err: unknown) {
+      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? 'Erreur lors de la réinitialisation.';
+      setFlash({ type: 'error', message: msg });
+    } finally { setLoading(false); }
+  };
 
-  const demoUsers = DEMO_USERS.filter((u) => u.actif);
+  const goLogin = () => {
+    setView('login'); setFlash(null);
+    setCode(''); setNewPassword(''); setConfirmPwd('');
+  };
 
   return (
     <AnimatePresence mode="wait">
@@ -160,71 +187,10 @@ export default function SignInForm() {
             {ts('noAccount')}{' '}
             <Link href="/sign-up" className="font-semibold text-gold-dark hover:underline">{ts('register')}</Link>
           </p>
-
-          {/* ── Accès démo ── */}
-          <div className="border-t border-line pt-3">
-            <button
-              type="button"
-              onClick={() => setShowDemo((v) => !v)}
-              className="mx-auto flex items-center gap-1.5 text-xs text-sub/60 hover:text-sub transition-colors"
-            >
-              Accès démo rapide
-              <motion.i
-                className="fa-solid fa-chevron-down text-[10px]"
-                animate={{ rotate: showDemo ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              />
-            </button>
-
-            <AnimatePresence initial={false}>
-              {showDemo && (
-                <motion.div
-                  key="demo-panel"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: 'easeInOut' }}
-                  className="overflow-hidden"
-                >
-                  <div className="flex flex-col gap-2 pt-3">
-                    {demoUsers.map((u) => (
-                      <button
-                        key={u.email}
-                        type="button"
-                        onClick={() => quickLogin(u)}
-                        className="flex items-center gap-3 rounded-xl border border-line bg-card p-3 text-left transition-all duration-200 hover:border-gold/50 hover:bg-gold-pale group"
-                      >
-                        {/* Avatar initiales */}
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-pale text-xs font-bold text-gold-dark ring-1 ring-gold/30 group-hover:ring-gold/60 transition">
-                          {u.initials}
-                        </div>
-
-                        {/* Infos */}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-text truncate">{u.name}</p>
-                          <p className="text-xs text-sub truncate">{u.email}</p>
-                        </div>
-
-                        {/* Badge rôle */}
-                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${u.roleBadge}`}>
-                          {u.roleLabel}
-                        </span>
-                      </button>
-                    ))}
-
-                    <p className="text-center text-[10px] text-sub/50 pt-0.5">
-                      Sans compte réel · Uniquement pour les présentations
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
         </motion.div>
       )}
 
-      {/* ══ FORGOT 1 ══ */}
+      {/* ══ FORGOT 1 — saisie email ══ */}
       {view === 'forgot1' && (
         <motion.div key="forgot1" variants={slide} initial="enter" animate="center" exit="exit"
           transition={{ duration: 0.25 }} className="flex flex-col gap-4">
@@ -247,7 +213,7 @@ export default function SignInForm() {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleForgot} className="flex flex-col gap-3">
+            <form onSubmit={handleForgot1} className="flex flex-col gap-3">
               <div>
                 <Field label={t('email')}>
                   <IconInput type="email" value={email} onChange={setEmail} icon="fa-solid fa-envelope" placeholder={t('emailPlaceholder')} />
@@ -265,24 +231,121 @@ export default function SignInForm() {
         </motion.div>
       )}
 
-      {/* ══ FORGOT 2 ══ */}
+      {/* ══ FORGOT 2 — saisie code OTP ══ */}
       {view === 'forgot2' && (
         <motion.div key="forgot2" variants={slide} initial="enter" animate="center" exit="exit"
           transition={{ duration: 0.25 }} className="flex flex-col gap-4">
 
-          <BackBtn onClick={goLogin} label={t('back')} />
+          <BackBtn onClick={() => setView('forgot1')} label={t('back')} />
 
           <div className="text-center">
-            <h2 className="text-xl font-bold text-text">{ts('emailSentTitle')}</h2>
-            <p className="text-sm text-sub max-w-xs">
-              {ts('emailSentDesc')}{' '}
-              <span className="font-semibold text-text">{email}</span>.
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
+              <i className="fa-solid fa-envelope-open-text text-xl text-gold-dark" />
+            </div>
+            <h2 className="text-xl font-bold text-text">Vérifiez votre email</h2>
+            <p className="mt-1 text-sm text-sub">
+              Un code à 6 chiffres a été envoyé à <span className="font-semibold text-text">{email}</span>
             </p>
           </div>
 
-          <button onClick={goLogin} className="btn-outline justify-center text-text">
-            <i className="fa-solid fa-right-to-bracket" /> {ts('backToLogin')}
-          </button>
+          <Flash flash={flash} />
+
+          <form onSubmit={handleForgot2} className="flex flex-col gap-3">
+            <Field label="Code de vérification">
+              <div className="relative">
+                <i className="fa-solid fa-hashtag absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="123456"
+                  required
+                  className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 tracking-widest transition"
+                />
+              </div>
+            </Field>
+            <Btn loading={loading} icon="fa-solid fa-check" label="Vérifier le code" loadingLabel="Vérification…" />
+          </form>
+
+          <p className="text-center text-xs text-sub">
+            Pas reçu ?{' '}
+            <button type="button" onClick={() => { setView('forgot1'); setFlash(null); }}
+              className="font-medium text-gold-dark hover:underline">
+              Renvoyer
+            </button>
+          </p>
+        </motion.div>
+      )}
+
+      {/* ══ FORGOT 3 — nouveau mot de passe ══ */}
+      {view === 'forgot3' && (
+        <motion.div key="forgot3" variants={slide} initial="enter" animate="center" exit="exit"
+          transition={{ duration: 0.25 }} className="flex flex-col gap-4">
+
+          <div className="text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
+              <i className="fa-solid fa-lock-open text-xl text-gold-dark" />
+            </div>
+            <h2 className="text-xl font-bold text-text">Nouveau mot de passe</h2>
+            <p className="mt-1 text-sm text-sub">Choisissez un mot de passe sécurisé</p>
+          </div>
+
+          <Flash flash={flash} />
+
+          <form onSubmit={handleForgot3} className="flex flex-col gap-3">
+            <Field label="Nouveau mot de passe">
+              <PwdInput value={newPassword} onChange={setNewPassword} show={showNewPwd} onToggle={() => setShowNewPwd(!showNewPwd)} />
+            </Field>
+            <Field label="Confirmer le mot de passe">
+              <PwdInput value={confirmPwd} onChange={setConfirmPwd} show={showConfirm} onToggle={() => setShowConfirm(!showConfirm)} />
+            </Field>
+            {newPassword && confirmPwd && newPassword !== confirmPwd && (
+              <p className="flex items-center gap-1 text-xs text-red-600">
+                <i className="fa-solid fa-circle-xmark" /> Les mots de passe ne correspondent pas
+              </p>
+            )}
+            <Btn loading={loading} icon="fa-solid fa-shield-check" label="Réinitialiser" loadingLabel="Enregistrement…" />
+          </form>
+        </motion.div>
+      )}
+
+      {/* ══ SECOND FACTOR — code 2FA ══ */}
+      {view === 'second_factor' && (
+        <motion.div key="second_factor" variants={slide} initial="enter" animate="center" exit="exit"
+          transition={{ duration: 0.25 }} className="flex flex-col gap-4">
+
+          <BackBtn onClick={() => { setView('login'); setFlash(null); setCode(''); }} label={t('back')} />
+
+          <div className="text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
+              <i className="fa-solid fa-shield-halved text-xl text-gold-dark" />
+            </div>
+            <h2 className="text-xl font-bold text-text">Vérification en deux étapes</h2>
+            <p className="mt-1 text-sm text-sub">Entrez le code envoyé à votre adresse email.</p>
+          </div>
+
+          <Flash flash={flash} />
+
+          <form onSubmit={handleSecondFactor} className="flex flex-col gap-3">
+            <Field label="Code de vérification">
+              <div className="relative">
+                <i className="fa-solid fa-hashtag absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  required
+                  className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 tracking-widest transition"
+                />
+              </div>
+            </Field>
+            <Btn loading={loading} icon="fa-solid fa-check" label="Vérifier" loadingLabel="Vérification…" />
+          </form>
         </motion.div>
       )}
 
@@ -299,9 +362,15 @@ function Flash({ flash }: { flash: Flash | null }) {
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}
           className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm ${
-            flash.type === 'error' ? 'border border-red-200 bg-red-50 text-red-700' : 'border border-green-200 bg-green-50 text-green-700'
+            flash.type === 'error' ? 'border border-red-200 bg-red-50 text-red-700'
+            : flash.type === 'info' ? 'border border-blue-200 bg-blue-50 text-blue-700'
+            : 'border border-green-200 bg-green-50 text-green-700'
           }`}>
-          <i className={`shrink-0 text-sm ${flash.type === 'error' ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-check'}`} />
+          <i className={`shrink-0 text-sm ${
+            flash.type === 'error' ? 'fa-solid fa-circle-exclamation'
+            : flash.type === 'info' ? 'fa-solid fa-circle-info'
+            : 'fa-solid fa-circle-check'
+          }`} />
           {flash.message}
         </motion.div>
       )}

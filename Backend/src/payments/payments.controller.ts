@@ -1,4 +1,4 @@
-﻿import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { PaymentsService } from './payments.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -6,7 +6,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { type User, Role } from '@prisma/client';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
-import { CinetpayWebhookDto } from './dto/cinetpay-webhook.dto';
+import { PaydunyaWebhookDto } from './dto/paydunya-webhook.dto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -19,12 +19,11 @@ export class PaymentsController {
     return this.paymentsService.initiate(dto.bookingId, user.id);
   }
 
-  // CinetPay appelle ce webhook — vérifié par signature HMAC + fenêtre temporelle
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @Public()
-  @Post('webhook')
-  webhook(@Body() dto: CinetpayWebhookDto) {
-    return this.paymentsService.handleWebhook(dto);
+  @Post('webhook/paydunya')
+  webhookPaydunya(@Body() dto: PaydunyaWebhookDto) {
+    return this.paymentsService.handlePaydunyaWebhook(dto);
   }
 
   @Roles(Role.ADMIN)

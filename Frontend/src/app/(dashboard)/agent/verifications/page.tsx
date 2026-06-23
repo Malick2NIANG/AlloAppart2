@@ -1,15 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { api } from '@/lib/api';
 import type { Verification } from '@/types';
 import { formatDate } from '@/lib/utils';
+import { SkeletonListRow } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
 
 export default function AgentVerificationsPage() {
   const { getToken } = useAuth();
+  const { toast } = useToast();
   const [verifications, setVerifications] = useState<Verification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectModal,   setRejectModal]   = useState<{ id: string } | null>(null);
   const [rejectReason,  setRejectReason]  = useState('');
@@ -17,14 +21,19 @@ export default function AgentVerificationsPage() {
   const [completeNotes,    setCompleteNotes]    = useState('');
   const [completeReportUrl, setCompleteReportUrl] = useState('');
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     getToken().then((token) => {
-      if (!token) return;
+      if (!token) { setLoading(false); return; }
       api.get<Verification[]>('/verifications/pending', token)
         .then(setVerifications)
+        .catch(() => setError('Impossible de charger les vérifications.'))
         .finally(() => setLoading(false));
     });
   }, [getToken]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handleAction = async (id: string, action: 'start' | 'complete' | 'reject', body?: object) => {
     const token = await getToken();
@@ -34,7 +43,10 @@ export default function AgentVerificationsPage() {
       await api.patch(`/verifications/${id}/${action}`, body ?? {}, token);
       const updated = await api.get<Verification[]>('/verifications/pending', token);
       setVerifications(updated);
+      const labels: Record<string, string> = { start: 'Vérification démarrée', complete: 'Vérification terminée', reject: 'Vérification rejetée' };
+      toast.success(labels[action] ?? 'Action effectuée');
     } catch {
+      toast.error('Erreur. Veuillez réessayer.');
     } finally {
       setActionLoading(null);
     }
@@ -60,8 +72,20 @@ export default function AgentVerificationsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 5 }).map((_, i) => <SkeletonListRow key={i} />)}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
+        <p className="text-sm text-sub">{error}</p>
+        <button onClick={load} className="mt-4 btn-gold text-sm">
+          <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+        </button>
       </div>
     );
   }
@@ -82,6 +106,9 @@ export default function AgentVerificationsPage() {
           </div>
           <p className="font-semibold text-text">Aucune mission en attente</p>
           <p className="mt-1 text-sm text-sub">Les vérifications qui vous sont assignées apparaîtront ici.</p>
+          <p className="mt-3 text-xs text-sub rounded-xl border border-line bg-bg px-4 py-2">
+            <i className="fa-solid fa-circle-info mr-1.5" />Contactez un administrateur si vous attendez des missions.
+          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">

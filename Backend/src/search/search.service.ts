@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { MeiliSearch } from 'meilisearch';
@@ -11,6 +11,7 @@ interface GeoSearchDto {
 
 @Injectable()
 export class SearchService {
+  private readonly logger = new Logger(SearchService.name);
   private meilisearch: MeiliSearch;
 
   constructor(
@@ -25,12 +26,33 @@ export class SearchService {
   }
 
   async fullTextSearch(q: string, filters?: string, sort?: string[]) {
-    const index = this.meilisearch.index('listings');
-    return index.search(q, {
-      filter: filters,
-      sort: sort ?? ['boostScore:desc', 'createdAt:desc'],
-      limit: 20,
-    });
+    try {
+      const index = this.meilisearch.index('listings');
+      return await index.search(q, {
+        filter: filters,
+        sort: sort ?? ['boostScore:desc', 'createdAt:desc'],
+        limit: 20,
+      });
+    } catch {
+      this.logger.warn('Meilisearch indisponible, fallback Prisma');
+      const listings = await this.prisma.listing.findMany({
+        where: {
+          status: 'ACTIVE',
+          ...(q
+            ? {
+                OR: [
+                  { title: { contains: q, mode: 'insensitive' } },
+                  { description: { contains: q, mode: 'insensitive' } },
+                  { city: { contains: q, mode: 'insensitive' } },
+                ],
+              }
+            : {}),
+        },
+        orderBy: [{ boostScore: 'desc' }, { createdAt: 'desc' }],
+        take: 20,
+      });
+      return { hits: listings, estimatedTotalHits: listings.length };
+    }
   }
 
   async indexListing(listing: {
@@ -115,5 +137,38 @@ export class SearchService {
     `;
 
     return results;
+  }
+
+  async reindexAll(): Promise<{ indexed: number }> {
+    const listings = await this.prisma.listing.findMany({
+      where: { status: 'ACTIVE' },
+    });
+    const index = this.meilisearch.index('listings');
+    await index.deleteAllDocuments();
+    if (listings.length > 0) {
+      await index.addDocuments(
+        listings.map((l) => ({
+          id: l.id,
+          title: l.title,
+          description: l.description,
+          type: l.type,
+          city: l.city,
+          region: l.region,
+          price:
+            typeof l.price === 'number'
+              ? l.price
+              : (l.price as { toNumber(): number }).toNumber(),
+          isVerified: l.isVerified,
+          boostScore: l.boostScore,
+          createdAt: l.createdAt.toISOString(),
+          _geo:
+            l.lat != null && l.lng != null
+              ? { lat: l.lat, lng: l.lng }
+              : undefined,
+        })),
+      );
+    }
+    this.logger.log(`Reindex complet : ${listings.length} annonces indexees`);
+    return { indexed: listings.length };
   }
 }

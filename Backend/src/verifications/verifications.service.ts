@@ -1,4 +1,5 @@
 ﻿import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -97,6 +98,53 @@ export class VerificationsService {
         photos: dto.photos ?? [],
       },
     });
+  }
+
+  async findAll(page = 1, limit = 20, status?: VerifStatus) {
+    const where = status ? { status } : {};
+    const [data, total] = await Promise.all([
+      this.prisma.verification.findMany({
+        where,
+        include: {
+          listing: { select: { id: true, title: true, city: true } },
+          agent: { select: { id: true, firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.verification.count({ where }),
+    ]);
+    return { data, total, page, limit };
+  }
+
+  async validate(id: string, adminId: string) {
+    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+    if (!admin.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Réservé aux administrateurs');
+    }
+
+    const v = await this.prisma.verification.findUnique({ where: { id } });
+    if (!v) throw new NotFoundException('Vérification introuvable');
+    if (v.status === VerifStatus.REJECTED) {
+      throw new BadRequestException('Impossible de valider une vérification rejetée');
+    }
+
+    await Promise.all([
+      this.prisma.listing.update({
+        where: { id: v.listingId },
+        data: { isVerified: true, verifiedAt: new Date() },
+      }),
+      this.prisma.verification.update({
+        where: { id },
+        data: {
+          status: VerifStatus.DONE,
+          completedAt: v.completedAt ?? new Date(),
+        },
+      }),
+    ]);
+
+    return { validated: true };
   }
 
   async reject(id: string, user: User, reason: string) {

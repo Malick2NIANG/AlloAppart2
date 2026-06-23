@@ -4,6 +4,7 @@ import { getTranslations, getLocale } from 'next-intl/server';
 import { auth } from '@clerk/nextjs/server';
 import FavoriteButton from '@/components/ui/FavoriteButton';
 import { priceToNumber, type Listing, type PaginatedResponse } from '@/types';
+import { REGIONS } from '@/lib/regions';
 
 export const revalidate = 3600;
 
@@ -303,22 +304,66 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ══ SECTION PROMO (fond sombre) ════════════════════════════════ */}
+      {/* ══ RÉGIONS ════════════════════════════════════════════════════ */}
+      <section className="py-20 px-4 bg-card">
+        <div className="aa-container">
+          <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold text-text md:text-4xl">
+                {locale === 'fr' ? 'Explorer par région' : 'Explore by region'}
+              </h2>
+              <p className="mt-2 text-sub">
+                {locale === 'fr' ? '14 régions, des milliers de logements à louer' : '14 regions, thousands of rentals'}
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {REGIONS.slice(0, 10).map((r) => (
+              <Link
+                key={r.slug}
+                href={`/regions/${encodeURIComponent(r.slug)}`}
+                className="group relative h-32 overflow-hidden rounded-2xl"
+               >
+                <Image
+                  src={r.coverImage}
+                  alt={r.name}
+                  fill
+                  className="object-cover transition-transform duration-500 group-hover:scale-110"
+                  sizes="(max-width:640px) 50vw,(max-width:1024px) 33vw,20vw"
+                />
+                <div aria-hidden className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
+                <span className="absolute bottom-3 left-3 text-sm font-bold text-white drop-shadow">{r.name}</span>
+              </Link>
+            ))}
+            <Link
+              href="/listings"
+              className="group relative h-32 overflow-hidden rounded-2xl border border-line bg-bg flex flex-col items-center justify-center gap-1 hover:bg-gold-pale transition"
+            >
+              <i className="fa-solid fa-map-location-dot text-2xl text-gold-dark group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-semibold text-text">
+                {locale === 'fr' ? 'Voir tout' : 'See all'}
+              </span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION PROMO */}
       <section className="bg-dark py-20 px-4">
         <div className="aa-container flex flex-col items-center text-center">
           <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-gold">
-            <i className="fa-solid fa-star" /> {t('ownerBadge')}
+            <i className="fa-solid fa-star" /> Devenez bailleur
           </span>
           <h2 className="max-w-2xl text-3xl font-bold text-white md:text-4xl">
-            {t('ownerTitle')}
+            Mettez votre bien en location
           </h2>
-          <p className="mt-4 max-w-xl text-gray-300">{t('ownerDesc')}</p>
+          <p className="mt-4 max-w-xl text-gray-300">Rejoignez des milliers de bailleurs sur Allo-Appart.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link href="/sign-up" className="btn-gold">
-              {t('ownerCta')} <i className="fa-solid fa-arrow-right ml-1 text-sm" />
+              Commencer <i className="fa-solid fa-arrow-right ml-1 text-sm" />
             </Link>
             <Link href="/listings" className="btn-outline text-white">
-              {t('ownerSecondary')}
+              Parcourir les annonces
             </Link>
           </div>
         </div>

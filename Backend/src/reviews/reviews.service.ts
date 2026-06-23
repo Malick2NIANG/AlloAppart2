@@ -60,6 +60,22 @@ export class ReviewsService {
     });
   }
 
+  async findAll(page = 1, limit = 20) {
+    const [data, total] = await Promise.all([
+      this.prisma.review.findMany({
+        include: {
+          author: { select: { id: true, firstName: true, lastName: true } },
+          listing: { select: { id: true, title: true, city: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.review.count(),
+    ]);
+    return { data, total, page, limit };
+  }
+
   async remove(id: string, admin: User) {
     if (!admin.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Réservé aux administrateurs');

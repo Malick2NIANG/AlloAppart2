@@ -1,30 +1,49 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { MessageRoom } from '@/types';
+import { SkeletonListRow } from '@/components/ui/Skeleton';
 
 export default function LocataireMessagesPage() {
   const { getToken } = useAuth();
   const router = useRouter();
   const [rooms, setRooms] = useState<MessageRoom[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     getToken().then((token) => {
-      if (!token) return;
+      if (!token) { setLoading(false); return; }
       api.get<MessageRoom[]>('/messages/rooms', token)
         .then(setRooms)
+        .catch(() => setError('Impossible de charger les messages.'))
         .finally(() => setLoading(false));
     });
   }, [getToken]);
 
+  useEffect(() => { load(); }, [load]);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 5 }).map((_, i) => <SkeletonListRow key={i} />)}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
+        <p className="text-sm text-sub">{error}</p>
+        <button onClick={load} className="mt-4 btn-gold text-sm">
+          <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+        </button>
       </div>
     );
   }

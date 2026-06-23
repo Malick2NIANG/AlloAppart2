@@ -1,10 +1,17 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
-import { BookingStatus, EscrowStatus } from '@prisma/client';
-import { timingSafeEqual, createHmac } from 'crypto';
+import {
+  BookingStatus,
+  EscrowStatus,
+  Booking,
+  Listing,
+  User,
+} from '@prisma/client';
 import axios from 'axios';
-import { CinetpayWebhookDto } from './dto/cinetpay-webhook.dto';
+import { PaydunyaWebhookDto } from './dto/paydunya-webhook.dto';
+
+type BookingWithDetails = Booking & { listing: Listing; tenant: User };
 
 @Injectable()
 export class PaymentsService {
@@ -22,95 +29,117 @@ export class PaymentsService {
     });
 
     if (booking.tenantId !== tenantId) {
-      throw new BadRequestException('Non autorisé');
+      throw new BadRequestException('Non autorise');
     }
 
-    const transId = `AA-${bookingId}-${Date.now()}`;
+    return this.initiateWithPayDunya(booking, bookingId);
+  }
 
-    const payload = {
-      apikey: this.config.get<string>('CINETPAY_API_KEY'),
-      site_id: this.config.get<string>('CINETPAY_SITE_ID'),
-      transaction_id: transId,
-      amount: Number(booking.totalAmount),
-      currency: 'XOF',
-      description: `Réservation — ${booking.listing.title}`,
-      return_url: `${this.config.get<string>('FRONTEND_URL')}/paiement/confirmation?booking_id=${bookingId}`,
-      cancel_url: `${this.config.get<string>('FRONTEND_URL')}/bookings/${bookingId}?status=cancel`,
-      notify_url: `${this.config.get<string>('BACKEND_URL')}/api/v1/payments/webhook`,
-      customer_name: booking.tenant.firstName,
-      customer_surname: booking.tenant.lastName,
-      customer_phone_number: booking.tenant.phone ?? '',
-      customer_email: booking.tenant.email,
-      customer_city: 'Dakar',
-      customer_country: 'SN',
-    };
+  private async initiateWithPayDunya(
+    booking: BookingWithDetails,
+    bookingId: string,
+  ) {
+    const masterKey  = this.config.get<string>('PAYDUNYA_MASTER_KEY');
+    const privateKey = this.config.get<string>('PAYDUNYA_PRIVATE_KEY');
+    const token      = this.config.get<string>('PAYDUNYA_TOKEN');
+
+    if (!masterKey || !privateKey || !token) {
+      throw new BadRequestException(
+        'Service de paiement indisponible. Veuillez reessayer plus tard.',
+      );
+    }
+
+    const isDev    = this.config.get<string>('NODE_ENV') !== 'production';
+    const baseUrl  = isDev
+      ? 'https://app.paydunya.com/sandbox-api/v1'
+      : 'https://app.paydunya.com/api/v1';
 
     const response = await axios
-      .post<{
-        data: { payment_url: string };
-      }>('https://api-checkout.cinetpay.com/v2/payment', payload)
+      .post<{ response_code: string; token: string; invoice_url: string }>(
+        `${baseUrl}/checkout-invoice/create`,
+        {
+          invoice: {
+            total_amount:  Number(booking.totalAmount),
+            description:   `Reservation -- ${booking.listing.title}`,
+            return_url:    `${this.config.get<string>('FRONTEND_URL')}/paiement/confirmation?booking_id=${bookingId}`,
+            cancel_url:    `${this.config.get<string>('FRONTEND_URL')}/bookings/${bookingId}?status=cancel`,
+            callback_url:  `${this.config.get<string>('BACKEND_URL')}/api/v1/payments/webhook/paydunya`,
+          },
+          store:       { name: 'AlloAppart' },
+          custom_data: { booking_id: bookingId },
+        },
+        {
+          headers: {
+            'PAYDUNYA-MASTER-KEY':  masterKey,
+            'PAYDUNYA-PRIVATE-KEY': privateKey,
+            'PAYDUNYA-TOKEN':       token,
+            'Content-Type':         'application/json',
+          },
+        },
+      )
       .catch(() => {
         throw new BadRequestException(
-          'Service de paiement indisponible. Veuillez réessayer plus tard.',
+          'Service de paiement indisponible. Veuillez reessayer plus tard.',
         );
       });
 
+    if (response.data.response_code !== '00') {
+      throw new BadRequestException(
+        'Service de paiement indisponible. Veuillez reessayer plus tard.',
+      );
+    }
+
+    const paymentRef = `PD-${response.data.token}`;
     await this.prisma.booking.update({
       where: { id: bookingId },
-      data: { paymentRef: transId },
+      data:  { paymentRef },
     });
 
-    return { payment_url: response.data.data.payment_url, transId };
+    return { payment_url: response.data.invoice_url, transId: paymentRef };
   }
 
-  private parseWebhookDate(raw: string): Date {
-    // CinetPay format : YYYYMMDDHHMMSS
-    const y = parseInt(raw.slice(0, 4), 10);
-    const mo = parseInt(raw.slice(4, 6), 10) - 1;
-    const d = parseInt(raw.slice(6, 8), 10);
-    const h = parseInt(raw.slice(8, 10), 10);
-    const mi = parseInt(raw.slice(10, 12), 10);
-    const s = parseInt(raw.slice(12, 14), 10);
-    return new Date(Date.UTC(y, mo, d, h, mi, s));
-  }
+  async handlePaydunyaWebhook(dto: PaydunyaWebhookDto) {
+    const masterKey  = this.config.get<string>('PAYDUNYA_MASTER_KEY');
+    const privateKey = this.config.get<string>('PAYDUNYA_PRIVATE_KEY');
+    const token      = this.config.get<string>('PAYDUNYA_TOKEN');
 
-  async handleWebhook(payload: CinetpayWebhookDto) {
-    const secret = this.config.get<string>('CINETPAY_SECRET_KEY');
-    if (!secret) throw new BadRequestException('CINETPAY_SECRET_KEY manquant');
-
-    const expected = createHmac('sha256', secret)
-      .update(
-        payload.cpm_site_id + payload.cpm_trans_id + payload.cpm_trans_date,
-      )
-      .digest('hex');
-
-    const expectedBuf = Buffer.from(expected, 'hex');
-    const actualBuf = Buffer.from(payload.signature ?? '', 'hex');
-    if (
-      expectedBuf.length !== actualBuf.length ||
-      !timingSafeEqual(expectedBuf, actualBuf)
-    ) {
-      throw new BadRequestException('Signature invalide');
+    if (!masterKey || !privateKey || !token) {
+      throw new BadRequestException('PAYDUNYA_* manquant');
     }
 
-    // Rejeter les webhooks trop anciens (protection contre replay)
-    const webhookDate = this.parseWebhookDate(payload.cpm_trans_date);
-    const ageMs = Date.now() - webhookDate.getTime();
-    const ONE_HOUR_MS = 60 * 60 * 1000;
-    if (isNaN(ageMs) || ageMs > ONE_HOUR_MS || ageMs < -60_000) {
-      this.logger.warn(
-        `Webhook CinetPay rejeté — horodatage hors fenêtre : ${payload.cpm_trans_date}`,
-      );
-      throw new BadRequestException('Webhook expiré ou horodatage invalide');
-    }
+    const isDev   = this.config.get<string>('NODE_ENV') !== 'production';
+    const baseUrl = isDev
+      ? 'https://app.paydunya.com/sandbox-api/v1'
+      : 'https://app.paydunya.com/api/v1';
 
-    const booking = await this.prisma.booking.findFirst({
-      where: { paymentRef: payload.cpm_trans_id },
+    const confirm = await axios
+      .get<{
+        response_code: string;
+        status:        string;
+        custom_data:   { booking_id: string };
+        invoice:       { total_amount: number };
+      }>(`${baseUrl}/checkout-invoice/confirm/${dto.data}`, {
+        headers: {
+          'PAYDUNYA-MASTER-KEY':  masterKey,
+          'PAYDUNYA-PRIVATE-KEY': privateKey,
+          'PAYDUNYA-TOKEN':       token,
+        },
+      })
+      .catch(() => {
+        throw new BadRequestException(
+          'Impossible de confirmer le paiement PayDunya',
+        );
+      });
+
+    const { status, custom_data, invoice } = confirm.data;
+    const bookingId = custom_data?.booking_id;
+    if (!bookingId) return { ok: true };
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
     });
-
     if (!booking) return { ok: true };
 
-    // Idempotence : ne pas retraiter un booking déjà confirmé ou complété
     if (
       booking.status === BookingStatus.CONFIRMED ||
       booking.status === BookingStatus.COMPLETED
@@ -118,29 +147,29 @@ export class PaymentsService {
       return { ok: true };
     }
 
-    // Vérification du montant — le montant payé doit correspondre au montant attendu
     const expectedAmount = Number(booking.totalAmount);
-    const paidAmount = Number(payload.cpm_amount);
+    const paidAmount     = Number(invoice?.total_amount ?? 0);
     if (Math.abs(paidAmount - expectedAmount) > 1) {
       this.logger.warn(
-        `Montant webhook incohérent : attendu ${expectedAmount}, reçu ${paidAmount} pour booking ${booking.id}`,
+        `PayDunya montant incohérent : attendu ${expectedAmount}, recu ${paidAmount} pour booking ${bookingId}`,
       );
       throw new BadRequestException('Montant du paiement incohérent');
     }
 
-    if (payload.cpm_result === '00') {
+    if (status === 'completed') {
       await this.prisma.booking.update({
-        where: { id: booking.id },
+        where: { id: bookingId },
         data: {
-          status: BookingStatus.CONFIRMED,
+          status:       BookingStatus.CONFIRMED,
           escrowStatus: EscrowStatus.HELD,
+          paymentRef:   `PD-${dto.data}`,
         },
       });
     } else {
       await this.prisma.booking.update({
-        where: { id: booking.id },
+        where: { id: bookingId },
         data: {
-          status: BookingStatus.CANCELLED,
+          status:       BookingStatus.CANCELLED,
           escrowStatus: EscrowStatus.REFUNDED,
         },
       });
@@ -155,12 +184,12 @@ export class PaymentsService {
     });
     if (booking.escrowStatus !== EscrowStatus.HELD) {
       throw new BadRequestException(
-        `Impossible de libérer un escrow en statut ${booking.escrowStatus}`,
+        `Impossible de liberer un escrow en statut ${booking.escrowStatus}`,
       );
     }
     return this.prisma.booking.update({
       where: { id: bookingId },
-      data: { escrowStatus: EscrowStatus.RELEASED },
+      data:  { escrowStatus: EscrowStatus.RELEASED },
     });
   }
 
@@ -175,7 +204,7 @@ export class PaymentsService {
     }
     return this.prisma.booking.update({
       where: { id: bookingId },
-      data: { escrowStatus: EscrowStatus.REFUNDED },
+      data:  { escrowStatus: EscrowStatus.REFUNDED },
     });
   }
 }

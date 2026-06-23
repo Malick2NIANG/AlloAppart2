@@ -2,21 +2,36 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import type { Booking, BookingStatus } from '@/types';
 import { formatDate, formatPrice } from '@/lib/utils';
+import { SkeletonListRow } from '@/components/ui/Skeleton';
 
 export default function LocataireBookingsPage() {
   const { getToken } = useAuth();
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [bookings,    setBookings]    = useState<Booking[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
+  const [hasBailleur, setHasBailleur] = useState(true); // optimistic — hide banner until confirmed
 
   const fetchBookings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     const token = await getToken();
-    if (!token) return;
-    const data = await api.get<Booking[]>('/bookings/mine', token);
-    setBookings(data);
-    setLoading(false);
+    if (!token) { setLoading(false); return; }
+    try {
+      const [data, me] = await Promise.all([
+        api.get<Booking[]>('/bookings/mine', token),
+        api.get<{ roles: string[] }>('/auth/me', token),
+      ]);
+      setBookings(data);
+      setHasBailleur(me.roles.some((r) => ['BAILLEUR', 'PRO_AGENCE', 'ADMIN'].includes(r)));
+    } catch {
+      setError('Impossible de charger vos réservations.');
+    } finally {
+      setLoading(false);
+    }
   }, [getToken]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- triggers async data fetch, not direct setState
@@ -28,15 +43,27 @@ export default function LocataireBookingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 5 }).map((_, i) => <SkeletonListRow key={i} />)}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
+        <p className="text-sm text-sub">{error}</p>
+        <button onClick={() => void fetchBookings()} className="mt-4 btn-gold text-sm">
+          <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+        </button>
       </div>
     );
   }
 
   return (
     <div>
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-text">Mes réservations</h1>
         <p className="mt-1 text-sm text-sub">
           {bookings.length} réservation{bookings.length > 1 ? 's' : ''}
@@ -48,6 +75,24 @@ export default function LocataireBookingsPage() {
           )}
         </p>
       </div>
+
+      {!hasBailleur && (
+        <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-gold/30 bg-gold-pale p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold/20">
+              <i className="fa-solid fa-house text-gold-dark" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text">Vous avez un bien à louer ?</p>
+              <p className="text-xs text-sub">Publiez gratuitement — commission uniquement à la signature du bail</p>
+            </div>
+          </div>
+          <Link href="/become-bailleur"
+            className="btn-gold shrink-0 justify-center rounded-full px-5 py-2 text-xs font-bold sm:w-auto">
+            Devenir bailleur
+          </Link>
+        </div>
+      )}
 
       {bookings.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -146,9 +191,34 @@ function LocataireBookingActions({
   onRefresh: () => void;
 }) {
   const { getToken } = useAuth();
-  const [payLoading, setPayLoading] = useState(false);
+  const [payLoading,    setPayLoading]    = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [pdfLoading,    setPdfLoading]    = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+
+  const handleDownloadPdf = async () => {
+    const token = await getToken();
+    if (!token) return;
+    setPdfLoading(true);
+    try {
+      const res = await fetch(`${API}/bookings/${bookingId}/receipt`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Erreur');
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `recu-${bookingId.slice(0, 8)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError('Impossible de télécharger le reçu.');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   const handlePay = async () => {
     const token = await getToken();
@@ -210,6 +280,18 @@ function LocataireBookingActions({
         {(status === 'CONFIRMED' || status === 'CANCELLED' || status === 'COMPLETED') && (
           <StatusChip status={status} />
         )}
+        {(status === 'CONFIRMED' || status === 'COMPLETED') && (
+          <button
+            onClick={() => void handleDownloadPdf()}
+            disabled={pdfLoading}
+            className="text-xs font-medium text-sub hover:text-gold-dark border border-line hover:border-gold/40 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+            title="Telecharger le recu PDF"
+          >
+            {pdfLoading
+              ? <i className="fa-solid fa-spinner fa-spin" />
+              : <><i className="fa-solid fa-file-pdf mr-1" />Recu</>}
+          </button>
+        )}
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
@@ -224,10 +306,10 @@ function StatusChip({ status }: { status: BookingStatus }) {
     COMPLETED: 'bg-blue-100 text-blue-700',
   };
   const labels: Record<BookingStatus, string> = {
-    CONFIRMED: 'Confirmée',
+    CONFIRMED: 'Confirmee',
     PENDING:   'En attente',
-    CANCELLED: 'Annulée',
-    COMPLETED: 'Terminée',
+    CANCELLED: 'Annulee',
+    COMPLETED: 'Terminee',
   };
   return (
     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${styles[status]}`}>

@@ -1,7 +1,12 @@
 import { api } from '@/lib/api';
-import type { Listing } from '@/types';
+import { type Listing, priceToNumber } from '@/types';
 import Link from 'next/link';
-import { formatPrice } from '@/lib/utils';
+import Image from 'next/image';
+
+interface SearchResult {
+  hits: Listing[];
+  estimatedTotalHits: number;
+}
 
 export default async function SearchPage({
   searchParams,
@@ -10,43 +15,125 @@ export default async function SearchPage({
 }) {
   const { q } = await searchParams;
 
-  let listings: Listing[] = [];
+  let hits: Listing[] = [];
+  let total = 0;
   if (q) {
     try {
-      listings = await api.get<Listing[]>(`/search?q=${encodeURIComponent(q)}`);
+      const result = await api.get<SearchResult>(`/search?q=${encodeURIComponent(q)}`);
+      hits = result.hits ?? [];
+      total = result.estimatedTotalHits ?? hits.length;
     } catch {
-      listings = [];
+      hits = [];
     }
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Recherche</h1>
-      <form method="GET" className="flex gap-3 mb-8">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Ville, quartier, type de logement…"
-          className="flex-1 border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-        />
-        <button type="submit" className="px-5 py-2 bg-black text-white rounded-lg text-sm hover:bg-zinc-800 transition-colors">
-          Chercher
-        </button>
-      </form>
-      {q && listings.length === 0 && (
-        <p className="text-zinc-500">Aucun résultat pour « {q} ».</p>
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {listings.map((listing) => (
-          <Link key={listing.id} href={`/listings/${listing.id}`} className="border rounded-xl overflow-hidden hover:shadow-md transition-shadow">
-            <div className="aspect-video bg-zinc-100" />
-            <div className="p-4">
-              <p className="font-semibold">{listing.title}</p>
-              <p className="text-sm text-zinc-500">{listing.city}</p>
-              <p className="mt-2 font-bold">{formatPrice(listing.price)}<span className="text-sm font-normal text-zinc-500">/mois</span></p>
+    <main className="bg-bg min-h-screen">
+      <div className="aa-container py-10">
+        <h1 className="mb-6 text-2xl font-extrabold text-text">Recherche</h1>
+
+        <form method="GET" className="mb-8 flex gap-3">
+          <div className="relative flex-1">
+            <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="Ville, quartier, type de logement…"
+              className="w-full rounded-2xl border border-line bg-card py-3 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition"
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn-gold rounded-2xl px-6 text-sm font-semibold"
+          >
+            Chercher
+          </button>
+        </form>
+
+        {q && (
+          <p className="mb-6 text-sm text-sub">
+            {total > 0 ? (
+              <>
+                <span className="font-semibold text-text">{total}</span>{' '}
+                résultat{total > 1 ? 's' : ''} pour «&nbsp;{q}&nbsp;»
+              </>
+            ) : (
+              <>Aucun résultat pour �&nbsp;{q}&nbsp;�</>
+            )}
+          </p>
+        )}
+
+        {hits.length === 0 && q && (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
+              <i className="fa-solid fa-magnifying-glass text-2xl text-gold-dark" />
             </div>
-          </Link>
-        ))}
+            <p className="font-semibold text-text">Aucun résultat</p>
+            <p className="mt-1 text-sm text-sub">
+              Essayez avec d&apos;autres mots-clés ou explorez toutes les annonces.
+            </p>
+            <Link
+              href="/listings"
+              className="btn-gold mt-6 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold"
+            >
+              <i className="fa-solid fa-list" /> Voir toutes les annonces
+            </Link>
+          </div>
+        )}
+
+        {!q && (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
+              <i className="fa-solid fa-magnifying-glass text-2xl text-gold-dark" />
+            </div>
+            <p className="font-semibold text-text">Lancez une recherche</p>
+            <p className="mt-1 text-sm text-sub">
+              Saisissez une ville, un quartier ou un type de logement.
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {hits.map((listing) => (
+            <Link
+              key={listing.id}
+              href={`/listings/${listing.id}`}
+              className="group overflow-hidden rounded-2xl border border-line bg-card shadow-sm hover:shadow-lg transition-all duration-300"
+            >
+              <div className="relative h-48 overflow-hidden bg-gold-pale">
+                {listing.images?.[0] ? (
+                  <Image
+                    src={listing.images[0]}
+                    alt={listing.title}
+                    fill
+                    className="object-cover group-hover:scale-105 transition duration-500"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <i className="fa-solid fa-image text-3xl text-sub/30" />
+                  </div>
+                )}
+                {listing.isVerified && (
+                  <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-green-600/90 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
+                    <i className="fa-solid fa-shield-halved text-[10px]" /> Vérifié
+                  </span>
+                )}
+              </div>
+              <div className="p-4">
+                <p className="truncate font-semibold text-text">{listing.title}</p>
+                <p className="mt-0.5 flex items-center gap-1 text-sm text-sub">
+                  <i className="fa-solid fa-location-dot text-xs text-gold-dark" />
+                  {listing.city}
+                </p>
+                <p className="mt-3 font-extrabold text-gold-dark">
+                  {priceToNumber(listing.price).toLocaleString('fr-SN')}
+                  <span className="ml-1 text-xs font-semibold text-sub">FCFA/mois</span>
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     </main>
   );

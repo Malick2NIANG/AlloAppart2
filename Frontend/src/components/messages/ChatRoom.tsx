@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import Pusher from 'pusher-js';
 import { api } from '@/lib/api';
 import type { Message, MessageRoom, User } from '@/types';
 
@@ -53,33 +54,39 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Poll with exponential backoff
+  // Temps réel via Soketi
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    let delay = 3000;
-    const MAX_DELAY = 30000;
-    let lastCount = messages.length;
+    const pusherKey  = process.env.NEXT_PUBLIC_SOKETI_APP_KEY ?? '';
+    const pusherHost = process.env.NEXT_PUBLIC_SOKETI_HOST ?? 'localhost';
+    const pusherPort = Number(process.env.NEXT_PUBLIC_SOKETI_PORT ?? '6001');
 
-    const poll = async () => {
-      const token = await getToken();
-      if (!token) return;
-      try {
-        const data = await api.get<Message[]>(`/messages/rooms/${roomId}`, token);
-        const reversed = [...data].reverse();
-        if (reversed.length !== lastCount) {
-          delay = 3000;
-          lastCount = reversed.length;
-          setMessages(reversed);
-        } else {
-          delay = Math.min(delay * 1.5, MAX_DELAY);
-        }
-      } catch {}
-      timeoutId = setTimeout(poll, delay);
+    if (!pusherKey) return;
+
+    const pusherClient = new Pusher(pusherKey, {
+      cluster:            'mt1',
+      wsHost:             pusherHost,
+      wsPort:             pusherPort,
+      forceTLS:           false,
+      enabledTransports:  ['ws'],
+      disableStats:       true,
+    });
+
+    const channel = pusherClient.subscribe(`room-${roomId}`);
+
+    channel.bind('new-message', (data: Message) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === data.id)) return prev;
+        return [...prev, data];
+      });
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    return () => {
+      channel.unbind_all();
+      pusherClient.unsubscribe(`room-${roomId}`);
+      pusherClient.disconnect();
     };
-
-    timeoutId = setTimeout(poll, delay);
-    return () => clearTimeout(timeoutId);
-  }, [roomId, getToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roomId]);
 
   const handleSend = async () => {
     const text = input.trim();

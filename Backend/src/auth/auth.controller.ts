@@ -17,7 +17,10 @@ import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { SyncUserDto } from './dto/sync-user.dto';
+import { CreateAgentDto } from './dto/create-agent.dto';
+import { CreateProAgenceDto } from './dto/create-pro-agence.dto';
 import { PaginationDto } from './dto/pagination.dto';
+import { AdminFilterDto } from './dto/admin-filter.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -68,23 +71,53 @@ export class AuthController {
     return this.authService.updateMe(user.id, dto);
   }
 
-  // Activation du rôle BAILLEUR depuis le dashboard — accessible à tout utilisateur connecté
+  // Activation du rôle BAILLEUR — réservé aux comptes LOCATAIRE (particuliers uniquement, pas les pros ni l'admin)
+  @Roles(Role.LOCATAIRE)
   @Patch('me/activate-bailleur')
   activateBailleur(@CurrentUser() user: User) {
     return this.authService.activateBailleur(user.id);
   }
 
-  // Création d'un compte AGENT_TERRAIN — réservé à l'ADMIN, pas de formulaire public
+  // Création d'un compte AGENT_TERRAIN — réservé à l'ADMIN, compte Clerk créé automatiquement
   @Roles(Role.ADMIN)
   @Post('agents')
-  createAgentTerrain(@CurrentUser() admin: User, @Body() dto: SyncUserDto) {
+  createAgentTerrain(@CurrentUser() admin: User, @Body() dto: CreateAgentDto) {
     return this.authService.createAgentTerrain(admin.id, dto);
+  }
+
+  // Création d'un compte PRO_AGENCE — admin signe le contrat et livre les identifiants
+  @Roles(Role.ADMIN)
+  @Post('agences')
+  createProAgence(@CurrentUser() admin: User, @Body() dto: CreateProAgenceDto) {
+    return this.authService.createProAgence(admin.id, dto);
   }
 
   @Roles(Role.ADMIN)
   @Get('users')
-  getUsers(@Query() dto: PaginationDto) {
-    return this.authService.getUsers(dto.page ?? 1, dto.limit ?? 20);
+  getUsers(@Query() dto: AdminFilterDto) {
+    return this.authService.getUsers(dto.page ?? 1, dto.limit ?? 20, dto.q, dto.role);
+  }
+
+  @Roles(Role.ADMIN)
+  @Patch('users/:userId')
+  updateUser(
+    @Param('userId') userId: string,
+    @CurrentUser() admin: User,
+    @Body() dto: { firstName?: string; lastName?: string; phone?: string | null; agencyName?: string | null },
+  ) {
+    return this.authService.updateUser(userId, admin.id, dto);
+  }
+
+  @Roles(Role.ADMIN)
+  @Patch('users/:userId/suspend')
+  suspendUser(@Param('userId') userId: string, @CurrentUser() admin: User) {
+    return this.authService.suspendUser(userId, admin.id);
+  }
+
+  @Roles(Role.ADMIN)
+  @Delete('users/:userId')
+  deleteUser(@Param('userId') userId: string, @CurrentUser() admin: User) {
+    return this.authService.deleteUser(userId, admin.id);
   }
 
   // Désactivation du rôle BAILLEUR par l'ADMIN

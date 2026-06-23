@@ -4,6 +4,7 @@ import { getTranslations, getLocale } from 'next-intl/server';
 import { auth } from '@clerk/nextjs/server';
 import FavoriteButton from '@/components/ui/FavoriteButton';
 import { MOCK_LISTINGS } from '@/lib/mockListings';
+import { getRegion } from '@/lib/regions';
 import type { Listing } from '@/types';
 
 const PER_PAGE = 6;
@@ -17,6 +18,7 @@ export default async function RegionPage({
 }) {
   const [{ slug }, { page = '1' }] = await Promise.all([params, searchParams]);
   const region = decodeURIComponent(slug);
+  const regionData = getRegion(slug);
   const currentPage = Math.max(1, parseInt(page, 10) || 1);
   const [t, locale] = await Promise.all([getTranslations('region'), getLocale()]);
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
@@ -78,8 +80,40 @@ export default async function RegionPage({
             <i className="fa-solid fa-chevron-right text-xs" />
             <span className="text-text font-medium">{region}</span>
           </div>
-          <h1 className="text-3xl font-bold text-text">{t('title')} {region}</h1>
-          <p className="mt-1 text-sm text-sub">
+
+          {regionData?.coverImage && (
+            <div className="relative h-40 w-full overflow-hidden rounded-2xl mb-5">
+              <Image src={regionData.coverImage} alt={region} fill className="object-cover" sizes="100vw" />
+              <div aria-hidden className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
+              <h1 className="absolute bottom-4 left-5 text-3xl font-bold text-white drop-shadow">
+                {t('title')} {region}
+              </h1>
+            </div>
+          )}
+
+          {!regionData?.coverImage && (
+            <h1 className="text-3xl font-bold text-text">{t('title')} {region}</h1>
+          )}
+
+          {regionData?.description && (
+            <p className="mt-2 text-sm text-sub max-w-2xl">{regionData.description}</p>
+          )}
+
+          {regionData?.highlights && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {regionData.highlights.map((h) => (
+                <Link
+                  key={h}
+                  href={`/listings?city=${encodeURIComponent(h)}`}
+                  className="rounded-full border border-gold/40 bg-gold-pale px-3 py-1 text-xs font-medium text-gold-dark hover:bg-gold/20 transition"
+                >
+                  {h}
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <p className="mt-3 text-sm text-sub">
             {total} {total <= 1 ? t('countOne') : t('countMany')}
           </p>
         </div>
@@ -196,7 +230,7 @@ export default async function RegionPage({
 
                 {end < totalPages && (
                   <>
-                    {end < totalPages - 1 && <span className="text-sub px-1">…</span>}
+                    {end < totalPages - 1 && <span className="text-sub px-1">...</span>}
                     <Link href={pageUrl(totalPages)} className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-white/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">{totalPages}</Link>
                   </>
                 )}

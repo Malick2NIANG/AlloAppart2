@@ -80,7 +80,7 @@ export default function PaiementConfirmationPage() {
               </p>
             )}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <Link href="/dashboard/locataire/bookings" className="btn-gold inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold">
+              <Link href="/locataire/bookings" className="btn-gold inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold">
                 <i className="fa-solid fa-calendar-check" /> Mes réservations
               </Link>
               <Link href="/listings" className="inline-flex items-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all">
@@ -97,7 +97,7 @@ export default function PaiementConfirmationPage() {
             <p className="mt-3 text-sm text-sub">
               Votre paiement est en cours de vérification. Vous recevrez une confirmation dans quelques instants.
             </p>
-            <Link href="/dashboard/locataire/bookings" className="btn-gold mt-8 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold">
+            <Link href="/locataire/bookings" className="btn-gold mt-8 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold">
               Suivre ma réservation
             </Link>
           </>

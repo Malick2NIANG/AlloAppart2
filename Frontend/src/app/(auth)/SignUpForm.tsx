@@ -129,15 +129,7 @@ export default function SignUpForm() {
               )}
             </Field>
 
-            <p className="text-center text-xs text-sub leading-relaxed">
-              En créant un compte, vous acceptez nos{' '}
-              <Link href="/cgu" className="text-gold-dark hover:underline" target="_blank">CGU</Link>
-              {' '}et notre{' '}
-              <Link href="/confidentialite" className="text-gold-dark hover:underline" target="_blank">
-                Politique de confidentialité
-              </Link>.
-            </p>
-
+            <div id="clerk-captcha" />
             <Btn loading={loading} disabled={!isLoaded || pwdMismatch}
               icon="fa-solid fa-user-plus" label={ts('submit')} loadingLabel={ts('submitting')} />
           </form>

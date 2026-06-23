@@ -18,6 +18,15 @@ import { type User, Role } from '@prisma/client';
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
+  @Roles(Role.ADMIN)
+  @Get('all')
+  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.reviewsService.findAll(
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 20,
+    );
+  }
+
   @Roles(Role.LOCATAIRE)
   @Post()
   create(@CurrentUser() user: User, @Body() dto: CreateReviewDto) {

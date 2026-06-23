@@ -5,9 +5,11 @@ import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
+import LocationPicker from '@/components/map/LocationPicker';
 
 /* ── Constants ───────────────────────────────────────────────────────── */
 
@@ -90,16 +92,15 @@ const DRAFT_KEY = 'aa_listing_draft';
 
 export default function PublierPage() {
   const { isSignedIn, getToken } = useAuth();
+  const router = useRouter();
 
-  const [step,          setStep]          = useState(0);
-  const [demoRole,      setDemoRole]      = useState<DemoRole>('visitor');
-  const [mounted,       setMounted]       = useState(false);
-  const [success,       setSuccess]       = useState(false);
-  const [apiError,      setApiError]      = useState<string | null>(null);
-  const [userRoles,     setUserRoles]     = useState<string[]>([]);
-  const [rolesLoaded,   setRolesLoaded]   = useState(false);
-  const [activating,    setActivating]    = useState(false);
-  const [activateError, setActivateError] = useState<string | null>(null);
+  const [step,        setStep]        = useState(0);
+  const [demoRole,    setDemoRole]    = useState<DemoRole>('visitor');
+  const [mounted,     setMounted]     = useState(false);
+  const [success,     setSuccess]     = useState(false);
+  const [apiError,    setApiError]    = useState<string | null>(null);
+  const [userRoles,   setUserRoles]   = useState<string[]>([]);
+  const [rolesLoaded, setRolesLoaded] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
 
   const prevSignedIn = useRef<boolean | undefined>(undefined);
@@ -155,6 +156,7 @@ export default function PublierPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Récupère les rôles réels dès que l'utilisateur est connecté
+  // ADMIN → admin dashboard, AGENT_TERRAIN → verifications : cette page n'est pas pour eux
   useEffect(() => {
     if (!isSignedIn) return;
     getToken().then(async (token) => {
@@ -162,6 +164,8 @@ export default function PublierPage() {
       try {
         const { api } = await import('@/lib/api');
         const me = await api.get<{ roles: string[] }>('/auth/me', token);
+        if (me.roles.includes('ADMIN')) { router.replace('/espace'); return; }
+        if (me.roles.includes('AGENT_TERRAIN')) { router.replace('/agent/verifications'); return; }
         setUserRoles(me.roles);
       } catch {
         setUserRoles([]);
@@ -169,29 +173,13 @@ export default function PublierPage() {
         setRolesLoaded(true);
       }
     });
-  }, [isSignedIn, getToken]);
-
-  const activateBailleur = async () => {
-    setActivating(true);
-    setActivateError(null);
-    try {
-      const token = await getToken();
-      if (!token) throw new Error('Non authentifié');
-      const { api } = await import('@/lib/api');
-      const updated = await api.patch<{ roles: string[] }>('/auth/me/activate-bailleur', {}, token);
-      setUserRoles(updated.roles);
-    } catch {
-      setActivateError('Impossible d\'activer le rôle. Réessaie.');
-    } finally {
-      setActivating(false);
-    }
-  };
+  }, [isSignedIn, getToken, router]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const values    = watch();
   const isDemo    = !isSignedIn && demoRole !== 'visitor';
   const canAccess = isSignedIn || demoRole !== 'visitor';
-  const isBailleur = isDemo || userRoles.some((r) => ['BAILLEUR', 'PRO_AGENCE', 'ADMIN'].includes(r));
+  const isBailleur = isDemo || userRoles.some((r) => ['BAILLEUR', 'PRO_AGENCE'].includes(r));
 
   if (!mounted) return null;
 
@@ -225,45 +213,92 @@ export default function PublierPage() {
   /* ── Utilisateur connecté mais LOCATAIRE seulement ── */
   if (isSignedIn && !isBailleur) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-bg px-4">
-        <div className="w-full max-w-sm text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-gold-pale ring-4 ring-gold/20">
-            <i className="fa-solid fa-key text-2xl text-gold-dark" />
-          </div>
-          <h1 className="text-xl font-extrabold text-text">Devenir bailleur</h1>
-          <p className="mt-2 text-sm text-sub">
-            Pour publier des annonces, activez votre rôle Bailleur. C&apos;est gratuit et instantané.
-          </p>
-          <ul className="mt-5 space-y-2 text-left text-sm text-sub">
-            {[
-              'Publiez vos annonces de location',
-              'Gérez vos réservations',
-              'Recevez vos paiements en sécurité',
-            ].map((item) => (
-              <li key={item} className="flex items-center gap-2">
-                <i className="fa-solid fa-circle-check text-gold-dark text-xs" /> {item}
-              </li>
-            ))}
-          </ul>
-          {activateError && (
-            <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-red-500">
-              <i className="fa-solid fa-circle-exclamation" /> {activateError}
+      <main className="bg-bg min-h-screen py-12 px-4">
+        <div className="mx-auto w-full max-w-lg">
+
+          {/* Header */}
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gold-pale ring-4 ring-gold/20">
+              <i className="fa-solid fa-house-chimney text-2xl text-gold-dark" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-text">Publiez votre bien sur Allo-Appart</h1>
+            <p className="mt-2 text-sm text-sub">
+              Activez votre espace bailleur — gratuit, sans abonnement mensuel.
             </p>
-          )}
-          <button
-            onClick={activateBailleur}
-            disabled={activating}
-            className="btn-gold mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-50"
-          >
-            {activating
-              ? <><i className="fa-solid fa-spinner fa-spin text-xs" /> Activation…</>
-              : <><i className="fa-solid fa-house-chimney-user text-xs" /> Activer le rôle Bailleur</>
-            }
-          </button>
-          <Link href="/espace"
-            className="mt-3 inline-flex items-center gap-1.5 text-xs text-sub hover:text-gold-dark transition-colors">
-            <i className="fa-solid fa-arrow-left text-[10px]" /> Retour à mon espace
+          </div>
+
+          {/* Ce que vous gagnez */}
+          <div className="mb-5 rounded-2xl border border-line bg-card p-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-sub">Ce que vous obtenez</p>
+            <ul className="space-y-3">
+              {[
+                { icon: 'fa-eye',           text: 'Visibilité nationale — Dakar, Thiès, Saly, Saint-Louis et toutes les régions' },
+                { icon: 'fa-calendar-check',text: 'Gestion des réservations et des candidats en temps réel' },
+                { icon: 'fa-lock',          text: 'Paiement sécurisé en séquestre — vous êtes payé à la remise des clés' },
+                { icon: 'fa-comment-dots',  text: 'Messagerie intégrée avec vos locataires, traçable et sécurisée' },
+                { icon: 'fa-chart-line',    text: 'Tableau de bord : statistiques, taux de vue, revenus' },
+              ].map(({ icon, text }) => (
+                <li key={icon} className="flex items-start gap-3 text-sm text-text">
+                  <i className={`fa-solid ${icon} mt-0.5 shrink-0 text-gold-dark`} />
+                  {text}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Modèle de commission */}
+          <div className="mb-5 rounded-2xl border border-gold/30 bg-gold-pale p-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gold-dark">Notre modèle — transparent</p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <i className="fa-solid fa-handshake mt-0.5 shrink-0 text-gold-dark" />
+                <div>
+                  <p className="text-sm font-semibold text-text">Commission à la signature uniquement</p>
+                  <p className="mt-0.5 text-xs text-sub">
+                    L'équivalent d'un <span className="font-semibold text-text">demi-mois de loyer</span>, prélevé sur le bailleur à la signature du bail.
+                    Zéro frais pour le locataire. Zéro abonnement mensuel pour vous.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <i className="fa-solid fa-shield-halved mt-0.5 shrink-0 text-gold-dark" />
+                <div>
+                  <p className="text-sm font-semibold text-text">Badge AlloVérifié™ — optionnel</p>
+                  <p className="mt-0.5 text-xs text-sub">
+                    Un agent se déplace pour certifier votre bien physiquement.
+                    <span className="font-semibold text-text"> 25 000 FCFA</span> (audit basique) ·
+                    <span className="font-semibold text-text"> 60 000 FCFA</span> (audit complet + rapport juridique).
+                    Les biens certifiés apparaissent en priorité dans les résultats.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <i className="fa-solid fa-bolt mt-0.5 shrink-0 text-gold-dark" />
+                <div>
+                  <p className="text-sm font-semibold text-text">Boost — optionnel</p>
+                  <p className="mt-0.5 text-xs text-sub">
+                    Remontez votre annonce en tête des résultats pendant 7 jours.
+                    <span className="font-semibold text-text"> 5 000 FCFA</span> par boost.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* CTA — redirige vers le flow multi-étapes (téléphone + conditions) */}
+          <Link href="/become-bailleur"
+            className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold">
+            <i className="fa-solid fa-house-chimney-user" /> Activer mon espace bailleur — gratuit
           </Link>
+          <p className="mt-3 text-center text-xs text-sub">
+            Aucun abonnement · Commission uniquement à la signature du bail
+          </p>
+          <div className="mt-4 text-center">
+            <Link href="/espace" className="inline-flex items-center gap-1.5 text-xs text-sub hover:text-gold-dark transition-colors">
+              <i className="fa-solid fa-arrow-left text-[10px]" /> Retour à mon espace
+            </Link>
+          </div>
+
         </div>
       </main>
     );
@@ -469,18 +504,20 @@ export default function PublierPage() {
                   <input {...register('address')} placeholder="Rue, numéro, résidence…" className="input-field" />
                 </Field>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="Latitude GPS" error={errors.lat?.message}>
-                    <input type="number" step="any" {...register('lat', { valueAsNumber: true })} className="input-field" />
-                  </Field>
-                  <Field label="Longitude GPS" error={errors.lng?.message}>
-                    <input type="number" step="any" {...register('lng', { valueAsNumber: true })} className="input-field" />
-                  </Field>
+                <div>
+                  <p className="mb-2 text-sm font-medium text-text">Position sur la carte</p>
+                  <div className="h-64 overflow-hidden rounded-2xl border border-line">
+                    <LocationPicker
+                      defaultLat={values.lat ?? 14.6937}
+                      defaultLng={values.lng ?? -17.4441}
+                      onChange={(lat, lng) => { setValue('lat', lat); setValue('lng', lng); }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-xs text-sub">
+                    <i className="fa-solid fa-location-crosshairs mr-1 text-gold-dark" />
+                    Lat : {values.lat?.toFixed(4)} — Lng : {values.lng?.toFixed(4)}
+                  </p>
                 </div>
-                <p className="text-xs text-sub">
-                  <i className="fa-solid fa-circle-info mr-1 text-gold-dark" />
-                  Coordonnées pré-remplies sur Dakar. Modifiez si votre bien est ailleurs.
-                </p>
               </>
             )}
 

@@ -68,7 +68,8 @@
     "typeLabel": "Type de bien",
     "budgetLabel": "Budget max",
     "perMonth": "mois",
-    "seeMore": "Voir plus"
+    "seeMore": "Voir plus",
+    "noListings": "Aucune annonce disponible pour le moment."
   },
   "footer": {
     "tagline": "La plateforme immobilière de référence au Sénégal. Des logements vérifiés sur place par nos agents terrain.",
@@ -207,7 +208,7 @@
     "bookingSignIn": "Se connecter pour réserver",
     "bookingSignInDesc": "Créez un compte ou connectez-vous pour envoyer une demande.",
     "bookingPayNow": "Réserver et payer",
-    "bookingRedirecting": "Redirection vers CinetPay…",
+    "bookingRedirecting": "Redirection vers PayDunya…",
     "bookingPayError": "Impossible d'initier le paiement. Réessayez depuis vos réservations."
   },
   "region": {
@@ -279,7 +280,8 @@
     "verifStart": "Démarrer une vérification",
     "viewAdminDashboard": "Tableau de bord admin",
     "verifStatusVerified": "Vérifié",
-    "verifStatusPending": "En attente"
+    "verifStatusPending": "En attente",
+    "noVerifQueue": "Aucune vérification en attente."
   },
   "messages": {
     "title": "Messagerie",

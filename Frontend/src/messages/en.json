@@ -68,7 +68,8 @@
     "typeLabel": "Property type",
     "budgetLabel": "Max budget",
     "perMonth": "month",
-    "seeMore": "View more"
+    "seeMore": "View more",
+    "noListings": "No listings available at the moment."
   },
   "footer": {
     "tagline": "Senegal's leading real estate platform. Properties verified on-site by our field agents.",
@@ -207,7 +208,7 @@
     "bookingSignIn": "Sign in to book",
     "bookingSignInDesc": "Create an account or sign in to send a booking request.",
     "bookingPayNow": "Book and pay",
-    "bookingRedirecting": "Redirecting to CinetPay…",
+    "bookingRedirecting": "Redirecting to PayDunya…",
     "bookingPayError": "Unable to initiate payment. Retry from your bookings."
   },
   "region": {
@@ -279,7 +280,8 @@
     "verifStart": "Start verification",
     "viewAdminDashboard": "Admin dashboard",
     "verifStatusVerified": "Verified",
-    "verifStatusPending": "Pending"
+    "verifStatusPending": "Pending",
+    "noVerifQueue": "No pending verifications."
   },
   "messages": {
     "title": "Messaging",

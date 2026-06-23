@@ -7,6 +7,8 @@ import ListingHeroCarousel from './ListingHeroCarousel';
 import ListingContactCard from './ListingContactCard';
 import ListingBookingCard from './ListingBookingCard';
 import ListingReviewForm from './ListingReviewForm';
+import MapView from '@/components/map/MapView';
+import AvailabilityCalendar from '@/components/listings/AvailabilityCalendar';
 import { type Listing, priceToNumber, ownerFullName } from '@/types/listing';
 
 const AMENITY_ICONS: Record<string, string> = {
@@ -224,13 +226,17 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               </a>
             </div>
             <div className="w-full h-64 rounded-2xl overflow-hidden border border-line">
-              <iframe
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(`${listing.address}, ${listing.city}, Sénégal`)}&output=embed&hl=${locale}`}
-                className="w-full h-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title={`${listing.address}, ${listing.city}`}
-              />
+              {listing.lat && listing.lng ? (
+                <MapView lat={listing.lat} lng={listing.lng} title={listing.title} />
+              ) : (
+                <iframe
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(`${listing.address}, ${listing.city}, Sénégal`)}&output=embed&hl=${locale}`}
+                  className="w-full h-full border-0"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title={`${listing.address}, ${listing.city}`}
+                />
+              )}
             </div>
           </div>
 
@@ -284,6 +290,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               numLocale={numLocale}
             />
 
+            {/* Calendrier disponibilité */}
+            <AvailabilityCalendar listingId={listing.id} />
+
             {/* Guarantees */}
             <div className="bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-5 shadow">
               <h3 className="text-sm font-semibold text-text mb-3">{t('guarantees')}</h3>
@@ -310,7 +319,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         <Link href="/"
           className="group inline-flex items-center gap-2 rounded-full border border-gold/40 bg-white/80 backdrop-blur-md text-text font-medium text-sm px-5 py-2.5 shadow-md hover:shadow-lg hover:bg-gold-pale hover:text-gold-dark transition-all duration-300">
           <i className="fa-solid fa-arrow-left text-gold-dark group-hover:-translate-x-1 transition-transform duration-300" />
-          {t('backToCatalogue')}
+          Retour au catalogue
         </Link>
       </div>
 

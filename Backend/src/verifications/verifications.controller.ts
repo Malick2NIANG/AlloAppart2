@@ -1,4 +1,4 @@
-﻿import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+﻿import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { VerificationsService } from './verifications.service';
 import { CreateVerificationDto } from './dto/create-verification.dto';
 import { CompleteVerificationDto } from './dto/complete-verification.dto';
@@ -6,7 +6,7 @@ import { AssignAgentDto } from './dto/assign-agent.dto';
 import { RejectVerificationDto } from './dto/reject-verification.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { type User, Role } from '@prisma/client';
+import { type User, Role, VerifStatus } from '@prisma/client';
 
 @Controller('verifications')
 export class VerificationsController {
@@ -22,6 +22,29 @@ export class VerificationsController {
   @Get('pending')
   findPending() {
     return this.verificationsService.findPending();
+  }
+
+  @Roles(Role.ADMIN)
+  @Get('all')
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+  ) {
+    const verifStatus = Object.values(VerifStatus).includes(status as VerifStatus)
+      ? (status as VerifStatus)
+      : undefined;
+    return this.verificationsService.findAll(
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+      verifStatus,
+    );
+  }
+
+  @Roles(Role.ADMIN)
+  @Patch(':id/validate')
+  validate(@Param('id') id: string, @CurrentUser() admin: User) {
+    return this.verificationsService.validate(id, admin.id);
   }
 
   @Roles(Role.ADMIN)

@@ -43,6 +43,18 @@ services:
     volumes:
       - meili_data:/meili_data
 
+  soketi:
+    image: quay.io/soketi/soketi:latest-16-alpine
+    container_name: allo_soketi
+    restart: unless-stopped
+    environment:
+      SOKETI_DEFAULT_APP_ID: allo-app
+      SOKETI_DEFAULT_APP_KEY: allo-key
+      SOKETI_DEFAULT_APP_SECRET: allo-secret
+      SOKETI_DEBUG: "0"
+    ports:
+      - "6001:6001"
+
 volumes:
   postgres_data:
   redis_data:

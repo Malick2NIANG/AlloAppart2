@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@clerk/nextjs';
@@ -9,9 +9,23 @@ import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { Listing } from '@/types';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
+import LocationPicker from '@/components/map/LocationPicker';
 
 const LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
 const LISTING_STATUSES = ['DRAFT', 'ACTIVE', 'RENTED', 'SUSPENDED'] as const;
+
+const AMENITIES = [
+  { key: 'wifi',       icon: 'fa-wifi',         label: 'Wi-Fi'             },
+  { key: 'clim',       icon: 'fa-snowflake',     label: 'Climatisation'     },
+  { key: 'tv',         icon: 'fa-tv',            label: 'Télévision'        },
+  { key: 'cuisine',    icon: 'fa-utensils',      label: 'Cuisine équipée'   },
+  { key: 'douche',     icon: 'fa-shower',        label: 'Douche / SdB'      },
+  { key: 'gardien',    icon: 'fa-shield-halved', label: 'Gardiennage'       },
+  { key: 'parking',    icon: 'fa-car',           label: 'Parking'           },
+  { key: 'piscine',    icon: 'fa-water',         label: 'Piscine'           },
+  { key: 'balcon',     icon: 'fa-door-open',     label: 'Balcon / Terrasse' },
+  { key: 'generateur', icon: 'fa-bolt',          label: 'Générateur'        },
+];
 
 const schema = z.object({
   title:       z.string().min(5, 'Titre trop court'),
@@ -28,6 +42,7 @@ const schema = z.object({
   rooms:       z.number().int().positive().optional().or(z.nan().transform(() => undefined)),
   beds:        z.number().int().positive().optional().or(z.nan().transform(() => undefined)),
   baths:       z.number().int().positive().optional().or(z.nan().transform(() => undefined)),
+  amenities:   z.array(z.string()).default([]),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -44,15 +59,22 @@ export default function EditListingPage() {
   const { getToken } = useAuth();
   const router = useRouter();
   const [images, setImages] = useState<string[]>([]);
+  const [mapReady, setMapReady] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting, isLoading },
   } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as Resolver<FormValues>,
   });
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const lat       = watch('lat');
+  const lng       = watch('lng');
+  const amenities = watch('amenities') ?? [];
 
   useEffect(() => {
     getToken().then(async (token) => {
@@ -74,7 +96,9 @@ export default function EditListingPage() {
         rooms:       listing.rooms ?? undefined,
         beds:        listing.beds ?? undefined,
         baths:       listing.baths ?? undefined,
+        amenities:   listing.amenities ?? [],
       });
+      setMapReady(true);
     });
   }, [id, getToken, reset]);
 
@@ -182,23 +206,55 @@ export default function EditListingPage() {
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Latitude" error={errors.lat?.message}>
-            <input
-              type="number"
-              step="any"
-              {...register('lat', { valueAsNumber: true })}
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Longitude" error={errors.lng?.message}>
-            <input
-              type="number"
-              step="any"
-              {...register('lng', { valueAsNumber: true })}
-              className={inputCls}
-            />
-          </Field>
+        <div>
+          <label className="mb-2 block text-sm font-medium text-text">Équipements</label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {AMENITIES.map(({ key, icon, label }) => {
+              const active = amenities.includes(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() =>
+                    setValue(
+                      'amenities',
+                      active ? amenities.filter((a) => a !== key) : [...amenities, key],
+                    )
+                  }
+                  className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all ${
+                    active
+                      ? 'border-gold bg-gold-pale text-gold-dark'
+                      : 'border-line bg-bg text-sub hover:border-gold/40'
+                  }`}
+                >
+                  <i className={`fa-solid ${icon} text-sm shrink-0`} />
+                  <span className="font-medium">{label}</span>
+                  {active && <i className="fa-solid fa-check ml-auto text-[10px]" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-text">Position sur la carte</label>
+          <div className="h-64 overflow-hidden rounded-xl border border-line">
+            {mapReady && lat != null && lng != null ? (
+              <LocationPicker
+                defaultLat={lat}
+                defaultLng={lng}
+                onChange={(la, ln) => { setValue('lat', la); setValue('lng', ln); }}
+              />
+            ) : (
+              <div className="w-full h-full bg-bg animate-pulse rounded-xl flex items-center justify-center">
+                <i className="fa-solid fa-map-location-dot text-2xl text-sub/30" />
+              </div>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-sub">
+            <i className="fa-solid fa-location-crosshairs mr-1 text-gold-dark" />
+            Lat : {lat?.toFixed(4)} — Lng : {lng?.toFixed(4)}
+          </p>
         </div>
 
         <div>

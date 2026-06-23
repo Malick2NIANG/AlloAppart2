@@ -4,6 +4,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { cookies } from 'next/headers';
+import { ToastProvider } from '@/components/ui/ToastProvider';
 import './globals.css';
 
 const inter = Inter({
@@ -68,7 +69,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </head>
         <body className="min-h-screen flex flex-col bg-bg text-text">
           <NextIntlClientProvider locale={locale} messages={messages}>
-            {children}
+            <ToastProvider>
+              {children}
+            </ToastProvider>
           </NextIntlClientProvider>
         </body>
       </html>
