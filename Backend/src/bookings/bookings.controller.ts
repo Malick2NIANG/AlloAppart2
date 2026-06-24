@@ -89,6 +89,12 @@ export class BookingsController {
     res.end(pdf);
   }
 
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
+  @Patch(':id/complete')
+  complete(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.bookingsService.complete(id, user);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: User) {
     return this.bookingsService.findOne(id, user.id);

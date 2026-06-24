@@ -29,7 +29,9 @@ export class MessagesController {
 
   @Post('rooms')
   createRoom(@CurrentUser() user: User, @Body() dto: CreateRoomDto) {
-    return this.messagesService.createRoom(dto.listingId, user.id);
+    // Si le bailleur initie la conversation vers un locataire spécifique
+    const tenantId = dto.tenantId ?? user.id;
+    return this.messagesService.createRoom(dto.listingId, tenantId, user.id);
   }
 
   @Post('rooms/:id/send')

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useClerk } from '@clerk/nextjs';
 import SubscriptionAlert from '@/components/ui/SubscriptionAlert';
 
 export interface NavItem {
@@ -38,6 +39,14 @@ const DOMINANT_BADGE: Record<DominantRole, { label: string; className: string }>
   AGENT_TERRAIN: { label: 'Agent terrain', className: 'bg-blue-100 text-blue-700'      },
 };
 
+const SPACE_LABEL: Record<string, { label: string; sub: string }> = {
+  ADMIN:         { label: 'Admin',           sub: 'Tableau de bord' },
+  PRO_AGENCE:    { label: 'Espace Agence',   sub: 'Pro' },
+  AGENT_TERRAIN: { label: 'Espace Agent',    sub: 'Terrain' },
+  BAILLEUR:      { label: 'Espace Bailleur', sub: '' },
+  LOCATAIRE:     { label: 'Espace',          sub: 'Locataire' },
+};
+
 interface Props {
   userName: string;
   roles: string[];
@@ -52,6 +61,7 @@ export default function DashboardShell({ userName, roles, navItems, isProAgence 
   const [collapsed, setCollapsed] = useState(false);
   const [tooltip, setTooltip]     = useState<{ label: string; top: number } | null>(null);
   const pathname = usePathname();
+  const { signOut } = useClerk();
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -94,17 +104,35 @@ export default function DashboardShell({ userName, roles, navItems, isProAgence 
         ${collapsed ? 'w-16' : 'w-64'}
       `}>
 
-        {/* ── Logo ── */}
-        <div className="relative flex h-16 shrink-0 items-center justify-center border-b border-line">
+        {/* ── En-tête espace ── */}
+        <div className="relative flex h-14 shrink-0 items-center border-b border-line overflow-hidden">
+          {/* Trait gold vertical */}
+          <div className="absolute left-0 inset-y-0 w-1 bg-gold-dark rounded-r-full" />
           {collapsed ? (
-            <Link href="/" className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-pale">
-              <i className="fa-solid fa-house text-gold-dark text-base" />
-            </Link>
+            <div className="flex w-full items-center justify-center">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-pale">
+                <i className="fa-solid fa-house text-gold-dark text-sm" />
+              </span>
+            </div>
           ) : (
-            <Link href="/" className="shrink-0">
-              <Image src="/images/LOGO.png" alt="AlloAppart" width={160} height={46} className="h-12 w-auto" priority />
-            </Link>
+            <div className="pl-5 pr-4">
+              {(() => {
+                const key = userRole ?? roles[0] ?? '';
+                const info = SPACE_LABEL[key] ?? { label: 'Mon espace', sub: '' };
+                return (
+                  <>
+                    <p className="text-xs font-semibold text-gold-dark uppercase tracking-widest leading-none">
+                      {info.label}
+                    </p>
+                    {info.sub && (
+                      <p className="text-[10px] text-sub mt-0.5 leading-none">{info.sub}</p>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
           )}
+          {/* Bouton fermeture mobile */}
           <button
             onClick={() => setOpen(false)}
             className="absolute right-3 lg:hidden flex h-8 w-8 items-center justify-center rounded-lg text-sub hover:bg-bg transition"
@@ -220,6 +248,24 @@ export default function DashboardShell({ userName, roles, navItems, isProAgence 
             </span>
             {!collapsed && 'Retour au site'}
           </Link>
+          <button
+            onClick={() => void signOut({ redirectUrl: '/sign-in' })}
+            title={collapsed ? 'Se déconnecter' : undefined}
+            onMouseEnter={(e) => {
+              if (!collapsed) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              setTooltip({ label: 'Se déconnecter', top: rect.top + rect.height / 2 });
+            }}
+            onMouseLeave={() => setTooltip(null)}
+            className={`flex w-full items-center rounded-xl px-2.5 py-2 text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors
+              ${collapsed ? 'justify-center gap-0' : 'gap-3'}
+            `}
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+              <i className="fa-solid fa-right-from-bracket text-sm" />
+            </span>
+            {!collapsed && 'Se déconnecter'}
+          </button>
         </div>
       </aside>
 

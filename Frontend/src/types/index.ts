@@ -50,7 +50,7 @@ export interface Listing {
   amenities: string[];
   ownerId: string;
   owner?: Pick<User, 'id' | 'firstName' | 'lastName'>;
-  _count?: { reviews: number };
+  _count?: { reviews: number; bookings?: number };
   avgRating?: number | null;
   verification?: Verification;
   tourUrl?: string | null;

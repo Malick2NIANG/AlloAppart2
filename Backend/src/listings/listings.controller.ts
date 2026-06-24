@@ -53,6 +53,12 @@ export class ListingsController {
     return this.listingsService.findFavorites(user.id);
   }
 
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
+  @Patch(':id/unpublish')
+  unpublish(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.listingsService.unpublishListing(id, user.id);
+  }
+
   @Public()
   @Get(':id')
   findOne(@Param('id') id: string) {

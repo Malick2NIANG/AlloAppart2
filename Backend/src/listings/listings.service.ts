@@ -200,6 +200,22 @@ export class ListingsService {
     return updated;
   }
 
+  async unpublishListing(id: string, userId: string) {
+    const listing = await this.prisma.listing.findUniqueOrThrow({ where: { id } });
+    if (listing.ownerId !== userId) {
+      throw new ForbiddenException('Non autorise');
+    }
+    if (listing.status !== ListingStatus.ACTIVE) {
+      throw new BadRequestException('Seules les annonces actives peuvent être dépubliées');
+    }
+    const updated = await this.prisma.listing.update({
+      where: { id },
+      data: { status: ListingStatus.DRAFT },
+    });
+    void this.search.indexListing(updated).catch(() => undefined);
+    return updated;
+  }
+
   async activateListing(id: string, user: User) {
     if (
       !user.roles.includes(Role.ADMIN) &&

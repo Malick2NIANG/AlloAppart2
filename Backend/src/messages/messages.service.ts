@@ -43,7 +43,7 @@ export class MessagesService {
     });
   }
 
-  async createRoom(listingId: string, tenantId: string) {
+  async createRoom(listingId: string, tenantId: string, callerId?: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
     });
@@ -52,6 +52,10 @@ export class MessagesService {
       throw new BadRequestException(
         'Vous ne pouvez pas vous envoyer un message',
       );
+    }
+    // Si le caller n'est ni le locataire ni le propriétaire → interdit
+    if (callerId && callerId !== tenantId && callerId !== listing.ownerId) {
+      throw new ForbiddenException('Non autorise');
     }
     const existing = await this.prisma.messageRoom.findFirst({
       where: { listingId, participants: { some: { id: tenantId } } },

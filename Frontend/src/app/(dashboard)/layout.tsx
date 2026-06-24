@@ -38,6 +38,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       { label: 'Réservations',  href: '/bailleur/bookings',    icon: 'fa-solid fa-calendar-check' },
       { label: 'Statistiques',  href: '/bailleur/analytics',   icon: 'fa-solid fa-chart-line'     },
       { label: 'Messages',      href: '/bailleur/messages',    icon: 'fa-solid fa-comment-dots'   },
+      { label: 'Boost',         href: '/bailleur/boost',       icon: 'fa-solid fa-rocket'         },
       // Abonnement mensuel = réservé aux agences PRO_AGENCE, pas aux bailleurs individuels
       ...(isProAgence ? [{ label: 'Abonnement', href: '/bailleur/abonnement', icon: 'fa-solid fa-id-card' }] : []),
     ] : []),

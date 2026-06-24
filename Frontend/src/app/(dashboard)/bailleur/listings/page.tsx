@@ -23,6 +23,7 @@ export default function BailleurListingsPage() {
   const [verifModal, setVerifModal] = useState<VerifModal | null>(null);
   const [verifForm, setVerifForm] = useState({ auditType: 'BASIC', scheduledAt: '' });
   const [verifLoading, setVerifLoading] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{ listingId: string; title: string } | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -56,6 +57,33 @@ export default function BailleurListingsPage() {
       toast.error('Erreur lors de la demande. Veuillez réessayer.');
     } finally {
       setVerifLoading(false);
+    }
+  };
+
+  const deleteListing = async () => {
+    if (!deleteModal) return;
+    const token = await getToken();
+    if (!token) return;
+    try {
+      await api.delete(`/listings/${deleteModal.listingId}`, token);
+      toast.success(`"${deleteModal.title}" supprimée`);
+      setDeleteModal(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Impossible de supprimer cette annonce.');
+      setDeleteModal(null);
+    }
+  };
+
+  const unpublishListing = async (listingId: string, title: string) => {
+    const token = await getToken();
+    if (!token) return;
+    try {
+      await api.patch(`/listings/${listingId}/unpublish`, {}, token);
+      toast.success(`"${title}" dépubliée et passée en brouillon`);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Impossible de dépublier cette annonce.');
     }
   };
 
@@ -132,6 +160,12 @@ export default function BailleurListingsPage() {
                         <i className="fa-solid fa-shield-halved text-xs mr-1" /> AlloVérifié
                       </span>
                     )}
+                    {(listing._count?.bookings ?? 0) > 0 && (
+                      <span className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">
+                        <i className="fa-solid fa-calendar text-xs mr-1" />
+                        {listing._count?.bookings} réservation{(listing._count?.bookings ?? 0) > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
@@ -148,6 +182,22 @@ export default function BailleurListingsPage() {
                     >
                       Voir <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
                     </Link>
+                    {listing.status === 'ACTIVE' && (
+                      <button
+                        onClick={() => void unpublishListing(listing.id, listing.title)}
+                        className="text-sm font-medium text-sub hover:text-amber-600 transition-colors"
+                      >
+                        <i className="fa-solid fa-eye-slash text-xs mr-1" />Dépublier
+                      </button>
+                    )}
+                    {listing.status === 'DRAFT' && (
+                      <button
+                        onClick={() => setDeleteModal({ listingId: listing.id, title: listing.title })}
+                        className="text-sm font-medium text-red-500 hover:text-red-700 transition-colors"
+                      >
+                        <i className="fa-solid fa-trash text-xs mr-1" />Supprimer
+                      </button>
+                    )}
                   </div>
                   {!listing.isVerified && listing.status === 'ACTIVE' && (
                     <button
@@ -156,6 +206,15 @@ export default function BailleurListingsPage() {
                     >
                       <i className="fa-solid fa-shield-halved text-xs mr-1" /> AlloVérifié
                     </button>
+                  )}
+                  {listing.status === 'ACTIVE' &&
+                    !(listing.boostUntil && new Date(listing.boostUntil) > new Date()) && (
+                    <Link
+                      href="/bailleur/boost"
+                      className="text-xs font-medium text-sub hover:text-gold-dark border border-line hover:border-gold-dark rounded-lg py-1 px-2.5 transition-colors"
+                    >
+                      <i className="fa-solid fa-rocket text-xs mr-1" />Booster
+                    </Link>
                   )}
                 </div>
               </div>
@@ -223,6 +282,33 @@ export default function BailleurListingsPage() {
                 className="btn-gold text-sm disabled:opacity-50"
               >
                 {verifLoading ? <i className="fa-solid fa-spinner fa-spin" /> : 'Envoyer la demande'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
+              <i className="fa-solid fa-trash text-red-500" />
+            </div>
+            <h2 className="text-lg font-semibold text-text mb-1">Supprimer l&apos;annonce ?</h2>
+            <p className="text-sm text-sub mb-6 truncate">&quot;{deleteModal.title}&quot;</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => void deleteListing()}
+                className="text-sm font-semibold bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl transition-colors"
+              >
+                Supprimer définitivement
               </button>
             </div>
           </div>

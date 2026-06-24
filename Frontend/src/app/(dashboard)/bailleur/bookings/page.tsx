@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { api } from '@/lib/api';
 import type { Booking } from '@/types';
@@ -13,9 +14,11 @@ import BookingActions from './BookingActions';
 export default function BailleurBookingsPage() {
   const { getToken } = useAuth();
   const { toast }    = useToast();
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
+  const [bookings, setBookings]       = useState<Booking[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal]             = useState(0);
 
   const fetchData = useCallback(async () => {
     const token = await getToken();
@@ -23,14 +26,18 @@ export default function BailleurBookingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.get<Booking[]>('/bookings/received', token);
-      setBookings(data);
+      const res = await api.get<{ data: Booking[]; total: number; page: number; limit: number }>(
+        `/bookings/received?page=${currentPage}&limit=20`,
+        token
+      );
+      setBookings(res.data);
+      setTotal(res.total);
     } catch {
       setError('Impossible de charger les réservations.');
     } finally {
       setLoading(false);
     }
-  }, [getToken]);
+  }, [getToken, currentPage]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -44,7 +51,7 @@ export default function BailleurBookingsPage() {
         <h1 className="text-2xl font-bold text-text">Réservations reçues</h1>
         {!loading && !error && (
           <p className="mt-1 text-sm text-sub">
-            {bookings.length} réservation{bookings.length > 1 ? 's' : ''}
+            {total} réservation{total > 1 ? 's' : ''}
             {pending.length > 0 && (
               <span className="ml-2 inline-flex items-center gap-1 text-gold-dark font-medium">
                 <i className="fa-solid fa-circle text-[8px]" />
@@ -82,16 +89,40 @@ export default function BailleurBookingsPage() {
         <div className="space-y-8">
           {pending.length > 0 && (
             <Section title="En attente" icon="fa-clock" accent="text-gold-dark"
-              bookings={pending} onActionDone={fetchData} toast={toast} />
+              bookings={pending} onActionDone={fetchData} toast={toast} getToken={getToken} />
           )}
           {active.length > 0 && (
             <Section title="Confirmées" icon="fa-circle-check" accent="text-green-600"
-              bookings={active} onActionDone={fetchData} toast={toast} />
+              bookings={active} onActionDone={fetchData} toast={toast} getToken={getToken} />
           )}
           {archived.length > 0 && (
             <Section title="Archivées" icon="fa-archive" accent="text-sub"
-              bookings={archived} onActionDone={fetchData} toast={toast} />
+              bookings={archived} onActionDone={fetchData} toast={toast} getToken={getToken} />
           )}
+        </div>
+      )}
+
+      {total > 20 && (
+        <div className="mt-8 flex items-center justify-between">
+          <p className="text-sm text-sub">
+            Page {currentPage} sur {Math.ceil(total / 20)}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => p - 1)}
+              disabled={currentPage === 1}
+              className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
+            >
+              Précédent
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={currentPage * 20 >= total}
+              className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
+            >
+              Suivant
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -99,7 +130,7 @@ export default function BailleurBookingsPage() {
 }
 
 function Section({
-  title, icon, accent, bookings, onActionDone, toast,
+  title, icon, accent, bookings, onActionDone, toast, getToken,
 }: {
   title: string;
   icon: string;
@@ -107,7 +138,25 @@ function Section({
   bookings: Booking[];
   onActionDone: () => void;
   toast: ReturnType<typeof useToast>['toast'];
+  getToken: () => Promise<string | null>;
 }) {
+  const router = useRouter();
+
+  const contactTenant = async (listingId: string, tenantId: string) => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const room = await api.post<{ id: string }>(
+        '/messages/rooms',
+        { listingId, tenantId },
+        token
+      );
+      router.push(`/bailleur/messages/${room.id}`);
+    } catch {
+      toast.error('Impossible d\'ouvrir la messagerie.');
+    }
+  };
+
   return (
     <div>
       <h2 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${accent}`}>
@@ -135,6 +184,13 @@ function Section({
                 <i className="fa-solid fa-user text-xs text-gold-dark mr-1" />
                 {booking.tenant?.firstName} {booking.tenant?.lastName}
               </p>
+              <button
+                onClick={() => void contactTenant(booking.listingId, booking.tenantId)}
+                className="text-xs font-medium text-gold-dark hover:underline mt-1 inline-flex items-center gap-1"
+              >
+                <i className="fa-solid fa-comment-dots text-xs" />
+                Contacter
+              </button>
             </div>
             <BookingActions
               bookingId={booking.id}
