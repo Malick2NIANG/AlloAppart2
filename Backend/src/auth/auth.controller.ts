@@ -16,6 +16,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { SyncUserDto } from './dto/sync-user.dto';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { CreateProAgenceDto } from './dto/create-pro-agence.dto';
@@ -69,6 +70,12 @@ export class AuthController {
   @Patch('me')
   updateMe(@CurrentUser() user: User, @Body() dto: UpdateProfileDto) {
     return this.authService.updateMe(user.id, dto);
+  }
+
+  // Changement de mot de passe obligatoire — agents/agences créés par l'admin avec mdp temporaire
+  @Patch('me/password')
+  changePassword(@CurrentUser() user: User, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(user.id, dto);
   }
 
   // Activation du rôle BAILLEUR — réservé aux comptes LOCATAIRE (particuliers uniquement, pas les pros ni l'admin)

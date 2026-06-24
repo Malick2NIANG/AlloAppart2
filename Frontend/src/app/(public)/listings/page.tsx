@@ -155,6 +155,11 @@ export default async function ListingsPage({
                           <i className="fa-solid fa-shield-halved" />{t('verified')}
                         </span>
                       )}
+                      {listing.tourUrl && (
+                        <span className="flex items-center gap-1 text-[10px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                          <i className="fa-solid fa-cube text-[10px]" aria-hidden="true" /> Visite 3D
+                        </span>
+                      )}
                       {listing.avgRating != null && (
                         <div className="mt-1 flex items-center gap-1 text-xs text-amber-500 font-medium">
                           <i className="fa-solid fa-star text-[10px]" />

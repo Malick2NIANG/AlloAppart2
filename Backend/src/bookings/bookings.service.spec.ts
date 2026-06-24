@@ -21,6 +21,7 @@ const owner: User = {
   bailleurTermsAcceptedAt: null,
   isVerified: true,
   isSuspended: false,
+  mustChangePassword: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -37,6 +38,7 @@ const tenant: User = {
   bailleurTermsAcceptedAt: null,
   isVerified: false,
   isSuspended: false,
+  mustChangePassword: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 };

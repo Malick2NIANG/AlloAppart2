@@ -20,6 +20,7 @@ export default function AgentVerificationsPage() {
   const [completeModal, setCompleteModal] = useState<{ id: string } | null>(null);
   const [completeNotes,    setCompleteNotes]    = useState('');
   const [completeReportUrl, setCompleteReportUrl] = useState('');
+  const [completeTourUrl, setCompleteTourUrl] = useState('');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -64,10 +65,12 @@ export default function AgentVerificationsPage() {
     await handleAction(completeModal.id, 'complete', {
       notes:     completeNotes.trim() || undefined,
       reportUrl: completeReportUrl.trim() || undefined,
+      tourUrl: completeTourUrl.trim() || undefined,
     });
     setCompleteModal(null);
     setCompleteNotes('');
     setCompleteReportUrl('');
+    setCompleteTourUrl('');
   };
 
   if (loading) {
@@ -245,10 +248,27 @@ export default function AgentVerificationsPage() {
                   onChange={(e) => setCompleteReportUrl(e.target.value)}
                 />
               </div>
+              <div>
+                <label className="block text-xs font-medium text-sub mb-1">
+                  Lien visite 3D
+                  <span className="ml-1 text-[#B8860B] font-semibold">AlloVérifié™</span>
+                  <span className="text-sub ml-1">(optionnel)</span>
+                </label>
+                <input
+                  type="url"
+                  className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold-dark"
+                  placeholder="https://lumalabs.ai/capture/..."
+                  value={completeTourUrl}
+                  onChange={(e) => setCompleteTourUrl(e.target.value)}
+                />
+                <p className="mt-1 text-xs text-sub">
+                  Filmez le bien avec l&apos;app Luma AI, copiez le lien embed ici.
+                </p>
+              </div>
             </div>
             <div className="flex gap-3 mt-5 justify-end">
               <button
-                onClick={() => { setCompleteModal(null); setCompleteNotes(''); setCompleteReportUrl(''); }}
+                onClick={() => { setCompleteModal(null); setCompleteNotes(''); setCompleteReportUrl(''); setCompleteTourUrl(''); }}
                 className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors"
               >
                 Annuler

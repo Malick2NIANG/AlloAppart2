@@ -85,7 +85,11 @@ export class VerificationsService {
 
     await this.prisma.listing.update({
       where: { id: v.listingId },
-      data: { isVerified: true, verifiedAt: new Date() },
+      data: {
+        isVerified: true,
+        verifiedAt: new Date(),
+        ...(dto.tourUrl ? { tourUrl: dto.tourUrl } : {}),
+      },
     });
 
     return this.prisma.verification.update({

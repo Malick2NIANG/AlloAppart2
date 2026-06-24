@@ -10,6 +10,7 @@
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { type User, Role } from '@prisma/client';
 import { createClerkClient } from '@clerk/backend';
 import { ConfigService } from '@nestjs/config';
@@ -98,6 +99,22 @@ export class AuthService {
     });
   }
 
+  // Changement de mot de passe obligatoire — agents/agences créés par l'admin avec mdp temporaire
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ success: boolean }> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    await this.clerkClient.users.updateUser(user.clerkId, {
+      password: dto.newPassword,
+    });
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { mustChangePassword: false },
+    });
+
+    return { success: true };
+  }
+
   // Activation du rôle BAILLEUR depuis le dashboard — sans recréer de compte
   async activateBailleur(userId: string): Promise<User> {
     const user = await this.prisma.user.findUniqueOrThrow({
@@ -164,6 +181,7 @@ export class AuthService {
         lastName: dto.lastName,
         phone: dto.phone ?? null,
         roles: [Role.AGENT_TERRAIN],
+        mustChangePassword: true,
       },
     });
 
@@ -404,6 +422,7 @@ export class AuthService {
         phone:      dto.phone ?? null,
         agencyName: dto.agencyName,
         roles:      [Role.PRO_AGENCE],
+        mustChangePassword: true,
       },
     });
 

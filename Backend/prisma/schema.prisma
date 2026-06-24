@@ -18,6 +18,7 @@ model User {
   bailleurTermsAcceptedAt  DateTime?      // null = jamais accepté
   isVerified               Boolean        @default(false)
   isSuspended              Boolean        @default(false)
+  mustChangePassword       Boolean        @default(false)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   bookings      Booking[]      @relation("TenantBookings")
@@ -51,6 +52,7 @@ model Listing {
   boostUntil   DateTime?
   boostScore   Int           @default(0)
   images       String[]
+  tourUrl      String?
   amenities    String[]
   ownerId      String
   createdAt    DateTime      @default(now())

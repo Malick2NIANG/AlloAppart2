@@ -53,6 +53,7 @@ export interface Listing {
   _count?: { reviews: number };
   avgRating?: number | null;
   verification?: Verification;
+  tourUrl?: string | null;
   reviews?: Review[];
   createdAt: string;
   updatedAt: string;

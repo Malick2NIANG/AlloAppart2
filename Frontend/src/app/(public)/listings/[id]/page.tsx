@@ -106,6 +106,30 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         />
       </div>
 
+      {/* ── Visite 3D AlloVérifié ─────────────────────────────────── */}
+      {listing.tourUrl && (
+        <div className="aa-container mt-6">
+          <div className="rounded-2xl border border-line bg-card overflow-hidden">
+            <div className="flex items-center gap-2.5 px-5 py-3 border-b border-line">
+              <i className="fa-solid fa-cube text-gold-dark text-sm" aria-hidden="true" />
+              <span className="text-sm font-semibold text-text">Visite 3D</span>
+              <span className="ml-0.5 text-xs font-semibold text-gold-dark">AlloVérifié™</span>
+              <span className="ml-auto text-[10px] bg-gold-pale text-gold-dark px-2 py-0.5 rounded-full font-medium">
+                Nouveau
+              </span>
+            </div>
+            <iframe
+              src={listing.tourUrl}
+              className="w-full"
+              style={{ height: '420px', border: 'none' }}
+              allow="xr-spatial-tracking"
+              allowFullScreen
+              title="Visite 3D du bien"
+            />
+          </div>
+        </div>
+      )}
+
       {/* ── Content Grid ───────────────────────────────────────────── */}
       <div className="aa-container grid lg:grid-cols-3 gap-8">
 
