@@ -1,6 +1,10 @@
 'use client';
 
-export default function GreetingHero({ firstName }: { firstName: string }) {
+import { useUser } from '@clerk/nextjs';
+
+export default function GreetingHero({ firstName: propFirstName }: { firstName: string }) {
+  const { user } = useUser();
+  const firstName = propFirstName || user?.firstName || '';
   const hour = new Date().getHours();
 
   const salut =

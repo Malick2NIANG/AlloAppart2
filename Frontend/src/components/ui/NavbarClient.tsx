@@ -192,11 +192,11 @@ export default function NavbarClient({ locale, labels }: Props) {
             ? '/bailleur/messages'
             : '/locataire/messages';
       setMessagesHref(href);
-      setUserAvatar(me.avatar ?? null);
+      setUserAvatar(me.avatar ?? user?.imageUrl ?? null);
       const count = rooms.filter((r) => r.messages?.[0] && !r.messages[0].readAt && r.messages[0].senderId !== me.id).length;
       setUnreadCount(count);
     } catch {}
-  }, [isSignedIn, getToken]);
+  }, [isSignedIn, getToken, user?.imageUrl]);
 
   useEffect(() => { void refreshProfile(); }, [refreshProfile]);
 

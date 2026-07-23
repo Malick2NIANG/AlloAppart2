@@ -1,12 +1,17 @@
 'use client';
 
+import { useUser } from '@clerk/nextjs';
+
 export default function GreetingCTA({
-  firstName,
+  firstName: propFirstName,
   fallback,
 }: {
   firstName: string | null;
   fallback: string;
 }) {
+  const { user } = useUser();
+  const firstName = propFirstName || user?.firstName || null;
+
   if (!firstName) return <>{fallback}</>;
 
   const hour = new Date().getHours();
