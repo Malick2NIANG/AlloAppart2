@@ -9,9 +9,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!userId) redirect('/sign-in');
 
   const token = await getToken();
+  if (!token) redirect('/sign-in');
+
   let me: User;
   try {
-    me = await api.get<User>('/auth/me', token ?? undefined);
+    me = await api.get<User>('/auth/me', token);
   } catch {
     redirect('/sign-in');
   }
