@@ -133,7 +133,7 @@ export default async function HomePage() {
           <h1 className="animate-fadeUp delay-200 text-5xl font-extrabold leading-tight tracking-tight text-white md:text-6xl">
             {isAdmin
               ? <GreetingHero firstName="BOSS" />
-              : (isBailleur || isAgentTerrain || isLocataire) && firstName
+              : (isBailleur || isAgentTerrain || isLocataire)
               ? <GreetingHero firstName={firstName} />
               : <>{t('title1')}<span className="mt-1 block bg-linear-to-r from-gold to-gold-light bg-clip-text text-transparent">{t('titleGold')}</span></>
             }

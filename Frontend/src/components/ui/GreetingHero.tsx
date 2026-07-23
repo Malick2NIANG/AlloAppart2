@@ -12,10 +12,21 @@ export default function GreetingHero({ firstName }: { firstName: string }) {
 
   return (
     <>
-      {salut},{' '}
-      <span className="mt-1 block bg-linear-to-r from-gold to-gold-light bg-clip-text text-transparent">
-        {firstName}
-      </span>
+      {firstName ? (
+        <>
+          {salut},{' '}
+          <span className="mt-1 block bg-linear-to-r from-gold to-gold-light bg-clip-text text-transparent">
+            {firstName} !
+          </span>
+        </>
+      ) : (
+        <>
+          {salut},{' '}
+          <span className="mt-1 block bg-linear-to-r from-gold to-gold-light bg-clip-text text-transparent">
+            bienvenue !
+          </span>
+        </>
+      )}
     </>
   );
 }

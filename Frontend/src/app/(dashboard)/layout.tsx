@@ -13,7 +13,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   try {
     me = await api.get<User>('/auth/me', token ?? undefined);
   } catch {
-    throw new Error('Impossible de charger votre profil. Veuillez réessayer.');
+    redirect('/sign-in');
   }
 
   const roles = me.roles;
