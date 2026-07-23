@@ -18,9 +18,11 @@ const isPublicRoute = createRouteMatcher([
   '/profil(.*)',
   '/publier(.*)',
   '/api/webhooks(.*)',
+  '/agences(.*)',
+  '/redirect',
 ]);
 
-export const proxy = clerkMiddleware(async (auth, request) => {
+export default clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {
     await auth.protect();
   }
