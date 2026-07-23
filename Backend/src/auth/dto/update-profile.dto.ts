@@ -2,7 +2,9 @@ import {
   IsOptional,
   IsString,
   IsPhoneNumber,
+  IsUrl,
   MaxLength,
+  Matches,
 } from 'class-validator';
 
 export class UpdateProfileDto {
@@ -19,4 +21,26 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsPhoneNumber()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  bio?: string;
+
+  @IsOptional()
+  @IsUrl()
+  avatar?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  coverageZone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: 'Le slug ne peut contenir que des lettres minuscules, chiffres et tirets (ex: immobilier-dakar)',
+  })
+  agencySlug?: string;
 }

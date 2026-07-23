@@ -33,6 +33,18 @@ export class ReviewsController {
     return this.reviewsService.create(user.id, dto);
   }
 
+  /** Avis rédigés par le locataire connecté */
+  @Get('mine')
+  findMine(@CurrentUser() user: User) {
+    return this.reviewsService.findMine(user.id);
+  }
+
+  /** Avis reçus sur les annonces du bailleur connecté */
+  @Get('bailleur/me')
+  findByOwner(@CurrentUser() user: User) {
+    return this.reviewsService.findByOwner(user.id);
+  }
+
   @Public()
   @Get('listing/:id')
   findByListing(@Param('id') id: string, @Query('page') page?: string) {

@@ -4,6 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+
+const SENDER_SELECT = { id: true, firstName: true, lastName: true } as const;
+const REPLY_TO_SELECT = {
+  id: true, content: true, senderId: true, deletedAt: true,
+  sender: { select: SENDER_SELECT },
+} as const;
 import { PrismaService } from '../prisma/prisma.service';
 import { PusherService } from '../pusher/pusher.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -21,7 +27,7 @@ export class MessagesService {
       where: { participants: { some: { id: userId } } },
       include: {
         listing: { select: { id: true, title: true, images: true } },
-        participants: { select: { id: true, firstName: true, lastName: true } },
+        participants: { select: { id: true, firstName: true, lastName: true, avatar: true } },
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
       orderBy: { createdAt: 'desc' },
@@ -35,7 +41,8 @@ export class MessagesService {
     return this.prisma.message.findMany({
       where: { roomId },
       include: {
-        sender: { select: { id: true, firstName: true, lastName: true } },
+        sender:  { select: SENDER_SELECT },
+        replyTo: { select: REPLY_TO_SELECT },
       },
       orderBy: { createdAt: 'desc' },
       skip: (safePage - 1) * safeLimit,
@@ -72,12 +79,18 @@ export class MessagesService {
     });
   }
 
-  async sendMessage(roomId: string, senderId: string, content: string) {
+  async sendMessage(roomId: string, senderId: string, content: string, replyToId?: string) {
     await this.assertParticipant(roomId, senderId);
+    if (replyToId) {
+      const replyMsg = await this.prisma.message.findUnique({ where: { id: replyToId } });
+      if (!replyMsg || replyMsg.roomId !== roomId)
+        throw new BadRequestException('Message de référence invalide');
+    }
     const message = await this.prisma.message.create({
-      data: { roomId, senderId, content },
+      data: { roomId, senderId, content, ...(replyToId ? { replyToId } : {}) },
       include: {
-        sender: { select: { id: true, firstName: true, lastName: true } },
+        sender:  { select: SENDER_SELECT },
+        replyTo: { select: REPLY_TO_SELECT },
       },
     });
     void this.pusher.trigger('room-' + roomId, 'new-message', {
@@ -117,6 +130,40 @@ export class MessagesService {
       data: { readAt: new Date() },
     });
     return result;
+  }
+
+  async editMessage(messageId: string, userId: string, content: string) {
+    const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!msg) throw new NotFoundException('Message introuvable');
+    if (msg.senderId !== userId) throw new ForbiddenException('Non autorisé');
+    if (msg.deletedAt) throw new BadRequestException('Message supprimé');
+    if (msg.content.startsWith('[AUDIO]:'))
+      throw new BadRequestException('Les messages vocaux ne peuvent pas être modifiés');
+
+    const updated = await this.prisma.message.update({
+      where: { id: messageId },
+      data: { content, editedAt: new Date() },
+      include: { sender: { select: SENDER_SELECT } },
+    });
+    void this.pusher.trigger('room-' + msg.roomId, 'message-edited', {
+      id: updated.id,
+      content: updated.content,
+      editedAt: updated.editedAt?.toISOString(),
+    });
+    return updated;
+  }
+
+  async deleteMessage(messageId: string, userId: string) {
+    const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!msg) throw new NotFoundException('Message introuvable');
+    if (msg.senderId !== userId) throw new ForbiddenException('Non autorisé');
+
+    await this.prisma.message.update({
+      where: { id: messageId },
+      data: { deletedAt: new Date() },
+    });
+    void this.pusher.trigger('room-' + msg.roomId, 'message-deleted', { id: messageId });
+    return { success: true };
   }
 
   private async assertParticipant(

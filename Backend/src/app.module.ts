@@ -21,6 +21,7 @@ import { OnesignalModule } from './onesignal/onesignal.module';
 import { PdfModule } from './pdf/pdf.module';
 import { MailModule } from './mail/mail.module';
 import { SmsModule } from './sms/sms.module';
+import { AgencesModule } from './agences/agences.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { SmsModule } from './sms/sms.module';
     PdfModule,
     MailModule,
     SmsModule,
+    AgencesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

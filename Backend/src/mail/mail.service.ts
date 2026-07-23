@@ -72,7 +72,7 @@ export class MailService {
         <h2 style="margin:0 0 8px;color:#1a1a1a;">Votre compte a été suspendu</h2>
         <p style="color:#555;margin:0 0 16px;">Bonjour ${opts.firstName},</p>
         <p style="color:#555;margin:0 0 24px;">Votre compte AlloAppart a été suspendu par l'administrateur. Vous ne pouvez plus accéder à la plateforme.</p>
-        <p style="color:#555;margin:0;">Si vous pensez qu'il s'agit d'une erreur, contactez-nous à <a href="mailto:contact@alloappart.sn" style="color:#c9a84c;">contact@alloappart.sn</a>.</p>
+        <p style="color:#555;margin:0;">Si vous pensez qu'il s'agit d'une erreur, contactez-nous à <a href="mailto:alloappart221@gmail.com" style="color:#c9a84c;">alloappart221@gmail.com</a>.</p>
         <p style="margin-top:32px;font-size:12px;color:#aaa;">L'équipe AlloAppart</p>
       </div>
     `;

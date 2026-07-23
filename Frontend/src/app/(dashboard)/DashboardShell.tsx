@@ -2,11 +2,14 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { useClerk } from '@clerk/nextjs';
+import { useClerk, useAuth } from '@clerk/nextjs';
+import { api } from '@/lib/api';
+import type { MessageRoom } from '@/types';
 import SubscriptionAlert from '@/components/ui/SubscriptionAlert';
+import NotificationBell from '@/components/ui/NotificationBell';
 
 export interface NavItem {
   label: string;
@@ -49,19 +52,47 @@ const SPACE_LABEL: Record<string, { label: string; sub: string }> = {
 
 interface Props {
   userName: string;
+  userId: string;
   roles: string[];
   navItems: NavItem[];
   isProAgence?: boolean;
   userRole?: DominantRole | null;
+  userAvatar?: string | null;
+  userInitials?: string;
+  pendingVerifCount?: number;
   children: React.ReactNode;
 }
 
-export default function DashboardShell({ userName, roles, navItems, isProAgence = false, userRole, children }: Props) {
+export default function DashboardShell({ userName, userId, roles, navItems, isProAgence = false, userRole, userAvatar, userInitials = '?', pendingVerifCount = 0, children }: Props) {
+  // Effacer le badge quand on est déjà sur la page vérifications
   const [open, setOpen]           = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [tooltip, setTooltip]     = useState<{ label: string; top: number } | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
+  const visibleVerifCount = pathname.includes('/verifications') ? 0 : pendingVerifCount;
   const { signOut } = useClerk();
+  const { getToken } = useAuth();
+
+  /* ── Badge messages non lus ──────────────────────────────── */
+  const fetchUnread = useCallback(async () => {
+    const token = await getToken().catch(() => null);
+    if (!token) return;
+    try {
+      const rooms = await api.get<MessageRoom[]>('/messages/rooms', token);
+      const count = rooms.filter((r) => r.messages?.[0] && !r.messages[0].readAt && r.messages[0].senderId !== userId).length;
+      setUnreadCount(count);
+    } catch {}
+  }, [getToken]);
+
+  useEffect(() => { void fetchUnread(); }, [fetchUnread]);
+
+  /* Se met à jour quand MessagesShell reçoit/lit un message */
+  useEffect(() => {
+    const handler = () => void fetchUnread();
+    window.addEventListener('aa-messages-updated', handler);
+    return () => window.removeEventListener('aa-messages-updated', handler);
+  }, [fetchUnread]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -146,11 +177,26 @@ export default function DashboardShell({ userName, roles, navItems, isProAgence 
         <div className="relative shrink-0 border-b border-line">
           {!collapsed ? (
             <div className="px-4 py-3 flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-pale">
-                <i className="fa-solid fa-user text-gold-dark text-sm" />
-              </div>
+              {/* Avatar cliquable → /profil */}
+              <Link href="/profil" className="shrink-0 group relative">
+                {userAvatar ? (
+                  <div className="relative h-9 w-9 rounded-full overflow-hidden ring-2 ring-gold/20 group-hover:ring-gold/60 transition-all">
+                    <Image src={userAvatar} alt="Photo de profil" fill className="object-cover" />
+                  </div>
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-pale ring-2 ring-transparent group-hover:ring-gold/40 transition-all">
+                    <span className="text-xs font-bold text-gold-dark">{userInitials}</span>
+                  </div>
+                )}
+                {/* Overlay crayon au hover */}
+                <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <i className="fa-solid fa-pen text-white text-[8px]" />
+                </span>
+              </Link>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-text truncate">{userName}</p>
+                <Link href="/profil" className="text-sm font-semibold text-text truncate hover:text-gold-dark transition-colors block">
+                  {userName}
+                </Link>
                 {userRole && (
                   <span className={`mt-0.5 inline-block text-[10px] px-1.5 py-0.5 rounded-full font-semibold leading-none ${DOMINANT_BADGE[userRole].className}`}>
                     {DOMINANT_BADGE[userRole].label}
@@ -169,9 +215,20 @@ export default function DashboardShell({ userName, roles, navItems, isProAgence 
             </div>
           ) : (
             <div className="flex justify-center py-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-pale">
-                <i className="fa-solid fa-user text-gold-dark text-sm" />
-              </div>
+              <Link href="/profil" className="group relative">
+                {userAvatar ? (
+                  <div className="relative h-9 w-9 rounded-full overflow-hidden ring-2 ring-gold/20 group-hover:ring-gold/60 transition-all">
+                    <Image src={userAvatar} alt="Photo de profil" fill className="object-cover" />
+                  </div>
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-pale ring-2 ring-transparent group-hover:ring-gold/40 transition-all">
+                    <span className="text-xs font-bold text-gold-dark">{userInitials}</span>
+                  </div>
+                )}
+                <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <i className="fa-solid fa-pen text-white text-[8px]" />
+                </span>
+              </Link>
             </div>
           )}
 
@@ -209,7 +266,7 @@ export default function DashboardShell({ userName, roles, navItems, isProAgence 
                       ${collapsed ? 'justify-center gap-0' : 'gap-3'}
                     `}
                   >
-                    {/* Icône avec fond animé Framer Motion */}
+                    {/* Icône avec fond animé + badge non lus */}
                     <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
                       {active && (
                         <motion.span
@@ -219,8 +276,34 @@ export default function DashboardShell({ userName, roles, navItems, isProAgence 
                         />
                       )}
                       <i className={`relative z-10 ${item.icon} text-sm`} />
+                      {/* Badge non lus — uniquement sur l'item Messages */}
+                      {item.href.includes('/messages') && unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
+                      {/* Badge vérifications en attente — admin uniquement */}
+                      {item.href.includes('/verifications') && visibleVerifCount > 0 && (
+                        <span className="absolute -top-1 -right-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white leading-none">
+                          {visibleVerifCount > 9 ? '9+' : visibleVerifCount}
+                        </span>
+                      )}
                     </span>
-                    {!collapsed && item.label}
+                    {!collapsed && (
+                      <span className="flex-1 flex items-center justify-between">
+                        {item.label}
+                        {item.href.includes('/messages') && unreadCount > 0 && (
+                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white leading-none">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                          </span>
+                        )}
+                        {item.href.includes('/verifications') && visibleVerifCount > 0 && (
+                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white leading-none">
+                            {visibleVerifCount > 9 ? '9+' : visibleVerifCount}
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );
@@ -284,7 +367,12 @@ export default function DashboardShell({ userName, roles, navItems, isProAgence 
           <Link href="/">
             <Image src="/images/LOGO.png" alt="AlloAppart" width={120} height={34} className="h-8 w-auto" />
           </Link>
-          <div className="w-9" />
+          <NotificationBell userId={userId} />
+        </header>
+
+        {/* Top bar desktop */}
+        <header className="hidden lg:flex h-14 shrink-0 items-center justify-end gap-3 border-b border-line bg-card px-6">
+          <NotificationBell userId={userId} />
         </header>
 
         {isProAgence && <SubscriptionAlert />}

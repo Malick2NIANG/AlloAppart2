@@ -27,7 +27,7 @@ export class AnalyticsController {
     @Res() res: Response,
   ) {
     const data = await this.analyticsService.getOwnerMonthlyReport(user.id, month);
-    const pdf  = this.pdfService.generateMonthlyReport(data);
+    const pdf  = await this.pdfService.generateMonthlyReport(data);
     const filename = `rapport-${month}.pdf`;
     res.set({
       'Content-Type':        'application/pdf',
@@ -47,6 +47,12 @@ export class AnalyticsController {
   @Get('owner')
   getOwnerStats(@CurrentUser() user: User) {
     return this.analyticsService.getOwnerStats(user.id);
+  }
+
+  @Roles(Role.PRO_AGENCE)
+  @Get('vitrine')
+  getVitrineStats(@CurrentUser() user: User) {
+    return this.analyticsService.getVitrineStats(user.id);
   }
 
   @Roles(Role.ADMIN)

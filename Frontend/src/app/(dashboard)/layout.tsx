@@ -34,16 +34,24 @@ export default async function DashboardLayout({ children }: { children: React.Re
       { label: 'Messages',          href: '/locataire/messages',   icon: 'fa-solid fa-comment-dots'   },
     ] : []),
     ...(isBailleur ? [
-      { label: 'Mes annonces',  href: '/bailleur/listings',    icon: 'fa-solid fa-house'          },
-      { label: 'Réservations',  href: '/bailleur/bookings',    icon: 'fa-solid fa-calendar-check' },
-      { label: 'Statistiques',  href: '/bailleur/analytics',   icon: 'fa-solid fa-chart-line'     },
-      { label: 'Messages',      href: '/bailleur/messages',    icon: 'fa-solid fa-comment-dots'   },
-      { label: 'Boost',         href: '/bailleur/boost',       icon: 'fa-solid fa-rocket'         },
-      // Abonnement mensuel = réservé aux agences PRO_AGENCE, pas aux bailleurs individuels
-      ...(isProAgence ? [{ label: 'Abonnement', href: '/bailleur/abonnement', icon: 'fa-solid fa-id-card' }] : []),
+      { label: 'Tableau de bord', href: '/bailleur',                  icon: 'fa-solid fa-gauge',          exact: true },
+      { label: 'Mes annonces',    href: '/bailleur/listings',         icon: 'fa-solid fa-house'          },
+      { label: 'Réservations',    href: '/bailleur/bookings',         icon: 'fa-solid fa-calendar-check' },
+      { label: 'Messages',        href: '/bailleur/messages',         icon: 'fa-solid fa-comment-dots'   },
+      { label: 'AlloVérifié',     href: '/bailleur/verifications',    icon: 'fa-solid fa-shield-halved'  },
+      // Vitrine + Analytics + Abonnement = réservés aux agences PRO_AGENCE
+      ...(isProAgence ? [
+        { label: 'Ma vitrine',        href: '/bailleur/ma-vitrine',  icon: 'fa-solid fa-store'     },
+        { label: 'Analytiques vitrine', href: '/bailleur/analytics', icon: 'fa-solid fa-chart-bar' },
+        { label: 'Abonnement',        href: '/bailleur/abonnement',  icon: 'fa-solid fa-id-card'   },
+      ] : []),
     ] : []),
     ...(isAgent ? [
-      { label: 'Vérifications', href: '/agent/verifications', icon: 'fa-solid fa-shield-halved' },
+      { label: 'Tableau de bord', href: '/agent',                  icon: 'fa-solid fa-gauge',           exact: true },
+      { label: 'Mes missions',    href: '/agent/verifications',     icon: 'fa-solid fa-shield-halved'  },
+      { label: 'Calendrier',      href: '/agent/calendrier',        icon: 'fa-regular fa-calendar-days' },
+      { label: 'Messages',        href: '/agent/messages',          icon: 'fa-solid fa-comment-dots'   },
+      { label: 'Mon profil',      href: '/agent/profil',            icon: 'fa-solid fa-user-circle'    },
     ] : []),
     ...(isAdmin ? [
       { label: 'Vue d\'ensemble', href: '/espace',                    icon: 'fa-solid fa-gauge',          exact: true },
@@ -59,10 +67,31 @@ export default async function DashboardLayout({ children }: { children: React.Re
     ] : []),
   ];
 
-  const userName = [me.firstName, me.lastName].filter(Boolean).join(' ') || 'Mon espace';
+  const userName   = [me.firstName, me.lastName].filter(Boolean).join(' ') || 'Mon espace';
+  const userAvatar = me.avatar ?? null;
+  const initials   = [me.firstName?.[0], me.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
+
+  // Badge compteur vérifications en attente — admin uniquement (non bloquant)
+  let pendingVerifCount = 0;
+  if (isAdmin) {
+    try {
+      const vc = await api.get<{ count: number }>('/verifications/pending-count', token ?? undefined);
+      pendingVerifCount = vc.count;
+    } catch { /* non bloquant */ }
+  }
 
   return (
-    <DashboardShell userName={userName} roles={roles} navItems={navItems} isProAgence={isProAgence} userRole={userRole}>
+    <DashboardShell
+      userName={userName}
+      userId={me.id}
+      roles={roles}
+      navItems={navItems}
+      isProAgence={isProAgence}
+      userRole={userRole}
+      userAvatar={userAvatar}
+      userInitials={initials}
+      pendingVerifCount={pendingVerifCount}
+    >
       {children}
     </DashboardShell>
   );

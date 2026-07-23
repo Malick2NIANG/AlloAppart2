@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { getTranslations, getLocale } from 'next-intl/server';
 import { auth } from '@clerk/nextjs/server';
 import FavoriteButton from '@/components/ui/FavoriteButton';
+import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import { MOCK_LISTINGS } from '@/lib/mockListings';
 import { getRegion } from '@/lib/regions';
 import type { Listing } from '@/types';
@@ -165,9 +166,7 @@ export default async function RegionPage({
                         <i className="fa-solid fa-location-dot text-gold-dark text-xs" />{listing.city}
                       </p>
                       {listing.isVerified && (
-                        <span className="mt-1 inline-flex items-center gap-1 text-xs text-green-700 font-medium">
-                          <i className="fa-solid fa-shield-halved" />{locale === 'fr' ? 'AlloVérifié' : 'AlloVerified'}
-                        </span>
+                        <AlloVerifieBadge className="mt-1" />
                       )}
                       {listing.avgRating != null && (
                         <div className="mt-1 flex items-center gap-1 text-xs text-amber-500 font-medium">

@@ -11,7 +11,7 @@
   MaxLength,
   Min,
 } from 'class-validator';
-import { ListingType } from '@prisma/client';
+import { ListingStatus, ListingType } from '@prisma/client';
 import { Type } from 'class-transformer';
 
 export class CreateListingDto {
@@ -90,4 +90,9 @@ export class CreateListingDto {
   @IsArray()
   @IsString({ each: true })
   amenities?: string[];
+
+  /** DRAFT (défaut) ou ACTIVE pour publier directement à la création */
+  @IsOptional()
+  @IsEnum(ListingStatus)
+  status?: ListingStatus;
 }

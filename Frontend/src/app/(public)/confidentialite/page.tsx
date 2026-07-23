@@ -42,7 +42,7 @@ const SECTIONS = [
     key: 'droits',
     icon: 'fa-solid fa-user-shield',
     title: '7. Droits des utilisateurs',
-    body: `Conformément à la loi n° 2008-12, vous disposez des droits suivants :\n• Droit d'accès à vos données personnelles.\n• Droit de rectification des données inexactes.\n• Droit à l'effacement (droit à l'oubli).\n• Droit à la portabilité de vos données.\n• Droit d'opposition au traitement.\n\nPour exercer ces droits, contactez notre DPO à privacy@alloappart.sn ou par courrier à notre siège social.`,
+    body: `Conformément à la loi n° 2008-12, vous disposez des droits suivants :\n• Droit d'accès à vos données personnelles.\n• Droit de rectification des données inexactes.\n• Droit à l'effacement (droit à l'oubli).\n• Droit à la portabilité de vos données.\n• Droit d'opposition au traitement.\n\nPour exercer ces droits, contactez-nous à alloappart221@gmail.com ou par courrier à notre siège social.`,
   },
   {
     key: 'transferts',
@@ -60,7 +60,7 @@ const SECTIONS = [
     key: 'contact-dpo',
     icon: 'fa-solid fa-envelope-open-text',
     title: '10. Contact du Délégué à la Protection des Données (DPO)',
-    body: `Pour toute question relative à vos données personnelles :\n• E-mail : privacy@alloappart.sn\n• Courrier : AlloAppart SN SARL — DPO, 25 Rue Carnot, Plateau, Dakar 11000, Sénégal`,
+    body: `Pour toute question relative à vos données personnelles :\n• E-mail : alloappart221@gmail.com\n• Courrier : AlloAppart SN SARL — DPO, 25 Rue Carnot, Plateau, Dakar 11000, Sénégal`,
   },
   {
     key: 'cdp',

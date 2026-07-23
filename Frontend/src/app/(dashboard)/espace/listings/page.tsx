@@ -120,13 +120,15 @@ function AdminListingsContent() {
     const token = await getToken();
     if (!token) return;
     setActionId(id + 'delete');
+    setDeleteModal(null);
     try {
       await api.delete(`/listings/${id}`, token);
-      setDeleteModal(null);
-      await fetchListings(page, status, city);
+      setListings((prev) => prev.filter((l) => l.id !== id));
+      setTotal((prev) => prev - 1);
       toast.success('Annonce supprimée');
     } catch {
       toast.error('Erreur lors de la suppression.');
+      await fetchListings(page, status, city);
     } finally {
       setActionId(null);
     }
@@ -151,8 +153,17 @@ function AdminListingsContent() {
               onChange={(e) => setCity(e.target.value)}
               onKeyDown={handleCitySearch}
               placeholder="Filtrer par ville…"
-              className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40"
+              className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-8 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40"
             />
+            {city && (
+              <button
+                onClick={() => { setCity(''); setPage(1); fetchListings(1, status, ''); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-sub hover:text-text transition-colors"
+                title="Effacer la recherche"
+              >
+                <i className="fa-solid fa-xmark text-sm" />
+              </button>
+            )}
           </div>
           <button
             onClick={() => { setPage(1); fetchListings(1, status, city); }}

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useSignIn } from '@clerk/nextjs/legacy';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
@@ -18,7 +17,6 @@ interface Flash { type: 'error' | 'success' | 'info'; message: string; }
 
 export default function SignInForm() {
   const { isLoaded, signIn, setActive } = useSignIn();
-  const router = useRouter();
   const t  = useTranslations('auth');
   const ts = useTranslations('auth.signIn');
 
@@ -49,8 +47,8 @@ export default function SignInForm() {
       const res = await signIn.create({ identifier: email, password });
       if (res.status === 'complete') {
         await setActive({ session: res.createdSessionId });
-        router.push('/redirect');
-        router.refresh();
+        window.location.replace('/');
+        return;
       }
       if (res.status === 'needs_second_factor') {
         setView('second_factor');
@@ -71,8 +69,8 @@ export default function SignInForm() {
       const res = await signIn.attemptSecondFactor({ strategy: 'email_code', code });
       if (res.status === 'complete') {
         await setActive({ session: res.createdSessionId });
-        router.push('/redirect');
-        router.refresh();
+        window.location.replace('/');
+        return;
       }
     } catch (err: unknown) {
       const msg =
@@ -134,7 +132,7 @@ export default function SignInForm() {
       const res = await signIn.resetPassword({ password: newPassword });
       if (res.status === 'complete') {
         await setActive({ session: res.createdSessionId });
-        router.push('/'); router.refresh();
+        window.location.replace('/');
       }
     } catch (err: unknown) {
       const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? 'Erreur lors de la réinitialisation.';

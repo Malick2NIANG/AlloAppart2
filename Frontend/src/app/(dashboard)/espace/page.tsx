@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
 import Link from 'next/link';
+import { DismissibleAlerts } from './DismissibleAlerts';
 
 interface AdminStats {
   totalUsers: number;
@@ -49,11 +50,6 @@ export default async function AdminDashboardPage() {
     api.get<AdminAlerts>('/analytics/admin/alerts', token ?? undefined),
   ]);
 
-  const hasAlerts =
-    alerts.overdueVerifications > 0 ||
-    alerts.expiringSubscriptions > 0 ||
-    alerts.suspendedListings > 0;
-
   return (
     <div className="space-y-8">
       <div>
@@ -62,36 +58,11 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Alerts */}
-      {hasAlerts && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
-          <div className="mb-3 flex items-center gap-2">
-            <i className="fa-solid fa-triangle-exclamation text-amber-600" />
-            <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">
-              Points d&apos;attention
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {alerts.overdueVerifications > 0 && (
-              <Link href="/espace/verifications" className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-medium text-amber-700 hover:border-amber-400 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
-                <i className="fa-solid fa-shield-halved" />
-                {alerts.overdueVerifications} vérif{alerts.overdueVerifications > 1 ? 's' : ''} &gt;24h sans traitement
-              </Link>
-            )}
-            {alerts.expiringSubscriptions > 0 && (
-              <Link href="/espace/subscriptions" className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-medium text-amber-700 hover:border-amber-400 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
-                <i className="fa-solid fa-id-card" />
-                {alerts.expiringSubscriptions} abonnement{alerts.expiringSubscriptions > 1 ? 's' : ''} expirant dans 7 j
-              </Link>
-            )}
-            {alerts.suspendedListings > 0 && (
-              <Link href="/espace/listings?status=SUSPENDED" className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-medium text-amber-700 hover:border-amber-400 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
-                <i className="fa-solid fa-house-circle-xmark" />
-                {alerts.suspendedListings} annonce{alerts.suspendedListings > 1 ? 's' : ''} suspendue{alerts.suspendedListings > 1 ? 's' : ''}
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
+      <DismissibleAlerts
+        overdueVerifications={alerts.overdueVerifications}
+        expiringSubscriptions={alerts.expiringSubscriptions}
+        suspendedListings={alerts.suspendedListings}
+      />
 
       {/* KPIs principaux */}
       <div>

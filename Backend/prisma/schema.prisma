@@ -13,22 +13,31 @@ model User {
   phone         String?
   firstName     String
   lastName      String
+  bio           String?        @db.Text
+  avatar        String?
+  coverageZone  String?        @db.VarChar(200)
   roles         Role[]         @default([LOCATAIRE])
   agencyName               String?        // Renseigné uniquement pour PRO_AGENCE
+  agencySlug               String?        @unique @db.VarChar(80) // Slug URL unique ex: immobilier-dakar
+  profileViews             Int            @default(0) // Compteur de visites de la vitrine
   bailleurTermsAcceptedAt  DateTime?      // null = jamais accepté
   isVerified               Boolean        @default(false)
   isSuspended              Boolean        @default(false)
   mustChangePassword       Boolean        @default(false)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  bookings      Booking[]      @relation("TenantBookings")
-  listings      Listing[]
-  sentMessages  Message[]
-  reviews       Review[]       @relation("AuthorReviews")
-  verifications Verification[] @relation("AgentVerifications")
-  rooms         MessageRoom[]  @relation("RoomParticipants")
-  favorites     Listing[]      @relation("UserFavorites")
-  subscription  Subscription?
+  bookings              Booking[]      @relation("TenantBookings")
+  listings              Listing[]
+  sentMessages          Message[]
+  reviews               Review[]       @relation("AuthorReviews")
+  verifications         Verification[] @relation("AgentVerifications")
+  preferredVerifications Verification[] @relation("PreferredAgentVerifications")
+  rooms                 MessageRoom[]  @relation("RoomParticipants")
+  favorites             Listing[]      @relation("UserFavorites")
+  subscription          Subscription?
+  notifications         Notification[]
+  agentRatings          AgentRating[]  @relation("AgentRatings")
+  givenRatings          AgentRating[]  @relation("GivenRatings")
 
   @@map("users")
 }
@@ -63,7 +72,7 @@ model Listing {
   owner        User          @relation(fields: [ownerId], references: [id])
   messageRooms  MessageRoom[]
   reviews       Review[]
-  verification  Verification?
+  verifications Verification[]
   favoritedBy   User[]         @relation("UserFavorites")
   boostPayments BoostPayment[]
 
@@ -94,20 +103,24 @@ model Booking {
 }
 
 model Verification {
-  id          String      @id @default(uuid())
-  listingId   String      @unique
-  agentId     String?
-  status      VerifStatus @default(REQUESTED)
-  reportUrl   String?
-  auditType   AuditType   @default(BASIC)
-  scheduledAt DateTime
-  completedAt DateTime?
-  notes       String?
-  photos      String[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  agent       User?       @relation("AgentVerifications", fields: [agentId], references: [id])
-  listing     Listing     @relation(fields: [listingId], references: [id])
+  id                String      @id @default(uuid())
+  listingId         String
+  agentId           String?
+  preferredAgentId  String?     // Agent demandé par le bailleur (optionnel, non contraignant)
+  status            VerifStatus @default(REQUESTED)
+  reportUrl         String?
+  auditType         AuditType   @default(BASIC)
+  scheduledAt       DateTime
+  completedAt       DateTime?
+  notes             String?
+  declineReason     String?     // Motif si agent décline
+  photos            String[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  agent             User?       @relation("AgentVerifications", fields: [agentId], references: [id])
+  preferredAgent    User?       @relation("PreferredAgentVerifications", fields: [preferredAgentId], references: [id])
+  listing           Listing     @relation(fields: [listingId], references: [id])
+  rating            AgentRating?
 
   @@map("verifications")
 }
@@ -125,17 +138,23 @@ model MessageRoom {
 }
 
 model Message {
-  id        String      @id @default(uuid())
-  roomId    String
-  senderId  String
-  content   String
-  readAt    DateTime?
-  createdAt DateTime    @default(now())
-  room      MessageRoom @relation(fields: [roomId], references: [id])
-  sender    User        @relation(fields: [senderId], references: [id])
+  id          String      @id @default(uuid())
+  roomId      String
+  senderId    String
+  content     String
+  readAt      DateTime?
+  editedAt    DateTime?
+  deletedAt   DateTime?
+  replyToId   String?
+  createdAt   DateTime    @default(now())
+  room        MessageRoom @relation(fields: [roomId], references: [id])
+  sender      User        @relation(fields: [senderId], references: [id])
+  replyTo     Message?    @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies     Message[]   @relation("MessageReplies")
 
   @@index([roomId])
   @@index([senderId])
+  @@index([replyToId])
   @@map("messages")
 }
 
@@ -154,6 +173,22 @@ model Review {
   @@index([listingId])
   @@index([authorId])
   @@map("reviews")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // ex: VERIF_ASSIGNED, VERIF_SCHEDULED, VERIF_DONE, VERIF_DECLINED
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  metadata  Json?    // { verificationId, listingTitle, listingId }
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -208,6 +243,7 @@ enum VerifStatus {
   IN_PROGRESS
   DONE
   REJECTED
+  DECLINE_PENDING
 }
 
 enum AuditType {
@@ -240,6 +276,22 @@ model Subscription {
   user       User               @relation(fields: [userId], references: [id])
 
   @@map("subscriptions")
+}
+
+model AgentRating {
+  id             String       @id @default(uuid())
+  verificationId String       @unique          // une seule note par vérification
+  agentId        String
+  raterId        String                         // bailleur qui note
+  rating         Int                            // 1-5
+  comment        String?      @db.Text
+  createdAt      DateTime     @default(now())
+  agent          User         @relation("AgentRatings", fields: [agentId], references: [id])
+  rater          User         @relation("GivenRatings", fields: [raterId], references: [id])
+  verification   Verification @relation(fields: [verificationId], references: [id])
+
+  @@index([agentId])
+  @@map("agent_ratings")
 }
 
 model BoostPayment {

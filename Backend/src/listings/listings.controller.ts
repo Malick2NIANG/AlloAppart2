@@ -12,10 +12,10 @@ import { ListingsService } from './listings.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { FilterListingsDto } from './dto/filter-listings.dto';
+import { AdminListingsQueryDto } from './dto/admin-listings-query.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { PaginationDto } from '../auth/dto/pagination.dto';
 import { type User, Role, ListingStatus } from '@prisma/client';
 import { Throttle } from '@nestjs/throttler';
 import { PaydunyaWebhookDto } from '../payments/dto/paydunya-webhook.dto';
@@ -32,15 +32,11 @@ export class ListingsController {
 
   @Roles(Role.ADMIN)
   @Get('all')
-  findAllAdmin(
-    @Query() dto: PaginationDto,
-    @Query('status') status?: string,
-    @Query('city') city?: string,
-  ) {
-    const listingStatus = Object.values(ListingStatus).includes(status as ListingStatus)
-      ? (status as ListingStatus)
+  findAllAdmin(@Query() dto: AdminListingsQueryDto) {
+    const listingStatus = Object.values(ListingStatus).includes(dto.status as ListingStatus)
+      ? (dto.status as ListingStatus)
       : undefined;
-    return this.listingsService.findAll_admin(dto.page ?? 1, dto.limit ?? 20, listingStatus, city);
+    return this.listingsService.findAll_admin(dto.page ?? 1, dto.limit ?? 20, listingStatus, dto.city);
   }
 
   @Get('mine')
@@ -57,6 +53,28 @@ export class ListingsController {
   @Patch(':id/unpublish')
   unpublish(@Param('id') id: string, @CurrentUser() user: User) {
     return this.listingsService.unpublishListing(id, user.id);
+  }
+
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
+  @Patch(':id/publish')
+  publish(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.listingsService.publishListing(id, user.id);
+  }
+
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
+  @Patch(':id/archive')
+  archive(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.listingsService.archiveListing(id, user.id);
+  }
+
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
+  @Patch(':id/restore')
+  restore(
+    @Param('id') id: string,
+    @Body('status') status: 'DRAFT' | 'ACTIVE',
+    @CurrentUser() user: User,
+  ) {
+    return this.listingsService.restoreListing(id, user.id, status ?? 'DRAFT');
   }
 
   @Public()

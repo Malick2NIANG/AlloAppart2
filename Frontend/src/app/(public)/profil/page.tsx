@@ -1,9 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
+import { api } from '@/lib/api';
+import AvatarCropper from '@/components/ui/AvatarCropper';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
 type DemoRole = 'visitor' | 'locataire' | 'bailleur' | 'dual' | 'admin' | 'agent';
 
@@ -21,18 +26,24 @@ export default function ProfilPage() {
   const t = useTranslations('profil');
 
   const [demoRole, setDemoRole] = useState<DemoRole>('visitor');
-  const [mounted, setMounted]   = useState(false);
+  const [mounted,  setMounted]  = useState(false);
 
   /* form state */
-  const [firstName, setFirstName] = useState('');
-  const [lastName,  setLastName]  = useState('');
-  const [phone,     setPhone]     = useState('');
-  const [saving,    setSaving]    = useState(false);
-  const [saved,     setSaved]     = useState(false);
+  const [firstName,    setFirstName]    = useState('');
+  const [lastName,     setLastName]     = useState('');
+  const [phone,        setPhone]        = useState('');
+  const [bio,          setBio]          = useState('');
+  const [avatar,       setAvatar]       = useState('');
+  const [saving,       setSaving]       = useState(false);
+  const [saved,        setSaved]        = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [cropSrc,        setCropSrc]        = useState<string | null>(null); // object URL pour le cropper
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydration on mount
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (stored && ['visitor', 'locataire', 'bailleur', 'dual', 'admin', 'agent'].includes(stored)) setDemoRole(stored);
     setMounted(true);
     const handler = (e: Event) => setDemoRole((e as CustomEvent<DemoRole>).detail);
@@ -40,18 +51,38 @@ export default function ProfilPage() {
     return () => window.removeEventListener('aa-demo-change', handler);
   }, []);
 
-  /* Populate form once user is known */
+  /* Populate form from DB profile (bio/avatar) + Clerk */
   useEffect(() => {
-    if (user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- form population from user data
-      setFirstName(user.firstName ?? '');
-      setLastName(user.lastName ?? '');
-      setPhone(user.phoneNumbers?.[0]?.phoneNumber ?? '');
-    } else if (mounted && !isSignedIn && demoRole !== 'visitor') {
-      const d = DEMO_USERS[demoRole as Exclude<DemoRole, 'visitor'>];
-      setFirstName(d.firstName);
-      setLastName(d.lastName);
+    if (!user) {
+      if (mounted && !isSignedIn && demoRole !== 'visitor') {
+        const d = DEMO_USERS[demoRole as Exclude<DemoRole, 'visitor'>];
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setFirstName(d.firstName);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setLastName(d.lastName);
+      }
+      return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFirstName(user.firstName ?? '');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLastName(user.lastName ?? '');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPhone(user.phoneNumbers?.[0]?.phoneNumber ?? '');
+
+    /* Load bio + avatar from our API */
+    getToken().then((token) => {
+      if (!token) return;
+      api.get<{ bio?: string | null; avatar?: string | null }>('/auth/me', token)
+        .then((me) => {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setBio(me.bio ?? '');
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setAvatar(me.avatar ?? '');
+        })
+        .catch(() => {});
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, mounted, isSignedIn, demoRole]);
 
   if (!mounted) return null;
@@ -79,6 +110,43 @@ export default function ProfilPage() {
     );
   }
 
+  /* ── Sélection → ouvre le cropper ────────────────────────────────── */
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || isDemo) return;
+    // Réinitialise la valeur pour permettre de re-sélectionner le même fichier
+    e.target.value = '';
+    const url = URL.createObjectURL(file);
+    setCropSrc(url);
+  };
+
+  /* ── Après confirmation du recadrage → upload ─────────────────────── */
+  const handleCropConfirm = async (blob: Blob) => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+    const token = await getToken().catch(() => null);
+    if (!token) return;
+    setUploadingAvatar(true);
+    try {
+      const form = new FormData();
+      form.append('file', blob, 'avatar.jpg');
+      const res = await fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const data = await res.json() as { url?: string };
+      if (data.url) setAvatar(data.url);
+    } catch { /* ignore */ }
+    finally { setUploadingAvatar(false); }
+  };
+
+  const handleCropCancel = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  };
+
+  /* ── Save ──────────────────────────────────────────────────────────── */
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isDemo) return;
@@ -88,41 +156,89 @@ export default function ProfilPage() {
       await Promise.all([
         user?.update({ firstName, lastName }),
         token
-          ? fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/me`, {
+          ? fetch(`${API_URL}/auth/me`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ firstName, lastName, phone: phone || null }),
+              body: JSON.stringify({ firstName, lastName, phone: phone || null, bio: bio || null, avatar: avatar || null }),
             }).catch(() => null)
           : null,
       ]);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch {
-      /* ignore */
-    } finally {
-      setSaving(false);
-    }
+      /* Signale au navbar de rafraîchir l'avatar */
+      window.dispatchEvent(new Event('aa-profile-updated'));
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
   };
 
   return (
     <main className="py-10 px-4 bg-bg min-h-screen">
+      {/* Modal de recadrage */}
+      {cropSrc && (
+        <AvatarCropper
+          src={cropSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
+      )}
+
       <div className="aa-container max-w-2xl">
 
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-xs text-sub">
-          <Link href="/espace" className="hover:text-gold-dark transition-colors">{t('mySpace')}</Link>
+          <Link href="/bailleur" className="hover:text-gold-dark transition-colors">{t('mySpace')}</Link>
           <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
           <span className="text-gold-dark font-medium">{t('title')}</span>
         </nav>
 
-        {/* Header */}
+        {/* Header — avatar cliquable */}
         <div className="mb-8 flex items-center gap-5">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gold-pale text-2xl font-extrabold text-gold-dark ring-4 ring-gold/20">
-            {initials}
+          <div className="relative group shrink-0">
+            {avatar ? (
+              <div className="relative h-20 w-20 rounded-full overflow-hidden ring-4 ring-gold/20">
+                <Image src={avatar} alt="Photo de profil" fill className="object-cover" />
+              </div>
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gold-pale text-2xl font-extrabold text-gold-dark ring-4 ring-gold/20">
+                {initials}
+              </div>
+            )}
+            {!isDemo && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  {uploadingAvatar
+                    ? <i className="fa-solid fa-spinner fa-spin text-white text-sm" />
+                    : <i className="fa-solid fa-camera text-white text-sm" />
+                  }
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+              </>
+            )}
           </div>
           <div>
             <h1 className="text-xl font-extrabold text-text">{displayName || t('title')}</h1>
             <p className="text-sm text-sub">{displayEmail}</p>
+            {!isDemo && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-1 text-xs text-gold-dark hover:underline"
+              >
+                <i className="fa-solid fa-camera text-[10px] mr-1" />
+                {avatar ? 'Changer la photo' : 'Ajouter une photo'}
+              </button>
+            )}
             {isDemo && (
               <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
                 <i className="fa-solid fa-flask text-[9px]" /> {t('demoMode')}
@@ -169,6 +285,19 @@ export default function ProfilPage() {
               disabled={isDemo || !isLoaded}
               className="input-field disabled:opacity-60 disabled:cursor-not-allowed"
             />
+          </Field>
+
+          <Field label="Biographie">
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="Décrivez-vous en quelques mots…"
+              disabled={isDemo}
+              className="input-field resize-none disabled:opacity-60 disabled:cursor-not-allowed"
+            />
+            <p className="mt-1 text-right text-[11px] text-sub">{bio.length}/500</p>
           </Field>
 
           {!isDemo && (

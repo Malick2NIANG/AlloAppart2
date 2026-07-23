@@ -17,18 +17,20 @@ interface AssignModal {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  REQUESTED:   'bg-amber-50 text-amber-700',
-  SCHEDULED:   'bg-gold-pale text-gold-dark',
-  IN_PROGRESS: 'bg-blue-50 text-blue-700',
-  DONE:        'bg-green-100 text-green-700',
-  REJECTED:    'bg-red-100 text-red-700',
+  REQUESTED:       'bg-amber-50 text-amber-700',
+  SCHEDULED:       'bg-gold-pale text-gold-dark',
+  IN_PROGRESS:     'bg-blue-50 text-blue-700',
+  DONE:            'bg-green-100 text-green-700',
+  REJECTED:        'bg-red-100 text-red-700',
+  DECLINE_PENDING: 'bg-orange-50 text-orange-700',
 };
 const STATUS_LABELS: Record<string, string> = {
-  REQUESTED:   'Demandée',
-  SCHEDULED:   'Planifiée',
-  IN_PROGRESS: 'En cours',
-  DONE:        'Terminée',
-  REJECTED:    'Rejetée',
+  REQUESTED:       'Demandée',
+  SCHEDULED:       'Planifiée',
+  IN_PROGRESS:     'En cours',
+  DONE:            'Terminée',
+  REJECTED:        'Rejetée',
+  DECLINE_PENDING: 'Déclin en attente',
 };
 
 export default function AdminVerificationsPage() {
@@ -48,6 +50,9 @@ export default function AdminVerificationsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectModal, setRejectModal]   = useState<{ id: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [agentSearch, setAgentSearch]   = useState('');
+  const [agentPage, setAgentPage]       = useState(1);
+  const AGENT_PER_PAGE = 5;
   const [limit, setLimit]               = useState(20);
   const LIMIT_OPTIONS = [10, 20, 50] as const;
   const LIMIT = limit;
@@ -120,6 +125,30 @@ export default function AdminVerificationsPage() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleApproveDecline = async (id: string) => {
+    const token = await getToken();
+    if (!token) return;
+    setActionLoading(id + 'approve-decline');
+    try {
+      await api.patch(`/verifications/${id}/approve-decline`, {}, token);
+      toast.success('Déclin approuvé — mission remise en recherche d\'agent.');
+      await fetchData(tab, statusFilter, page);
+    } catch { toast.error('Erreur lors de l\'approbation.'); }
+    finally { setActionLoading(null); }
+  };
+
+  const handleRefuseDecline = async (id: string) => {
+    const token = await getToken();
+    if (!token) return;
+    setActionLoading(id + 'refuse-decline');
+    try {
+      await api.patch(`/verifications/${id}/refuse-decline`, {}, token);
+      toast.success('Déclin refusé — l\'agent reste assigné.');
+      await fetchData(tab, statusFilter, page);
+    } catch { toast.error('Erreur lors du refus.'); }
+    finally { setActionLoading(null); }
   };
 
   const handleReject = async () => {
@@ -254,7 +283,41 @@ export default function AdminVerificationsPage() {
                         <i className="fa-solid fa-triangle-exclamation text-xs mr-1" />Non assigné
                       </span>
                     )}
+                    {/* Badge agent préféré par le bailleur */}
+                    {(() => {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const preferred = (v as any).preferredAgent as { firstName: string; lastName: string } | undefined;
+                      if (!preferred) return null;
+                      return (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gold-pale text-gold-dark font-medium border border-gold/30">
+                          <i className="fa-solid fa-star text-[9px] mr-1" />
+                          Demandé : {preferred.firstName} {preferred.lastName}
+                        </span>
+                      );
+                    })()}
                   </div>
+                  {/* Contact bailleur */}
+                  {(() => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const owner = (v.listing as any)?.owner as { firstName?: string; lastName?: string; phone?: string; email?: string } | undefined;
+                    if (!owner) return null;
+                    return (
+                      <div className="mt-2 flex items-center gap-3 flex-wrap text-xs text-sub border-t border-line pt-2">
+                        <i className="fa-solid fa-user text-[10px] text-gold-dark" />
+                        <span className="font-medium text-text">{owner.firstName} {owner.lastName}</span>
+                        {owner.phone && (
+                          <a href={`tel:${owner.phone}`} className="flex items-center gap-1 hover:text-gold-dark transition-colors">
+                            <i className="fa-solid fa-phone text-[10px]" />{owner.phone}
+                          </a>
+                        )}
+                        {owner.email && (
+                          <a href={`mailto:${owner.email}`} className="flex items-center gap-1 hover:text-gold-dark transition-colors truncate max-w-[160px]">
+                            <i className="fa-solid fa-envelope text-[10px]" />{owner.email}
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -270,7 +333,7 @@ export default function AdminVerificationsPage() {
                       {v.agent ? 'Réassigner' : 'Assigner'}
                     </button>
                   )}
-                  {(v.status === 'REQUESTED' || v.status === 'SCHEDULED' || v.status === 'IN_PROGRESS' || v.status === 'DONE') && (
+                  {v.status === 'DONE' && (
                     <button
                       onClick={() => handleValidate(v.id)}
                       disabled={actionLoading !== null}
@@ -281,7 +344,40 @@ export default function AdminVerificationsPage() {
                         : <><i className="fa-solid fa-shield-halved text-xs mr-1" />Valider badge</>}
                     </button>
                   )}
-                  {v.status !== 'REJECTED' && v.status !== 'DONE' && (
+                  {/* Déclin en attente — approbation admin */}
+                  {v.status === 'DECLINE_PENDING' && (() => {
+                    const declineReason = (v as unknown as { declineReason?: string }).declineReason;
+                    return (
+                      <div className="flex flex-col gap-1.5 w-full">
+                        {declineReason && (
+                          <div className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-1.5 text-xs text-orange-700">
+                            <span className="font-semibold">Motif : </span>{declineReason}
+                          </div>
+                        )}
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => void handleApproveDecline(v.id)}
+                            disabled={actionLoading !== null}
+                            className="text-xs font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg py-1.5 px-3 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                          >
+                            {actionLoading === v.id + 'approve-decline'
+                              ? <i className="fa-solid fa-spinner fa-spin" />
+                              : <><i className="fa-solid fa-check mr-1" />Approuver le déclin</>}
+                          </button>
+                          <button
+                            onClick={() => void handleRefuseDecline(v.id)}
+                            disabled={actionLoading !== null}
+                            className="text-xs font-medium border border-red-200 text-red-600 rounded-lg py-1.5 px-3 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          >
+                            {actionLoading === v.id + 'refuse-decline'
+                              ? <i className="fa-solid fa-spinner fa-spin" />
+                              : <><i className="fa-solid fa-xmark mr-1" />Refuser le déclin</>}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  {v.status !== 'REJECTED' && v.status !== 'DONE' && v.status !== 'DECLINE_PENDING' && (
                     <button
                       onClick={() => setRejectModal({ id: v.id })}
                       className="text-xs font-medium text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors"
@@ -317,54 +413,102 @@ export default function AdminVerificationsPage() {
       )}
 
       {/* Assign modal */}
-      {assignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-text mb-1">Assigner un agent terrain</h2>
-            <p className="text-sm text-sub mb-5 truncate">{assignModal.listingTitle}</p>
-            {agents.length === 0 ? (
-              <p className="text-sm text-sub py-4 text-center">
-                <i className="fa-solid fa-triangle-exclamation text-gold-dark mr-2" />
-                Aucun agent terrain disponible.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {agents.map((agent) => (
-                  <button key={agent.id} type="button" onClick={() => setSelectedAgent(agent.id)}
-                    className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
-                      selectedAgent === agent.id
-                        ? 'border-gold-dark bg-gold-pale'
-                        : 'border-line bg-bg hover:border-gold-dark'
-                    }`}>
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold-pale">
-                      <i className="fa-solid fa-user-shield text-gold-dark text-xs" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className={`text-sm font-medium ${selectedAgent === agent.id ? 'text-gold-dark' : 'text-text'}`}>
-                        {agent.firstName} {agent.lastName}
-                      </p>
-                      <p className="text-xs text-sub truncate">{agent.email}</p>
-                    </div>
-                    {selectedAgent === agent.id && <i className="fa-solid fa-circle-check text-gold-dark ml-auto" />}
+      {assignModal && (() => {
+        const filtered = agents.filter((a) => {
+          const q = agentSearch.toLowerCase();
+          return !q || `${a.firstName} ${a.lastName} ${a.email}`.toLowerCase().includes(q);
+        });
+        const totalAgentPages = Math.max(1, Math.ceil(filtered.length / AGENT_PER_PAGE));
+        const paginated = filtered.slice((agentPage - 1) * AGENT_PER_PAGE, agentPage * AGENT_PER_PAGE);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
+              {/* Header */}
+              <h2 className="text-lg font-semibold text-text mb-1">Assigner un agent terrain</h2>
+              <p className="text-sm text-sub mb-4 truncate">{assignModal.listingTitle}</p>
+
+              {/* Barre de recherche */}
+              <div className="relative mb-3">
+                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sub text-xs" />
+                <input
+                  type="text"
+                  value={agentSearch}
+                  onChange={(e) => { setAgentSearch(e.target.value); setAgentPage(1); }}
+                  placeholder="Rechercher un agent…"
+                  className="w-full rounded-xl border border-line bg-bg py-2 pl-9 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition"
+                />
+                {agentSearch && (
+                  <button onClick={() => { setAgentSearch(''); setAgentPage(1); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sub hover:text-text transition">
+                    <i className="fa-solid fa-xmark text-xs" />
                   </button>
-                ))}
+                )}
               </div>
-            )}
-            <div className="flex gap-3 mt-6 justify-end">
-              <button onClick={() => { setAssignModal(null); setSelectedAgent(''); }}
-                className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
-                Annuler
-              </button>
-              <button onClick={handleAssign} disabled={!selectedAgent || actionLoading !== null}
-                className="btn-gold text-sm disabled:opacity-50">
-                {actionLoading === assignModal.verificationId + 'assign'
-                  ? <i className="fa-solid fa-spinner fa-spin" />
-                  : 'Confirmer'}
-              </button>
+
+              {/* Liste agents */}
+              {agents.length === 0 ? (
+                <p className="text-sm text-sub py-4 text-center">
+                  <i className="fa-solid fa-triangle-exclamation text-gold-dark mr-2" />
+                  Aucun agent terrain disponible.
+                </p>
+              ) : filtered.length === 0 ? (
+                <p className="text-sm text-sub py-4 text-center">Aucun résultat pour « {agentSearch} »</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {paginated.map((agent) => (
+                    <button key={agent.id} type="button" onClick={() => setSelectedAgent(agent.id)}
+                      className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                        selectedAgent === agent.id
+                          ? 'border-gold-dark bg-gold-pale'
+                          : 'border-line bg-bg hover:border-gold-dark'
+                      }`}>
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold-pale">
+                        <i className="fa-solid fa-user-shield text-gold-dark text-xs" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-sm font-medium ${selectedAgent === agent.id ? 'text-gold-dark' : 'text-text'}`}>
+                          {agent.firstName} {agent.lastName}
+                        </p>
+                        <p className="text-xs text-sub truncate">{agent.email}</p>
+                      </div>
+                      {selectedAgent === agent.id && <i className="fa-solid fa-circle-check text-gold-dark ml-auto" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination agents */}
+              {totalAgentPages > 1 && (
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-line">
+                  <button onClick={() => setAgentPage((p) => Math.max(1, p - 1))} disabled={agentPage === 1}
+                    className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-sub hover:text-text disabled:opacity-40 transition">
+                    <i className="fa-solid fa-chevron-left text-[10px]" /> Préc.
+                  </button>
+                  <span className="text-xs text-sub">{agentPage} / {totalAgentPages} · {filtered.length} agent{filtered.length > 1 ? 's' : ''}</span>
+                  <button onClick={() => setAgentPage((p) => Math.min(totalAgentPages, p + 1))} disabled={agentPage >= totalAgentPages}
+                    className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-sub hover:text-text disabled:opacity-40 transition">
+                    Suiv. <i className="fa-solid fa-chevron-right text-[10px]" />
+                  </button>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 mt-5 justify-end">
+                <button onClick={() => { setAssignModal(null); setSelectedAgent(''); setAgentSearch(''); setAgentPage(1); }}
+                  className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
+                  Annuler
+                </button>
+                <button onClick={handleAssign} disabled={!selectedAgent || actionLoading !== null}
+                  className="btn-gold text-sm disabled:opacity-50">
+                  {actionLoading === assignModal.verificationId + 'assign'
+                    ? <i className="fa-solid fa-spinner fa-spin" />
+                    : 'Confirmer'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Reject modal */}
       {rejectModal && (

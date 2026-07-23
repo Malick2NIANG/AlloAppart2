@@ -11,6 +11,8 @@ import {
 import { ListingType } from '@prisma/client';
 import { Type, Transform } from 'class-transformer';
 
+export type OwnerType = 'PARTICULIER' | 'AGENCE';
+
 export class FilterListingsDto {
   @IsOptional()
   @IsString()
@@ -85,4 +87,8 @@ export class FilterListingsDto {
     typeof value === 'string' ? value.split(',').filter(Boolean) : value,
   )
   amenities?: string[];
+
+  @IsOptional()
+  @IsEnum(['PARTICULIER', 'AGENCE'])
+  ownerType?: OwnerType;
 }

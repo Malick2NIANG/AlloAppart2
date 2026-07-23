@@ -21,29 +21,37 @@ const REGIONS = [
 
 const PER_PAGE_OPTIONS = [6, 12, 24];
 
+const OWNER_TYPES = [
+  { key: '',            icon: 'fa-border-all',  fr: 'Tous',         en: 'All'         },
+  { key: 'PARTICULIER', icon: 'fa-user',        fr: 'Particuliers', en: 'Individuals' },
+  { key: 'AGENCE',      icon: 'fa-building',    fr: 'Agences',      en: 'Agencies'    },
+] as const;
+
 interface Props {
-  type?:     string;
-  region?:   string;
-  q?:        string;
-  city?:     string;
-  minPrice?: string;
-  maxPrice?: string;
-  limit:     number;
-  locale:    string;
+  type?:      string;
+  region?:    string;
+  q?:         string;
+  city?:      string;
+  minPrice?:  string;
+  maxPrice?:  string;
+  ownerType?: string;
+  limit:      number;
+  locale:     string;
 }
 
-export default function ListingsFilters({ type, region, q, city, minPrice, maxPrice, limit, locale }: Props) {
+export default function ListingsFilters({ type, region, q, city, minPrice, maxPrice, ownerType, limit, locale }: Props) {
   const router = useRouter();
   const fr = locale !== 'en';
   const [regionOpen, setRegionOpen] = useState(false);
   const regionRef = useRef<HTMLDivElement>(null);
 
-  const hasFilters = !!(type || region || q || city || minPrice || maxPrice);
+  const hasFilters = !!(type || region || q || city || minPrice || maxPrice || ownerType);
   const activeType = type ?? '';
+  const activeOwnerType = ownerType ?? '';
 
   const push = (overrides: Record<string, string | undefined>) => {
     const params = new URLSearchParams();
-    const merged = { q, city, minPrice, maxPrice, type, region, limit: String(limit), page: '1', ...overrides };
+    const merged = { q, city, minPrice, maxPrice, type, region, ownerType, limit: String(limit), page: '1', ...overrides };
     Object.entries(merged).forEach(([k, v]) => { if (v) params.set(k, v); });
     router.push(`/listings?${params.toString()}`);
   };
@@ -61,6 +69,37 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   return (
     <div className="mb-8 space-y-3">
 
+      {/* ── Ligne 0 : filtre Particuliers / Agences ──────────── */}
+      <div className="flex gap-2 items-center">
+        {OWNER_TYPES.map((ot) => {
+          const isActive = activeOwnerType === ot.key;
+          return (
+            <button
+              key={ot.key}
+              onClick={() => push({ ownerType: ot.key || undefined, page: '1' })}
+              className={`flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                isActive
+                  ? 'border-gold-dark bg-gold-dark text-white shadow-sm'
+                  : 'border-line bg-card text-text hover:border-gold-dark/50 hover:bg-gold-pale hover:text-gold-dark'
+              }`}
+            >
+              <i className={`fa-solid ${ot.icon} text-xs ${isActive ? 'text-white' : 'text-gold-dark'}`} />
+              {fr ? ot.fr : ot.en}
+            </button>
+          );
+        })}
+        {activeOwnerType === 'AGENCE' && (
+          <span className="text-xs text-sub ml-1">
+            — Annonces d&apos;agences immobilières
+          </span>
+        )}
+        {activeOwnerType === 'PARTICULIER' && (
+          <span className="text-xs text-sub ml-1">
+            — Annonces de propriétaires
+          </span>
+        )}
+      </div>
+
       {/* ── Ligne 1 : chips de type ───────────────────────────── */}
       <div
         className="flex gap-2 overflow-x-auto pb-1"
@@ -75,7 +114,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
               className={`flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 ${
                 isActive
                   ? 'border-gold bg-gold text-gray-900 shadow-sm scale-[1.02]'
-                  : 'border-line bg-white/80 dark:bg-slate-800/80 text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-dark'
+                  : 'border-line bg-card text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-dark'
               }`}
             >
               <i className={`fa-solid ${t.icon} text-xs ${isActive ? 'text-gray-900' : 'text-gold-dark'}`} />
@@ -95,7 +134,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
             className={`flex h-9 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-all duration-200 ${
               region
                 ? 'border-gold/70 bg-gold-pale text-gold-dark'
-                : 'border-line bg-white/80 dark:bg-slate-800/80 text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-dark'
+                : 'border-line bg-card text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-dark'
             }`}
           >
             <i className="fa-solid fa-map-pin text-gold-dark text-xs" />
@@ -104,7 +143,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
           </button>
 
           {regionOpen && (
-            <div className="absolute top-full left-0 mt-2 w-72 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-line rounded-2xl shadow-xl p-3 z-40">
+            <div className="absolute top-full left-0 mt-2 w-72 bg-card border border-line rounded-2xl shadow-xl p-3 z-40">
               {/* Toutes */}
               <button
                 onClick={() => { push({ region: undefined, page: '1' }); setRegionOpen(false); }}
@@ -143,7 +182,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
         {hasFilters && (
           <button
             onClick={() => router.push('/listings')}
-            className="flex h-9 items-center gap-1.5 rounded-full border border-line bg-white/80 dark:bg-slate-800/80 px-3.5 text-sm text-sub hover:border-red-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-all duration-200"
+            className="flex h-9 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 text-sm text-sub hover:border-red-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-all duration-200"
           >
             <i className="fa-solid fa-xmark text-xs" />
             {fr ? 'Effacer' : 'Clear'}
@@ -155,7 +194,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
         {/* Par page */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-sub hidden sm:inline">{fr ? 'Par page' : 'Per page'}</span>
-          <div className="flex items-center gap-1 rounded-full border border-line bg-white/80 dark:bg-slate-800/80 p-1">
+          <div className="flex items-center gap-1 rounded-full border border-line bg-card p-1">
             {PER_PAGE_OPTIONS.map((n) => (
               <button
                 key={n}

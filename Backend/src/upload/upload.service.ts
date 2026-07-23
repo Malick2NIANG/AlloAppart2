@@ -54,7 +54,12 @@ export class UploadService {
     file: Express.Multer.File,
   ): Promise<{ url: string; publicId: string }> {
     if (!file) throw new BadRequestException('Aucun fichier fourni');
-    if (!this.hasMagicBytes(file.buffer)) {
+
+    const isAudio = file.mimetype.startsWith('audio/');
+
+    // La vérification des magic bytes n'est pertinente que pour les images.
+    // Les fichiers audio sont déjà filtrés par le MIME dans fileFilter.
+    if (!isAudio && !this.hasMagicBytes(file.buffer)) {
       throw new BadRequestException(
         'Fichier invalide : signature non reconnue',
       );
@@ -64,14 +69,22 @@ export class UploadService {
     if (!cloudName) throw new BadRequestException('Cloudinary non configuré');
 
     return new Promise((resolve, reject) => {
+      // Cloudinary utilise resource_type 'video' pour les fichiers audio aussi.
+      const uploadOptions = isAudio
+        ? {
+            folder: 'allo-appart/audio',
+            resource_type: 'video' as const,
+          }
+        : {
+            folder: 'allo-appart/listings',
+            resource_type: 'image' as const,
+            transformation: [
+              { width: 1280, height: 960, crop: 'limit', quality: 'auto:good' },
+            ],
+          };
+
       const stream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'allo-appart/listings',
-          resource_type: 'image',
-          transformation: [
-            { width: 1280, height: 960, crop: 'limit', quality: 'auto:good' },
-          ],
-        },
+        uploadOptions,
         (error, result) => {
           if (error || !result)
             return reject(

@@ -9,6 +9,7 @@ import ListingBookingCard from './ListingBookingCard';
 import ListingReviewForm from './ListingReviewForm';
 import MapView from '@/components/map/MapView';
 import AvailabilityCalendar from '@/components/listings/AvailabilityCalendar';
+import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import { type Listing, priceToNumber, ownerFullName } from '@/types/listing';
 
 const AMENITY_ICONS: Record<string, string> = {
@@ -147,9 +148,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                   </span>
                 )}
                 {listing.isVerified && (
-                  <span className="bg-green-50 text-green-700 border border-green-200 px-2.5 py-1 text-xs rounded-full font-medium">
-                    <i className="fa-solid fa-shield-halved mr-1" />{t('verified')}
-                  </span>
+                  <AlloVerifieBadge className="px-3 py-1 text-xs" />
                 )}
               </div>
             </div>

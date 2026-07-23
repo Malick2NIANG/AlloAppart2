@@ -42,9 +42,20 @@ const ALERT_CONFIG: Record<
 };
 
 export default function SubscriptionAlert() {
-  const { getToken } = useAuth();
+  const { getToken, sessionId } = useAuth();
   const [alert, setAlert]       = useState<AlertData | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const todayKey = `sub_alert_dismissed_${new Date().toISOString().slice(0, 10)}`;
+  const [dismissed, setDismissed] = useState<boolean>(
+    () => typeof window !== 'undefined' && localStorage.getItem(todayKey) === '1'
+  );
+  // Clé liée au sessionId Clerk — se réinitialise à chaque nouvelle connexion
+  const expiredKey = `sub_expired_dismissed_${sessionId ?? ''}`;
+  const [dismissedExpired, setDismissedExpired] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    setDismissedExpired(sessionStorage.getItem(expiredKey) === '1');
+  }, [sessionId, expiredKey]);
 
   useEffect(() => {
     const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -63,9 +74,20 @@ export default function SubscriptionAlert() {
     });
   }, [getToken]);
 
-  // Ne rien afficher si : pas de données, niveau ok/none, ou bannière fermée
+  const dismiss = () => {
+    localStorage.setItem(todayKey, '1');
+    setDismissed(true);
+  };
+
+  const dismissExpired = () => {
+    sessionStorage.setItem(expiredKey, '1');
+    setDismissedExpired(true);
+  };
+
+  // Ne rien afficher si : pas de données, niveau ok/none, ou bannière fermée (warning seulement)
   if (!alert || alert.level === 'ok' || alert.level === 'none') return null;
-  if (dismissed && alert.level === 'warning') return null; // critiques et expirés non fermables
+  if (dismissed && alert.level === 'warning') return null; // critique non fermable — trop urgent
+  if (dismissedExpired && alert.level === 'expired') return null;
 
   const config = ALERT_CONFIG[alert.level];
 
@@ -96,9 +118,9 @@ export default function SubscriptionAlert() {
           >
             Renouveler
           </Link>
-          {alert.level === 'warning' && (
+          {(alert.level === 'warning' || alert.level === 'expired') && (
             <button
-              onClick={() => setDismissed(true)}
+              onClick={alert.level === 'warning' ? dismiss : dismissExpired}
               className={`${config.text} opacity-60 hover:opacity-100 transition`}
               aria-label="Fermer"
             >

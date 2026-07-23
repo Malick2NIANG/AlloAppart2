@@ -16,14 +16,19 @@ async function bootstrap() {
   const prisma = app.get(PrismaService);
   const reflector = app.get(Reflector);
 
-  // Sécurité
-  app.use(helmet());
-
-  // CORS — origines autorisées depuis l'env
+  // CORS — doit être activé AVANT helmet pour ne pas être écrasé
+  const isDev = config.get<string>('NODE_ENV') !== 'production';
   app.enableCors({
-    origin: config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000',
+    origin: isDev
+      ? (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => cb(null, true)   // dev : tout localhost accepté
+      : config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000',
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
+
+  // Sécurité — après CORS
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
   // Préfixe global API
   app.setGlobalPrefix('api/v1');

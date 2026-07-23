@@ -1,8 +1,9 @@
-﻿import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+﻿import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { EditMessageDto } from './dto/edit-message.dto';
 import type { User } from '@prisma/client';
 
 @Controller('messages')
@@ -40,11 +41,28 @@ export class MessagesController {
     @CurrentUser() user: User,
     @Body() dto: SendMessageDto,
   ) {
-    return this.messagesService.sendMessage(id, user.id, dto.content);
+    return this.messagesService.sendMessage(id, user.id, dto.content, dto.replyToId);
   }
 
   @Post('rooms/:id/read')
   markRead(@Param('id') id: string, @CurrentUser() user: User) {
     return this.messagesService.markRead(id, user.id);
+  }
+
+  @Patch(':messageId')
+  editMessage(
+    @Param('messageId') messageId: string,
+    @CurrentUser() user: User,
+    @Body() dto: EditMessageDto,
+  ) {
+    return this.messagesService.editMessage(messageId, user.id, dto.content);
+  }
+
+  @Delete(':messageId')
+  deleteMessage(
+    @Param('messageId') messageId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.messagesService.deleteMessage(messageId, user.id);
   }
 }

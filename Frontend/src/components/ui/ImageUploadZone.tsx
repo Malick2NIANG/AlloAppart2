@@ -97,6 +97,18 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
     });
   };
 
+  const setPrimary = (id: string) => {
+    setItems((prev) => {
+      const idx = prev.findIndex((it) => it.id === id);
+      if (idx <= 0) return prev;
+      const next = [...prev];
+      const [item] = next.splice(idx, 1);
+      next.unshift(item);
+      syncUrls(next, onChange);
+      return next;
+    });
+  };
+
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragging(false);
@@ -141,7 +153,7 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
       {items.length > 0 && (
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {items.map((item, idx) => (
-            <div key={item.id} className="group relative aspect-4/3 overflow-hidden rounded-xl border border-line bg-bg">
+            <div key={item.id} className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-line bg-bg">
               {item.status === 'uploading' ? (
                 <div className="flex h-full items-center justify-center">
                   <i className="fa-solid fa-spinner fa-spin text-gold-dark" />
@@ -155,11 +167,26 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.url} alt="" className="h-full w-full object-cover" />
               )}
+
+              {/* Badge principale */}
               {idx === 0 && item.status === 'done' && (
                 <span className="absolute left-1.5 top-1.5 rounded-full bg-gold px-2 py-0.5 text-[9px] font-bold text-gray-900">
                   Principale
                 </span>
               )}
+
+              {/* Bouton "Définir comme principale" — visible au hover sur les autres photos */}
+              {idx > 0 && item.status === 'done' && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setPrimary(item.id); }}
+                  className="absolute left-1.5 top-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-semibold text-white opacity-0 transition group-hover:opacity-100 hover:bg-gold hover:text-gray-900"
+                >
+                  <i className="fa-solid fa-star text-[8px] mr-1" />Principale
+                </button>
+              )}
+
+              {/* Bouton supprimer */}
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); remove(item.id); }}

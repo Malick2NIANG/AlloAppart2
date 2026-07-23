@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { OnesignalService } from '../onesignal/onesignal.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PusherService } from '../pusher/pusher.service';
 import type { BroadcastSegment } from './dto/broadcast.dto';
 
 function escapeHtml(str: string): string {
@@ -37,6 +38,7 @@ export class NotificationsService {
     private readonly config: ConfigService,
     private readonly onesignal: OnesignalService,
     private readonly prisma: PrismaService,
+    private readonly pusher: PusherService,
   ) {
     this.transporter = nodemailer.createTransport({
       host: this.config.get<string>('SMTP_HOST') ?? 'smtp.gmail.com',
@@ -128,6 +130,17 @@ export class NotificationsService {
         { bookingId: data.bookingId },
       );
     }
+
+    // In-app : bailleur reçoit une alerte immédiate
+    if (data.landlordId) {
+      void this.pushInApp(
+        data.landlordId,
+        'NEW_BOOKING',
+        'Nouvelle demande de réservation',
+        `${data.tenantName} a demandé « ${data.listingTitle} ».`,
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
   }
 
   async notifyBookingConfirmed(data: BookingNotificationData): Promise<void> {
@@ -161,6 +174,15 @@ export class NotificationsService {
         'Votre reservation pour ' + data.listingTitle + ' est confirmee.',
         { bookingId: data.bookingId },
       );
+
+      // In-app : locataire apprend la confirmation
+      void this.pushInApp(
+        data.tenantId,
+        'BOOKING_CONFIRMED',
+        'Réservation confirmée !',
+        `Votre réservation pour « ${data.listingTitle} » est confirmée.`,
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
     }
   }
 
@@ -193,7 +215,45 @@ export class NotificationsService {
         'Votre reservation pour ' + data.listingTitle + ' a ete annulee.',
         { bookingId: data.bookingId },
       );
+
+      // In-app : locataire notifié de l'annulation
+      void this.pushInApp(
+        data.tenantId,
+        'BOOKING_CANCELLED',
+        'Réservation annulée',
+        `Votre réservation pour « ${data.listingTitle} » a été annulée.`,
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
     }
+
+    // In-app : bailleur notifié si c'est le locataire qui annule
+    if (data.landlordId && data.tenantId) {
+      void this.pushInApp(
+        data.landlordId,
+        'BOOKING_CANCELLED',
+        'Réservation annulée par le locataire',
+        `${data.tenantName} a annulé sa réservation pour « ${data.listingTitle} ».`,
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+  }
+
+  // Bailleur : un locataire vient de laisser un avis sur son annonce
+  async notifyReviewReceived(
+    landlordId: string,
+    tenantName: string,
+    listingTitle: string,
+    rating: number,
+    listingId: string,
+  ) {
+    const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+    await this.pushInApp(
+      landlordId,
+      'REVIEW_RECEIVED',
+      'Nouvel avis reçu',
+      `${tenantName} a laissé ${stars} sur « ${listingTitle} ».`,
+      { listingId, listingTitle, rating },
+    );
   }
 
   notifyNewMessage(
@@ -207,6 +267,172 @@ export class NotificationsService {
       senderName + ' vous a envoye un message.',
       { roomId },
     );
+  }
+
+  /* ── In-app notifications (DB + Pusher) ─────────────────────────────── */
+
+  private async pushInApp(
+    userId: string,
+    type: string,
+    title: string,
+    body: string,
+    metadata?: Prisma.InputJsonValue,
+  ) {
+    const notif = await this.prisma.notification.create({
+      data: { userId, type, title, body, metadata },
+    });
+    void this.pusher.trigger(`user-${userId}`, 'notification', notif);
+    return notif;
+  }
+
+  // Agent : nouvelle mission assignée
+  async notifyVerifAssigned(
+    agentId: string,
+    listingTitle: string,
+    verificationId: string,
+    listingId: string,
+  ) {
+    await this.pushInApp(
+      agentId,
+      'VERIF_ASSIGNED',
+      'Nouvelle mission AlloVérifié',
+      `Vous avez été assigné à la vérification de « ${listingTitle} ».`,
+      { verificationId, listingTitle, listingId },
+    );
+  }
+
+  // Bailleur : agent assigné (SCHEDULED)
+  async notifyVerifScheduled(
+    bailleurId: string,
+    listingTitle: string,
+    agentName: string,
+    verificationId: string,
+    listingId: string,
+  ) {
+    await this.pushInApp(
+      bailleurId,
+      'VERIF_SCHEDULED',
+      'Agent assigné à votre vérification',
+      `${agentName} a été assigné pour vérifier « ${listingTitle} ».`,
+      { verificationId, listingTitle, listingId },
+    );
+  }
+
+  // Bailleur : visite en cours (IN_PROGRESS)
+  async notifyVerifInProgress(
+    bailleurId: string,
+    listingTitle: string,
+    verificationId: string,
+    listingId: string,
+  ) {
+    await this.pushInApp(
+      bailleurId,
+      'VERIF_IN_PROGRESS',
+      'Visite AlloVérifié en cours',
+      `La vérification de « ${listingTitle} » a démarré.`,
+      { verificationId, listingTitle, listingId },
+    );
+  }
+
+  // Bailleur : mission terminée (DONE)
+  async notifyVerifDone(
+    bailleurId: string,
+    listingTitle: string,
+    verificationId: string,
+    listingId: string,
+  ) {
+    await this.pushInApp(
+      bailleurId,
+      'VERIF_DONE',
+      '✅ Vérification terminée !',
+      `La visite de « ${listingTitle} » est terminée. En attente de validation admin.`,
+      { verificationId, listingTitle, listingId },
+    );
+  }
+
+  // Agent : mission déclinée par lui-même (remise en REQUESTED)
+  async notifyVerifDeclined(
+    bailleurId: string,
+    listingTitle: string,
+    verificationId: string,
+    listingId: string,
+  ) {
+    await this.pushInApp(
+      bailleurId,
+      'VERIF_DECLINED',
+      'Agent indisponible pour votre mission',
+      `L'agent a décliné la mission pour « ${listingTitle} ». Un autre agent sera assigné.`,
+      { verificationId, listingTitle, listingId },
+    );
+  }
+
+  // Admin : l'agent demande à décliner une mission (en attente approbation)
+  async notifyAdminDeclineRequest(
+    listingTitle: string,
+    verificationId: string,
+    listingId: string,
+  ) {
+    // Notifier tous les admins
+    const admins = await this.prisma.user.findMany({
+      where: { roles: { has: Role.ADMIN } },
+      select: { id: true },
+    });
+    await Promise.all(admins.map((admin) =>
+      this.pushInApp(
+        admin.id,
+        'VERIF_DECLINE_REQUEST',
+        'Demande de déclin à approuver',
+        `Un agent demande à décliner la mission « ${listingTitle} ». Approbation requise.`,
+        { verificationId, listingTitle, listingId },
+      )
+    ));
+  }
+
+  // Bailleur : badge AlloVérifié accordé par l'admin
+  async notifyVerifValidated(
+    bailleurId: string,
+    listingTitle: string,
+    verificationId: string,
+    listingId: string,
+  ) {
+    await this.pushInApp(
+      bailleurId,
+      'VERIF_VALIDATED',
+      '🏅 Badge AlloVérifié accordé !',
+      `Votre annonce « ${listingTitle} » a obtenu le badge AlloVérifié.`,
+      { verificationId, listingTitle, listingId },
+    );
+  }
+
+  /* ── In-app API (endpoints) ───────────────────────────────────────── */
+
+  async findByUser(userId: string, limit = 30) {
+    return this.prisma.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  async unreadCount(userId: string): Promise<{ count: number }> {
+    const count = await this.prisma.notification.count({
+      where: { userId, isRead: false },
+    });
+    return { count };
+  }
+
+  async markRead(id: string, userId: string) {
+    return this.prisma.notification.updateMany({
+      where: { id, userId },
+      data: { isRead: true },
+    });
+  }
+
+  async markAllRead(userId: string) {
+    return this.prisma.notification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true },
+    });
   }
 
   async broadcastPush(

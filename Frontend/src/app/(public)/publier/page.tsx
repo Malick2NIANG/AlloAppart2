@@ -97,11 +97,12 @@ export default function PublierPage() {
   const [step,        setStep]        = useState(0);
   const [demoRole,    setDemoRole]    = useState<DemoRole>('visitor');
   const [mounted,     setMounted]     = useState(false);
-  const [success,     setSuccess]     = useState(false);
+  const [success,     setSuccess]     = useState<'published' | 'draft' | false>(false);
   const [apiError,    setApiError]    = useState<string | null>(null);
   const [userRoles,   setUserRoles]   = useState<string[]>([]);
   const [rolesLoaded, setRolesLoaded] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
+  const [submitMode,  setSubmitMode]  = useState<'draft' | 'publish'>('publish');
 
   const prevSignedIn = useRef<boolean | undefined>(undefined);
 
@@ -306,23 +307,27 @@ export default function PublierPage() {
 
   /* ── Succès ── */
   if (success) {
+    const isDraft = success === 'draft';
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg px-4">
         <div className="w-full max-w-sm text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-            <i className="fa-solid fa-circle-check text-2xl text-emerald-600" />
+          <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full ${isDraft ? 'bg-blue-100' : 'bg-emerald-100'}`}>
+            <i className={`fa-solid ${isDraft ? 'fa-floppy-disk text-blue-600' : 'fa-circle-check text-emerald-600'} text-2xl`} />
           </div>
           <h1 className="text-xl font-extrabold text-text">
-            {isDemo ? 'Simulation réussie !' : 'Annonce publiée !'}
+            {isDemo ? 'Simulation réussie !' : isDraft ? 'Brouillon enregistré !' : 'Annonce publiée !'}
           </h1>
           <p className="mt-2 text-sm text-sub">
             {isDemo
               ? 'En mode démo, l\'annonce n\'est pas enregistrée. Créez un compte pour publier.'
-              : 'Votre annonce est en cours de validation. Nos agents vous contacteront prochainement.'}
+              : isDraft
+                ? 'Votre annonce est enregistrée en brouillon. Vous pouvez la publier depuis votre espace.'
+                : 'Votre annonce est en ligne. Elle apparaît dans les résultats de recherche.'}
           </p>
           <div className="mt-6 flex flex-col gap-3">
-            <Link href="/espace" className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold">
-              <i className="fa-solid fa-house-chimney" /> Mon espace
+            <Link href={isDraft ? '/bailleur/listings' : '/espace'} className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold">
+              <i className={`fa-solid ${isDraft ? 'fa-list' : 'fa-house-chimney'}`} />
+              {isDraft ? 'Voir mes annonces' : 'Mon espace'}
             </Link>
             <button onClick={() => { localStorage.removeItem(DRAFT_KEY); setSuccess(false); setStep(0); }}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all">
@@ -346,12 +351,15 @@ export default function PublierPage() {
   /* ── Soumission finale ── */
   const onSubmit = async (data: FormValues) => {
     setApiError(null);
-    if (isDemo) { setSuccess(true); return; }
+    if (isDemo) { setSuccess(submitMode === 'draft' ? 'draft' : 'published'); return; }
     try {
       const token = await getToken();
-      await api.post('/listings', data, token ?? undefined);
+      await api.post('/listings', {
+        ...data,
+        status: submitMode === 'publish' ? 'ACTIVE' : 'DRAFT',
+      }, token ?? undefined);
       localStorage.removeItem(DRAFT_KEY);
-      setSuccess(true);
+      setSuccess(submitMode === 'draft' ? 'draft' : 'published');
     } catch (err: unknown) {
       setApiError((err as Error)?.message ?? 'Une erreur est survenue.');
     }
@@ -363,7 +371,7 @@ export default function PublierPage() {
 
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-xs text-sub">
-          <Link href="/espace" className="hover:text-gold-dark transition-colors">Mon espace</Link>
+          <Link href="/bailleur" className="hover:text-gold-dark transition-colors">Mon espace</Link>
           <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
           <span className="text-gold-dark font-medium">Publier une annonce</span>
         </nav>
@@ -600,13 +608,32 @@ export default function PublierPage() {
                 Suivant <i className="fa-solid fa-arrow-right text-xs" />
               </button>
             ) : (
-              <button type="submit" disabled={isSubmitting}
-                className="btn-gold inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-50">
-                {isSubmitting
-                  ? <><i className="fa-solid fa-spinner fa-spin" /> Publication…</>
-                  : <><i className="fa-solid fa-paper-plane" /> Publier l&apos;annonce</>
-                }
-              </button>
+              <div className="flex items-center gap-3">
+                {/* Brouillon */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  onClick={() => setSubmitMode('draft')}
+                  className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all disabled:opacity-50"
+                >
+                  {isSubmitting && submitMode === 'draft'
+                    ? <><i className="fa-solid fa-spinner fa-spin" /> Enregistrement…</>
+                    : <><i className="fa-solid fa-floppy-disk text-xs" /> Brouillon</>
+                  }
+                </button>
+                {/* Publier */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  onClick={() => setSubmitMode('publish')}
+                  className="btn-gold inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-50"
+                >
+                  {isSubmitting && submitMode === 'publish'
+                    ? <><i className="fa-solid fa-spinner fa-spin" /> Publication…</>
+                    : <><i className="fa-solid fa-paper-plane text-xs" /> Publier</>
+                  }
+                </button>
+              </div>
             )}
           </div>
         </form>

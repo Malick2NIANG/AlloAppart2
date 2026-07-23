@@ -72,7 +72,7 @@ const SECTIONS = [
     key: 'contact-legal',
     icon: 'fa-solid fa-envelope',
     title: '12. Contact',
-    body: `Pour toute question juridique relative aux présentes CGU :\n• E-mail : legal@alloappart.sn\n• Courrier : AlloAppart SN SARL — Service Juridique, 25 Rue Carnot, Plateau, Dakar 11000, Sénégal`,
+    body: `Pour toute question juridique relative aux présentes CGU :\n• E-mail : alloappart221@gmail.com\n• Courrier : AlloAppart SN SARL — Service Juridique, 25 Rue Carnot, Plateau, Dakar 11000, Sénégal`,
   },
 ];
 

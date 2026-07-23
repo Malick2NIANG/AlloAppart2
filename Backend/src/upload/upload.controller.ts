@@ -10,8 +10,12 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { UploadService } from './upload.service';
 
-const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
-const MAX_SIZE_BYTES = 8 * 1024 * 1024; // 8 MB
+const ALLOWED_MIME = [
+  'image/jpeg', 'image/png', 'image/webp', 'image/heic',
+  // Messages vocaux
+  'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav',
+];
+const MAX_SIZE_BYTES = 16 * 1024 * 1024; // 16 MB (vocaux inclus)
 
 // Tout utilisateur authentifié peut uploader des images.
 // La restriction BAILLEUR s'applique à la création d'annonce (ListingsController).
@@ -26,9 +30,12 @@ export class UploadController {
       storage: memoryStorage(),
       limits: { fileSize: MAX_SIZE_BYTES },
       fileFilter: (_req, file, cb) => {
-        if (!ALLOWED_MIME.includes(file.mimetype)) {
+        // Le navigateur peut envoyer un MIME avec codec ex: "audio/webm;codecs=opus"
+        // On compare uniquement la partie avant le ";"
+        const baseType = file.mimetype.split(';')[0].trim();
+        if (!ALLOWED_MIME.includes(baseType)) {
           return cb(
-            new BadRequestException('Format non supporté (jpg, png, webp)'),
+            new BadRequestException('Format non supporté (jpg, png, webp, audio)'),
             false,
           );
         }

@@ -8,7 +8,7 @@ export type ListingStatus = 'DRAFT' | 'ACTIVE' | 'RENTED' | 'SUSPENDED';
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
 export type EscrowStatus = 'AWAITING_PAYMENT' | 'HELD' | 'RELEASED' | 'REFUNDED';
 
-export type VerifStatus = 'REQUESTED' | 'SCHEDULED' | 'IN_PROGRESS' | 'DONE' | 'REJECTED';
+export type VerifStatus = 'REQUESTED' | 'SCHEDULED' | 'IN_PROGRESS' | 'DONE' | 'REJECTED' | 'DECLINE_PENDING';
 export type AuditType = 'BASIC' | 'FULL';
 
 export interface User {
@@ -22,6 +22,10 @@ export interface User {
   isVerified: boolean;
   isSuspended: boolean;
   agencyName?: string | null;
+  agencySlug?: string | null;
+  bio?: string | null;
+  avatar?: string | null;
+  coverageZone?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -49,7 +53,7 @@ export interface Listing {
   images: string[];
   amenities: string[];
   ownerId: string;
-  owner?: Pick<User, 'id' | 'firstName' | 'lastName'>;
+  owner?: Pick<User, 'id' | 'firstName' | 'lastName' | 'agencyName' | 'agencySlug' | 'avatar' | 'roles'>;
   _count?: { reviews: number; bookings?: number };
   avgRating?: number | null;
   verification?: Verification;
@@ -106,6 +110,7 @@ export interface Verification {
   status: VerifStatus;
   auditType: AuditType;
   reportUrl?: string;
+  tourUrl?: string;
   scheduledAt: string;
   completedAt?: string;
   notes?: string;
@@ -114,13 +119,25 @@ export interface Verification {
   updatedAt: string;
 }
 
+export interface MessageReplyTo {
+  id: string;
+  content: string;
+  senderId: string;
+  deletedAt?: string | null;
+  sender?: Pick<User, 'id' | 'firstName' | 'lastName'>;
+}
+
 export interface Message {
   id: string;
   roomId: string;
   senderId: string;
   sender?: User;
   content: string;
-  readAt?: string;
+  readAt?: string | null;
+  editedAt?: string | null;
+  deletedAt?: string | null;
+  replyToId?: string | null;
+  replyTo?: MessageReplyTo | null;
   createdAt: string;
 }
 

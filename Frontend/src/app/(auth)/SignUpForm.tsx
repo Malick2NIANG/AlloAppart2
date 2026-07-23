@@ -95,10 +95,6 @@ export default function SignUpForm() {
         <motion.div key="register" variants={slide} initial="enter" animate="center" exit="exit"
           transition={{ duration: 0.25 }} className="flex flex-col gap-3.5">
 
-          <div className="text-center">
-            <h1 className="text-xl font-bold text-text">{ts('title')}</h1>
-            <p className="text-sm text-sub">{ts('subtitle')}</p>
-          </div>
 
           <Flash flash={flash} />
 

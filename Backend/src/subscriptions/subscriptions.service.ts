@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
-import { SubscriptionPlan, SubscriptionStatus, User } from '@prisma/client';
+import { ListingStatus, SubscriptionPlan, SubscriptionStatus, User } from '@prisma/client';
 import axios from 'axios';
 import { PaydunyaWebhookDto } from '../payments/dto/paydunya-webhook.dto';
 
@@ -59,6 +59,26 @@ export class SubscriptionsService {
     amount: number,
     plan: SubscriptionPlan,
   ) {
+    const isDev = this.config.get<string>('NODE_ENV') !== 'production';
+
+    // ── Mode bypass dev : simule le paiement sans appeler PayDunya ───────────
+    if (isDev && this.config.get<string>('PAYDUNYA_DEV_BYPASS') === 'true') {
+      this.logger.warn(`[DEV BYPASS] Activation directe de l'abonnement ${subscriptionId} (${plan} — ${amount} FCFA)`);
+      const now     = new Date();
+      const endDate = new Date(now);
+      endDate.setDate(endDate.getDate() + 30);
+      await this.prisma.subscription.update({
+        where: { id: subscriptionId },
+        data:  { status: SubscriptionStatus.ACTIVE, startDate: now, endDate, paymentRef: `DEV-${Date.now()}` },
+      });
+      const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+      return {
+        payment_url: `${frontendUrl}/bailleur/abonnement?status=success`,
+        transId:     `DEV-${Date.now()}`,
+      };
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const masterKey = this.config.get<string>('PAYDUNYA_MASTER_KEY');
     const privateKey = this.config.get<string>('PAYDUNYA_PRIVATE_KEY');
     const token = this.config.get<string>('PAYDUNYA_TOKEN');
@@ -67,7 +87,6 @@ export class SubscriptionsService {
       throw new BadRequestException('Service de paiement indisponible');
     }
 
-    const isDev = this.config.get<string>('NODE_ENV') !== 'production';
     const baseUrl = isDev
       ? 'https://app.paydunya.com/sandbox-api/v1'
       : 'https://app.paydunya.com/api/v1';
@@ -95,11 +114,26 @@ export class SubscriptionsService {
           },
         },
       )
-      .catch(() => {
+      .catch((err: unknown) => {
+        const axiosErr = err as { response?: { status: number; data: unknown }; message?: string };
+        this.logger.error(
+          `PayDunya create-invoice ERREUR — status: ${axiosErr.response?.status ?? 'N/A'} — body: ${JSON.stringify(axiosErr.response?.data ?? axiosErr.message)}`,
+        );
         throw new BadRequestException('Service de paiement indisponible');
       });
 
     if (response.data.response_code !== '00') {
+      this.logger.error(
+        `PayDunya response_code inattendu : ${JSON.stringify(response.data)}`,
+      );
+      throw new BadRequestException('Service de paiement indisponible');
+    }
+
+    const invoiceUrl = response.data.invoice_url;
+    if (!invoiceUrl) {
+      this.logger.error(
+        `PayDunya invoice_url absent malgré response_code 00 — réponse : ${JSON.stringify(response.data)}`,
+      );
       throw new BadRequestException('Service de paiement indisponible');
     }
 
@@ -109,7 +143,7 @@ export class SubscriptionsService {
       data: { paymentRef },
     });
 
-    return { payment_url: response.data.invoice_url, transId: paymentRef };
+    return { payment_url: invoiceUrl, transId: paymentRef };
   }
 
   async handlePaydunyaWebhook(dto: PaydunyaWebhookDto) {
@@ -204,20 +238,41 @@ export class SubscriptionsService {
     return { daysLeft: Math.max(0, daysLeft), level };
   }
 
-  // Cron quotidien à minuit — suspend les abonnements expirés
+  // Cron quotidien à minuit — suspend les abonnements expirés + cascade sur les annonces
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async suspendExpiredSubscriptions(): Promise<void> {
-    const { count } = await this.prisma.subscription.updateMany({
+    // 1. Trouver les abonnements expirés (avant de les mettre à jour pour récupérer les userId)
+    const expired = await this.prisma.subscription.findMany({
       where: {
         status:  SubscriptionStatus.ACTIVE,
         endDate: { lt: new Date() },
       },
-      data: { status: SubscriptionStatus.SUSPENDED },
+      select: { id: true, userId: true },
     });
 
-    if (count > 0) {
-      this.logger.warn(`Cron suspension : ${count} abonnement(s) expiré(s) suspendu(s)`);
-    }
+    if (expired.length === 0) return;
+
+    const ids     = expired.map((s) => s.id);
+    const userIds = expired.map((s) => s.userId);
+
+    // 2. Suspendre les abonnements
+    const { count: subCount } = await this.prisma.subscription.updateMany({
+      where: { id: { in: ids } },
+      data:  { status: SubscriptionStatus.SUSPENDED },
+    });
+
+    // 3. Cascade : suspendre les annonces actives des propriétaires concernés
+    const { count: listingCount } = await this.prisma.listing.updateMany({
+      where: {
+        ownerId: { in: userIds },
+        status:  ListingStatus.ACTIVE,
+      },
+      data: { status: ListingStatus.SUSPENDED },
+    });
+
+    this.logger.warn(
+      `Cron suspension : ${subCount} abonnement(s) expiré(s), ${listingCount} annonce(s) suspendues`,
+    );
   }
 
   async cancel(userId: string) {

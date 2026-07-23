@@ -165,8 +165,8 @@ export default async function CookiesPage() {
             ? 'For any question about our cookie policy, please contact us at:'
             : 'Pour toute question relative à notre politique des cookies, contactez-nous à :'}
           {' '}
-          <a href="mailto:privacy@alloappart.sn" className="text-gold-dark hover:underline">
-            privacy@alloappart.sn
+          <a href="mailto:alloappart221@gmail.com" className="text-gold-dark hover:underline">
+            alloappart221@gmail.com
           </a>
         </p>
 

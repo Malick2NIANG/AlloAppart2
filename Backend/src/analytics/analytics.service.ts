@@ -329,4 +329,64 @@ export class AnalyticsService {
       })),
     };
   }
+
+  /** Analytics vitrine PRO_AGENCE */
+  async getVitrineStats(ownerId: string) {
+    const [owner, listings, ratingAgg, monthly] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: ownerId },
+        select: { profileViews: true, agencyName: true, agencySlug: true, subscription: { select: { plan: true, status: true } } },
+      }),
+      this.prisma.listing.findMany({
+        where: { ownerId },
+        select: {
+          id: true, title: true, city: true, type: true, status: true,
+          _count: { select: { bookings: true, reviews: true, favoritedBy: true } },
+          bookings: {
+            where: { status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] } },
+            select: { totalAmount: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.review.aggregate({
+        where: { listing: { ownerId } },
+        _avg: { rating: true },
+        _count: { id: true },
+      }),
+      this.getOwnerMonthlyStats(ownerId),
+    ]);
+
+    // Enrichissement par listing : revenu confirmé + bookings confirmés
+    const listingStats = listings.map((l) => ({
+      id:             l.id,
+      title:          l.title,
+      city:           l.city,
+      type:           l.type,
+      status:         l.status,
+      totalBookings:  l._count.bookings,
+      favorites:      l._count.favoritedBy,
+      reviewCount:    l._count.reviews,
+      revenue:        l.bookings.reduce((s, b) => s + Number(b.totalAmount), 0),
+    }));
+
+    // Top 5 par réservations
+    const topListings = [...listingStats]
+      .sort((a, b) => b.totalBookings - a.totalBookings)
+      .slice(0, 5);
+
+    return {
+      profileViews:  owner.profileViews,
+      agencyName:    owner.agencyName,
+      agencySlug:    owner.agencySlug,
+      subscription:  owner.subscription,
+      totalListings: listings.length,
+      activeListings: listings.filter((l) => l.status === 'ACTIVE').length,
+      avgRating:     ratingAgg._avg.rating ? Math.round(ratingAgg._avg.rating * 10) / 10 : null,
+      reviewCount:   ratingAgg._count.id,
+      totalRevenue:  listingStats.reduce((s, l) => s + l.revenue, 0),
+      topListings,
+      monthly,
+    };
+  }
 }

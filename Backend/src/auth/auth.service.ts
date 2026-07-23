@@ -93,6 +93,15 @@ export class AuthService {
   }
 
   async updateMe(userId: string, dto: UpdateProfileDto): Promise<User> {
+    // Vérifier unicité du slug si fourni
+    if (dto.agencySlug) {
+      const existing = await this.prisma.user.findUnique({
+        where: { agencySlug: dto.agencySlug },
+      });
+      if (existing && existing.id !== userId) {
+        throw new ConflictException('Ce slug est déjà utilisé par une autre agence.');
+      }
+    }
     return this.prisma.user.update({
       where: { id: userId },
       data: dto,
@@ -306,6 +315,112 @@ export class AuthService {
       this.prisma.user.count({ where }),
     ]);
     return { data, total, page, limit };
+  }
+
+  // Liste des agents disponibles — accessible aux bailleurs pour exprimer une préférence
+  async findAgents() {
+    const agents = await this.prisma.user.findMany({
+      where: {
+        roles: { has: Role.AGENT_TERRAIN },
+        isSuspended: false,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        bio: true,
+        phone: true,
+        verifications: {
+          where: { status: 'DONE' },
+          select: { id: true },
+        },
+      },
+      orderBy: { firstName: 'asc' },
+    });
+
+    return agents.map((a) => ({
+      id: a.id,
+      firstName: a.firstName,
+      lastName: a.lastName,
+      avatar: a.avatar,
+      bio: a.bio,
+      phone: a.phone,
+      completedMissions: a.verifications.length,
+    }));
+  }
+
+  async findAgentById(id: string) {
+    const agent = await this.prisma.user.findFirst({
+      where: { id, roles: { has: Role.AGENT_TERRAIN }, isSuspended: false },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        bio: true,
+        phone: true,
+        createdAt: true,
+        verifications: {
+          where: { status: 'DONE' },
+          select: { id: true },
+        },
+        agentRatings: {
+          select: { id: true, rating: true, comment: true, createdAt: true,
+            rater: { select: { firstName: true, lastName: true, avatar: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!agent) throw new NotFoundException('Agent introuvable');
+
+    const ratings = agent.agentRatings;
+    const avgRating = ratings.length
+      ? Math.round((ratings.reduce((s, r) => s + r.rating, 0) / ratings.length) * 10) / 10
+      : null;
+
+    return {
+      id: agent.id,
+      firstName: agent.firstName,
+      lastName: agent.lastName,
+      avatar: agent.avatar,
+      bio: agent.bio,
+      phone: agent.phone,
+      memberSince: agent.createdAt,
+      completedMissions: agent.verifications.length,
+      avgRating,
+      totalRatings: ratings.length,
+      ratings: ratings.map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.createdAt,
+        raterFirstName: r.rater.firstName,
+        raterLastName: r.rater.lastName,
+        raterAvatar: r.rater.avatar,
+      })),
+    };
+  }
+
+  async findUserProfile(id: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id, isSuspended: false },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        bio: true,
+        phone: true,
+        roles: true,
+        agencyName: true,
+        createdAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException('Utilisateur introuvable');
+    return user;
   }
 
   async updateUser(

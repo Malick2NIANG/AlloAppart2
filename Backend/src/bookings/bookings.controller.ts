@@ -79,7 +79,7 @@ export class BookingsController {
     @Res() res: Response,
   ) {
     const booking = await this.bookingsService.findOneForReceipt(id, user.id);
-    const pdf = this.pdfService.generateReceipt(booking);
+    const pdf = await this.pdfService.generateReceipt(booking);
     const filename = 'recu-' + id.slice(0, 8).toUpperCase() + '.pdf';
     res.set({
       'Content-Type': 'application/pdf',

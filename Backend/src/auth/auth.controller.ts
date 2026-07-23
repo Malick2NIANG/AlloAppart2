@@ -99,6 +99,27 @@ export class AuthController {
     return this.authService.createProAgence(admin.id, dto);
   }
 
+  // Liste des agents disponibles — accessible aux BAILLEUR et PRO_AGENCE pour exprimer une préférence
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE, Role.ADMIN)
+  @Get('agents')
+  findAgents() {
+    return this.authService.findAgents();
+  }
+
+  // Profil public d'un agent avec ratings agrégés
+  @Public()
+  @Get('agents/:id')
+  findAgentById(@Param('id') id: string) {
+    return this.authService.findAgentById(id);
+  }
+
+  // Profil public générique (n'importe quel utilisateur)
+  @Public()
+  @Get('profile/:id')
+  findUserProfile(@Param('id') id: string) {
+    return this.authService.findUserProfile(id);
+  }
+
   @Roles(Role.ADMIN)
   @Get('users')
   getUsers(@Query() dto: AdminFilterDto) {

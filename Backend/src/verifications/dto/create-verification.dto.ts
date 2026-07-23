@@ -1,5 +1,5 @@
 ﻿import { AuditType } from '@prisma/client';
-import { IsDateString, IsEnum, IsNotEmpty, IsUUID } from 'class-validator';
+import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateVerificationDto {
   @IsUUID()
@@ -11,4 +11,8 @@ export class CreateVerificationDto {
 
   @IsDateString()
   scheduledAt!: string;
+
+  @IsOptional()
+  @IsUUID()
+  preferredAgentId?: string;
 }

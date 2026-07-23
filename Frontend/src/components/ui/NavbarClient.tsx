@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useClerk, useUser } from '@clerk/nextjs';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ThemeToggle from './ThemeToggle';
 import LanguageSwitcher from './LanguageSwitcher';
 import type { Locale } from '@/i18n/config';
@@ -40,7 +40,7 @@ interface ListingsDropdownProps {
 
 function ListingsDropdown({ locale, allListings, byType, onClose }: ListingsDropdownProps) {
   return (
-    <div className="absolute top-full left-0 mt-2 w-56 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-line rounded-2xl shadow-xl p-2 z-50">
+    <div className="absolute top-full left-0 mt-2 w-56 bg-card border border-line rounded-2xl shadow-xl p-2 z-50">
       <Link href="/listings" onClick={onClose}
         className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-text hover:bg-gold-pale hover:text-gold-dark transition">
         <i className="fa-solid fa-list text-gold-dark text-xs w-4" />{allListings}
@@ -69,7 +69,7 @@ interface ProfileDropdownProps {
 
 function ProfileDropdown({ userName, userEmail, isDemo, locale, onClose, onSignOut }: ProfileDropdownProps) {
   return (
-    <div className="absolute top-full right-0 mt-2 w-56 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-line rounded-2xl shadow-xl p-2 z-50">
+    <div className="absolute top-full right-0 mt-2 w-56 bg-card border border-line rounded-2xl shadow-xl p-2 z-50">
       {/* User info */}
       <div className="px-3 py-2.5">
         <p className="text-sm font-semibold text-text truncate">{userName}</p>
@@ -98,7 +98,7 @@ function ProfileDropdown({ userName, userEmail, isDemo, locale, onClose, onSignO
 
       {/* Déconnexion */}
       <button onClick={onSignOut}
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition">
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 transition">
         <i className="fa-solid fa-right-from-bracket text-xs w-4 text-center" />
         Déconnexion
       </button>
@@ -135,6 +135,7 @@ export default function NavbarClient({ locale, labels }: Props) {
   const [demoRole,       setDemoRole]       = useState<DemoRole>('visitor');
   const [unreadCount,    setUnreadCount]    = useState(0);
   const [messagesHref,   setMessagesHref]   = useState<string | null>(null);
+  const [userAvatar,     setUserAvatar]     = useState<string | null>(null);
 
   const navRef  = useRef<HTMLDivElement>(null);
   const authRef = useRef<HTMLDivElement>(null);
@@ -170,28 +171,48 @@ export default function NavbarClient({ locale, labels }: Props) {
     ? user.emailAddresses[0]?.emailAddress
     : demoData?.email ?? '';
 
-  /* ── Messages: href + unread count ─────────────────────── */
-  useEffect(() => {
+  /* ── Chargement profil + messages ───────────────────────── */
+  const refreshProfile = useCallback(async () => {
     if (!isSignedIn) return;
-    getToken().then(async (token) => {
-      if (!token) return;
-      try {
-        const [me, rooms] = await Promise.all([
-          api.get<User>('/auth/me', token),
-          api.get<MessageRoom[]>('/messages/rooms', token),
-        ]);
-        const noMessages = me.roles.includes('ADMIN') || me.roles.includes('AGENT_TERRAIN');
-        const href = noMessages
-          ? null
-          : me.roles.includes('BAILLEUR')
+    const token = await getToken();
+    if (!token) return;
+    try {
+      const [me, rooms] = await Promise.all([
+        api.get<User>('/auth/me', token),
+        api.get<MessageRoom[]>('/messages/rooms', token),
+      ]);
+      const isAdmin    = me.roles.includes('ADMIN');
+      const isBailleur = me.roles.includes('BAILLEUR') || me.roles.includes('PRO_AGENCE');
+      const isAgent    = me.roles.includes('AGENT_TERRAIN');
+      const href = isAdmin
+        ? null
+        : isAgent
+          ? '/agent/messages'
+          : isBailleur
             ? '/bailleur/messages'
             : '/locataire/messages';
-        setMessagesHref(href);
-        const count = rooms.filter((r) => r.messages?.[0] && !r.messages[0].readAt).length;
-        setUnreadCount(count);
-      } catch {}
-    });
+      setMessagesHref(href);
+      setUserAvatar(me.avatar ?? null);
+      const count = rooms.filter((r) => r.messages?.[0] && !r.messages[0].readAt && r.messages[0].senderId !== me.id).length;
+      setUnreadCount(count);
+    } catch {}
   }, [isSignedIn, getToken]);
+
+  useEffect(() => { void refreshProfile(); }, [refreshProfile]);
+
+  /* Écoute l'event émis par la page profil après une sauvegarde */
+  useEffect(() => {
+    const handler = () => void refreshProfile();
+    window.addEventListener('aa-profile-updated', handler);
+    return () => window.removeEventListener('aa-profile-updated', handler);
+  }, [refreshProfile]);
+
+  /* Écoute les mises à jour de messages (lecture, nouveau msg) → rafraîchit le badge */
+  useEffect(() => {
+    const handler = () => void refreshProfile();
+    window.addEventListener('aa-messages-updated', handler);
+    return () => window.removeEventListener('aa-messages-updated', handler);
+  }, [refreshProfile]);
 
   /* ── Scroll ──────────────────────────────────────────────── */
   useEffect(() => {
@@ -217,8 +238,8 @@ export default function NavbarClient({ locale, labels }: Props) {
     if (!pathname.startsWith('/listings')) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchVal(searchParams.get('q') ?? '');
-    setMinPrice(searchParams.get('min') ?? '');
-    setMaxPrice(searchParams.get('max') ?? '');
+    setMinPrice(searchParams.get('minPrice') ?? '');
+    setMaxPrice(searchParams.get('maxPrice') ?? '');
   }, [searchParams, pathname]);
 
   /* ── Handlers ────────────────────────────────────────────── */
@@ -226,8 +247,8 @@ export default function NavbarClient({ locale, labels }: Props) {
     e.preventDefault();
     const params = new URLSearchParams();
     if (searchVal.trim()) params.set('q', searchVal.trim());
-    if (minPrice)         params.set('min', minPrice);
-    if (maxPrice)         params.set('max', maxPrice);
+    if (minPrice)         params.set('minPrice', minPrice);
+    if (maxPrice)         params.set('maxPrice', maxPrice);
     router.push(`/listings?${params.toString()}`);
   };
 
@@ -245,7 +266,8 @@ export default function NavbarClient({ locale, labels }: Props) {
     await signOut({ redirectUrl: '/' });
   };
 
-  const spaceHref = '/espace';
+  // '/redirect' route vers le bon espace selon le rôle réel (ADMIN, AGENT_TERRAIN, PRO_AGENCE/BAILLEUR, LOCATAIRE)
+  const spaceHref = '/redirect';
 
   /* ── RENDER ──────────────────────────────────────────────── */
   return (
@@ -270,7 +292,7 @@ export default function NavbarClient({ locale, labels }: Props) {
 
           {/* ── Search pill ──────────────────────────────────────── */}
           <form onSubmit={handleSearch}
-            className="hidden md:flex flex-1 items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 rounded-full border border-[rgba(250,204,21,0.35)] bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl shadow-sm hover:shadow-md transition-all duration-300 min-w-0"
+            className="hidden md:flex flex-1 items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 rounded-full border border-[rgba(250,204,21,0.35)] bg-card shadow-sm hover:shadow-md transition-all duration-300 min-w-0"
           >
             <div className="flex items-center gap-2 min-w-0">
               <i className="fa-solid fa-location-dot text-gold-dark text-sm opacity-80 shrink-0" />
@@ -352,7 +374,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                 )}
 
                 {/* Favoris */}
-                <Link href="/espace"
+                <Link href="/listings?tab=favoris"
                   className="flex h-9 w-9 items-center justify-center rounded-full text-text/70 hover:bg-card hover:text-red-500 transition">
                   <i className="fa-solid fa-heart text-[17px]" />
                 </Link>
@@ -360,12 +382,18 @@ export default function NavbarClient({ locale, labels }: Props) {
                 {/* Avatar + dropdown */}
                 <div className="relative ml-1">
                   <button onClick={() => toggleDropdown('profile')}
-                    className={`flex h-9 w-9 items-center justify-center rounded-full border-2 font-bold text-xs transition-all duration-200 ${
+                    className={`flex h-9 w-9 items-center justify-center rounded-full border-2 font-bold text-xs transition-all duration-200 overflow-hidden ${
                       openDropdown === 'profile'
-                        ? 'border-gold bg-gold text-gray-900'
-                        : 'border-gold/50 bg-gold-pale text-gold-dark hover:border-gold'
+                        ? 'border-gold'
+                        : 'border-gold/50 hover:border-gold'
                     }`}>
-                    {userInitials}
+                    {userAvatar ? (
+                      <Image src={userAvatar} alt="Photo de profil" width={36} height={36} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className={openDropdown === 'profile' ? 'bg-gold text-gray-900 flex h-full w-full items-center justify-center' : 'bg-gold-pale text-gold-dark flex h-full w-full items-center justify-center'}>
+                        {userInitials}
+                      </span>
+                    )}
                   </button>
                   {openDropdown === 'profile' && <ProfileDropdown userName={userName ?? ''} userEmail={userEmail ?? ''} isDemo={isDemo} locale={locale} onClose={() => setOpenDropdown(null)} onSignOut={handleSignOut} />}
                 </div>
@@ -402,18 +430,18 @@ export default function NavbarClient({ locale, labels }: Props) {
         <div className="lg:hidden glass border-t border-line px-4 pb-5 pt-3">
 
           {/* Recherche */}
-          <form onSubmit={handleSearch} className="mb-3 grid gap-2 p-3 rounded-2xl border border-line bg-white/90 dark:bg-slate-800/90">
+          <form onSubmit={handleSearch} className="mb-3 grid gap-2 p-3 rounded-2xl border border-line bg-card">
             <input type="text" name="q" value={searchVal}
               onChange={(e) => setSearchVal(e.target.value)}
               placeholder="Quartier, ville, mot-clé…"
-              className="w-full rounded-lg border border-line bg-gray-50 dark:bg-slate-700 px-3 py-2 text-sm text-text placeholder:text-sub outline-none" />
+              className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none" />
             <div className="grid grid-cols-2 gap-2">
-              <input type="number" name="min" min="0" value={minPrice}
+              <input type="number" name="minPrice" min="0" value={minPrice}
                 onChange={(e) => setMinPrice(e.target.value)} placeholder="Min FCFA"
-                className="rounded-lg border border-line bg-gray-50 dark:bg-slate-700 px-3 py-2 text-sm text-text placeholder:text-sub outline-none" />
-              <input type="number" name="max" min="0" value={maxPrice}
+                className="rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none" />
+              <input type="number" name="maxPrice" min="0" value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)} placeholder="Max FCFA"
-                className="rounded-lg border border-line bg-gray-50 dark:bg-slate-700 px-3 py-2 text-sm text-text placeholder:text-sub outline-none" />
+                className="rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none" />
             </div>
             <button type="submit" className="w-full btn-gold rounded-xl px-4 py-2.5 font-medium justify-center">
               {labels.search}
@@ -462,8 +490,11 @@ export default function NavbarClient({ locale, labels }: Props) {
               <>
                 {/* User info */}
                 <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-card">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-gold/50 bg-gold-pale text-xs font-bold text-gold-dark">
-                    {userInitials}
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-gold/50 overflow-hidden text-xs font-bold text-gold-dark">
+                    {userAvatar
+                      ? <Image src={userAvatar} alt="Photo de profil" width={36} height={36} className="h-full w-full object-cover" />
+                      : <span className="bg-gold-pale flex h-full w-full items-center justify-center">{userInitials}</span>
+                    }
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-text truncate">{userName}</p>
@@ -488,7 +519,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                 )}
 
                 {/* Favoris */}
-                <Link href="/espace" onClick={() => setMobileOpen(false)}
+                <Link href="/listings?tab=favoris" onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-text hover:bg-card transition">
                   <i className="fa-solid fa-heart text-red-400 w-4" /> Favoris
                 </Link>

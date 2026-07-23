@@ -29,10 +29,7 @@ export default async function Footer() {
   ];
 
   return (
-    <footer
-      className="border-t border-line/60 shadow-inner"
-      style={{ background: 'linear-gradient(to bottom, #fdfcfb, #f5f5f5)' }}
-    >
+    <footer className="border-t border-line/60 shadow-inner bg-bg">
       <div
         aria-hidden
         className="h-0.5 w-full"
@@ -56,7 +53,7 @@ export default async function Footer() {
                   key={s.label}
                   href={s.href}
                   aria-label={s.label}
-                  className={`flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 bg-white/60 text-sub transition-all duration-200 hover:scale-110 ${s.color}`}
+                  className={`flex h-11 w-11 items-center justify-center rounded-full border border-line bg-card text-sub transition-all duration-200 hover:scale-110 ${s.color}`}
                 >
                   <i className={`${s.icon} text-base`} />
                 </a>

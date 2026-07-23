@@ -2,6 +2,7 @@ import { api } from '@/lib/api';
 import { type Listing, priceToNumber } from '@/types';
 import Link from 'next/link';
 import Image from 'next/image';
+import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 
 interface SearchResult {
   hits: Listing[];
@@ -58,7 +59,7 @@ export default async function SearchPage({
                 résultat{total > 1 ? 's' : ''} pour «&nbsp;{q}&nbsp;»
               </>
             ) : (
-              <>Aucun résultat pour �&nbsp;{q}&nbsp;�</>
+              <>Aucun résultat pour �&nbsp;{q}&nbsp;�</>
             )}
           </p>
         )}
@@ -115,9 +116,7 @@ export default async function SearchPage({
                   </div>
                 )}
                 {listing.isVerified && (
-                  <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-green-600/90 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
-                    <i className="fa-solid fa-shield-halved text-[10px]" /> Vérifié
-                  </span>
+                  <AlloVerifieBadge className="absolute left-3 top-3 shadow-sm" />
                 )}
               </div>
               <div className="p-4">
