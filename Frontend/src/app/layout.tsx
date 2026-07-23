@@ -26,8 +26,8 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://alloappart.sn';
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: 'AlloAppart — Location immobilière au Sénégal',
-    template: '%s — AlloAppart',
+    default: 'AlloAppart',
+    template: 'AlloAppart',
   },
   description: 'Trouvez votre logement idéal au Sénégal avec la certification AlloVérifié™. Appartements, villas, studios à Dakar et partout au Sénégal.',
   icons: {
