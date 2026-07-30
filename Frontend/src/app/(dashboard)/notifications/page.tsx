@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 
 interface Notif {
@@ -14,41 +15,48 @@ interface Notif {
   metadata?: Record<string, unknown>;
 }
 
-const TYPE_CONFIG: Record<string, { icon: string; color: string; bg: string; label: string }> = {
-  VERIF_ASSIGNED:    { icon: 'fa-shield-halved',  color: 'text-blue-600',    bg: 'bg-blue-50',    label: 'Vérification' },
-  VERIF_SCHEDULED:   { icon: 'fa-calendar-check', color: 'text-blue-700',    bg: 'bg-blue-50',    label: 'Vérification' },
-  VERIF_IN_PROGRESS: { icon: 'fa-person-walking', color: 'text-purple-600',  bg: 'bg-purple-50',  label: 'Vérification' },
-  VERIF_DONE:        { icon: 'fa-circle-check',   color: 'text-emerald-600', bg: 'bg-emerald-50', label: 'Vérification' },
-  VERIF_DECLINED:    { icon: 'fa-ban',            color: 'text-amber-600',   bg: 'bg-amber-50',   label: 'Vérification' },
-  VERIF_VALIDATED:   { icon: 'fa-medal',          color: 'text-yellow-600',  bg: 'bg-yellow-50',  label: 'Vérification' },
-  NEW_BOOKING:       { icon: 'fa-calendar-plus',  color: 'text-blue-600',    bg: 'bg-blue-50',    label: 'Réservation'  },
-  BOOKING_CONFIRMED: { icon: 'fa-circle-check',   color: 'text-emerald-600', bg: 'bg-emerald-50', label: 'Réservation'  },
-  BOOKING_CANCELLED: { icon: 'fa-calendar-xmark', color: 'text-red-600',     bg: 'bg-red-50',     label: 'Réservation'  },
-  REVIEW_RECEIVED:   { icon: 'fa-star',           color: 'text-yellow-500',  bg: 'bg-yellow-50',  label: 'Avis'         },
+/* Config visuelle uniquement — les libellés sont traduits dans le composant */
+const TYPE_STYLE: Record<string, { icon: string; color: string; bg: string; labelKey: string }> = {
+  VERIF_ASSIGNED:        { icon: 'fa-shield-halved',  color: 'text-blue-600',    bg: 'bg-blue-50',    labelKey: 'typeVerification' },
+  VERIF_SCHEDULED:       { icon: 'fa-calendar-check', color: 'text-blue-700',    bg: 'bg-blue-50',    labelKey: 'typeVerification' },
+  VERIF_IN_PROGRESS:     { icon: 'fa-person-walking', color: 'text-purple-600',  bg: 'bg-purple-50',  labelKey: 'typeVerification' },
+  VERIF_DONE:            { icon: 'fa-circle-check',   color: 'text-emerald-600', bg: 'bg-emerald-50', labelKey: 'typeVerification' },
+  VERIF_DECLINED:        { icon: 'fa-ban',            color: 'text-amber-600',   bg: 'bg-amber-50',   labelKey: 'typeVerification' },
+  VERIF_VALIDATED:       { icon: 'fa-medal',          color: 'text-yellow-600',  bg: 'bg-yellow-50',  labelKey: 'typeVerification' },
+  NEW_BOOKING:           { icon: 'fa-calendar-plus',  color: 'text-blue-600',    bg: 'bg-blue-50',    labelKey: 'typeBooking'      },
+  BOOKING_CONFIRMED:     { icon: 'fa-circle-check',   color: 'text-emerald-600', bg: 'bg-emerald-50', labelKey: 'typeBooking'      },
+  BOOKING_CANCELLED:     { icon: 'fa-calendar-xmark', color: 'text-red-600',     bg: 'bg-red-50',     labelKey: 'typeBooking'      },
+  REVIEW_RECEIVED:       { icon: 'fa-star',           color: 'text-yellow-500',  bg: 'bg-yellow-50',  labelKey: 'typeReview'       },
+  LISTING_REPORTED:      { icon: 'fa-flag',           color: 'text-red-600',     bg: 'bg-red-50',     labelKey: 'typeReport'       },
+  VERIF_DECLINE_REQUEST: { icon: 'fa-hand',           color: 'text-orange-600',  bg: 'bg-orange-50',  labelKey: 'typeVerification' },
 };
 
-const DEFAULT_CONFIG = { icon: 'fa-circle-dot', color: 'text-sub', bg: 'bg-bg', label: 'Notification' };
-
-function relativeTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1)  return 'À l\'instant';
-  if (m < 60) return `Il y a ${m} min`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `Il y a ${h}h`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `Il y a ${d}j`;
-  return new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-}
+const DEFAULT_STYLE = { icon: 'fa-circle-dot', color: 'text-sub', bg: 'bg-bg', labelKey: 'typeDefault' };
 
 type Filter = 'all' | 'unread';
 
 export default function NotificationsPage() {
   const { getToken } = useAuth();
+  const t         = useTranslations('notifications');
+  const locale    = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
+
   const [notifs,   setNotifs]   = useState<Notif[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [filter,   setFilter]   = useState<Filter>('all');
   const [marking,  setMarking]  = useState(false);
+
+  const relativeTime = (dateStr: string): string => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1)  return t('justNow');
+    if (m < 60) return t('minutesAgo', { count: m });
+    const h = Math.floor(m / 60);
+    if (h < 24) return t('hoursAgo', { count: h });
+    const d = Math.floor(h / 24);
+    if (d < 7)  return t('daysAgo', { count: d });
+    return new Date(dateStr).toLocaleDateString(numLocale, { day: 'numeric', month: 'short' });
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,16 +98,21 @@ export default function NotificationsPage() {
   const displayed = filter === 'unread' ? notifs.filter((n) => !n.isRead) : notifs;
   const unreadCount = notifs.filter((n) => !n.isRead).length;
 
+  const FILTERS: [Filter, string][] = [
+    ['all',    t('filterAll')],
+    ['unread', t('filterUnread')],
+  ];
+
   return (
-    <div className="max-w-2xl mx-auto">
+    <div>
       {/* En-tête */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-text">Notifications</h1>
+          <h1 className="text-2xl font-bold text-text">{t('title')}</h1>
           <p className="text-sm text-sub mt-0.5">
-            {notifs.length} notification{notifs.length > 1 ? 's' : ''}
+            {t('count', { count: notifs.length })}
             {unreadCount > 0 && (
-              <span className="ml-2 font-semibold text-gold-dark">{unreadCount} non lue{unreadCount > 1 ? 's' : ''}</span>
+              <span className="ml-2 font-semibold text-gold-dark">{t('unreadCount', { count: unreadCount })}</span>
             )}
           </p>
         </div>
@@ -109,14 +122,14 @@ export default function NotificationsPage() {
             disabled={marking}
             className="text-sm font-medium text-gold-dark hover:underline disabled:opacity-50"
           >
-            {marking ? <i className="fa-solid fa-spinner fa-spin" /> : 'Tout marquer lu'}
+            {marking ? <i className="fa-solid fa-spinner fa-spin" /> : t('markAllRead')}
           </button>
         )}
       </div>
 
       {/* Filtres */}
       <div className="flex gap-2 mb-5">
-        {([['all', 'Toutes'], ['unread', 'Non lues']] as [Filter, string][]).map(([key, label]) => (
+        {FILTERS.map(([key, label]) => (
           <button
             key={key}
             onClick={() => setFilter(key)}
@@ -147,23 +160,21 @@ export default function NotificationsPage() {
             <i className="fa-solid fa-bell text-2xl text-gold-dark" />
           </div>
           <p className="font-semibold text-text">
-            {filter === 'unread' ? 'Aucune notification non lue' : 'Aucune notification'}
+            {filter === 'unread' ? t('emptyUnread') : t('empty')}
           </p>
           <p className="mt-1 text-sm text-sub">
-            {filter === 'unread'
-              ? 'Toutes vos notifications ont été lues.'
-              : 'Vous recevrez ici les alertes réservations, avis et vérifications.'}
+            {filter === 'unread' ? t('emptyUnreadDesc') : t('emptyDesc')}
           </p>
           {filter === 'unread' && (
             <button onClick={() => setFilter('all')} className="mt-4 text-sm font-medium text-gold-dark hover:underline">
-              Voir toutes les notifications
+              {t('seeAll')}
             </button>
           )}
         </div>
       ) : (
         <div className="flex flex-col gap-2">
           {displayed.map((n) => {
-            const cfg = TYPE_CONFIG[n.type] ?? DEFAULT_CONFIG;
+            const style = TYPE_STYLE[n.type] ?? DEFAULT_STYLE;
             return (
               <div
                 key={n.id}
@@ -175,16 +186,16 @@ export default function NotificationsPage() {
                 }`}
               >
                 {/* Icône */}
-                <div className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center ${cfg.bg}`}>
-                  <i className={`fa-solid ${cfg.icon} text-sm ${cfg.color}`} />
+                <div className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center ${style.bg}`}>
+                  <i className={`fa-solid ${style.icon} text-sm ${style.color}`} />
                 </div>
 
                 {/* Contenu */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <span className={`text-[10px] font-semibold uppercase tracking-wide ${cfg.color} mr-2`}>
-                        {cfg.label}
+                      <span className={`text-[10px] font-semibold uppercase tracking-wide ${style.color} mr-2`}>
+                        {t(style.labelKey as Parameters<typeof t>[0])}
                       </span>
                       <p className={`text-sm leading-snug ${!n.isRead ? 'font-semibold text-text' : 'font-medium text-text'}`}>
                         {n.title}

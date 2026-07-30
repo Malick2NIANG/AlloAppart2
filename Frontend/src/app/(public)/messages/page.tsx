@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { MessageRoom, Message } from '@/types';
 
@@ -27,19 +27,25 @@ function avatarInitials(firstName?: string, lastName?: string) {
   return `${(firstName ?? '?')[0]}${(lastName ?? '')[0] ?? ''}`.toUpperCase();
 }
 
-function formatTime(iso: string) {
+function formatTime(
+  iso: string,
+  locale: string,
+  yesterday: string,
+): string {
   const d = new Date(iso);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffH = diffMs / (1000 * 60 * 60);
-  if (diffH < 24) return d.toLocaleTimeString('fr-SN', { hour: '2-digit', minute: '2-digit' });
-  if (diffH < 48) return 'Hier';
-  return d.toLocaleDateString('fr-SN', { day: 'numeric', month: 'short' });
+  if (diffH < 24) return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  if (diffH < 48) return yesterday;
+  return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
 export default function MessagesPage() {
   const { isSignedIn, getToken, userId } = useAuth();
   const t = useTranslations('messages');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-SN';
   const searchParams = useSearchParams();
   const preSelectedRoomId = searchParams.get('room');
 
@@ -192,6 +198,8 @@ export default function MessagesPage() {
     );
   }
 
+  const yesterday = t('yesterday');
+
   const filteredRooms = searchQuery.trim()
     ? rooms.filter((r) =>
         r.listing?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -245,20 +253,20 @@ export default function MessagesPage() {
             <div className="flex-1 overflow-y-auto">
               {loadingRooms && rooms.length === 0 ? (
                 <div className="flex items-center justify-center py-12 text-sub text-sm">
-                  <i className="fa-solid fa-spinner fa-spin mr-2" /> Chargement…
+                  <i className="fa-solid fa-spinner fa-spin mr-2" /> {t('loading')}
                 </div>
               ) : filteredRooms.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center px-4">
                   <i className="fa-solid fa-comment-slash text-2xl text-sub/40 mb-3" />
-                  <p className="text-sm text-sub">Aucune conversation</p>
-                  <p className="text-xs text-sub/60 mt-1">Contactez un bailleur depuis une annonce.</p>
+                  <p className="text-sm text-sub">{t('noRooms')}</p>
+                  <p className="text-xs text-sub/60 mt-1">{t('noRoomsHint')}</p>
                 </div>
               ) : (
                 filteredRooms.map((room) => {
                   const others = otherParticipants(room);
                   const name = others.length > 0
                     ? `${others[0].firstName} ${others[0].lastName}`
-                    : 'Conversation';
+                    : t('roomFallback');
                   const lastMsg = room.messages?.[0];
                   const initials = others.length > 0
                     ? avatarInitials(others[0].firstName, others[0].lastName)
@@ -277,11 +285,11 @@ export default function MessagesPage() {
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-bold text-text truncate">{name}</p>
                           {lastMsg && (
-                            <p className="text-[10px] text-sub shrink-0 ml-1">{formatTime(lastMsg.createdAt)}</p>
+                            <p className="text-[10px] text-sub shrink-0 ml-1">{formatTime(lastMsg.createdAt, numLocale, yesterday)}</p>
                           )}
                         </div>
                         <p className="truncate text-xs text-sub">
-                          {room.listing?.title ?? 'Annonce'}
+                          {room.listing?.title ?? t('listingFallback')}
                         </p>
                         {lastMsg && (
                           <p className="truncate text-xs text-sub/70 mt-0.5">{lastMsg.content}</p>
@@ -301,7 +309,7 @@ export default function MessagesPage() {
               <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
                 {(() => {
                   const others = otherParticipants(activeRoom);
-                  const name = others.length > 0 ? `${others[0].firstName} ${others[0].lastName}` : 'Conversation';
+                  const name = others.length > 0 ? `${others[0].firstName} ${others[0].lastName}` : t('roomFallback');
                   const initials = others.length > 0 ? avatarInitials(others[0].firstName, others[0].lastName) : '??';
                   return (
                     <>
@@ -310,7 +318,7 @@ export default function MessagesPage() {
                       </div>
                       <div>
                         <p className="text-sm font-bold text-text">{name}</p>
-                        <p className="text-xs text-sub truncate max-w-xs">{activeRoom.listing?.title ?? 'Annonce'}</p>
+                        <p className="text-xs text-sub truncate max-w-xs">{activeRoom.listing?.title ?? t('listingFallback')}</p>
                       </div>
                     </>
                   );
@@ -320,7 +328,7 @@ export default function MessagesPage() {
                     href={`/listings/${activeRoom.listingId}`}
                     className="flex h-8 items-center gap-1.5 rounded-full border border-line px-3 text-xs text-sub hover:bg-bg transition"
                   >
-                    <i className="fa-solid fa-house text-[10px]" /> Voir l&apos;annonce
+                    <i className="fa-solid fa-house text-[10px]" /> {t('viewListing')}
                   </Link>
                 </div>
               </div>
@@ -329,11 +337,11 @@ export default function MessagesPage() {
               <div className="flex-1 overflow-y-auto p-5 space-y-3">
                 {loadingMessages && messages.length === 0 ? (
                   <div className="flex items-center justify-center py-10 text-sub text-sm">
-                    <i className="fa-solid fa-spinner fa-spin mr-2" /> Chargement…
+                    <i className="fa-solid fa-spinner fa-spin mr-2" /> {t('messagesLoading')}
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="flex items-center justify-center py-10 text-sub text-sm">
-                    Aucun message — dites bonjour !
+                    {t('noMessages')}
                   </div>
                 ) : (
                   messages.map((msg) => {
@@ -347,7 +355,7 @@ export default function MessagesPage() {
                         }`}>
                           <p>{msg.content}</p>
                           <p className={`mt-1 text-[10px] text-right ${isMe ? 'text-gray-700' : 'text-sub'}`}>
-                            {formatTime(msg.createdAt)}
+                            {formatTime(msg.createdAt, numLocale, yesterday)}
                           </p>
                         </div>
                       </div>
@@ -382,7 +390,7 @@ export default function MessagesPage() {
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center text-center p-10">
               <i className="fa-solid fa-comments text-5xl text-sub/20 mb-4" />
-              <p className="text-sm text-sub">Sélectionnez une conversation</p>
+              <p className="text-sm text-sub">{t('selectRoom')}</p>
             </div>
           )}
         </div>

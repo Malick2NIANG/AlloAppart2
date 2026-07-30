@@ -19,14 +19,14 @@ interface Props {
   listingId: string;
 }
 
-function formatRelative(dateStr: string): string {
+function formatRelative(dateStr: string, t: ReturnType<typeof useTranslations>): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86400000);
-  if (days === 0) return "Aujourd'hui";
-  if (days === 1) return 'Il y a 1 jour';
-  if (days < 7) return `Il y a ${days} jours`;
-  if (days < 30) return `Il y a ${Math.floor(days / 7)} semaine(s)`;
-  return `Il y a ${Math.floor(days / 30)} mois`;
+  if (days === 0) return t('reviewToday');
+  if (days === 1) return t('reviewDayAgo');
+  if (days < 7) return t('reviewDaysAgo', { count: days });
+  if (days < 30) return t('reviewWeeksAgo', { count: Math.floor(days / 7) });
+  return t('reviewMonthsAgo', { count: Math.floor(days / 30) });
 }
 
 export default function ListingReviewForm({ listingId }: Props) {
@@ -92,7 +92,7 @@ export default function ListingReviewForm({ listingId }: Props) {
       setComment('');
       setTimeout(() => setSent(false), 4000);
     } catch {
-      setError('Une erreur est survenue. Réessayez.');
+      setError(t('reviewError'));
     } finally {
       setSubmitting(false);
     }
@@ -116,14 +116,14 @@ export default function ListingReviewForm({ listingId }: Props) {
 
       {/* Reviews list */}
       {reviews.length === 0 ? (
-        <p className="text-sm text-sub py-4">Aucun avis pour le moment.</p>
+        <p className="text-sm text-sub py-4">{t('noReviews')}</p>
       ) : (
         <div className="grid md:grid-cols-2 gap-5">
           {reviews.map((r) => (
             <div key={r.id} className="p-4 rounded-2xl border border-line bg-white/60 hover:shadow-md transition">
               <div className="flex items-center justify-between mb-1">
                 <p className="font-medium text-text text-sm">{r.author.firstName} {r.author.lastName}</p>
-                <p className="text-xs text-sub">{formatRelative(r.createdAt)}</p>
+                <p className="text-xs text-sub">{formatRelative(r.createdAt, t)}</p>
               </div>
               <div className="flex gap-0.5 mb-2">
                 {Array.from({ length: 5 }).map((_, s) => (
@@ -145,17 +145,17 @@ export default function ListingReviewForm({ listingId }: Props) {
 
         {!isSignedIn ? (
           <div className="rounded-xl border border-line bg-bg px-4 py-3 text-sm text-sub">
-            <a href={signInUrl} className="text-gold-dark hover:underline font-medium">Connectez-vous</a> pour laisser un avis.
+            <a href={signInUrl} className="text-gold-dark hover:underline font-medium">{t('signInLink')}</a>{' '}{t('signInForReview')}
           </div>
         ) : !canReview ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
             <i className="fa-solid fa-lock mr-1.5" />
-            Seuls les locataires ayant complété une réservation peuvent laisser un avis.
+            {t('reviewEligibility')}
           </div>
         ) : sent ? (
           <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
             <i className="fa-solid fa-circle-check" />
-            Merci pour votre avis !
+            {t('reviewThanks')}
           </div>
         ) : (
           <>
@@ -191,7 +191,7 @@ export default function ListingReviewForm({ listingId }: Props) {
               disabled={!comment.trim() || rating === 0 || submitting}
               className="mt-3 btn-gold rounded-full px-6 py-2.5 hover:scale-[1.03] transition disabled:opacity-50">
               {submitting
-                ? <><i className="fa-solid fa-spinner fa-spin mr-2" />Envoi...</>
+                ? <><i className="fa-solid fa-spinner fa-spin mr-2" />{t('reviewSubmitting')}</>
                 : t('submitReview')
               }
             </button>

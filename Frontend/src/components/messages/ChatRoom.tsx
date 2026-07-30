@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import Pusher from 'pusher-js';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Message, MessageRoom, User } from '@/types';
 
@@ -14,6 +15,8 @@ interface Props {
 
 export default function ChatRoom({ roomId, backUrl }: Props) {
   const { getToken } = useAuth();
+  const t = useTranslations('chatRoom');
+  const locale = useLocale();
   const [messages, setMessages]   = useState<Message[]>([]);
   const [room, setRoom]           = useState<MessageRoom | null>(null);
   const [me, setMe]               = useState<User | null>(null);
@@ -110,7 +113,7 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
   };
 
   const otherParticipants = room?.participants.filter((p) => p.id !== me?.id) ?? [];
-  const otherName = otherParticipants.map((p) => `${p.firstName} ${p.lastName}`).join(', ') || 'Conversation';
+  const otherName = otherParticipants.map((p) => `${p.firstName} ${p.lastName}`).join(', ') || t('conversationFallback');
 
   if (loading) {
     return (
@@ -143,7 +146,7 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
       <div className="flex-1 overflow-y-auto flex flex-col gap-3 pb-2 pr-1">
         {messages.length === 0 && (
           <p className="text-center text-sm text-sub py-12">
-            Aucun message. Démarrez la conversation !
+            {t('noMessages')}
           </p>
         )}
         {messages.map((msg) => {
@@ -162,7 +165,7 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
                 )}
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                 <p className={`text-[10px] mt-1 text-right ${isMine ? 'text-white/60' : 'text-sub'}`}>
-                  {formatTime(msg.createdAt)}
+                  {formatTime(msg.createdAt, locale)}
                   {isMine && msg.readAt && (
                     <i className="fa-solid fa-check-double ml-1 text-[9px]" />
                   )}
@@ -186,7 +189,7 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
               handleSend();
             }
           }}
-          placeholder="Écrivez votre message…"
+          placeholder={t('messagePlaceholder')}
           className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:ring-2 focus:ring-gold-dark transition"
         />
         <button
@@ -204,6 +207,7 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
   );
 }
 
-function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+function formatTime(dateStr: string, locale = 'fr-FR'): string {
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
+  return new Date(dateStr).toLocaleTimeString(numLocale, { hour: '2-digit', minute: '2-digit' });
 }

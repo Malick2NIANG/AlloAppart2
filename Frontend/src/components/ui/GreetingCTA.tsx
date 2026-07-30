@@ -1,6 +1,7 @@
 'use client';
 
 import { useUser } from '@clerk/nextjs';
+import { useTranslations } from 'next-intl';
 
 export default function GreetingCTA({
   firstName: propFirstName,
@@ -9,7 +10,8 @@ export default function GreetingCTA({
   firstName: string | null;
   fallback: string;
 }) {
-  const { user } = useUser();
+  const t         = useTranslations('greeting');
+  const { user }  = useUser();
   const firstName = propFirstName || user?.firstName || null;
 
   if (!firstName) return <>{fallback}</>;
@@ -17,10 +19,10 @@ export default function GreetingCTA({
   const hour = new Date().getHours();
   const salut =
     hour >= 5 && hour < 12
-      ? 'Bonjour'
+      ? t('morning')
       : hour >= 12 && hour < 18
-        ? 'Bon après-midi'
-        : 'Bonsoir';
+        ? t('afternoon')
+        : t('evening');
 
   return <>{`${salut} ${firstName}`}</>;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
@@ -43,27 +44,31 @@ function Stars({ value }: { value: number }) {
   );
 }
 
-function experienceBadge(missions: number) {
-  if (missions >= 20) return { label: 'Expérimenté', color: 'bg-purple-100 text-purple-700' };
-  if (missions >= 5)  return { label: 'Actif',        color: 'bg-blue-100 text-blue-700'    };
-  return                     { label: 'Nouvel agent', color: 'bg-amber-100 text-amber-700'  };
+function experienceBadge(missions: number, t: ReturnType<typeof useTranslations>) {
+  if (missions >= 20) return { label: t('badgeExperienced'), color: 'bg-purple-100 text-purple-700' };
+  if (missions >= 5)  return { label: t('badgeActiveAgent'), color: 'bg-blue-100 text-blue-700'    };
+  return                     { label: t('badgeNewAgent'),    color: 'bg-amber-100 text-amber-700'  };
 }
 
-function relativeTime(dateStr: string) {
+function relativeTime(dateStr: string, t: ReturnType<typeof useTranslations>, numLocale: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 60)   return `il y a ${m} min`;
+  if (m < 60)  return t('relMinAgo', { m });
   const h = Math.floor(m / 60);
-  if (h < 24)   return `il y a ${h}h`;
+  if (h < 24)  return t('relHourAgo', { h });
   const d = Math.floor(h / 24);
-  if (d < 30)   return `il y a ${d}j`;
-  return new Date(dateStr).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  if (d < 30)  return t('relDayAgo', { d });
+  return new Date(dateStr).toLocaleDateString(numLocale, { month: 'long', year: 'numeric' });
 }
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
 
 export default function AgentProfilePage() {
   const params = useParams<{ id: string }>();
+  const t = useTranslations('bailleur');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
+
   const [agent,   setAgent]   = useState<AgentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
@@ -71,9 +76,9 @@ export default function AgentProfilePage() {
   useEffect(() => {
     api.get<AgentProfile>(`/auth/agents/${params.id}`)
       .then(setAgent)
-      .catch(() => setError('Agent introuvable ou non disponible.'))
+      .catch(() => setError(t('agentNotFound')))
       .finally(() => setLoading(false));
-  }, [params.id]);
+  }, [params.id, t]);
 
   if (loading) {
     return (
@@ -89,28 +94,28 @@ export default function AgentProfilePage() {
     return (
       <div className="max-w-2xl mx-auto text-center py-20">
         <i className="fa-solid fa-user-slash text-4xl text-line mb-4" />
-        <p className="text-sub">{error || 'Agent introuvable'}</p>
+        <p className="text-sub">{error || t('agentNotFoundTitle')}</p>
         <Link href="/bailleur/agents" className="mt-4 inline-block text-sm text-gold-dark hover:underline">
-          ← Retour à la liste des agents
+          {t('agentBackToList')}
         </Link>
       </div>
     );
   }
 
-  const initials = `${agent.firstName[0]}${agent.lastName[0]}`.toUpperCase();
-  const badge    = experienceBadge(agent.completedMissions);
+  const initials   = `${agent.firstName[0]}${agent.lastName[0]}`.toUpperCase();
+  const badge      = experienceBadge(agent.completedMissions, t);
   const memberYear = new Date(agent.memberSince).getFullYear();
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
 
-      {/* Retour */}
+      {/* Back */}
       <Link href="/bailleur/agents" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors">
         <i className="fa-solid fa-arrow-left text-xs" />
-        Tous les agents
+        {t('agentAllAgents')}
       </Link>
 
-      {/* Carte profil */}
+      {/* Profile card */}
       <div className="rounded-2xl border border-line bg-card p-6">
         <div className="flex items-start gap-5">
           {/* Avatar */}
@@ -134,20 +139,20 @@ export default function AgentProfilePage() {
                 {badge.label}
               </span>
             </div>
-            <p className="text-xs text-sub">Agent AlloVérifié · Membre depuis {memberYear}</p>
+            <p className="text-xs text-sub">{t('agentMemberSince', { year: memberYear })}</p>
 
-            {/* Stats rapides */}
+            {/* Quick stats */}
             <div className="flex items-center gap-4 mt-3">
               <div className="flex items-center gap-1.5">
                 <i className="fa-solid fa-shield-check text-emerald-500 text-sm" />
                 <span className="text-sm font-bold text-text">{agent.completedMissions}</span>
-                <span className="text-xs text-sub">mission{agent.completedMissions !== 1 ? 's' : ''}</span>
+                <span className="text-xs text-sub">{t('agentMissions', { count: agent.completedMissions })}</span>
               </div>
               {agent.avgRating !== null && (
                 <div className="flex items-center gap-1.5">
                   <Stars value={agent.avgRating} />
                   <span className="text-sm font-bold text-text">{agent.avgRating.toFixed(1)}</span>
-                  <span className="text-xs text-sub">({agent.totalRatings} avis)</span>
+                  <span className="text-xs text-sub">({agent.totalRatings} {t('agentReviews').toLowerCase()})</span>
                 </div>
               )}
             </div>
@@ -171,24 +176,24 @@ export default function AgentProfilePage() {
         {/* Bio */}
         {agent.bio && (
           <div className="mt-5 pt-4 border-t border-line">
-            <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-1.5">À propos</p>
+            <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-1.5">{t('agentAbout')}</p>
             <p className="text-sm text-text leading-relaxed">{agent.bio}</p>
           </div>
         )}
 
-        {/* AlloVérifié badge */}
+        {/* AlloVerified badge */}
         <div className="mt-4 flex items-center gap-2 rounded-xl bg-gold-pale px-4 py-2.5">
           <i className="fa-solid fa-shield-halved text-gold-dark text-sm" />
-          <p className="text-xs font-semibold text-gold-dark">Agent certifié AlloVérifié</p>
+          <p className="text-xs font-semibold text-gold-dark">{t('agentCertifiedBadge')}</p>
           <i className="fa-solid fa-circle-check text-emerald-500 text-xs ml-auto" />
         </div>
       </div>
 
-      {/* Avis clients */}
+      {/* Reviews */}
       <div className="rounded-2xl border border-line bg-card p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-text">
-            Avis clients
+            {t('agentReviews')}
             {agent.totalRatings > 0 && (
               <span className="ml-2 text-sm font-normal text-sub">({agent.totalRatings})</span>
             )}
@@ -205,12 +210,12 @@ export default function AgentProfilePage() {
         {agent.ratings.length === 0 ? (
           <div className="text-center py-10">
             <i className="fa-solid fa-star text-3xl text-line mb-3" />
-            <p className="text-sm text-sub">Aucun avis pour le moment</p>
-            <p className="text-xs text-sub mt-1">Cet agent n'a pas encore reçu d'évaluation.</p>
+            <p className="text-sm text-sub">{t('agentNoReviews')}</p>
+            <p className="text-xs text-sub mt-1">{t('agentNoReviewsHint')}</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Distribution étoiles */}
+            {/* Star distribution */}
             <div className="space-y-1 mb-5">
               {[5, 4, 3, 2, 1].map((star) => {
                 const count = agent.ratings.filter((r) => r.rating === star).length;
@@ -228,7 +233,7 @@ export default function AgentProfilePage() {
               })}
             </div>
 
-            {/* Liste avis */}
+            {/* Review list */}
             <div className="divide-y divide-line">
               {agent.ratings.map((r) => {
                 const rInitials = `${r.raterFirstName[0]}${r.raterLastName[0]}`.toUpperCase();
@@ -247,7 +252,7 @@ export default function AgentProfilePage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
                           <p className="text-xs font-semibold text-text">{r.raterFirstName} {r.raterLastName[0]}.</p>
-                          <p className="text-[10px] text-sub">{relativeTime(r.createdAt)}</p>
+                          <p className="text-[10px] text-sub">{relativeTime(r.createdAt, t, numLocale)}</p>
                         </div>
                         <Stars value={r.rating} />
                         {r.comment && (

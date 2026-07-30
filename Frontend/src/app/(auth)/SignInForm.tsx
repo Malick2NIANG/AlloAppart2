@@ -52,11 +52,11 @@ export default function SignInForm() {
       }
       if (res.status === 'needs_second_factor') {
         setView('second_factor');
-        setFlash({ type: 'info', message: 'Un code de vérification a été envoyé à votre email.' });
+        setFlash({ type: 'info', message: ts('twoFactorSent') });
         return;
       }
     } catch (err: unknown) {
-      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? 'Email ou mot de passe incorrect.';
+      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? ts('invalidCredentials');
       setFlash({ type: 'error', message: msg });
     } finally { setLoading(false); }
   };
@@ -75,7 +75,7 @@ export default function SignInForm() {
     } catch (err: unknown) {
       const msg =
         (err as { errors?: { message: string }[] })?.errors?.[0]?.message ??
-        'Code invalide ou expiré.';
+        ts('invalidCode');
       setFlash({ type: 'error', message: msg });
     } finally {
       setLoading(false);
@@ -98,7 +98,7 @@ export default function SignInForm() {
       setFlash(null);
     } catch {
       setAttempts((n) => n - 1);
-      setFlash({ type: 'error', message: 'Adresse email introuvable.' });
+      setFlash({ type: 'error', message: ts('emailNotFound') });
     } finally { setLoading(false); }
   };
 
@@ -114,7 +114,7 @@ export default function SignInForm() {
         setFlash(null);
       }
     } catch (err: unknown) {
-      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? 'Code invalide ou expiré.';
+      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? ts('invalidCode');
       setFlash({ type: 'error', message: msg });
     } finally { setLoading(false); }
   };
@@ -124,7 +124,7 @@ export default function SignInForm() {
     e.preventDefault();
     if (!isLoaded) return;
     if (newPassword !== confirmPwd) {
-      setFlash({ type: 'error', message: 'Les mots de passe ne correspondent pas.' });
+      setFlash({ type: 'error', message: ts('passwordMismatch') });
       return;
     }
     setLoading(true);
@@ -135,7 +135,7 @@ export default function SignInForm() {
         window.location.replace('/');
       }
     } catch (err: unknown) {
-      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? 'Erreur lors de la réinitialisation.';
+      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? ts('resetError');
       setFlash({ type: 'error', message: msg });
     } finally { setLoading(false); }
   };
@@ -240,16 +240,16 @@ export default function SignInForm() {
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
               <i className="fa-solid fa-envelope-open-text text-xl text-gold-dark" />
             </div>
-            <h2 className="text-xl font-bold text-text">Vérifiez votre email</h2>
+            <h2 className="text-xl font-bold text-text">{ts('verifyEmailTitle')}</h2>
             <p className="mt-1 text-sm text-sub">
-              Un code à 6 chiffres a été envoyé à <span className="font-semibold text-text">{email}</span>
+              {ts('verifyEmailSubtitle')} <span className="font-semibold text-text">{email}</span>
             </p>
           </div>
 
           <Flash flash={flash} />
 
           <form onSubmit={handleForgot2} className="flex flex-col gap-3">
-            <Field label="Code de vérification">
+            <Field label={ts('verifyCodeLabel')}>
               <div className="relative">
                 <i className="fa-solid fa-hashtag absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
                 <input
@@ -264,14 +264,14 @@ export default function SignInForm() {
                 />
               </div>
             </Field>
-            <Btn loading={loading} icon="fa-solid fa-check" label="Vérifier le code" loadingLabel="Vérification…" />
+            <Btn loading={loading} icon="fa-solid fa-check" label={ts('verifySubmit')} loadingLabel={ts('verifySubmitting')} />
           </form>
 
           <p className="text-center text-xs text-sub">
-            Pas reçu ?{' '}
+            {ts('noCodeReceived')}{' '}
             <button type="button" onClick={() => { setView('forgot1'); setFlash(null); }}
               className="font-medium text-gold-dark hover:underline">
-              Renvoyer
+              {ts('resend')}
             </button>
           </p>
         </motion.div>
@@ -286,25 +286,25 @@ export default function SignInForm() {
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
               <i className="fa-solid fa-lock-open text-xl text-gold-dark" />
             </div>
-            <h2 className="text-xl font-bold text-text">Nouveau mot de passe</h2>
-            <p className="mt-1 text-sm text-sub">Choisissez un mot de passe sécurisé</p>
+            <h2 className="text-xl font-bold text-text">{ts('newPasswordTitle')}</h2>
+            <p className="mt-1 text-sm text-sub">{ts('newPasswordSubtitle')}</p>
           </div>
 
           <Flash flash={flash} />
 
           <form onSubmit={handleForgot3} className="flex flex-col gap-3">
-            <Field label="Nouveau mot de passe">
+            <Field label={ts('newPasswordLabel')}>
               <PwdInput value={newPassword} onChange={setNewPassword} show={showNewPwd} onToggle={() => setShowNewPwd(!showNewPwd)} />
             </Field>
-            <Field label="Confirmer le mot de passe">
+            <Field label={ts('confirmPasswordLabel')}>
               <PwdInput value={confirmPwd} onChange={setConfirmPwd} show={showConfirm} onToggle={() => setShowConfirm(!showConfirm)} />
             </Field>
             {newPassword && confirmPwd && newPassword !== confirmPwd && (
               <p className="flex items-center gap-1 text-xs text-red-600">
-                <i className="fa-solid fa-circle-xmark" /> Les mots de passe ne correspondent pas
+                <i className="fa-solid fa-circle-xmark" /> {ts('passwordMismatch')}
               </p>
             )}
-            <Btn loading={loading} icon="fa-solid fa-shield-check" label="Réinitialiser" loadingLabel="Enregistrement…" />
+            <Btn loading={loading} icon="fa-solid fa-shield-check" label={ts('resetSubmit')} loadingLabel={ts('resetSubmitting')} />
           </form>
         </motion.div>
       )}
@@ -320,14 +320,14 @@ export default function SignInForm() {
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
               <i className="fa-solid fa-shield-halved text-xl text-gold-dark" />
             </div>
-            <h2 className="text-xl font-bold text-text">Vérification en deux étapes</h2>
-            <p className="mt-1 text-sm text-sub">Entrez le code envoyé à votre adresse email.</p>
+            <h2 className="text-xl font-bold text-text">{ts('twoFactorTitle')}</h2>
+            <p className="mt-1 text-sm text-sub">{ts('twoFactorSubtitle')}</p>
           </div>
 
           <Flash flash={flash} />
 
           <form onSubmit={handleSecondFactor} className="flex flex-col gap-3">
-            <Field label="Code de vérification">
+            <Field label={ts('verifyCodeLabel')}>
               <div className="relative">
                 <i className="fa-solid fa-hashtag absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
                 <input
@@ -342,7 +342,7 @@ export default function SignInForm() {
                 />
               </div>
             </Field>
-            <Btn loading={loading} icon="fa-solid fa-check" label="Vérifier" loadingLabel="Vérification…" />
+            <Btn loading={loading} icon="fa-solid fa-check" label={ts('verify2FASubmit')} loadingLabel={ts('verify2FASubmitting')} />
           </form>
         </motion.div>
       )}
@@ -401,6 +401,7 @@ function IconInput({ type, value, onChange, icon, placeholder }: {
 function PwdInput({ value, onChange, show, onToggle }: {
   value: string; onChange: (v: string) => void; show: boolean; onToggle: () => void;
 }) {
+  const ta = useTranslations('auth');
   return (
     <div className="relative">
       <i className="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
@@ -409,7 +410,7 @@ function PwdInput({ value, onChange, show, onToggle }: {
         className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-11 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition" />
       <button type="button" onClick={onToggle}
         className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
-        aria-label={show ? 'Masquer' : 'Afficher'}>
+        aria-label={show ? ta('hidePassword') : ta('showPassword')}>
         <i className={`fa-solid ${show ? 'fa-eye-slash' : 'fa-eye'} text-sm`} />
       </button>
     </div>

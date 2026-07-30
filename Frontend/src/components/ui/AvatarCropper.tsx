@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   src: string;           // object URL de l'image sélectionnée
@@ -12,6 +13,7 @@ const SIZE = 320;        // taille du canvas d'affichage (px)
 const OUTPUT = 400;      // taille du fichier de sortie (px)
 
 export default function AvatarCropper({ src, onConfirm, onCancel }: Props) {
+  const t         = useTranslations('cropper');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef    = useRef<HTMLImageElement | null>(null);
 
@@ -85,18 +87,18 @@ export default function AvatarCropper({ src, onConfirm, onCancel }: Props) {
   /* Touch */
   const lastTouch = useRef<{ x: number; y: number } | null>(null);
   const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    lastTouch.current = { x: t.clientX, y: t.clientY };
-    drag.current = { startX: t.clientX, startY: t.clientY, ox: offset.x, oy: offset.y };
+    const touch = e.touches[0];
+    lastTouch.current = { x: touch.clientX, y: touch.clientY };
+    drag.current = { startX: touch.clientX, startY: touch.clientY, ox: offset.x, oy: offset.y };
   };
   const onTouchMove = useCallback((e: TouchEvent) => {
     e.preventDefault();
     if (!drag.current) return;
-    const t = e.touches[0];
-    lastTouch.current = { x: t.clientX, y: t.clientY };
+    const touch = e.touches[0];
+    lastTouch.current = { x: touch.clientX, y: touch.clientY };
     setOffset({
-      x: drag.current.ox + (t.clientX - drag.current.startX),
-      y: drag.current.oy + (t.clientY - drag.current.startY),
+      x: drag.current.ox + (touch.clientX - drag.current.startX),
+      y: drag.current.oy + (touch.clientY - drag.current.startY),
     });
   }, []);
 
@@ -147,8 +149,8 @@ export default function AvatarCropper({ src, onConfirm, onCancel }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="flex flex-col items-center gap-5 rounded-2xl bg-card p-6 shadow-2xl w-full max-w-sm">
 
-        <h2 className="text-sm font-bold text-text">Recadrer la photo</h2>
-        <p className="text-xs text-sub -mt-3">Glisse l'image pour la repositionner</p>
+        <h2 className="text-sm font-bold text-text">{t('title')}</h2>
+        <p className="text-xs text-sub -mt-3">{t('hint')}</p>
 
         {/* Canvas */}
         <canvas
@@ -183,14 +185,14 @@ export default function AvatarCropper({ src, onConfirm, onCancel }: Props) {
             onClick={onCancel}
             className="flex-1 rounded-full border border-line py-2 text-sm font-semibold text-sub hover:border-gold/40 transition-colors"
           >
-            Annuler
+            {t('cancel')}
           </button>
           <button
             type="button"
             onClick={handleConfirm}
             className="flex-1 rounded-full bg-gold py-2 text-sm font-bold text-white hover:bg-gold-dark transition-colors"
           >
-            Confirmer
+            {t('confirm')}
           </button>
         </div>
 

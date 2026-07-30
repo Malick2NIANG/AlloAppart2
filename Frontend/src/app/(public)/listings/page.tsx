@@ -4,16 +4,15 @@ import { getTranslations, getLocale } from 'next-intl/server';
 import { auth } from '@clerk/nextjs/server';
 import FavoriteButton from '@/components/ui/FavoriteButton';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
-import { MOCK_LISTINGS } from '@/lib/mockListings';
 import ListingsFilters from './ListingsFilters';
 import { type Listing, type ListingsResponse, priceToNumber } from '@/types/listing';
 
 export default async function ListingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; city?: string; type?: string; q?: string; minPrice?: string; maxPrice?: string; region?: string; limit?: string; tab?: string; ownerType?: string }>;
+  searchParams: Promise<{ page?: string; city?: string; type?: string; q?: string; minPrice?: string; maxPrice?: string; region?: string; limit?: string; tab?: string; ownerType?: string; verified?: string }>;
 }) {
-  const { page = '1', city, type, q, minPrice, maxPrice, region, limit: limitParam, tab, ownerType } = await searchParams;
+  const { page = '1', city, type, q, minPrice, maxPrice, region, limit: limitParam, tab, ownerType, verified } = await searchParams;
   const isFavorisTab = tab === 'favoris';
   const currentPage = Math.max(1, parseInt(page, 10) || 1);
   const perPage     = [6, 12, 24].includes(parseInt(limitParam ?? '', 10)) ? parseInt(limitParam!, 10) : 6;
@@ -58,26 +57,14 @@ export default async function ListingsPage({
         ...(maxPrice  ? { maxPrice }             : {}),
         ...(region    ? { region }               : {}),
         ...(ownerType ? { ownerType }            : {}),
+        ...(verified  ? { isVerified: 'true' }   : {}),
       });
       const res = await api.get<ListingsResponse>(`/listings?${params}`);
-      if (!Array.isArray(res?.data) || res.data.length === 0) throw new Error('empty');
-      listings = res.data;
+      listings = Array.isArray(res?.data) ? res.data : [];
       total = res.total ?? 0;
     } catch {
-      let filtered = MOCK_LISTINGS as unknown as Listing[];
-      if (q)        filtered = filtered.filter((l) =>
-        l.city.toLowerCase().includes(q.toLowerCase()) ||
-        l.title.toLowerCase().includes(q.toLowerCase())
-      );
-      if (city)     filtered = filtered.filter((l) =>
-        l.city.toLowerCase().includes(city.toLowerCase())
-      );
-      if (type)     filtered = filtered.filter((l) => l.type === type);
-      if (region)   filtered = filtered.filter((l) => l.region === region);
-      if (minPrice) filtered = filtered.filter((l) => priceToNumber(l.price) >= parseInt(minPrice, 10));
-      if (maxPrice) filtered = filtered.filter((l) => priceToNumber(l.price) <= parseInt(maxPrice, 10));
-      total    = filtered.length;
-      listings = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
+      listings = [];
+      total = 0;
     }
   }
 
@@ -94,6 +81,7 @@ export default async function ListingsPage({
     if (maxPrice)  params.set('maxPrice', maxPrice);
     if (region)    params.set('region', region);
     if (ownerType) params.set('ownerType', ownerType);
+    if (verified)  params.set('verified', verified);
     params.set('limit', String(perPage));
     params.set('page', String(p));
     return `/listings?${params.toString()}`;
@@ -176,7 +164,7 @@ export default async function ListingsPage({
               <i className={`fa-solid ${isFavorisTab ? 'fa-heart text-red-300' : 'fa-house-circle-xmark text-gold-dark'} text-2xl`} />
             </div>
             <p className="text-sub">
-              {isFavorisTab ? 'Aucun favori pour l\'instant — cliquez sur ♡ pour sauvegarder des annonces.' : t('empty')}
+              {isFavorisTab ? t('noFavorites') : t('empty')}
             </p>
           </div>
         ) : (
@@ -206,7 +194,7 @@ export default async function ListingsPage({
                           )}
                           {isProAgence && (
                             <span className="flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-sm text-gold text-[10px] font-bold px-2.5 py-0.5">
-                              <i className="fa-solid fa-crown text-[9px]" /> Agence PRO
+                              <i className="fa-solid fa-crown text-[9px]" /> {listing.owner?.agencyName ?? 'Agence PRO'}
                             </span>
                           )}
                           {!isBoosted && !isProAgence && isNew && (
@@ -222,15 +210,15 @@ export default async function ListingsPage({
                       </div>
 
                       <div className="p-4">
-                        <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">
-                          {listing.title}
-                        </h3>
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">
+                            {listing.title}
+                          </h3>
+                          {listing.isVerified && <AlloVerifieBadge size="sm" className="shrink-0 mt-0.5" />}
+                        </div>
                         <p className="mt-1 flex items-center gap-1 text-sm text-sub">
                           <i className="fa-solid fa-location-dot text-gold-dark text-xs" />{listing.city}
                         </p>
-                        {listing.isVerified && (
-                          <AlloVerifieBadge className="mt-1" />
-                        )}
                         {listing.tourUrl && (
                           <span className="flex items-center gap-1 text-[10px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
                             <i className="fa-solid fa-cube text-[10px]" aria-hidden="true" /> Visite 3D

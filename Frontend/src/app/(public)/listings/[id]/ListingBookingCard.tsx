@@ -6,36 +6,69 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 
+const MONTHLY_THRESHOLD = 25; // jours — au-delà, tarif mensuel appliqué
+
 interface Props {
-  listingId: string;
+  listingId:     string;
   pricePerMonth: number;
-  numLocale: string;
+  pricePerNight?: number | null;
+  minimumNights?: number | null;
+  numLocale:     string;
 }
 
-export default function ListingBookingCard({ listingId, pricePerMonth, numLocale }: Props) {
+/** Calcule le montant total selon les mêmes règles que le backend. */
+function computePrice(
+  days: number,
+  pricePerMonth: number,
+  pricePerNight: number | null | undefined,
+): { amount: number; isMonthlyRate: boolean } {
+  const hasMonthly = pricePerMonth > 0;
+  const hasNightly = !!pricePerNight && pricePerNight > 0;
+
+  if (days >= MONTHLY_THRESHOLD) {
+    const amount = hasMonthly
+      ? Math.round(pricePerMonth * (days / 30))
+      : Math.round((pricePerNight ?? 0) * days);
+    return { amount, isMonthlyRate: true };
+  } else {
+    const amount = hasNightly
+      ? Math.round((pricePerNight ?? 0) * days)
+      : Math.round((pricePerMonth / 30) * days);
+    return { amount, isMonthlyRate: false };
+  }
+}
+
+export default function ListingBookingCard({
+  listingId,
+  pricePerMonth,
+  pricePerNight,
+  minimumNights,
+  numLocale,
+}: Props) {
   const { isSignedIn, getToken } = useAuth();
   const router   = useRouter();
   const pathname = usePathname();
   const t = useTranslations('detail');
 
-  const [startDate,    setStartDate]    = useState('');
-  const [endDate,      setEndDate]      = useState('');
-  const [loading,      setLoading]      = useState(false);
-  const [redirecting,  setRedirecting]  = useState(false);
-  const [error,        setError]        = useState<string | null>(null);
+  const [startDate,   setStartDate]   = useState('');
+  const [endDate,     setEndDate]     = useState('');
+  const [loading,     setLoading]     = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
-  const months = startDate && endDate
-    ? (() => {
-        const s = new Date(startDate);
-        const e = new Date(endDate);
-        const m = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth())
-          + (e.getDate() > s.getDate() ? 1 : 0);
-        return Math.max(1, m);
-      })()
+  // Calcul du nombre de jours
+  const days = startDate && endDate
+    ? Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))
     : null;
-  const totalAmount = pricePerMonth * (months ?? 1);
+
+  const pricing = days !== null && days > 0
+    ? computePrice(days, pricePerMonth, pricePerNight)
+    : null;
+
+  // Vérification séjour minimum côté client
+  const belowMinimum = minimumNights && days !== null && days > 0 && days < minimumNights;
 
   const handleSubmit = async () => {
     if (!isSignedIn) {
@@ -67,31 +100,34 @@ export default function ListingBookingCard({ listingId, pricePerMonth, numLocale
 
       // Étape 3 : rediriger vers PayDunya
       window.location.href = payment_url;
-    } catch {
+    } catch (err: unknown) {
       setLoading(false);
       setRedirecting(false);
-      setError(t('bookingPayError'));
+      const msg = err instanceof Error ? err.message : '';
+      setError(msg || t('bookingPayError'));
     }
   };
 
-  /* ── Redirection CinetPay ───────────────────────────────── */
+  /* ── Redirection PayDunya ───────────────────────────────────── */
   if (redirecting) {
     return (
-      <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-line rounded-3xl p-6 shadow-lg">
+      <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
         <div className="flex flex-col items-center text-center gap-3 py-4">
           <i className="fa-solid fa-spinner fa-spin text-3xl text-gold-dark" />
           <p className="font-semibold text-text">{t('bookingRedirecting')}</p>
-          <p className="text-sm text-sub">Vous allez être redirigé vers la page de paiement sécurisée.</p>
+          <p className="text-sm text-sub">{t('bookingRedirectDesc')}</p>
         </div>
       </div>
     );
   }
 
-  /* ── Visiteur non connecté ──────────────────────────────── */
+  /* ── Visiteur non connecté ──────────────────────────────────── */
   if (!isSignedIn) {
     return (
-      <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-line rounded-3xl p-6 shadow-lg">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
+        {/* Tarifs affichés même sans connexion */}
+        <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
+        <div className="flex items-center gap-2 mb-2 mt-4">
           <i className="fa-solid fa-calendar-check text-gold-dark" />
           <h3 className="font-semibold text-text">{t('bookingTitle')}</h3>
         </div>
@@ -106,10 +142,13 @@ export default function ListingBookingCard({ listingId, pricePerMonth, numLocale
     );
   }
 
-  /* ── Formulaire ─────────────────────────────────────────── */
+  /* ── Formulaire ─────────────────────────────────────────────── */
   return (
-    <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-line rounded-3xl p-6 shadow-lg">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
+      {/* Tarifs */}
+      <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
+
+      <div className="flex items-center gap-2 mb-4 mt-4">
         <i className="fa-solid fa-calendar-check text-gold-dark" />
         <h3 className="font-semibold text-text">{t('bookingTitle')}</h3>
       </div>
@@ -142,15 +181,36 @@ export default function ListingBookingCard({ listingId, pricePerMonth, numLocale
         </div>
       </div>
 
+      {/* Séjour minimum non respecté */}
+      {belowMinimum && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+          <i className="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" />
+          <span>{t('bookingMinNightsWarning', { count: minimumNights ?? 0 })}</span>
+        </div>
+      )}
+
+      {/* Notification basculement vers tarif mensuel */}
+      {pricing?.isMonthlyRate && days !== null && days > 0 && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-800">
+          <i className="fa-solid fa-circle-info mt-0.5 shrink-0" />
+          <span>{t('bookingMonthlyRateNote')}</span>
+        </div>
+      )}
+
       {/* Récap montant */}
-      {startDate && (
-        <div className="mt-4 rounded-xl bg-gold-pale px-4 py-3 flex items-center justify-between">
-          <span className="text-sm text-sub">
-            {months ? `${months} mois` : t('bookingMonthsEst')}
-          </span>
-          <span className="font-bold text-gold-dark">
-            {totalAmount.toLocaleString(numLocale)} FCFA
-          </span>
+      {pricing && days !== null && days > 0 && (
+        <div className="mt-4 rounded-xl bg-gold-pale px-4 py-3 space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-sub">
+              {pricing.isMonthlyRate
+                ? t('pricingDaysMonthly', { days, factor: (days / 30).toFixed(1) })
+                : t('pricingNights', { count: days })
+              }
+            </span>
+            <span className="font-bold text-gold-dark">
+              {pricing.amount.toLocaleString(numLocale)} FCFA
+            </span>
+          </div>
         </div>
       )}
 
@@ -164,7 +224,7 @@ export default function ListingBookingCard({ listingId, pricePerMonth, numLocale
 
       <button
         onClick={handleSubmit}
-        disabled={!startDate || loading}
+        disabled={!startDate || loading || !!belowMinimum}
         className="mt-4 w-full btn-gold py-2.5 rounded-full font-semibold text-sm hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? (
@@ -179,6 +239,40 @@ export default function ListingBookingCard({ listingId, pricePerMonth, numLocale
           </span>
         )}
       </button>
+    </div>
+  );
+}
+
+/** Affiche les badges de tarifs disponibles (nuit / mois) */
+function PricingBadges({
+  pricePerMonth,
+  pricePerNight,
+  numLocale,
+}: {
+  pricePerMonth: number;
+  pricePerNight?: number | null;
+  numLocale: string;
+}) {
+  const tb = useTranslations('detail');
+  return (
+    <div className="flex flex-wrap gap-2">
+      <div className="flex items-baseline gap-1">
+        <span className="text-xl font-extrabold text-text">
+          {pricePerMonth.toLocaleString(numLocale)}
+        </span>
+        <span className="text-xs text-sub">{tb('pricePerMonthUnit')}</span>
+      </div>
+      {pricePerNight && pricePerNight > 0 && (
+        <>
+          <span className="text-sub self-center">·</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-base font-semibold text-sub">
+              {Math.round(pricePerNight).toLocaleString(numLocale)}
+            </span>
+            <span className="text-xs text-sub">{tb('pricePerNightUnit')}</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }

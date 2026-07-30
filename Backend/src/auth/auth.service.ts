@@ -74,7 +74,7 @@ export class AuthService {
       where: { email: data.email },
     });
 
-    if (emailTaken) throw new ConflictException('Email déjà utilisé');
+    if (emailTaken) throw new ConflictException('Email already in use');
 
     return this.prisma.user.create({
       data: {
@@ -89,7 +89,25 @@ export class AuthService {
   }
 
   async getMe(userId: string): Promise<User> {
-    return this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    // Auto-heal : si le prénom est un placeholder (créé par le guard avant le webhook Clerk)
+    if (!user.firstName || user.firstName === 'Utilisateur') {
+      try {
+        const clerkUser = await this.clerkClient.users.getUser(user.clerkId);
+        const primaryEmail = clerkUser.emailAddresses.find(
+          (e) => e.id === clerkUser.primaryEmailAddressId,
+        );
+        return await this.prisma.user.update({
+          where: { id: userId },
+          data: {
+            ...(clerkUser.firstName  && { firstName: clerkUser.firstName }),
+            ...(clerkUser.lastName  !== undefined && { lastName: clerkUser.lastName ?? '' }),
+            ...(primaryEmail && { email: primaryEmail.emailAddress }),
+          },
+        });
+      } catch { /* ignore — erreur Clerk API, on renvoie l'utilisateur en l'état */ }
+    }
+    return user;
   }
 
   async updateMe(userId: string, dto: UpdateProfileDto): Promise<User> {
@@ -99,7 +117,7 @@ export class AuthService {
         where: { agencySlug: dto.agencySlug },
       });
       if (existing && existing.id !== userId) {
-        throw new ConflictException('Ce slug est déjà utilisé par une autre agence.');
+        throw new ConflictException('This slug is already used by another agency.');
       }
     }
     return this.prisma.user.update({
@@ -158,11 +176,11 @@ export class AuthService {
   ): Promise<User> {
     const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
     if (!admin.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Réservé aux administrateurs');
+      throw new ForbiddenException('Admin only');
     }
 
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (existing) throw new ConflictException('Email déjà utilisé');
+    if (existing) throw new ConflictException('Email already in use');
 
     const password = this.generatePassword();
 
@@ -217,7 +235,7 @@ export class AuthService {
     try {
       event = wh.verify(rawBody, headers) as typeof event;
     } catch {
-      throw new UnauthorizedException('Signature webhook invalide');
+      throw new UnauthorizedException('Invalid webhook signature');
     }
 
     const data = event.data as {
@@ -238,12 +256,18 @@ export class AuthService {
         create: {
           clerkId: data.id,
           email: primaryEmail?.email_address ?? `${data.id}@clerk.local`,
-          firstName: data.first_name ?? 'Utilisateur',
+          firstName: data.first_name ?? '',
           lastName: data.last_name ?? '',
           phone: data.phone_numbers?.[0]?.phone_number ?? null,
           roles: [Role.LOCATAIRE],
         },
-        update: {},
+        update: {
+          // Met à jour le nom/email si le guard avait créé l'utilisateur avec des données placeholder
+          ...(primaryEmail && { email: primaryEmail.email_address }),
+          ...(data.first_name && { firstName: data.first_name }),
+          ...(data.last_name !== undefined && { lastName: data.last_name ?? '' }),
+          ...(data.phone_numbers?.[0]?.phone_number && { phone: data.phone_numbers[0].phone_number }),
+        },
       });
       this.logger.log(`Webhook user.created → ${data.id}`);
     }
@@ -374,7 +398,7 @@ export class AuthService {
       },
     });
 
-    if (!agent) throw new NotFoundException('Agent introuvable');
+    if (!agent) throw new NotFoundException('Agent not found');
 
     const ratings = agent.agentRatings;
     const avgRating = ratings.length
@@ -419,7 +443,7 @@ export class AuthService {
         createdAt: true,
       },
     });
-    if (!user) throw new NotFoundException('Utilisateur introuvable');
+    if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
@@ -429,11 +453,11 @@ export class AuthService {
     dto: { firstName?: string; lastName?: string; phone?: string | null; agencyName?: string | null },
   ) {
     const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
-    if (!admin.roles.includes(Role.ADMIN)) throw new ForbiddenException('Réservé aux administrateurs');
+    if (!admin.roles.includes(Role.ADMIN)) throw new ForbiddenException('Admin only');
 
     const target = await this.prisma.user.findUnique({ where: { id: targetId } });
-    if (!target) throw new NotFoundException('Utilisateur introuvable');
-    if (target.roles.includes(Role.ADMIN)) throw new ForbiddenException('Impossible de modifier un administrateur');
+    if (!target) throw new NotFoundException('User not found');
+    if (target.roles.includes(Role.ADMIN)) throw new ForbiddenException('Cannot edit an administrator');
 
     return this.prisma.user.update({
       where: { id: targetId },
@@ -455,13 +479,13 @@ export class AuthService {
   async suspendUser(targetId: string, adminId: string): Promise<{ isSuspended: boolean }> {
     const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
     if (!admin.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Réservé aux administrateurs');
+      throw new ForbiddenException('Admin only');
     }
 
     const target = await this.prisma.user.findUnique({ where: { id: targetId } });
-    if (!target) throw new NotFoundException('Utilisateur introuvable');
+    if (!target) throw new NotFoundException('User not found');
     if (target.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Impossible de suspendre un administrateur');
+      throw new ForbiddenException('Cannot suspend an administrator');
     }
 
     const updated = await this.prisma.user.update({
@@ -483,13 +507,13 @@ export class AuthService {
   async deleteUser(targetId: string, adminId: string): Promise<{ deleted: boolean }> {
     const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
     if (!admin.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Réservé aux administrateurs');
+      throw new ForbiddenException('Admin only');
     }
 
     const target = await this.prisma.user.findUnique({ where: { id: targetId } });
-    if (!target) throw new NotFoundException('Utilisateur introuvable');
+    if (!target) throw new NotFoundException('User not found');
     if (target.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Impossible de supprimer un administrateur');
+      throw new ForbiddenException('Cannot delete an administrator');
     }
 
     await this.prisma.user.delete({ where: { id: targetId } });
@@ -504,11 +528,11 @@ export class AuthService {
   ): Promise<User> {
     const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
     if (!admin.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Réservé aux administrateurs');
+      throw new ForbiddenException('Admin only');
     }
 
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (existing) throw new ConflictException('Email déjà utilisé');
+    if (existing) throw new ConflictException('Email already in use');
 
     const password = this.generatePassword();
 
@@ -556,13 +580,13 @@ export class AuthService {
     });
 
     if (!admin.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Réservé aux administrateurs');
+      throw new ForbiddenException('Admin only');
     }
 
     const target = await this.prisma.user.findUnique({
       where: { id: targetUserId },
     });
-    if (!target) throw new NotFoundException('Utilisateur introuvable');
+    if (!target) throw new NotFoundException('User not found');
 
     const newRoles = target.roles.filter((r) => r !== Role.BAILLEUR);
 

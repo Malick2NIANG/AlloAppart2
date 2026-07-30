@@ -1,21 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 
 type DemoRole = 'visitor' | 'locataire' | 'bailleur' | 'dual' | 'admin' | 'agent';
 
-const ROLES: { key: DemoRole; icon: string; label: string }[] = [
-  { key: 'visitor',   icon: 'fa-solid fa-eye',             label: 'Visiteur'   },
-  { key: 'locataire', icon: 'fa-solid fa-key',             label: 'Locataire'  },
-  { key: 'bailleur',  icon: 'fa-solid fa-house-chimney',   label: 'Bailleur'   },
-  { key: 'dual',      icon: 'fa-solid fa-shuffle',         label: 'Les deux'   },
-  { key: 'admin',     icon: 'fa-solid fa-shield-halved',   label: 'Admin'      },
-  { key: 'agent',     icon: 'fa-solid fa-id-badge',        label: 'Agent'      },
+const ROLES: { key: DemoRole; icon: string }[] = [
+  { key: 'visitor',   icon: 'fa-solid fa-eye'           },
+  { key: 'locataire', icon: 'fa-solid fa-key'           },
+  { key: 'bailleur',  icon: 'fa-solid fa-house-chimney' },
+  { key: 'dual',      icon: 'fa-solid fa-shuffle'       },
+  { key: 'admin',     icon: 'fa-solid fa-shield-halved' },
+  { key: 'agent',     icon: 'fa-solid fa-id-badge'      },
 ];
 
 export default function DemoDevBar() {
-  const [role, setRole] = useState<DemoRole>('visitor');
-  const [mounted, setMounted] = useState(false);
+  const t = useTranslations('demo');
+  const [role,      setRole]      = useState<DemoRole>('visitor');
+  const [mounted,   setMounted]   = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -40,12 +42,12 @@ export default function DemoDevBar() {
           onClick={() => setCollapsed(false)}
           className="flex items-center gap-2 rounded-full border border-gold/60 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl px-4 py-2 text-xs font-bold text-gold-dark"
         >
-          <i className="fa-solid fa-flask text-[11px]" /> DÉMO
+          <i className="fa-solid fa-flask text-[11px]" /> {t('badge')}
         </button>
       ) : (
         <div className="flex items-center gap-1 rounded-full border border-gold/40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl px-2 py-1.5">
           <span className="text-[10px] font-bold text-sub tracking-widest uppercase ml-1 mr-1.5">
-            <i className="fa-solid fa-flask mr-1 text-gold-dark" />Démo
+            <i className="fa-solid fa-flask mr-1 text-gold-dark" />{t('label')}
           </span>
           <div className="h-3.5 w-px bg-line" />
           {ROLES.map((r) => (
@@ -59,7 +61,7 @@ export default function DemoDevBar() {
               }`}
             >
               <i className={`${r.icon} text-[10px]`} />
-              {r.label}
+              {t(r.key as Parameters<typeof t>[0])}
             </button>
           ))}
           <div className="h-3.5 w-px bg-line" />

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { BookingStatus } from '@/types';
 import { useToast } from '@/components/ui/Toast';
@@ -15,21 +16,22 @@ interface Props {
 
 type Action = 'confirm' | 'cancel' | 'complete';
 
-const ACTION_LABELS: Record<Action, string> = {
-  confirm:  'Confirmer',
-  cancel:   'Refuser',
-  complete: 'Marquer terminé',
-};
-
-const ACTION_SUCCESS: Record<Action, string> = {
-  confirm:  'Réservation confirmée',
-  cancel:   'Réservation refusée',
-  complete: 'Réservation marquée terminée',
-};
-
 export default function BookingActions({ bookingId, status, onActionDone, toast }: Props) {
   const { getToken } = useAuth();
+  const t = useTranslations('bailleur');
   const [loading, setLoading] = useState<Action | null>(null);
+
+  const ACTION_LABELS: Record<Action, string> = {
+    confirm:  t('actionConfirm'),
+    cancel:   t('actionCancelBooking'),
+    complete: t('actionComplete'),
+  };
+
+  const ACTION_SUCCESS: Record<Action, string> = {
+    confirm:  t('actionConfirmSuccess'),
+    cancel:   t('actionCancelSuccess'),
+    complete: t('actionCompleteSuccess'),
+  };
 
   const act = async (action: Action) => {
     setLoading(action);
@@ -39,7 +41,7 @@ export default function BookingActions({ bookingId, status, onActionDone, toast 
       toast.success(ACTION_SUCCESS[action]);
       onActionDone();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Une erreur est survenue');
+      toast.error(err instanceof Error ? err.message : t('actionError'));
     } finally {
       setLoading(null);
     }
@@ -81,18 +83,22 @@ export default function BookingActions({ bookingId, status, onActionDone, toast 
 }
 
 function StatusChip({ status }: { status: BookingStatus }) {
+  const t = useTranslations('bailleur');
+
   const map: Record<BookingStatus, string> = {
     CONFIRMED: 'bg-green-100 text-green-700',
     PENDING:   'bg-gold-pale text-gold-dark',
     CANCELLED: 'bg-red-100 text-red-700',
     COMPLETED: 'bg-blue-100 text-blue-700',
   };
+
   const labels: Record<BookingStatus, string> = {
-    CONFIRMED: 'Confirmée',
-    PENDING:   'En attente',
-    CANCELLED: 'Refusée',
-    COMPLETED: 'Terminée',
+    CONFIRMED: t('chipConfirmed'),
+    PENDING:   t('chipPending'),
+    CANCELLED: t('chipCancelled'),
+    COMPLETED: t('chipCompleted'),
   };
+
   return (
     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${map[status]}`}>
       {labels[status]}

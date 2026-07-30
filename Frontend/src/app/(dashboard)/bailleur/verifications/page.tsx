@@ -5,14 +5,12 @@ import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Verification, VerifStatus } from '@/types';
 
 interface AgentOption { id: string; firstName: string; lastName: string; completedMissions: number; }
 interface ListingOption { id: string; title: string; }
-
-
-/* ── Types ───────────────────────────────────────────────────────────────── */
 
 interface AgentRating {
   id: string;
@@ -37,18 +35,17 @@ interface Agent {
   completedMissions: number;
 }
 
-/* ── Statut config ───────────────────────────────────────────────────────── */
+/* ── Visual config (no text) ─────────────────────────────────────────────── */
 
-const STATUS_CONFIG: Record<VerifStatus, { label: string; color: string; icon: string; bg: string }> = {
-  REQUESTED:       { label: 'Demande envoyée',       color: 'text-amber-600',   icon: 'fa-clock',           bg: 'bg-amber-50'   },
-  SCHEDULED:       { label: 'Agent assigné',         color: 'text-blue-600',    icon: 'fa-calendar-check',  bg: 'bg-blue-50'    },
-  IN_PROGRESS:     { label: 'Visite en cours',       color: 'text-purple-600',  icon: 'fa-person-walking',  bg: 'bg-purple-50'  },
-  DONE:            { label: 'Certifié ✓',            color: 'text-emerald-600', icon: 'fa-shield-check',    bg: 'bg-emerald-50' },
-  REJECTED:        { label: 'Refusé',                color: 'text-red-600',     icon: 'fa-circle-xmark',    bg: 'bg-red-50'     },
-  DECLINE_PENDING: { label: 'Déclin en attente',     color: 'text-orange-600',  icon: 'fa-hourglass-half',  bg: 'bg-orange-50'  },
+const VERIF_STYLE: Record<VerifStatus, { color: string; icon: string; bg: string }> = {
+  REQUESTED:       { color: 'text-amber-600',   icon: 'fa-clock',           bg: 'bg-amber-50'   },
+  SCHEDULED:       { color: 'text-blue-600',    icon: 'fa-calendar-check',  bg: 'bg-blue-50'    },
+  IN_PROGRESS:     { color: 'text-purple-600',  icon: 'fa-person-walking',  bg: 'bg-purple-50'  },
+  DONE:            { color: 'text-emerald-600', icon: 'fa-shield-check',    bg: 'bg-emerald-50' },
+  REJECTED:        { color: 'text-red-600',     icon: 'fa-circle-xmark',    bg: 'bg-red-50'     },
+  DECLINE_PENDING: { color: 'text-orange-600',  icon: 'fa-hourglass-half',  bg: 'bg-orange-50'  },
 };
 
-const AUDIT_LABEL: Record<string, string> = { BASIC: 'Vérification BASIC', FULL: 'Vérification FULL' };
 const STEPS: VerifStatus[] = ['REQUESTED', 'SCHEDULED', 'IN_PROGRESS', 'DONE'];
 
 function getStepIndex(status: VerifStatus) {
@@ -59,12 +56,22 @@ function getStepIndex(status: VerifStatus) {
 /* ── Timeline ────────────────────────────────────────────────────────────── */
 
 function Timeline({ status }: { status: VerifStatus }) {
+  const t = useTranslations('bailleur');
+  const STATUS_LABELS: Record<VerifStatus, string> = {
+    REQUESTED:       t('verifStatusRequested'),
+    SCHEDULED:       t('verifStatusScheduled'),
+    IN_PROGRESS:     t('verifStatusInProgress'),
+    DONE:            t('verifStatusDone'),
+    REJECTED:        t('verifStatusRejected'),
+    DECLINE_PENDING: t('verifStatusDeclinePending'),
+  };
+
   const currentIdx = getStepIndex(status);
   if (status === 'REJECTED') {
     return (
       <div className="flex items-center gap-2 mt-3">
         <i className="fa-solid fa-circle-xmark text-red-500" />
-        <span className="text-xs text-red-600 font-medium">Demande refusée</span>
+        <span className="text-xs text-red-600 font-medium">{t('verifRejected')}</span>
       </div>
     );
   }
@@ -72,7 +79,7 @@ function Timeline({ status }: { status: VerifStatus }) {
     <div className="mt-4">
       <div className="flex items-center gap-0">
         {STEPS.map((step, i) => {
-          const cfg    = STATUS_CONFIG[step];
+          const style  = VERIF_STYLE[step];
           const done   = i <= currentIdx;
           const active = i === currentIdx;
           const isLast = i === STEPS.length - 1;
@@ -82,14 +89,14 @@ function Timeline({ status }: { status: VerifStatus }) {
                 <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs transition-all ${
                   done
                     ? active
-                      ? `${cfg.bg} ${cfg.color} ring-2 ring-offset-1 ring-current`
+                      ? `${style.bg} ${style.color} ring-2 ring-offset-1 ring-current`
                       : 'bg-emerald-100 text-emerald-600'
                     : 'bg-line text-sub'
                 }`}>
-                  <i className={`fa-solid ${done ? (active ? cfg.icon : 'fa-check') : cfg.icon} text-[10px]`} />
+                  <i className={`fa-solid ${done ? (active ? style.icon : 'fa-check') : style.icon} text-[10px]`} />
                 </div>
-                <p className={`mt-1 text-[9px] text-center leading-tight max-w-[56px] ${done ? (active ? cfg.color + ' font-semibold' : 'text-emerald-600') : 'text-sub'}`}>
-                  {cfg.label}
+                <p className={`mt-1 text-[9px] text-center leading-tight max-w-[56px] ${done ? (active ? style.color + ' font-semibold' : 'text-emerald-600') : 'text-sub'}`}>
+                  {STATUS_LABELS[step]}
                 </p>
               </div>
               {!isLast && (
@@ -129,22 +136,25 @@ function RatingModal({ verifId, agentName, existing, onClose, onSaved }: {
   onClose: () => void; onSaved: (r: AgentRating) => void;
 }) {
   const { getToken } = useAuth();
+  const t = useTranslations('bailleur');
   const [rating,  setRating]  = useState(existing?.rating ?? 0);
   const [comment, setComment] = useState(existing?.comment ?? '');
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
 
+  const starLabels = ['', t('ratingDesc1'), t('ratingDesc2'), t('ratingDesc3'), t('ratingDesc4'), t('ratingDesc5')];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (rating === 0) { setError('Sélectionnez une note de 1 à 5 étoiles.'); return; }
+    if (rating === 0) { setError(t('ratingSelectError')); return; }
     setSaving(true); setError('');
     try {
       const token = await getToken();
-      if (!token) throw new Error('Non authentifié');
+      if (!token) throw new Error(t('ratingUnauthError'));
       const saved = await api.post<AgentRating>(`/verifications/${verifId}/rate`, { rating, comment: comment || undefined }, token);
       onSaved(saved);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi');
+      setError(err instanceof Error ? err.message : t('ratingSendError'));
     } finally { setSaving(false); }
   };
 
@@ -153,29 +163,31 @@ function RatingModal({ verifId, agentName, existing, onClose, onSaved }: {
       <div className="w-full max-w-sm rounded-2xl bg-card border border-line shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="text-base font-bold text-text">Noter l'agent</h2>
-            <p className="text-xs text-sub mt-0.5">Votre retour sur la mission de <span className="font-semibold text-text">{agentName}</span></p>
+            <h2 className="text-base font-bold text-text">{t('ratingTitle')}</h2>
+            <p className="text-xs text-sub mt-0.5">{t('ratingSubtitle', { agentName })}</p>
           </div>
           <button onClick={onClose} className="text-sub hover:text-text transition-colors"><i className="fa-solid fa-xmark text-sm" /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-sub uppercase tracking-wide block mb-2">Note *</label>
+            <label className="text-xs font-semibold text-sub uppercase tracking-wide block mb-2">{t('ratingLabel')}</label>
             <Stars value={rating} interactive onChange={setRating} />
-            {rating > 0 && <p className="text-xs text-sub mt-1">{['', 'Décevant', 'Passable', 'Bien', 'Très bien', 'Excellent !'][rating]}</p>}
+            {rating > 0 && <p className="text-xs text-sub mt-1">{starLabels[rating]}</p>}
           </div>
           <div>
-            <label className="text-xs font-semibold text-sub uppercase tracking-wide block mb-1">Commentaire (optionnel)</label>
+            <label className="text-xs font-semibold text-sub uppercase tracking-wide block mb-1">{t('ratingCommentLabel')}</label>
             <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={1000} rows={3}
-              placeholder="Ponctuel, professionnel, rapport détaillé…"
+              placeholder={t('ratingCommentPh')}
               className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub resize-none focus:outline-none focus:ring-2 focus:ring-gold/40" />
             <p className="text-[10px] text-sub text-right mt-0.5">{comment.length}/1000</p>
           </div>
           {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-line bg-bg py-2.5 text-sm text-sub hover:text-text transition-colors">Annuler</button>
+            <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-line bg-bg py-2.5 text-sm text-sub hover:text-text transition-colors">
+              {t('cancel')}
+            </button>
             <button type="submit" disabled={saving || rating === 0} className="flex-1 btn-gold rounded-xl py-2.5 text-sm disabled:opacity-60 disabled:cursor-not-allowed">
-              {saving ? <i className="fa-solid fa-spinner fa-spin" /> : existing ? 'Modifier l\'avis' : 'Envoyer l\'avis'}
+              {saving ? <i className="fa-solid fa-spinner fa-spin" /> : existing ? t('ratingEdit') : t('ratingSend')}
             </button>
           </div>
         </form>
@@ -189,10 +201,27 @@ function RatingModal({ verifId, agentName, existing, onClose, onSaved }: {
 function VerifCard({ v, expanded, onToggle, onRate }: {
   v: VerifWithRating; expanded: boolean; onToggle: () => void; onRate: () => void;
 }) {
-  const cfg = STATUS_CONFIG[v.status];
+  const t = useTranslations('bailleur');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
+  const style = VERIF_STYLE[v.status];
   const { getToken } = useAuth();
   const router = useRouter();
   const [openingChat, setOpeningChat] = useState(false);
+
+  const STATUS_LABELS: Record<VerifStatus, string> = {
+    REQUESTED:       t('verifStatusRequested'),
+    SCHEDULED:       t('verifStatusScheduled'),
+    IN_PROGRESS:     t('verifStatusInProgress'),
+    DONE:            t('verifStatusDone'),
+    REJECTED:        t('verifStatusRejected'),
+    DECLINE_PENDING: t('verifStatusDeclinePending'),
+  };
+
+  const AUDIT_LABELS: Record<string, string> = {
+    BASIC: t('verifAuditLabelBasic'),
+    FULL:  t('verifAuditLabelFull'),
+  };
 
   const openAgentChat = async (agentId: string) => {
     if (!v.listingId) return;
@@ -209,23 +238,25 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
     <div className="rounded-2xl border border-line bg-card overflow-hidden">
       <button type="button" onClick={onToggle}
         className="w-full flex items-start gap-4 p-5 text-left hover:bg-bg/50 transition-colors">
-        <div className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center ${cfg.bg}`}>
-          <i className={`fa-solid ${cfg.icon} ${cfg.color}`} />
+        <div className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center ${style.bg}`}>
+          <i className={`fa-solid ${style.icon} ${style.color}`} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-0.5">
-            <p className="font-semibold text-text text-sm truncate">{v.listing?.title ?? 'Annonce'}</p>
-            <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
+            <p className="font-semibold text-text text-sm truncate">{v.listing?.title ?? t('verifDefaultListing')}</p>
+            <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${style.bg} ${style.color}`}>
+              {STATUS_LABELS[v.status]}
+            </span>
             {v.rating && (
               <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">
                 <i className="fa-solid fa-star text-amber-400 text-[9px]" />{v.rating.rating}/5
               </span>
             )}
           </div>
-          <p className="text-xs text-sub">{AUDIT_LABEL[v.auditType] ?? v.auditType}{v.listing?.city ? ` · ${v.listing.city}` : ''}</p>
+          <p className="text-xs text-sub">{AUDIT_LABELS[v.auditType] ?? v.auditType}{v.listing?.city ? ` · ${v.listing.city}` : ''}</p>
           <p className="text-xs text-sub mt-0.5">
             <i className="fa-regular fa-calendar text-[10px] mr-1" />
-            Prévu le {new Date(v.scheduledAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            {t('verifScheduledOn', { date: new Date(v.scheduledAt).toLocaleDateString(numLocale, { day: 'numeric', month: 'long', year: 'numeric' }) })}
           </p>
         </div>
         <i className={`fa-solid fa-chevron-${expanded ? 'up' : 'down'} text-sub text-xs shrink-0 mt-1`} />
@@ -242,7 +273,7 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
               <div className={`mt-4 rounded-xl border p-4 ${isScheduled ? 'border-blue-200 bg-blue-50' : 'border-line bg-bg'}`}>
                 {isScheduled && (
                   <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide mb-2">
-                    <i className="fa-solid fa-circle-check mr-1" />Agent assigné à votre mission
+                    <i className="fa-solid fa-circle-check mr-1" />{t('verifAssignedBadge')}
                   </p>
                 )}
                 <div className="flex items-center gap-3">
@@ -255,7 +286,7 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-text">{agent.firstName} {agent.lastName}</p>
-                    <p className="text-xs text-sub">Agent AlloVérifié certifié</p>
+                    <p className="text-xs text-sub">{t('verifAgentCertified')}</p>
                     {agent.bio && <p className="text-xs text-sub mt-0.5 line-clamp-2">{agent.bio}</p>}
                     {agent.phone && (
                       <div className="flex items-center gap-3 mt-1.5">
@@ -272,7 +303,7 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
                             ? <i className="fa-solid fa-spinner fa-spin text-[9px]" />
                             : <i className="fa-solid fa-message text-[9px]" />
                           }
-                          Message
+                          {t('verifAgentMessage')}
                         </button>
                       </div>
                     )}
@@ -286,24 +317,24 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
             <div className="mt-4 space-y-2">
               <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5">
                 <i className="fa-solid fa-shield-check text-emerald-500" />
-                <p className="text-sm font-semibold text-emerald-700">Annonce certifiée AlloVérifié</p>
+                <p className="text-sm font-semibold text-emerald-700">{t('verifCertifiedBadge')}</p>
               </div>
               {v.notes && (
                 <div className="rounded-xl bg-bg p-3">
-                  <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-1">Notes de l'agent</p>
+                  <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-1">{t('verifAgentNotes')}</p>
                   <p className="text-sm text-text">{v.notes}</p>
                 </div>
               )}
               {v.reportUrl && (
                 <a href={v.reportUrl} target="_blank" rel="noreferrer"
                   className="flex items-center gap-2 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-gold-dark hover:border-gold/40 transition-colors">
-                  <i className="fa-solid fa-file-pdf text-red-500" />Télécharger le rapport
+                  <i className="fa-solid fa-file-pdf text-red-500" />{t('verifDownloadReport')}
                   <i className="fa-solid fa-arrow-down-to-line ml-auto text-xs" />
                 </a>
               )}
               {v.photos && v.photos.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-2">Photos ({v.photos.length})</p>
+                  <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-2">{t('verifPhotosLabel', { count: v.photos.length })}</p>
                   <div className="grid grid-cols-3 gap-2">
                     {v.photos.map((url, i) => (
                       <a key={i} href={url} target="_blank" rel="noreferrer">
@@ -319,21 +350,21 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
                   {v.rating ? (
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-[10px] font-semibold text-sub uppercase tracking-wide">Votre avis</p>
-                        <button onClick={onRate} className="text-[10px] text-gold-dark hover:underline">Modifier</button>
+                        <p className="text-[10px] font-semibold text-sub uppercase tracking-wide">{t('verifYourReview')}</p>
+                        <button onClick={onRate} className="text-[10px] text-gold-dark hover:underline">{t('verifEditReview')}</button>
                       </div>
                       <Stars value={v.rating.rating} />
-                      {v.rating.comment && <p className="text-xs text-text mt-1 italic">"{v.rating.comment}"</p>}
+                      {v.rating.comment && <p className="text-xs text-text mt-1 italic">&ldquo;{v.rating.comment}&rdquo;</p>}
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-text">Comment s'est passée la visite ?</p>
-                        <p className="text-[11px] text-sub mt-0.5">Notez l'agent pour aider la communauté</p>
+                        <p className="text-xs font-semibold text-text">{t('verifRateQuestion')}</p>
+                        <p className="text-[11px] text-sub mt-0.5">{t('verifRateHint')}</p>
                       </div>
                       <button onClick={onRate}
                         className="shrink-0 flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors">
-                        <i className="fa-solid fa-star text-amber-400 text-[10px]" />Laisser un avis
+                        <i className="fa-solid fa-star text-amber-400 text-[10px]" />{t('verifLeaveReview')}
                       </button>
                     </div>
                   )}
@@ -344,7 +375,7 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
 
           {v.status === 'REJECTED' && v.notes && (
             <div className="mt-4 rounded-xl bg-red-50 border border-red-100 px-4 py-3">
-              <p className="text-[10px] font-semibold text-red-600 uppercase tracking-wide mb-1">Motif du refus</p>
+              <p className="text-[10px] font-semibold text-red-600 uppercase tracking-wide mb-1">{t('verifRejectionReason')}</p>
               <p className="text-sm text-red-700">{v.notes}</p>
             </div>
           )}
@@ -352,7 +383,7 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
           {v.listing && (
             <Link href={`/bailleur/listings/${v.listingId}/edit`}
               className="mt-4 flex items-center gap-2 text-xs text-gold-dark hover:underline">
-              <i className="fa-solid fa-house text-[10px]" />Voir / modifier l'annonce
+              <i className="fa-solid fa-house text-[10px]" />{t('verifEditListing')}
             </Link>
           )}
         </div>
@@ -364,6 +395,7 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
 /* ── AgentCard ───────────────────────────────────────────────────────────── */
 
 function AgentCard({ agent }: { agent: Agent }) {
+  const t = useTranslations('bailleur');
   const initials = [agent.firstName?.[0], agent.lastName?.[0]].filter(Boolean).join('').toUpperCase();
   return (
     <div className="bg-card rounded-2xl border border-line shadow-sm p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
@@ -379,7 +411,7 @@ function AgentCard({ agent }: { agent: Agent }) {
         )}
         <div className="min-w-0">
           <p className="font-semibold text-text text-base leading-snug truncate">{agent.firstName} {agent.lastName}</p>
-          <p className="text-xs text-sub mt-0.5">Agent AlloVérifié</p>
+          <p className="text-xs text-sub mt-0.5">{t('agentVerifiedBadge')}</p>
         </div>
       </div>
 
@@ -387,12 +419,12 @@ function AgentCard({ agent }: { agent: Agent }) {
         <div className="flex-1 bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
           <p className="text-xl font-bold text-emerald-600">{agent.completedMissions}</p>
           <p className="text-[10px] text-emerald-700 mt-0.5 leading-tight">
-            {agent.completedMissions === 1 ? 'Mission accomplie' : 'Missions accomplies'}
+            {t('agentMission', { count: agent.completedMissions })}
           </p>
         </div>
         <div className="flex-1 bg-gold/5 rounded-xl p-3 text-center border border-gold/20">
           <p className="text-xl font-bold text-gold"><i className="fa-solid fa-shield-halved text-lg" /></p>
-          <p className="text-[10px] text-amber-700 mt-0.5 leading-tight">Certifié AlloVérifié</p>
+          <p className="text-[10px] text-amber-700 mt-0.5 leading-tight">{t('agentCertified')}</p>
         </div>
       </div>
 
@@ -407,20 +439,20 @@ function AgentCard({ agent }: { agent: Agent }) {
       <div className="mt-auto pt-3 border-t border-line flex items-center justify-between gap-2">
         {agent.completedMissions >= 10 ? (
           <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
-            <i className="fa-solid fa-star text-[9px] text-amber-500" />Agent expérimenté
+            <i className="fa-solid fa-star text-[9px] text-amber-500" />{t('agentExperienced')}
           </span>
         ) : agent.completedMissions >= 3 ? (
           <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
-            <i className="fa-solid fa-circle-check text-[9px] text-blue-500" />Agent actif
+            <i className="fa-solid fa-circle-check text-[9px] text-blue-500" />{t('agentActiveLabel')}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
-            <i className="fa-solid fa-seedling text-[9px] text-emerald-500" />Nouvel agent
+            <i className="fa-solid fa-seedling text-[9px] text-emerald-500" />{t('agentNew')}
           </span>
         )}
         <Link href={`/bailleur/agents/${agent.id}`}
           className="text-[11px] text-gold-dark hover:underline flex items-center gap-1 shrink-0">
-          Voir le profil <i className="fa-solid fa-arrow-right text-[9px]" />
+          {t('agentViewProfile')} <i className="fa-solid fa-arrow-right text-[9px]" />
         </Link>
       </div>
     </div>
@@ -429,15 +461,22 @@ function AgentCard({ agent }: { agent: Agent }) {
 
 /* ── DateTimePicker ──────────────────────────────────────────────────────── */
 
-const DAYS_FR = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'];
-const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const HOURS   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = ['00', '15', '30', '45'];
 
-function DateTimePicker({ value, onChange }: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
+function DateTimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const t      = useTranslations('bailleur');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
+
+  // Locale-aware day/month names
+  const DAYS = Array.from({ length: 7 }, (_, i) =>
+    new Intl.DateTimeFormat(numLocale, { weekday: 'short' }).format(new Date(2024, 0, 1 + i))
+  );
+  const MONTHS = Array.from({ length: 12 }, (_, i) =>
+    new Intl.DateTimeFormat(numLocale, { month: 'long' }).format(new Date(2024, i, 1))
+  );
+
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const minAllowed = new Date(today); minAllowed.setDate(minAllowed.getDate() + 1);
 
@@ -455,8 +494,6 @@ function DateTimePicker({ value, onChange }: {
   const selDate = parsed ? `${parsed.getFullYear()}-${String(parsed.getMonth()+1).padStart(2,'0')}-${String(parsed.getDate()).padStart(2,'0')}` : '';
   const selHour = parsed ? String(parsed.getHours()).padStart(2,'0') : '08';
   const selMin  = parsed ? (['00','15','30','45'].includes(String(parsed.getMinutes()).padStart(2,'0')) ? String(parsed.getMinutes()).padStart(2,'0') : '00') : '00';
-
-  const POPOVER_HEIGHT = 370; // hauteur estimée du popover
 
   const openPicker = () => {
     if (!triggerRef.current) { setOpen(true); return; }
@@ -487,7 +524,6 @@ function DateTimePicker({ value, onChange }: {
   const selectDay = (d: Date) => {
     const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     onChange(buildValue(ds, selHour, selMin));
-    // Glissement vers la section heure après un court délai (le temps que le DOM affiche la section)
     setTimeout(() => {
       timeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 50);
@@ -514,7 +550,6 @@ function DateTimePicker({ value, onChange }: {
 
   return (
     <>
-      {/* Trigger */}
       <button ref={triggerRef} type="button"
         onClick={() => open ? setOpen(false) : openPicker()}
         className={`w-full flex items-center gap-3 rounded-xl border px-4 py-2.5 text-sm transition-colors ${
@@ -522,7 +557,7 @@ function DateTimePicker({ value, onChange }: {
         } bg-bg text-left`}>
         <i className="fa-regular fa-calendar text-gold-dark shrink-0" />
         <span className={displayValue ? 'text-text' : 'text-sub'}>
-          {displayValue || 'Choisir une date et heure'}
+          {displayValue || t('dtpPlaceholder')}
         </span>
         {displayValue
           ? <span role="button" onClick={(e) => { e.stopPropagation(); onChange(''); }}
@@ -533,33 +568,29 @@ function DateTimePicker({ value, onChange }: {
         }
       </button>
 
-      {/* Popover — position: fixed, hors du flux du modal */}
       {open && popPos && (
         <div ref={popRef}
           style={{ position: 'fixed', top: popPos.top, bottom: popPos.bottom, left: popPos.left, width: popPos.width, maxHeight: popPos.maxHeight, zIndex: 9999 }}
           className="rounded-2xl border border-line bg-card shadow-2xl p-4 overflow-y-auto">
 
-          {/* Month nav */}
           <div className="flex items-center justify-between mb-3">
             <button type="button" onClick={() => setCursor(new Date(year, month - 1, 1))}
               className="h-7 w-7 rounded-full hover:bg-bg flex items-center justify-center text-sub hover:text-text transition-colors">
               <i className="fa-solid fa-chevron-left text-xs" />
             </button>
-            <span className="text-sm font-semibold text-text">{MONTHS_FR[month]} {year}</span>
+            <span className="text-sm font-semibold text-text">{MONTHS[month]} {year}</span>
             <button type="button" onClick={() => setCursor(new Date(year, month + 1, 1))}
               className="h-7 w-7 rounded-full hover:bg-bg flex items-center justify-center text-sub hover:text-text transition-colors">
               <i className="fa-solid fa-chevron-right text-xs" />
             </button>
           </div>
 
-          {/* Day headers */}
           <div className="grid grid-cols-7 mb-1">
-            {DAYS_FR.map((d) => (
+            {DAYS.map((d) => (
               <div key={d} className="text-center text-[10px] font-semibold text-sub py-1">{d}</div>
             ))}
           </div>
 
-          {/* Day cells */}
           <div className="grid grid-cols-7 gap-0.5">
             {cells.map((d, i) => {
               if (!d) return <div key={i} />;
@@ -581,15 +612,14 @@ function DateTimePicker({ value, onChange }: {
             })}
           </div>
 
-          {/* Time selector — visible seulement après sélection d'un jour */}
           {selDate && (
             <div ref={timeRef} className="mt-4 pt-3 border-t border-line">
               <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <i className="fa-regular fa-clock text-gold-dark" />Heure souhaitée
+                <i className="fa-regular fa-clock text-gold-dark" />{t('dtpTimeLabel')}
               </p>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <p className="text-[10px] text-sub mb-1 text-center">Heure</p>
+                  <p className="text-[10px] text-sub mb-1 text-center">{t('dtpHourLabel')}</p>
                   <div className="h-28 overflow-y-auto rounded-xl border border-line bg-bg flex flex-col" style={{ scrollbarWidth: 'thin' }}>
                     {HOURS.map((h) => (
                       <button key={h} type="button" onClick={() => changeTime(h, selMin)}
@@ -603,7 +633,7 @@ function DateTimePicker({ value, onChange }: {
                 </div>
                 <div className="flex items-center text-sub text-lg font-light pt-5">:</div>
                 <div className="flex-1">
-                  <p className="text-[10px] text-sub mb-1 text-center">Min</p>
+                  <p className="text-[10px] text-sub mb-1 text-center">{t('dtpMinLabel')}</p>
                   <div className="rounded-xl border border-line bg-bg overflow-hidden flex flex-col">
                     {MINUTES.map((m) => (
                       <button key={m} type="button" onClick={() => changeTime(selHour, m)}
@@ -618,7 +648,7 @@ function DateTimePicker({ value, onChange }: {
               </div>
               <button type="button" onClick={() => setOpen(false)}
                 className="mt-3 w-full rounded-xl bg-gold py-2 text-sm font-semibold text-gray-900 hover:bg-gold-dark transition-colors">
-                Confirmer
+                {t('dtpConfirm')}
               </button>
             </div>
           )}
@@ -632,6 +662,7 @@ function DateTimePicker({ value, onChange }: {
 
 function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () => void }) {
   const { getToken } = useAuth();
+  const t = useTranslations('bailleur');
   const [listings,  setListings]  = useState<ListingOption[]>([]);
   const [agents,    setAgents]    = useState<AgentOption[]>([]);
   const [form, setForm] = useState({ listingId: '', auditType: 'BASIC', scheduledAt: '', preferredAgentId: '' });
@@ -648,8 +679,6 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
           api.get<AgentOption[]>('/auth/agents', token),
           api.get<{ listingId: string; status: string }[]>('/verifications/mine', token),
         ]);
-        // Exclure les annonces déjà certifiées (DONE) ou avec une vérification en cours
-        // Seul REJECTED autorise une nouvelle demande
         const excludedIds = new Set(
           (verifs ?? [])
             .filter((v) => v.status !== 'REJECTED')
@@ -663,8 +692,8 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
   }, [getToken]);
 
   const handleSubmit = async () => {
-    if (!form.listingId) { setError('Sélectionnez une annonce.'); return; }
-    if (!form.scheduledAt) { setError('Choisissez une date et heure.'); return; }
+    if (!form.listingId) { setError(t('newVerifSelectListing')); return; }
+    if (!form.scheduledAt) { setError(t('newVerifSelectDate')); return; }
     setLoading(true); setError('');
     try {
       const token = await getToken();
@@ -676,18 +705,17 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
         ...(form.preferredAgentId ? { preferredAgentId: form.preferredAgentId } : {}),
       }, token);
       onSent();
-    } catch { setError('Erreur lors de la demande. Veuillez réessayer.'); }
+    } catch { setError(t('verifError')); }
     finally { setLoading(false); }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
       <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="text-lg font-semibold text-text">Demander AlloVérifié</h2>
-            <p className="text-xs text-sub mt-0.5">Faites certifier une de vos annonces</p>
+            <h2 className="text-lg font-semibold text-text">{t('newVerifTitle')}</h2>
+            <p className="text-xs text-sub mt-0.5">{t('newVerifSubtitle')}</p>
           </div>
           <button onClick={onClose} className="text-sub hover:text-text transition-colors">
             <i className="fa-solid fa-xmark" />
@@ -695,26 +723,24 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
         </div>
 
         <div className="flex flex-col gap-4">
-          {/* Sélecteur d'annonce */}
           <div>
-            <label className="block text-xs font-medium text-sub mb-1.5">Annonce à vérifier</label>
+            <label className="block text-xs font-medium text-sub mb-1.5">{t('newVerifListingLabel')}</label>
             <select value={form.listingId}
               onChange={(e) => setForm((f) => ({ ...f, listingId: e.target.value }))}
               className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold-dark">
-              <option value="">— Choisir une annonce —</option>
+              <option value="">{t('newVerifListingDefault')}</option>
               {listings.map((l) => (
                 <option key={l.id} value={l.id}>{l.title}</option>
               ))}
             </select>
           </div>
 
-          {/* Type d'audit */}
           <div>
-            <label className="block text-xs font-medium text-sub mb-1.5">Type d&apos;audit</label>
+            <label className="block text-xs font-medium text-sub mb-1.5">{t('verifAuditType')}</label>
             <div className="flex gap-3">
               {[
-                { value: 'BASIC', label: 'Basique', desc: 'Contrôle des points essentiels' },
-                { value: 'FULL',  label: 'Complet', desc: 'Audit approfondi avec rapport'  },
+                { value: 'BASIC', label: t('verifAuditBasic'), desc: t('verifAuditBasicDesc') },
+                { value: 'FULL',  label: t('verifAuditFull'),  desc: t('verifAuditFullDesc')  },
               ].map((opt) => (
                 <button key={opt.value} type="button"
                   onClick={() => setForm((f) => ({ ...f, auditType: opt.value }))}
@@ -728,32 +754,30 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
             </div>
           </div>
 
-          {/* Date */}
           <div>
-            <label className="block text-xs font-medium text-sub mb-1.5">Date et heure souhaitées</label>
+            <label className="block text-xs font-medium text-sub mb-1.5">{t('verifDateLabel')}</label>
             <DateTimePicker
               value={form.scheduledAt}
               onChange={(v) => setForm((f) => ({ ...f, scheduledAt: v }))}
             />
           </div>
 
-          {/* Agent préféré */}
           <div>
             <label className="block text-xs font-medium text-sub mb-1.5">
-              Agent préféré <span className="font-normal text-sub">(optionnel)</span>
+              {t('verifAgentLabel')} <span className="font-normal text-sub">{t('verifAgentOptional')}</span>
             </label>
             <select value={form.preferredAgentId}
               onChange={(e) => setForm((f) => ({ ...f, preferredAgentId: e.target.value }))}
               className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold-dark">
-              <option value="">— Pas de préférence (recommandé) —</option>
+              <option value="">{t('verifAgentDefault')}</option>
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.firstName} {a.lastName}
-                  {a.completedMissions > 0 ? ` · ${a.completedMissions} mission${a.completedMissions > 1 ? 's' : ''}` : ''}
+                  {a.completedMissions > 0 ? ` · ${t('newVerifMissions', { count: a.completedMissions })}` : ''}
                 </option>
               ))}
             </select>
-            <p className="text-[10px] text-sub mt-1">L&apos;administrateur reste libre d&apos;attribuer l&apos;agent le plus disponible.</p>
+            <p className="text-[10px] text-sub mt-1">{t('verifAgentNote')}</p>
           </div>
         </div>
 
@@ -762,11 +786,11 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
         <div className="flex gap-3 mt-6 justify-end">
           <button onClick={onClose}
             className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
-            Annuler
+            {t('cancel')}
           </button>
-          <button onClick={handleSubmit} disabled={!form.listingId || !form.scheduledAt || loading}
+          <button onClick={() => void handleSubmit()} disabled={!form.listingId || !form.scheduledAt || loading}
             className="btn-gold text-sm rounded-xl px-5 py-2 disabled:opacity-50 disabled:cursor-not-allowed">
-            {loading ? <i className="fa-solid fa-spinner fa-spin" /> : 'Envoyer la demande'}
+            {loading ? <i className="fa-solid fa-spinner fa-spin" /> : t('verifSubmit')}
           </button>
         </div>
       </div>
@@ -778,6 +802,7 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
 
 function MesDemandesTab() {
   const { getToken } = useAuth();
+  const t = useTranslations('bailleur');
   const [verifs,      setVerifs]      = useState<VerifWithRating[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [expanded,    setExpanded]    = useState<string | null>(null);
@@ -821,12 +846,10 @@ function MesDemandesTab() {
         <div className="h-16 w-16 rounded-2xl bg-gold-pale flex items-center justify-center mb-4">
           <i className="fa-solid fa-shield-halved text-3xl text-gold-dark" />
         </div>
-        <h2 className="text-lg font-bold text-text mb-1">Aucune demande</h2>
-        <p className="text-sm text-sub max-w-xs mb-5">
-          Faites vérifier vos annonces par un agent terrain pour obtenir le badge AlloVérifié.
-        </p>
+        <h2 className="text-lg font-bold text-text mb-1">{t('verifEmpty')}</h2>
+        <p className="text-sm text-sub max-w-xs mb-5">{t('verifEmptyHint')}</p>
         <Link href="/bailleur/listings" className="btn-gold rounded-full px-6 py-2.5 text-sm">
-          Demander une vérification
+          {t('verifRequestBtn')}
         </Link>
       </div>
     );
@@ -837,12 +860,14 @@ function MesDemandesTab() {
       <div className="space-y-6">
         {active.length > 0 && (
           <section>
-            <h2 className="text-xs font-semibold text-sub uppercase tracking-widest mb-3">En cours ({active.length})</h2>
+            <h2 className="text-xs font-semibold text-sub uppercase tracking-widest mb-3">
+              {t('verifSectionActive', { count: active.length })}
+            </h2>
             <div className="flex flex-col gap-3">
               {active.map((v) => (
                 <VerifCard key={v.id} v={v} expanded={expanded === v.id}
                   onToggle={() => setExpanded(expanded === v.id ? null : v.id)}
-                  onRate={() => setRatingModal({ verifId: v.id, agentName: v.agent ? `${v.agent.firstName} ${v.agent.lastName}` : 'l\'agent', existing: v.rating })}
+                  onRate={() => setRatingModal({ verifId: v.id, agentName: v.agent ? `${v.agent.firstName} ${v.agent.lastName}` : '', existing: v.rating })}
                 />
               ))}
             </div>
@@ -850,12 +875,14 @@ function MesDemandesTab() {
         )}
         {archived.length > 0 && (
           <section>
-            <h2 className="text-xs font-semibold text-sub uppercase tracking-widest mb-3">Historique ({archived.length})</h2>
+            <h2 className="text-xs font-semibold text-sub uppercase tracking-widest mb-3">
+              {t('verifSectionHistory', { count: archived.length })}
+            </h2>
             <div className="flex flex-col gap-3">
               {archived.map((v) => (
                 <VerifCard key={v.id} v={v} expanded={expanded === v.id}
                   onToggle={() => setExpanded(expanded === v.id ? null : v.id)}
-                  onRate={() => setRatingModal({ verifId: v.id, agentName: v.agent ? `${v.agent.firstName} ${v.agent.lastName}` : 'l\'agent', existing: v.rating })}
+                  onRate={() => setRatingModal({ verifId: v.id, agentName: v.agent ? `${v.agent.firstName} ${v.agent.lastName}` : '', existing: v.rating })}
                 />
               ))}
             </div>
@@ -880,6 +907,7 @@ function MesDemandesTab() {
 
 function NosAgentsTab() {
   const { getToken } = useAuth();
+  const t = useTranslations('bailleur');
   const [agents,  setAgents]  = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');
@@ -902,25 +930,21 @@ function NosAgentsTab() {
 
   return (
     <div className="space-y-5">
-      {/* Info + recherche */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sub text-xs" />
-          <input type="text" placeholder="Rechercher un agent…" value={search}
+          <input type="text" placeholder={t('verifAgentsSearchPlaceholder')} value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 text-sm border border-line rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-gold/30 text-text placeholder:text-sub" />
         </div>
         {agents.length > 0 && (
-          <p className="text-xs text-sub shrink-0">{filtered.length} agent{filtered.length > 1 ? 's' : ''}</p>
+          <p className="text-xs text-sub shrink-0">{t('verifAgentsCount', { count: filtered.length })}</p>
         )}
       </div>
 
       <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
         <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-blue-700 leading-relaxed">
-          Lors de votre demande de vérification, vous pouvez exprimer une préférence pour l&apos;un de ces agents.
-          L&apos;administrateur reste libre d&apos;effectuer la meilleure attribution.
-        </p>
+        <p className="text-xs text-blue-700 leading-relaxed">{t('verifAgentsInfoNote')}</p>
       </div>
 
       {loading ? (
@@ -945,7 +969,7 @@ function NosAgentsTab() {
         <div className="text-center py-20">
           <i className="fa-solid fa-user-slash text-4xl text-line mb-4" />
           <p className="text-sub text-sm">
-            {search ? 'Aucun agent ne correspond à votre recherche.' : 'Aucun agent disponible pour le moment.'}
+            {search ? t('agentNoResults') : t('agentNone')}
           </p>
         </div>
       ) : (
@@ -964,6 +988,7 @@ type Tab = 'demandes' | 'agents';
 function VerificationsPageContent() {
   const searchParams = useSearchParams();
   const router       = useRouter();
+  const t = useTranslations('bailleur');
   const activeTab    = (searchParams.get('tab') as Tab) ?? 'demandes';
   const [newVerifOpen,  setNewVerifOpen]  = useState(false);
   const [demandesKey,   setDemandesKey]   = useState(0);
@@ -975,28 +1000,26 @@ function VerificationsPageContent() {
   };
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
-    { key: 'demandes', label: 'Mes demandes', icon: 'fa-shield-halved' },
-    { key: 'agents',   label: 'Nos agents',   icon: 'fa-user-shield'   },
+    { key: 'demandes', label: t('tabMyRequests'), icon: 'fa-shield-halved' },
+    { key: 'agents',   label: t('tabAgents'),     icon: 'fa-user-shield'   },
   ];
 
   return (
     <div className="space-y-6">
 
-      {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-text flex items-center gap-2">
             <i className="fa-solid fa-shield-halved text-gold-dark" />
-            AlloVérifié
+            {t('verificationsPageTitle')}
           </h1>
-          <p className="text-sm text-sub mt-0.5">Suivi de vos demandes et découverte des agents terrain</p>
+          <p className="text-sm text-sub mt-0.5">{t('verificationsPageSub')}</p>
         </div>
         <button onClick={() => setNewVerifOpen(true)} className="btn-gold text-sm flex items-center gap-2 rounded-full px-4 py-2 shrink-0">
-          <i className="fa-solid fa-plus text-xs" />Nouvelle demande
+          <i className="fa-solid fa-plus text-xs" />{t('verificationsNewRequest')}
         </button>
       </div>
 
-      {/* Onglets */}
       <div className="flex gap-1 rounded-xl bg-card border border-line p-1 w-fit">
         {TABS.map(({ key, label, icon }) => (
           <button key={key} onClick={() => setTab(key)}
@@ -1011,7 +1034,6 @@ function VerificationsPageContent() {
         ))}
       </div>
 
-      {/* Contenu */}
       {activeTab === 'demandes' ? <MesDemandesTab key={demandesKey} /> : <NosAgentsTab />}
 
       {newVerifOpen && (
@@ -1020,7 +1042,7 @@ function VerificationsPageContent() {
           onSent={() => {
             setNewVerifOpen(false);
             setTab('demandes');
-            setDemandesKey((k) => k + 1); // force remount → re-fetch
+            setDemandesKey((k) => k + 1);
           }}
         />
       )}

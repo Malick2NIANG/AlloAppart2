@@ -13,6 +13,7 @@ import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { FilterListingsDto } from './dto/filter-listings.dto';
 import { AdminListingsQueryDto } from './dto/admin-listings-query.dto';
+import { CreateReportDto } from './dto/create-report.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -47,6 +48,12 @@ export class ListingsController {
   @Get('favorites')
   findFavorites(@CurrentUser() user: User) {
     return this.listingsService.findFavorites(user.id);
+  }
+
+  @Roles(Role.ADMIN)
+  @Get('reports')
+  findAllReports() {
+    return this.listingsService.findAllReports();
   }
 
   @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
@@ -104,6 +111,16 @@ export class ListingsController {
   @Delete(':id/favorite')
   removeFavorite(@Param('id') id: string, @CurrentUser() user: User) {
     return this.listingsService.removeFavorite(id, user.id);
+  }
+
+  @Throttle({ default: { ttl: 3_600_000, limit: 5 } }) // 5 signalements par heure par IP
+  @Post(':id/report')
+  reportListing(
+    @Param('id') id: string,
+    @Body() dto: CreateReportDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.listingsService.reportListing(id, user.id, dto);
   }
 
   @Roles(Role.BAILLEUR, Role.PRO_AGENCE, Role.ADMIN)

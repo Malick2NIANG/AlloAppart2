@@ -22,11 +22,11 @@ export class ReviewsService {
     });
 
     if (booking.tenantId !== authorId) {
-      throw new ForbiddenException('Seul le locataire peut laisser un avis');
+      throw new ForbiddenException('Only the tenant can leave a review');
     }
 
     if (booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException('La réservation doit être terminée');
+      throw new BadRequestException('Booking must be completed');
     }
 
     if (booking.listingId !== dto.listingId) {
@@ -39,7 +39,7 @@ export class ReviewsService {
       where: { bookingId: dto.bookingId },
     });
     if (existing)
-      throw new ConflictException('Un avis existe déjà pour cette réservation');
+      throw new ConflictException('A review already exists for this booking');
 
     const review = await this.prisma.review.create({
       data: {
@@ -130,7 +130,7 @@ export class ReviewsService {
 
   async remove(id: string, admin: User) {
     if (!admin.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Réservé aux administrateurs');
+      throw new ForbiddenException('Admin only');
     }
     return this.prisma.review.delete({ where: { id } });
   }

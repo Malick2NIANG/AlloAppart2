@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Verification, User, PaginatedResponse } from '@/types';
 import { formatDate } from '@/lib/utils';
@@ -24,46 +25,50 @@ const STATUS_STYLES: Record<string, string> = {
   REJECTED:        'bg-red-100 text-red-700',
   DECLINE_PENDING: 'bg-orange-50 text-orange-700',
 };
-const STATUS_LABELS: Record<string, string> = {
-  REQUESTED:       'Demandée',
-  SCHEDULED:       'Planifiée',
-  IN_PROGRESS:     'En cours',
-  DONE:            'Terminée',
-  REJECTED:        'Rejetée',
-  DECLINE_PENDING: 'Déclin en attente',
-};
 
 export default function AdminVerificationsPage() {
   const { getToken } = useAuth();
   const { toast }    = useToast();
+  const t            = useTranslations('admin');
+  const tRef         = useRef(t);
+  tRef.current       = t;
 
-  const [tab, setTab]                   = useState<TabMode>('pending');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [tab, setTab]                     = useState<TabMode>('pending');
+  const [statusFilter, setStatusFilter]   = useState<StatusFilter>('ALL');
   const [verifications, setVerifications] = useState<Verification[]>([]);
-  const [total, setTotal]               = useState(0);
-  const [page, setPage]                 = useState(1);
-  const [agents, setAgents]             = useState<User[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState<string | null>(null);
-  const [assignModal, setAssignModal]   = useState<AssignModal | null>(null);
+  const [total, setTotal]                 = useState(0);
+  const [page, setPage]                   = useState(1);
+  const [agents, setAgents]               = useState<User[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
+  const [assignModal, setAssignModal]     = useState<AssignModal | null>(null);
   const [selectedAgent, setSelectedAgent] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [rejectModal, setRejectModal]   = useState<{ id: string } | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [agentSearch, setAgentSearch]   = useState('');
-  const [agentPage, setAgentPage]       = useState(1);
+  const [rejectModal, setRejectModal]     = useState<{ id: string } | null>(null);
+  const [rejectReason, setRejectReason]   = useState('');
+  const [agentSearch, setAgentSearch]     = useState('');
+  const [agentPage, setAgentPage]         = useState(1);
   const AGENT_PER_PAGE = 5;
-  const [limit, setLimit]               = useState(20);
+  const [limit, setLimit]                 = useState(20);
   const LIMIT_OPTIONS = [10, 20, 50] as const;
   const LIMIT = limit;
 
-  const fetchData = useCallback(async (t: TabMode, s: StatusFilter, p: number) => {
+  const STATUS_LABELS: Record<string, string> = {
+    REQUESTED:       t('verifStatusRequested'),
+    SCHEDULED:       t('verifStatusScheduled'),
+    IN_PROGRESS:     t('verifStatusInProgress'),
+    DONE:            t('verifStatusDone'),
+    REJECTED:        t('verifStatusRejected'),
+    DECLINE_PENDING: t('verifStatusDeclinePending'),
+  };
+
+  const fetchData = useCallback(async (tb: TabMode, s: StatusFilter, p: number) => {
     const token = await getToken();
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      if (t === 'pending') {
+      if (tb === 'pending') {
         const [verifs, usersRes] = await Promise.all([
           api.get<Verification[]>('/verifications/pending', token),
           api.get<PaginatedResponse<User>>('/auth/users?page=1&limit=100', token),
@@ -83,11 +88,11 @@ export default function AdminVerificationsPage() {
         setAgents(usersRes.data.filter((u) => u.roles.includes('AGENT_TERRAIN')));
       }
     } catch {
-      setError('Impossible de charger les vérifications.');
+      setError(tRef.current('verifsLoadError'));
     } finally {
       setLoading(false);
     }
-  }, [getToken]);
+  }, [getToken, LIMIT]);
 
   useEffect(() => {
     fetchData(tab, statusFilter, page);
@@ -104,9 +109,9 @@ export default function AdminVerificationsPage() {
       await fetchData(tab, statusFilter, page);
       setAssignModal(null);
       setSelectedAgent('');
-      toast.success('Agent assigné');
+      toast.success(t('toastAgentAssigned'));
     } catch {
-      toast.error('Erreur lors de l\'assignation.');
+      toast.error(t('errAssign'));
     } finally {
       setActionLoading(null);
     }
@@ -119,9 +124,9 @@ export default function AdminVerificationsPage() {
     try {
       await api.patch(`/verifications/${id}/validate`, {}, token);
       await fetchData(tab, statusFilter, page);
-      toast.success('Badge AlloVérifié accordé');
+      toast.success(t('toastBadgeGranted'));
     } catch {
-      toast.error('Erreur lors de la validation.');
+      toast.error(t('errValidate'));
     } finally {
       setActionLoading(null);
     }
@@ -133,9 +138,9 @@ export default function AdminVerificationsPage() {
     setActionLoading(id + 'approve-decline');
     try {
       await api.patch(`/verifications/${id}/approve-decline`, {}, token);
-      toast.success('Déclin approuvé — mission remise en recherche d\'agent.');
+      toast.success(t('toastDeclineApproved'));
       await fetchData(tab, statusFilter, page);
-    } catch { toast.error('Erreur lors de l\'approbation.'); }
+    } catch { toast.error(t('errApprove')); }
     finally { setActionLoading(null); }
   };
 
@@ -145,9 +150,9 @@ export default function AdminVerificationsPage() {
     setActionLoading(id + 'refuse-decline');
     try {
       await api.patch(`/verifications/${id}/refuse-decline`, {}, token);
-      toast.success('Déclin refusé — l\'agent reste assigné.');
+      toast.success(t('toastDeclineRefused'));
       await fetchData(tab, statusFilter, page);
-    } catch { toast.error('Erreur lors du refus.'); }
+    } catch { toast.error(t('errRefuse')); }
     finally { setActionLoading(null); }
   };
 
@@ -161,9 +166,9 @@ export default function AdminVerificationsPage() {
       await fetchData(tab, statusFilter, page);
       setRejectModal(null);
       setRejectReason('');
-      toast.success('Vérification rejetée');
+      toast.success(t('toastVerifRejected'));
     } catch {
-      toast.error('Erreur lors du rejet.');
+      toast.error(t('errReject'));
     } finally {
       setActionLoading(null);
     }
@@ -174,9 +179,9 @@ export default function AdminVerificationsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text">Vérifications AlloVérifié</h1>
+        <h1 className="text-2xl font-bold text-text">{t('verifsTitle')}</h1>
         <p className="mt-1 text-sm text-sub">
-          {total} vérification{total > 1 ? 's' : ''} · {agents.length} agent{agents.length > 1 ? 's' : ''} terrain
+          {t('verifsSubtitle', { verifs: total, agents: agents.length })}
         </p>
       </div>
 
@@ -188,7 +193,7 @@ export default function AdminVerificationsPage() {
             tab === 'pending' ? 'bg-gold text-gray-900' : 'text-sub hover:text-text'
           }`}
         >
-          <i className="fa-solid fa-clock text-xs mr-1.5" />En attente
+          <i className="fa-solid fa-clock text-xs mr-1.5" />{t('tabPending')}
         </button>
         <button
           onClick={() => { setTab('all'); setPage(1); }}
@@ -196,7 +201,7 @@ export default function AdminVerificationsPage() {
             tab === 'all' ? 'bg-gold text-gray-900' : 'text-sub hover:text-text'
           }`}
         >
-          <i className="fa-solid fa-list text-xs mr-1.5" />Toutes
+          <i className="fa-solid fa-list text-xs mr-1.5" />{t('tabAll')}
         </button>
       </div>
 
@@ -207,15 +212,15 @@ export default function AdminVerificationsPage() {
             onChange={(e) => { setStatusFilter(e.target.value as StatusFilter); setPage(1); }}
             className="rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-gold"
           >
-            <option value="ALL">Tous les statuts</option>
-            <option value="REQUESTED">Demandées</option>
-            <option value="SCHEDULED">Planifiées</option>
-            <option value="IN_PROGRESS">En cours</option>
-            <option value="DONE">Terminées</option>
-            <option value="REJECTED">Rejetées</option>
+            <option value="ALL">{t('allStatuses')}</option>
+            <option value="REQUESTED">{t('filterRequested')}</option>
+            <option value="SCHEDULED">{t('filterScheduled')}</option>
+            <option value="IN_PROGRESS">{t('filterInProgress')}</option>
+            <option value="DONE">{t('filterDone')}</option>
+            <option value="REJECTED">{t('filterRejected')}</option>
           </select>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-xs text-sub whitespace-nowrap">Lignes :</span>
+            <span className="text-xs text-sub whitespace-nowrap">{t('rowsLabel')}</span>
             <div className="flex gap-1">
               {LIMIT_OPTIONS.map((l) => (
                 <button key={l} onClick={() => { setLimit(l); setPage(1); }}
@@ -237,7 +242,7 @@ export default function AdminVerificationsPage() {
           <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
           <p className="text-sm text-sub">{error}</p>
           <button onClick={() => fetchData(tab, statusFilter, page)} className="mt-4 btn-gold text-sm">
-            <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+            <i className="fa-solid fa-rotate-right mr-1.5" />{t('retry')}
           </button>
         </div>
       ) : verifications.length === 0 ? (
@@ -245,9 +250,9 @@ export default function AdminVerificationsPage() {
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
             <i className="fa-solid fa-shield-halved text-2xl text-gold-dark" />
           </div>
-          <p className="font-semibold text-text">Aucune vérification</p>
+          <p className="font-semibold text-text">{t('verifsEmpty')}</p>
           <p className="mt-1 text-sm text-sub">
-            {tab === 'pending' ? 'Toutes les demandes ont été traitées.' : 'Aucun résultat pour ce filtre.'}
+            {tab === 'pending' ? t('verifsEmptyPending') : t('verifsEmptyFiltered')}
           </p>
         </div>
       ) : (
@@ -280,7 +285,7 @@ export default function AdminVerificationsPage() {
                       </span>
                     ) : (
                       <span className="text-xs text-red-500 font-medium">
-                        <i className="fa-solid fa-triangle-exclamation text-xs mr-1" />Non assigné
+                        <i className="fa-solid fa-triangle-exclamation text-xs mr-1" />{t('verifNotAssigned')}
                       </span>
                     )}
                     {/* Badge agent préféré par le bailleur */}
@@ -291,7 +296,7 @@ export default function AdminVerificationsPage() {
                       return (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-gold-pale text-gold-dark font-medium border border-gold/30">
                           <i className="fa-solid fa-star text-[9px] mr-1" />
-                          Demandé : {preferred.firstName} {preferred.lastName}
+                          {t('verifRequestedAgent', { name: `${preferred.firstName} ${preferred.lastName}` })}
                         </span>
                       );
                     })()}
@@ -330,7 +335,7 @@ export default function AdminVerificationsPage() {
                       className="btn-gold text-xs py-1.5 px-3"
                     >
                       <i className="fa-solid fa-user-plus text-xs mr-1" />
-                      {v.agent ? 'Réassigner' : 'Assigner'}
+                      {v.agent ? t('reassign') : t('assign')}
                     </button>
                   )}
                   {v.status === 'DONE' && (
@@ -341,7 +346,7 @@ export default function AdminVerificationsPage() {
                     >
                       {actionLoading === v.id + 'validate'
                         ? <i className="fa-solid fa-spinner fa-spin" />
-                        : <><i className="fa-solid fa-shield-halved text-xs mr-1" />Valider badge</>}
+                        : <><i className="fa-solid fa-shield-halved text-xs mr-1" />{t('validateBadge')}</>}
                     </button>
                   )}
                   {/* Déclin en attente — approbation admin */}
@@ -351,7 +356,7 @@ export default function AdminVerificationsPage() {
                       <div className="flex flex-col gap-1.5 w-full">
                         {declineReason && (
                           <div className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-1.5 text-xs text-orange-700">
-                            <span className="font-semibold">Motif : </span>{declineReason}
+                            <span className="font-semibold">{t('declineReasonPrefix')}</span>{declineReason}
                           </div>
                         )}
                         <div className="flex gap-1.5">
@@ -362,7 +367,7 @@ export default function AdminVerificationsPage() {
                           >
                             {actionLoading === v.id + 'approve-decline'
                               ? <i className="fa-solid fa-spinner fa-spin" />
-                              : <><i className="fa-solid fa-check mr-1" />Approuver le déclin</>}
+                              : <><i className="fa-solid fa-check mr-1" />{t('approveDecline')}</>}
                           </button>
                           <button
                             onClick={() => void handleRefuseDecline(v.id)}
@@ -371,7 +376,7 @@ export default function AdminVerificationsPage() {
                           >
                             {actionLoading === v.id + 'refuse-decline'
                               ? <i className="fa-solid fa-spinner fa-spin" />
-                              : <><i className="fa-solid fa-xmark mr-1" />Refuser le déclin</>}
+                              : <><i className="fa-solid fa-xmark mr-1" />{t('refuseDecline')}</>}
                           </button>
                         </div>
                       </div>
@@ -382,7 +387,7 @@ export default function AdminVerificationsPage() {
                       onClick={() => setRejectModal({ id: v.id })}
                       className="text-xs font-medium text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors"
                     >
-                      <i className="fa-solid fa-xmark text-xs mr-1" />Rejeter
+                      <i className="fa-solid fa-xmark text-xs mr-1" />{t('reject')}
                     </button>
                   )}
                 </div>
@@ -399,15 +404,15 @@ export default function AdminVerificationsPage() {
             disabled={page <= 1}
             className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
           >
-            <i className="fa-solid fa-chevron-left text-xs" /> Précédent
+            <i className="fa-solid fa-chevron-left text-xs" /> {t('previous')}
           </button>
-          <span className="text-sm text-sub">Page {page} / {totalPages}</span>
+          <span className="text-sm text-sub">{t('pageOf', { page, total: totalPages })}</span>
           <button
             onClick={() => setPage((p) => p + 1)}
             disabled={page >= totalPages}
             className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
           >
-            Suivant <i className="fa-solid fa-chevron-right text-xs" />
+            {t('next')} <i className="fa-solid fa-chevron-right text-xs" />
           </button>
         </div>
       )}
@@ -424,7 +429,7 @@ export default function AdminVerificationsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
             <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
               {/* Header */}
-              <h2 className="text-lg font-semibold text-text mb-1">Assigner un agent terrain</h2>
+              <h2 className="text-lg font-semibold text-text mb-1">{t('modalAssignTitle')}</h2>
               <p className="text-sm text-sub mb-4 truncate">{assignModal.listingTitle}</p>
 
               {/* Barre de recherche */}
@@ -434,7 +439,7 @@ export default function AdminVerificationsPage() {
                   type="text"
                   value={agentSearch}
                   onChange={(e) => { setAgentSearch(e.target.value); setAgentPage(1); }}
-                  placeholder="Rechercher un agent…"
+                  placeholder={t('agentSearchPh')}
                   className="w-full rounded-xl border border-line bg-bg py-2 pl-9 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition"
                 />
                 {agentSearch && (
@@ -449,10 +454,10 @@ export default function AdminVerificationsPage() {
               {agents.length === 0 ? (
                 <p className="text-sm text-sub py-4 text-center">
                   <i className="fa-solid fa-triangle-exclamation text-gold-dark mr-2" />
-                  Aucun agent terrain disponible.
+                  {t('noAgentsAvailable')}
                 </p>
               ) : filtered.length === 0 ? (
-                <p className="text-sm text-sub py-4 text-center">Aucun résultat pour « {agentSearch} »</p>
+                <p className="text-sm text-sub py-4 text-center">{t('noAgentResults', { search: agentSearch })}</p>
               ) : (
                 <div className="flex flex-col gap-2">
                   {paginated.map((agent) => (
@@ -482,12 +487,14 @@ export default function AdminVerificationsPage() {
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-line">
                   <button onClick={() => setAgentPage((p) => Math.max(1, p - 1))} disabled={agentPage === 1}
                     className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-sub hover:text-text disabled:opacity-40 transition">
-                    <i className="fa-solid fa-chevron-left text-[10px]" /> Préc.
+                    <i className="fa-solid fa-chevron-left text-[10px]" /> {t('prevShort')}
                   </button>
-                  <span className="text-xs text-sub">{agentPage} / {totalAgentPages} · {filtered.length} agent{filtered.length > 1 ? 's' : ''}</span>
+                  <span className="text-xs text-sub">
+                    {t('agentsPageInfo', { page: agentPage, total: totalAgentPages, count: filtered.length })}
+                  </span>
                   <button onClick={() => setAgentPage((p) => Math.min(totalAgentPages, p + 1))} disabled={agentPage >= totalAgentPages}
                     className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-sub hover:text-text disabled:opacity-40 transition">
-                    Suiv. <i className="fa-solid fa-chevron-right text-[10px]" />
+                    {t('nextShort')} <i className="fa-solid fa-chevron-right text-[10px]" />
                   </button>
                 </div>
               )}
@@ -496,13 +503,13 @@ export default function AdminVerificationsPage() {
               <div className="flex gap-3 mt-5 justify-end">
                 <button onClick={() => { setAssignModal(null); setSelectedAgent(''); setAgentSearch(''); setAgentPage(1); }}
                   className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
-                  Annuler
+                  {t('cancel')}
                 </button>
                 <button onClick={handleAssign} disabled={!selectedAgent || actionLoading !== null}
                   className="btn-gold text-sm disabled:opacity-50">
                   {actionLoading === assignModal.verificationId + 'assign'
                     ? <i className="fa-solid fa-spinner fa-spin" />
-                    : 'Confirmer'}
+                    : t('confirm')}
                 </button>
               </div>
             </div>
@@ -514,22 +521,22 @@ export default function AdminVerificationsPage() {
       {rejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-text mb-4">Motif du rejet</h2>
+            <h2 className="text-lg font-semibold text-text mb-4">{t('modalRejectTitle')}</h2>
             <textarea
               className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold-dark resize-none"
               rows={3}
-              placeholder="Expliquez pourquoi cette demande est rejetée..."
+              placeholder={t('rejectReasonPh')}
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
             />
             <div className="flex gap-3 mt-4 justify-end">
               <button onClick={() => { setRejectModal(null); setRejectReason(''); }}
                 className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
-                Annuler
+                {t('cancel')}
               </button>
               <button onClick={handleReject} disabled={!rejectReason.trim() || actionLoading !== null}
                 className="text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
-                {actionLoading !== null ? <i className="fa-solid fa-spinner fa-spin" /> : 'Confirmer le rejet'}
+                {actionLoading !== null ? <i className="fa-solid fa-spinner fa-spin" /> : t('confirmReject')}
               </button>
             </div>
           </div>

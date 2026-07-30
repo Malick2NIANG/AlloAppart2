@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import LocationPicker from '@/components/map/LocationPicker';
@@ -13,63 +14,20 @@ import type { User } from '@/types';
 
 const LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
 
-const AMENITIES = [
-  { key: 'wifi',       icon: 'fa-wifi',         label: 'Wi-Fi'             },
-  { key: 'clim',       icon: 'fa-snowflake',     label: 'Climatisation'     },
-  { key: 'tv',         icon: 'fa-tv',            label: 'Television'        },
-  { key: 'cuisine',    icon: 'fa-utensils',      label: 'Cuisine equipee'   },
-  { key: 'douche',     icon: 'fa-shower',        label: 'Douche / SdB'      },
-  { key: 'gardien',    icon: 'fa-shield-halved', label: 'Gardiennage'       },
-  { key: 'parking',    icon: 'fa-car',           label: 'Parking'           },
-  { key: 'piscine',    icon: 'fa-water',         label: 'Piscine'           },
-  { key: 'balcon',     icon: 'fa-door-open',     label: 'Balcon / Terrasse' },
-  { key: 'generateur', icon: 'fa-bolt',          label: 'Generateur'        },
-];
+const AMENITY_KEYS = [
+  { key: 'wifi',       icon: 'fa-wifi',         tKey: 'amenityWifi'      },
+  { key: 'clim',       icon: 'fa-snowflake',     tKey: 'amenityAirCon'   },
+  { key: 'tv',         icon: 'fa-tv',            tKey: 'amenityTv'       },
+  { key: 'cuisine',    icon: 'fa-utensils',      tKey: 'amenityKitchen'  },
+  { key: 'douche',     icon: 'fa-shower',        tKey: 'amenityShower'   },
+  { key: 'gardien',    icon: 'fa-shield-halved', tKey: 'amenitySecurity' },
+  { key: 'parking',    icon: 'fa-car',           tKey: 'amenityParking'  },
+  { key: 'piscine',    icon: 'fa-water',         tKey: 'amenityPool'     },
+  { key: 'balcon',     icon: 'fa-door-open',     tKey: 'amenityBalcony'  },
+  { key: 'generateur', icon: 'fa-bolt',          tKey: 'amenityGenerator'},
+] as const;
 
 const asNumberOrUndefined = (v: unknown) => (v === '' || v === null || v === undefined ? undefined : Number(v));
-
-const schema = z.object({
-  title:       z.string().min(5, 'Le titre est trop court — décrivez votre bien en au moins 5 caractères'),
-  description: z.string().min(20, 'La description est trop courte — détaillez votre bien en au moins 20 caractères'),
-  type:        z.enum(LISTING_TYPES),
-  price:       z.number().positive('Le prix doit être un nombre positif — entrez le loyer mensuel en FCFA'),
-  lat:         z.number(),
-  lng:         z.number(),
-  address:     z.string().min(5, "L'adresse est trop courte — précisez la rue et le numéro"),
-  city:        z.string().min(2, 'Indiquez une ville valide'),
-  region:      z.string().min(2, 'Indiquez une région valide'),
-  surface:     z.number().positive('La surface doit être un nombre positif').optional(),
-  rooms:       z.number().int('Le nombre de pièces doit être un nombre entier').min(0, 'Le nombre de pièces ne peut pas être négatif').optional(),
-  beds:        z.number().int('Le nombre de chambres doit être un nombre entier').min(0, 'Le nombre de chambres ne peut pas être négatif').optional(),
-  baths:       z.number().int('Le nombre de SDB doit être un nombre entier').min(0, 'Le nombre de SDB ne peut pas être négatif').optional(),
-  amenities:   z.array(z.string()).default([]),
-});
-
-type FormValues = z.infer<typeof schema>;
-
-const FIELD_LABELS: Record<keyof FormValues, string> = {
-  title: 'Titre',
-  description: 'Description',
-  type: 'Type de bien',
-  price: 'Prix mensuel',
-  lat: 'Latitude',
-  lng: 'Longitude',
-  address: 'Adresse',
-  city: 'Ville',
-  region: 'Région',
-  surface: 'Surface',
-  rooms: 'Pièces',
-  beds: 'Chambres',
-  baths: 'Salles de bain',
-  amenities: 'Équipements',
-};
-
-const STEPS: { label: string; fields: (keyof FormValues)[] }[] = [
-  { label: 'Informations de base', fields: ['title', 'description', 'type', 'price'] },
-  { label: 'Localisation',         fields: ['address', 'city', 'region', 'lat', 'lng'] },
-  { label: 'Détails du bien',      fields: ['surface', 'rooms', 'beds', 'baths'] },
-  { label: 'Équipements & Photos', fields: ['amenities'] },
-];
 
 const inputCls = (hasError: boolean) =>
   `w-full rounded-xl border bg-bg px-3 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:ring-1 transition ${
@@ -123,9 +81,61 @@ export default function NewListingPage() {
 function NewListingForm() {
   const { getToken } = useAuth();
   const router = useRouter();
+  const t = useTranslations('bailleur');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
   const [images, setImages]           = useState<string[]>([]);
   const [step, setStep]               = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const schema = useMemo(() => z.object({
+    title:         z.string().min(5, t('zTitleTooShort')),
+    description:   z.string().min(20, t('zDescTooShort')),
+    type:          z.enum(LISTING_TYPES),
+    price:         z.number().positive(t('zPricePositive')),
+    pricePerNight: z.number().positive(t('zPriceNightPositive')).optional(),
+    minimumNights: z.number().int().min(1, t('zMinNights')).optional(),
+    lat:           z.number(),
+    lng:           z.number(),
+    address:       z.string().min(5, t('zAddressShort')),
+    city:          z.string().min(2, t('zCityShort')),
+    region:        z.string().min(2, t('zRegionShort')),
+    surface:       z.number().positive(t('zSurfacePositive')).optional(),
+    rooms:         z.number().int(t('zRoomsInt')).min(0, t('zRoomsMin')).optional(),
+    beds:          z.number().int(t('zBedsInt')).min(0, t('zBedsMin')).optional(),
+    baths:         z.number().int(t('zBathsInt')).min(0, t('zBathsMin')).optional(),
+    amenities:     z.array(z.string()).default([]),
+  }), [t]);
+
+  type FormValues = z.infer<typeof schema>;
+
+  const FIELD_LABELS = useMemo((): Record<string, string> => ({
+    title:         t('fieldTitle'),
+    description:   t('fieldDescription'),
+    type:          t('fieldType'),
+    price:         t('fieldPrice'),
+    pricePerNight: t('fieldPriceNight'),
+    minimumNights: t('fieldMinNights'),
+    lat:           'Latitude',
+    lng:           'Longitude',
+    address:       t('fieldAddress'),
+    city:          t('fieldCity'),
+    region:        t('fieldRegion'),
+    surface:       t('fieldSurface'),
+    rooms:         t('fieldRooms'),
+    beds:          t('fieldBeds'),
+    baths:         t('fieldBaths'),
+    amenities:     t('fieldAmenities'),
+  }), [t]);
+
+  const STEPS = useMemo(() => [
+    { label: t('stepBasicInfo'),       fields: ['title', 'description', 'type', 'price', 'pricePerNight', 'minimumNights'] },
+    { label: t('stepLocation'),         fields: ['address', 'city', 'region', 'lat', 'lng'] },
+    { label: t('stepDetails'),          fields: ['surface', 'rooms', 'beds', 'baths'] },
+    { label: t('stepAmenitiesPhotos'),  fields: ['amenities'] },
+  ] as { label: string; fields: string[] }[], [t]);
+
+  const AMENITIES = useMemo(() => AMENITY_KEYS.map((a) => ({ key: a.key, icon: a.icon, label: t(a.tKey as Parameters<typeof t>[0]) })), [t]);
 
   const {
     register, handleSubmit, setValue, watch, trigger,
@@ -143,11 +153,11 @@ function NewListingForm() {
 
   const stepFields = STEPS[step].fields;
   const stepErrors = stepFields
-    .filter((f) => errors[f])
-    .map((f) => ({ field: f, label: FIELD_LABELS[f], message: errors[f]?.message as string }));
+    .filter((f) => errors[f as keyof FormValues])
+    .map((f) => ({ field: f, label: FIELD_LABELS[f] ?? f, message: errors[f as keyof FormValues]?.message as string }));
 
   async function goNext() {
-    const valid = await trigger(stepFields);
+    const valid = await trigger(stepFields as (keyof FormValues)[]);
     if (valid) setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
 
@@ -167,25 +177,25 @@ function NewListingForm() {
         router.push('/bailleur/abonnement?reason=required');
         return;
       }
-      setSubmitError(message || "Impossible de créer l'annonce.");
+      setSubmitError(message || t('newCreateError'));
     }
   }
 
   return (
     <div className="max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text">Nouvelle annonce</h1>
-        <p className="mt-1 text-sm text-sub">Renseignez les informations de votre bien.</p>
+        <h1 className="text-2xl font-bold text-text">{t('newPageTitle')}</h1>
+        <p className="mt-1 text-sm text-sub">{t('newPageSub')}</p>
       </div>
 
-      <StepIndicator current={step} />
+      <StepIndicator current={step} steps={STEPS} />
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
         {stepErrors.length > 0 && (
           <div className="rounded-xl border border-gold-dark/30 bg-gold-pale/40 p-4">
             <p className="text-sm font-semibold text-text mb-1.5">
               <i className="fa-solid fa-triangle-exclamation text-gold-dark mr-1.5" />
-              Veuillez corriger les champs suivants avant de continuer :
+              {t('stepErrorsTitle')}
             </p>
             <ul className="ml-5 space-y-0.5 text-sm text-sub">
               {stepErrors.map((e) => (
@@ -197,53 +207,83 @@ function NewListingForm() {
 
         {step === 0 && (
           <>
-            <Field label="Titre" error={errors.title?.message}>
-              <input {...register('title')} placeholder="Ex : Appartement 3 pieces meuble" className={inputCls(!!errors.title)} />
+            <Field label={t('fieldTitle')} error={errors.title?.message}>
+              <input {...register('title')} placeholder={t('fieldTitlePh')} className={inputCls(!!errors.title)} />
             </Field>
 
-            <Field label="Description" error={errors.description?.message}>
-              <textarea {...register('description')} rows={4} placeholder="Decrivez votre bien..." className={inputCls(!!errors.description)} />
-              <p className="mt-1 text-right text-xs text-sub">{description.length} caractères</p>
+            <Field label={t('fieldDescription')} error={errors.description?.message}>
+              <textarea {...register('description')} rows={4} placeholder={t('fieldDescPh')} className={inputCls(!!errors.description)} />
+              <p className="mt-1 text-right text-xs text-sub">{t('fieldCharCount', { count: description.length })}</p>
             </Field>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Type de bien" error={errors.type?.message}>
+              <Field label={t('fieldType')} error={errors.type?.message}>
                 <select {...register('type')} className={inputCls(!!errors.type)}>
-                  {LISTING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  {LISTING_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
                 </select>
               </Field>
-              <Field label="Prix mensuel" error={errors.price?.message}>
+              <Field label={t('fieldPrice')} error={errors.price?.message}>
                 <div className="relative">
                   <input
                     type="number"
                     {...register('price', { setValueAs: asNumberOrUndefined })}
-                    placeholder="Ex : 350000"
-                    className={`${inputCls(!!errors.price)} pr-20`}
+                    placeholder="350000"
+                    className={`${inputCls(!!errors.price)} pr-24`}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">FCFA/mois</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">{t('fcfaPerMonth')}</span>
                 </div>
               </Field>
+            </div>
+
+            <div className="rounded-xl border border-line bg-bg/60 p-4 space-y-3">
+              <p className="text-xs font-semibold text-sub uppercase tracking-wide">
+                <i className="fa-solid fa-moon mr-1.5 text-gold-dark" />
+                {t('shortStayTitle')}
+              </p>
+              <p className="text-xs text-sub">{t('shortStayDesc')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label={t('fieldPriceNight')} error={errors.pricePerNight?.message}>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      {...register('pricePerNight', { setValueAs: asNumberOrUndefined })}
+                      placeholder="15000"
+                      className={`${inputCls(!!errors.pricePerNight)} pr-24`}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">{t('fcfaPerNight')}</span>
+                  </div>
+                </Field>
+                <Field label={t('fieldMinNights')} error={errors.minimumNights?.message}>
+                  <input
+                    type="number"
+                    min={1}
+                    {...register('minimumNights', { setValueAs: asNumberOrUndefined })}
+                    placeholder="2"
+                    className={inputCls(!!errors.minimumNights)}
+                  />
+                </Field>
+              </div>
             </div>
           </>
         )}
 
         {step === 1 && (
           <>
-            <Field label="Adresse complete" error={errors.address?.message}>
-              <input {...register('address')} placeholder="Rue, numero..." className={inputCls(!!errors.address)} />
+            <Field label={t('fieldAddress')} error={errors.address?.message}>
+              <input {...register('address')} placeholder={t('fieldAddressPh')} className={inputCls(!!errors.address)} />
             </Field>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Ville" error={errors.city?.message}>
-                <input {...register('city')} placeholder="Ex : Dakar" className={inputCls(!!errors.city)} />
+              <Field label={t('fieldCity')} error={errors.city?.message}>
+                <input {...register('city')} placeholder={t('fieldCityPh')} className={inputCls(!!errors.city)} />
               </Field>
-              <Field label="Region" error={errors.region?.message}>
-                <input {...register('region')} placeholder="Ex : Dakar" className={inputCls(!!errors.region)} />
+              <Field label={t('fieldRegion')} error={errors.region?.message}>
+                <input {...register('region')} placeholder="Ex: Dakar" className={inputCls(!!errors.region)} />
               </Field>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-text">Position sur la carte</label>
+              <label className="mb-1.5 block text-sm font-medium text-text">{t('fieldMapPosition')}</label>
               <div className="h-64 overflow-hidden rounded-xl border border-line">
                 <LocationPicker
                   defaultLat={lat ?? 14.6937}
@@ -253,7 +293,7 @@ function NewListingForm() {
               </div>
               <p className="mt-1 text-xs text-sub">
                 <i className="fa-solid fa-location-crosshairs mr-1 text-gold-dark" />
-                Lat : {lat?.toFixed(4)} - Lng : {lng?.toFixed(4)}
+                {t('fieldCoords', { lat: (lat ?? 0).toFixed(4), lng: (lng ?? 0).toFixed(4) })}
               </p>
             </div>
           </>
@@ -261,16 +301,16 @@ function NewListingForm() {
 
         {step === 2 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Field label="Surface (m2)" error={errors.surface?.message}>
+            <Field label={t('fieldSurface')} error={errors.surface?.message}>
               <input type="number" {...register('surface', { setValueAs: asNumberOrUndefined })} placeholder="85" className={inputCls(!!errors.surface)} />
             </Field>
-            <Field label="Pieces" error={errors.rooms?.message}>
+            <Field label={t('fieldRooms')} error={errors.rooms?.message}>
               <input type="number" {...register('rooms', { setValueAs: asNumberOrUndefined })} placeholder="3" className={inputCls(!!errors.rooms)} />
             </Field>
-            <Field label="Chambres" error={errors.beds?.message}>
+            <Field label={t('fieldBeds')} error={errors.beds?.message}>
               <input type="number" {...register('beds', { setValueAs: asNumberOrUndefined })} placeholder="2" className={inputCls(!!errors.beds)} />
             </Field>
-            <Field label="SDB" error={errors.baths?.message}>
+            <Field label={t('fieldBaths')} error={errors.baths?.message}>
               <input type="number" {...register('baths', { setValueAs: asNumberOrUndefined })} placeholder="1" className={inputCls(!!errors.baths)} />
             </Field>
           </div>
@@ -279,7 +319,7 @@ function NewListingForm() {
         {step === 3 && (
           <>
             <div>
-              <label className="mb-2 block text-sm font-medium text-text">Equipements</label>
+              <label className="mb-2 block text-sm font-medium text-text">{t('fieldAmenities')}</label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {AMENITIES.map(({ key, icon, label }) => {
                   const active = amenities.includes(key);
@@ -309,11 +349,11 @@ function NewListingForm() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-text">Photos</label>
+              <label className="mb-1.5 block text-sm font-medium text-text">{t('fieldImages')}</label>
               <ImageUploadZone images={images} onChange={setImages} getToken={getToken} />
             </div>
 
-            <Summary watch={watch} onEdit={setStep} />
+            <SummaryPanel watch={watch as (name: string) => unknown} onEdit={setStep} t={t} numLocale={numLocale} />
           </>
         )}
 
@@ -331,18 +371,18 @@ function NewListingForm() {
             disabled={step === 0}
             className="rounded-xl border border-line bg-card px-4 py-2.5 text-sm font-medium text-sub hover:text-text disabled:opacity-40 transition"
           >
-            <i className="fa-solid fa-arrow-left mr-1.5" />Retour
+            <i className="fa-solid fa-arrow-left mr-1.5" />{t('editBack')}
           </button>
 
           {step < STEPS.length - 1 ? (
             <button type="button" onClick={() => void goNext()} className="btn-gold">
-              Suivant <i className="fa-solid fa-arrow-right ml-1.5" />
+              {t('editNext')} <i className="fa-solid fa-arrow-right ml-1.5" />
             </button>
           ) : (
             <button type="submit" disabled={isSubmitting} className="btn-gold disabled:opacity-50">
               {isSubmitting
-                ? <><i className="fa-solid fa-spinner fa-spin" /> Publication...</>
-                : <><i className="fa-solid fa-paper-plane" /> Publier l&apos;annonce</>
+                ? <><i className="fa-solid fa-spinner fa-spin" /> {t('newPublishing')}</>
+                : <><i className="fa-solid fa-paper-plane" /> {t('newPublish')}</>
               }
             </button>
           )}
@@ -352,11 +392,11 @@ function NewListingForm() {
   );
 }
 
-function StepIndicator({ current }: { current: number }) {
+function StepIndicator({ current, steps }: { current: number; steps: { label: string; fields: string[] }[] }) {
   return (
     <div className="mb-8 flex items-center">
-      {STEPS.map((step, i) => (
-        <div key={step.label} className={`flex items-center ${i < STEPS.length - 1 ? 'flex-1' : ''}`}>
+      {steps.map((step, i) => (
+        <div key={step.label} className={`flex items-center ${i < steps.length - 1 ? 'flex-1' : ''}`}>
           <div className="flex flex-col items-center">
             <div className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors ${
               i < current ? 'border-gold-dark bg-gold-dark text-white' :
@@ -369,7 +409,7 @@ function StepIndicator({ current }: { current: number }) {
               {step.label}
             </span>
           </div>
-          {i < STEPS.length - 1 && (
+          {i < steps.length - 1 && (
             <div className={`mx-2 h-0.5 flex-1 ${i < current ? 'bg-gold-dark' : 'bg-line'}`} />
           )}
         </div>
@@ -378,39 +418,53 @@ function StepIndicator({ current }: { current: number }) {
   );
 }
 
-function Summary({ watch, onEdit }: { watch: (name: keyof FormValues) => unknown; onEdit: (step: number) => void }) {
-  const title  = (watch('title') as string) || '—';
-  const type   = (watch('type') as string) || '—';
-  const price  = watch('price') as number | undefined;
-  const city   = (watch('city') as string) || '—';
-  const region = (watch('region') as string) || '—';
+function SummaryPanel({
+  watch, onEdit, t, numLocale,
+}: {
+  watch: (name: string) => unknown;
+  onEdit: (step: number) => void;
+  t: ReturnType<typeof useTranslations<'bailleur'>>;
+  numLocale: string;
+}) {
+  const title         = (watch('title') as string) || '—';
+  const type          = (watch('type') as string) || '—';
+  const price         = watch('price') as number | undefined;
+  const pricePerNight = watch('pricePerNight') as number | undefined;
+  const minimumNights = watch('minimumNights') as number | undefined;
+  const city          = (watch('city') as string) || '—';
+  const region        = (watch('region') as string) || '—';
+
+  const priceLine = [
+    price ? `${price.toLocaleString(numLocale)} ${t('fcfaPerMonth')}` : '—',
+    pricePerNight ? `${pricePerNight.toLocaleString(numLocale)} ${t('fcfaPerNight')}` : null,
+    minimumNights ? t('minNightsLabel', { count: minimumNights }) : null,
+  ].filter(Boolean).join(' · ');
 
   return (
     <div className="rounded-2xl border border-line bg-bg p-4">
       <p className="mb-3 text-xs font-medium uppercase tracking-wide text-sub">
         <i className="fa-solid fa-clipboard-check mr-1.5 text-gold-dark" />
-        Relisez votre annonce avant de publier
+        {t('reviewBefore')}
       </p>
 
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs text-sub">Informations de base</p>
-          <p className="mt-0.5 truncate text-sm text-text">
-            {title} · {type} · {price ? `${price.toLocaleString('fr-FR')} FCFA/mois` : '—'}
-          </p>
+          <p className="text-xs text-sub">{t('stepBasicInfo')}</p>
+          <p className="mt-0.5 truncate text-sm text-text">{title} · {type}</p>
+          <p className="mt-0.5 truncate text-xs text-sub">{priceLine}</p>
         </div>
         <button type="button" onClick={() => onEdit(0)} className="shrink-0 text-xs font-medium text-gold-dark hover:underline">
-          Modifier
+          {t('summaryModify')}
         </button>
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3 border-t border-line pt-3">
         <div className="min-w-0">
-          <p className="text-xs text-sub">Localisation</p>
+          <p className="text-xs text-sub">{t('stepLocation')}</p>
           <p className="mt-0.5 truncate text-sm text-text">{city}, {region}</p>
         </div>
         <button type="button" onClick={() => onEdit(1)} className="shrink-0 text-xs font-medium text-gold-dark hover:underline">
-          Modifier
+          {t('summaryModify')}
         </button>
       </div>
     </div>

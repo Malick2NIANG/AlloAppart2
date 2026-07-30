@@ -3,7 +3,6 @@ import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
 
 const SOCIALS = [
-  { icon: 'fa-brands fa-whatsapp',  href: '#', label: 'WhatsApp', color: 'hover:text-green-500 hover:border-green-500' },
   { icon: 'fa-brands fa-facebook',  href: '#', label: 'Facebook', color: 'hover:text-blue-600  hover:border-blue-600'  },
   { icon: 'fa-brands fa-instagram', href: '#', label: 'Instagram',color: 'hover:text-pink-500  hover:border-pink-500'  },
   { icon: 'fa-brands fa-x-twitter', href: '#', label: 'X',        color: 'hover:text-text      hover:border-text'      },
@@ -126,8 +125,8 @@ export default async function Footer() {
         <div className="mt-10 border-t border-line pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-sub">
           <p>© {new Date().getFullYear()} AlloAppart. {t('rights')}</p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/a-propos"        className="hover:text-gold-dark transition-colors">À propos</Link>
-            <Link href="/plan-du-site"    className="hover:text-gold-dark transition-colors">Plan du site</Link>
+            <Link href="/a-propos"        className="hover:text-gold-dark transition-colors">{t('navAbout')}</Link>
+            <Link href="/plan-du-site"    className="hover:text-gold-dark transition-colors">{t('navSitemap')}</Link>
             <Link href="/confidentialite" className="hover:text-gold-dark transition-colors">{t('privacy')}</Link>
             <Link href="/cgu"             className="hover:text-gold-dark transition-colors">{t('terms')}</Link>
             <Link href="/cookies"         className="hover:text-gold-dark transition-colors">{t('cookies')}</Link>

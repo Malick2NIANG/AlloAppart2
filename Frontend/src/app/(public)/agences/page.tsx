@@ -1,10 +1,14 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = {
-  title: 'Agences immobilières — AlloAppart',
-  description: 'Découvrez toutes nos agences immobilières partenaires au Sénégal.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('agences');
+  return {
+    title: t('metaTitle'),
+    description: t('metaDescription'),
+  };
+}
 
 export const revalidate = 3600;
 
@@ -35,7 +39,7 @@ async function fetchAgencies(): Promise<AgencyCard[]> {
 }
 
 export default async function AgencesPage() {
-  const agencies = await fetchAgencies();
+  const [agencies, t] = await Promise.all([fetchAgencies(), getTranslations('agences')]);
 
   return (
     <main className="min-h-screen bg-bg py-14 px-4">
@@ -44,13 +48,13 @@ export default async function AgencesPage() {
         {/* En-tête */}
         <div className="mb-10">
           <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold-pale px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-gold-dark mb-3">
-            <i className="fa-solid fa-building text-[9px]" /> Agences partenaires
+            <i className="fa-solid fa-building text-[9px]" /> {t('partnerBadge')}
           </span>
           <h1 className="text-3xl font-extrabold text-text md:text-4xl">
-            Nos agences immobilières
+            {t('title')}
           </h1>
           <p className="mt-2 text-sub">
-            {agencies.length} agence{agencies.length > 1 ? 's' : ''} partenaire{agencies.length > 1 ? 's' : ''} sur AlloAppart
+            {agencies.length} {t(agencies.length > 1 ? 'agencesPartner' : 'agencePartner')}
           </p>
         </div>
 
@@ -58,8 +62,8 @@ export default async function AgencesPage() {
         {agencies.length === 0 ? (
           <div className="rounded-2xl border border-line bg-card p-20 text-center">
             <i className="fa-regular fa-building text-4xl text-sub mb-3 block" />
-            <p className="font-semibold text-text">Aucune agence disponible pour l&apos;instant</p>
-            <p className="text-sm text-sub mt-1">Revenez bientôt — de nouvelles agences rejoignent AlloAppart régulièrement.</p>
+            <p className="font-semibold text-text">{t('emptyTitle')}</p>
+            <p className="text-sm text-sub mt-1">{t('emptySub')}</p>
           </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -112,11 +116,12 @@ export default async function AgencesPage() {
                     <div className="flex items-center gap-3 text-[11px] text-sub mb-4">
                       <span className="flex items-center gap-1">
                         <i className="fa-solid fa-building text-gold-dark text-[10px]" />
-                        <span className="font-semibold text-text">{count}</span> bien{count > 1 ? 's' : ''}
+                        <span className="font-semibold text-text">{count}</span>{' '}
+                        {t(count > 1 ? 'biens' : 'bien')}
                       </span>
                       <span className="flex items-center gap-1">
                         <i className="fa-regular fa-calendar text-gold-dark text-[10px]" />
-                        depuis {since}
+                        {t('since')} {since}
                       </span>
                     </div>
 
@@ -132,11 +137,11 @@ export default async function AgencesPage() {
                     {href ? (
                       <Link href={href}
                         className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-gold/40 bg-gold-pale hover:bg-gold/20 text-gold-dark text-xs font-semibold py-2.5 transition-colors">
-                        <i className="fa-solid fa-store text-[10px]" /> Voir la vitrine
+                        <i className="fa-solid fa-store text-[10px]" /> {t('viewVitrine')}
                       </Link>
                     ) : (
                       <div className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-bg text-sub text-xs py-2.5 cursor-default">
-                        Vitrine non configurée
+                        {t('noVitrine')}
                       </div>
                     )}
                   </div>

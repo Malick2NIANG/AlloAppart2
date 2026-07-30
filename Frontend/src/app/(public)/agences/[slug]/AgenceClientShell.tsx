@@ -4,13 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Agency, AgencyListing } from './page';
-
-const TYPE_LABEL: Record<string, string> = {
-  APARTMENT: 'Appartement', HOUSE: 'Maison', STUDIO: 'Studio',
-  VILLA: 'Villa', OFFICE: 'Bureau', LAND: 'Terrain', OTHER: 'Autre',
-};
 
 function fmtPrice(p: string | number) {
   return Number(p).toLocaleString('fr-FR');
@@ -21,13 +17,15 @@ function isPremium(agency: Agency) {
 }
 
 export default function AgenceClientShell({ agency }: { agency: Agency }) {
-  const router           = useRouter();
-  const { isSignedIn, getToken } = useAuth();
-  const [contacting, setContacting] = useState<string | null>(null);
-  const [search,     setSearch]     = useState('');
+  const t                              = useTranslations('agences');
+  const router                         = useRouter();
+  const { isSignedIn, getToken }       = useAuth();
+  const [contacting, setContacting]    = useState<string | null>(null);
+  const [search,     setSearch]        = useState('');
 
-  const name     = agency.agencyName ?? `${agency.firstName} ${agency.lastName}`;
-  const premium  = isPremium(agency);
+  const typeLabels = t.raw('typeLabels') as Record<string, string>;
+  const name       = agency.agencyName ?? `${agency.firstName} ${agency.lastName}`;
+  const premium    = isPremium(agency);
 
   // Tracker la vue vitrine (fire-and-forget)
   useEffect(() => {
@@ -35,6 +33,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
       api.post(`/agences/${agency.agencySlug}/view`, {}).catch(() => {});
     }
   }, [agency.agencySlug]);
+
   const since    = new Date(agency.createdAt).getFullYear();
   const listings = agency.listings.filter((l) =>
     !search || l.title.toLowerCase().includes(search.toLowerCase()) || l.city.toLowerCase().includes(search.toLowerCase()),
@@ -85,7 +84,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white">{name}</h1>
                 {premium && (
                   <span className="flex items-center gap-1 bg-gold/20 border border-gold/40 text-gold text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                    <i className="fa-solid fa-crown text-[9px]" /> Agence PRO
+                    <i className="fa-solid fa-crown text-[9px]" /> {t('proBadge')}
                   </span>
                 )}
               </div>
@@ -97,11 +96,13 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
               <div className="flex flex-wrap items-center gap-4 justify-center sm:justify-start text-sm text-gray-400">
                 <span className="flex items-center gap-1.5">
                   <i className="fa-solid fa-building text-gold text-xs" />
-                  {agency._count.listings} bien{agency._count.listings > 1 ? 's' : ''} disponible{agency._count.listings > 1 ? 's' : ''}
+                  <span className="font-semibold text-white">{agency._count.listings}</span>{' '}
+                  {t(agency._count.listings > 1 ? 'biens' : 'bien')}{' '}
+                  {t(agency._count.listings > 1 ? 'disponibles' : 'disponible')}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <i className="fa-regular fa-calendar text-gold text-xs" />
-                  Membre depuis {since}
+                  {t('memberSince')} {since}
                 </span>
                 {agency.phone && (
                   <a href={`tel:${agency.phone}`} className="flex items-center gap-1.5 hover:text-gold transition-colors">
@@ -121,13 +122,13 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
         {/* Barre recherche + compteur */}
         <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
           <h2 className="text-lg font-extrabold text-text">
-            Catalogue — <span className="text-gold-dark">{listings.length} annonce{listings.length > 1 ? 's' : ''}</span>
+            {t('catalogueTitle')} — <span className="text-gold-dark">{listings.length} {t(listings.length > 1 ? 'biens' : 'bien')}</span>
           </h2>
           <div className="relative">
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sub text-xs" />
             <input
               value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher dans ce catalogue…"
+              placeholder={t('searchPlaceholder')}
               className="pl-9 pr-4 py-2 rounded-xl border border-line bg-card text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 w-64"
             />
           </div>
@@ -137,14 +138,14 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
         {listings.length === 0 ? (
           <div className="rounded-2xl border border-line bg-card p-16 text-center">
             <i className="fa-regular fa-building text-4xl text-sub mb-3 block" />
-            <p className="font-semibold text-text">Aucune annonce trouvée</p>
-            <p className="text-sm text-sub mt-1">Essayez d&apos;élargir votre recherche.</p>
+            <p className="font-semibold text-text">{t('noListingsFound')}</p>
+            <p className="text-sm text-sub mt-1">{t('noListingsTry')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {listings.map((listing) => {
-              const isActive     = listing.boostUntil && new Date(listing.boostUntil) > new Date();
-              const img          = listing.images[0];
+              const isActive = listing.boostUntil && new Date(listing.boostUntil) > new Date();
+              const img      = listing.images[0];
               return (
                 <div key={listing.id} className="rounded-2xl border border-line bg-card overflow-hidden hover:shadow-lg transition-shadow group">
                   {/* Image */}
@@ -162,19 +163,19 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
                     <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap">
                       {isActive && (
                         <span className="flex items-center gap-1 bg-gold text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                          <i className="fa-solid fa-bolt text-[8px]" /> En vedette
+                          <i className="fa-solid fa-bolt text-[8px]" /> {t('featuredBadge')}
                         </span>
                       )}
                       {listing.isVerified && (
                         <span className="flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                          <i className="fa-solid fa-shield-check text-[8px]" /> AlloVérifié
+                          <i className="fa-solid fa-shield-check text-[8px]" /> {t('verifiedBadge')}
                         </span>
                       )}
                     </div>
                     {/* Prix */}
                     <div className="absolute bottom-2 right-2">
                       <span className="bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full">
-                        {fmtPrice(listing.price)} FCFA/mois
+                        {fmtPrice(listing.price)} FCFA/{t('perMonth')}
                       </span>
                     </div>
                   </div>
@@ -187,7 +188,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
                         {listing.title}
                       </Link>
                       <span className="shrink-0 text-[10px] font-semibold bg-gold-pale text-gold-dark px-2 py-0.5 rounded-full">
-                        {TYPE_LABEL[listing.type] ?? listing.type}
+                        {typeLabels[listing.type] ?? listing.type}
                       </span>
                     </div>
                     <p className="text-xs text-sub flex items-center gap-1 mb-3">
@@ -197,17 +198,17 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
 
                     {/* Détails */}
                     <div className="flex items-center gap-3 text-xs text-sub mb-4">
-                      {listing.beds   && <span><i className="fa-solid fa-bed mr-1" />{listing.beds}</span>}
-                      {listing.baths  && <span><i className="fa-solid fa-bath mr-1" />{listing.baths}</span>}
+                      {listing.beds    && <span><i className="fa-solid fa-bed mr-1" />{listing.beds}</span>}
+                      {listing.baths   && <span><i className="fa-solid fa-bath mr-1" />{listing.baths}</span>}
                       {listing.surface && <span><i className="fa-solid fa-ruler-combined mr-1" />{listing.surface} m²</span>}
-                      {listing.rooms  && !listing.beds && <span><i className="fa-solid fa-door-open mr-1" />{listing.rooms} pièces</span>}
+                      {listing.rooms   && !listing.beds && <span><i className="fa-solid fa-door-open mr-1" />{listing.rooms} {t('roomsLabel')}</span>}
                     </div>
 
                     {/* Actions */}
                     <div className="flex gap-2">
                       <Link href={`/listings/${listing.id}`}
                         className="flex-1 text-center rounded-xl border border-line text-sub hover:bg-bg text-xs font-medium py-2 transition-colors">
-                        Voir le bien
+                        {t('viewListing')}
                       </Link>
                       <button
                         onClick={() => void handleContact(listing)}
@@ -216,7 +217,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
                       >
                         {contacting === listing.id
                           ? <i className="fa-solid fa-spinner fa-spin" />
-                          : <><i className="fa-solid fa-comment-dots text-[10px]" /> Contacter</>}
+                          : <><i className="fa-solid fa-comment-dots text-[10px]" /> {t('contactLabel')}</>}
                       </button>
                     </div>
                   </div>

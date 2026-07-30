@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Review, PaginatedResponse } from '@/types';
 import { formatDate } from '@/lib/utils';
@@ -12,6 +13,10 @@ import { useToast } from '@/components/ui/Toast';
 export default function AdminReviewsPage() {
   const { getToken } = useAuth();
   const { toast }    = useToast();
+  const t            = useTranslations('admin');
+  const tRef         = useRef(t);
+  tRef.current       = t;
+
   const [reviews, setReviews]   = useState<Review[]>([]);
   const [total, setTotal]       = useState(0);
   const [page, setPage]         = useState(1);
@@ -32,7 +37,7 @@ export default function AdminReviewsPage() {
       setReviews(res.data);
       setTotal(res.total);
     } catch {
-      setError('Impossible de charger les avis.');
+      setError(tRef.current('reviewsLoadError'));
     } finally {
       setLoading(false);
     }
@@ -48,10 +53,10 @@ export default function AdminReviewsPage() {
     try {
       await api.delete(`/reviews/${deleteModal.id}`, token);
       setDeleteModal(null);
-      toast.success('Avis supprimé');
+      toast.success(t('toastReviewDeleted'));
       await fetchData(page);
     } catch {
-      toast.error('Erreur lors de la suppression.');
+      toast.error(t('errDelete'));
     } finally {
       setActionId(null);
     }
@@ -63,11 +68,11 @@ export default function AdminReviewsPage() {
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text">Avis locataires</h1>
-          <p className="mt-1 text-sm text-sub">{total} avis au total</p>
+          <h1 className="text-2xl font-bold text-text">{t('reviewsTitle')}</h1>
+          <p className="mt-1 text-sm text-sub">{t('reviewsCount', { count: total })}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-xs text-sub whitespace-nowrap">Lignes :</span>
+          <span className="text-xs text-sub whitespace-nowrap">{t('rowsLabel')}</span>
           <div className="flex gap-1">
             {LIMIT_OPTIONS.map((l) => (
               <button key={l} onClick={() => { setLimit(l); setPage(1); fetchData(1, l); }}
@@ -88,7 +93,7 @@ export default function AdminReviewsPage() {
           <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
           <p className="text-sm text-sub">{error}</p>
           <button onClick={() => fetchData(page)} className="mt-4 btn-gold text-sm">
-            <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+            <i className="fa-solid fa-rotate-right mr-1.5" />{t('retry')}
           </button>
         </div>
       ) : reviews.length === 0 ? (
@@ -96,7 +101,7 @@ export default function AdminReviewsPage() {
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
             <i className="fa-solid fa-star text-2xl text-gold-dark" />
           </div>
-          <p className="text-sub">Aucun avis pour le moment.</p>
+          <p className="text-sub">{t('reviewsEmpty')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -126,7 +131,7 @@ export default function AdminReviewsPage() {
                 disabled={actionId !== null}
                 className="shrink-0 text-xs font-medium border border-red-200 bg-red-50 text-red-700 rounded-lg px-3 py-1.5 hover:bg-red-100 disabled:opacity-50 transition-colors"
               >
-                <i className="fa-solid fa-trash text-xs mr-1" />Supprimer
+                <i className="fa-solid fa-trash text-xs mr-1" />{t('delete')}
               </button>
             </div>
           ))}
@@ -137,12 +142,12 @@ export default function AdminReviewsPage() {
         <div className="flex items-center justify-between mt-6">
           <button onClick={() => setPage((p) => p - 1)} disabled={page <= 1}
             className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
-            <i className="fa-solid fa-chevron-left text-xs" /> Précédent
+            <i className="fa-solid fa-chevron-left text-xs" /> {t('previous')}
           </button>
-          <span className="text-sm text-sub">Page {page} / {totalPages}</span>
+          <span className="text-sm text-sub">{t('pageOf', { page, total: totalPages })}</span>
           <button onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages}
             className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
-            Suivant <i className="fa-solid fa-chevron-right text-xs" />
+            {t('next')} <i className="fa-solid fa-chevron-right text-xs" />
           </button>
         </div>
       )}
@@ -153,9 +158,9 @@ export default function AdminReviewsPage() {
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
               <i className="fa-solid fa-trash text-red-600" />
             </div>
-            <h2 className="text-lg font-semibold text-text mb-1">Supprimer cet avis ?</h2>
+            <h2 className="text-lg font-semibold text-text mb-1">{t('modalDeleteReview')}</h2>
             <p className="text-sm text-sub mb-2">
-              De <span className="font-medium text-text">{deleteModal.author?.firstName} {deleteModal.author?.lastName}</span> · {deleteModal.rating}/5
+              {t('reviewFrom')} <span className="font-medium text-text">{deleteModal.author?.firstName} {deleteModal.author?.lastName}</span> · {deleteModal.rating}/5
             </p>
             {deleteModal.comment && (
               <p className="text-xs text-sub mb-6 line-clamp-3 italic">&ldquo;{deleteModal.comment}&rdquo;</p>
@@ -163,11 +168,11 @@ export default function AdminReviewsPage() {
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteModal(null)}
                 className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
-                Annuler
+                {t('cancel')}
               </button>
               <button onClick={handleDelete} disabled={actionId !== null}
                 className="text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
-                {actionId !== null ? <i className="fa-solid fa-spinner fa-spin" /> : 'Supprimer'}
+                {actionId !== null ? <i className="fa-solid fa-spinner fa-spin" /> : t('delete')}
               </button>
             </div>
           </div>

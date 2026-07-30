@@ -5,15 +5,10 @@ import { useUser, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
-type DemoRole = 'visitor' | 'locataire' | 'bailleur' | 'dual' | 'admin' | 'agent';
-
 export default function SecuritePage() {
   const { isSignedIn } = useAuth();
   const { user, isLoaded } = useUser();
   const t = useTranslations('securite');
-
-  const [demoRole, setDemoRole] = useState<DemoRole>('visitor');
-  const [mounted, setMounted]   = useState(false);
 
   /* Password form */
   const [currentPwd,  setCurrentPwd]  = useState('');
@@ -32,28 +27,13 @@ export default function SecuritePage() {
   const [totpEnabled, setTotpEnabled] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('aa_demo_role') as DemoRole | null;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydration on mount
-    if (stored && ['visitor', 'locataire', 'bailleur', 'dual', 'admin', 'agent'].includes(stored)) setDemoRole(stored);
-    setMounted(true);
-    const handler = (e: Event) => setDemoRole((e as CustomEvent<DemoRole>).detail);
-    window.addEventListener('aa-demo-change', handler);
-    return () => window.removeEventListener('aa-demo-change', handler);
-  }, []);
-
-  useEffect(() => {
     if (user) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- 2FA state synced from user object
       setTotpEnabled(user.twoFactorEnabled ?? false);
     }
   }, [user]);
 
-  if (!mounted) return null;
-
-  const effectiveSignedIn = isSignedIn || demoRole !== 'visitor';
-  const isDemo = !isSignedIn && demoRole !== 'visitor';
-
-  if (!effectiveSignedIn) {
+  if (!isSignedIn) {
     return (
       <main className="py-16 px-4 bg-bg min-h-screen">
         <div className="aa-container max-w-2xl text-center">
@@ -69,7 +49,6 @@ export default function SecuritePage() {
   /* ── Password save ── */
   const handlePwd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isDemo) return;
     if (newPwd !== confirmPwd) {
       setPwdFlash({ type: 'err', msg: t('pwdMismatch') });
       return;
@@ -94,7 +73,7 @@ export default function SecuritePage() {
 
   /* ── TOTP setup ── */
   const startTotp = async () => {
-    if (!user || isDemo) return;
+    if (!user) return;
     setTotpSaving(true);
     try {
       const totp = await user.createTOTP();
@@ -108,7 +87,7 @@ export default function SecuritePage() {
 
   const verifyTotp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || isDemo) return;
+    if (!user) return;
     setTotpSaving(true);
     try {
       await user.verifyTOTP({ code: totpCode });
@@ -125,7 +104,7 @@ export default function SecuritePage() {
   };
 
   const disableTotp = async () => {
-    if (!user || isDemo) return;
+    if (!user) return;
     try {
       const factor = user.totpEnabled ? user.twoFactorEnabled : null;
       if (factor) await user.disableTOTP();
@@ -144,9 +123,7 @@ export default function SecuritePage() {
 
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1.5 text-xs text-sub">
-          <Link href="/espace"  className="hover:text-gold-dark transition-colors">{t('mySpace')}</Link>
-          <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
-          <Link href="/profil"  className="hover:text-gold-dark transition-colors">{t('profile')}</Link>
+          <Link href="/profil" className="hover:text-gold-dark transition-colors">{t('profile')}</Link>
           <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
           <span className="text-gold-dark font-medium">{t('title')}</span>
         </nav>
@@ -161,10 +138,7 @@ export default function SecuritePage() {
             <i className="fa-solid fa-lock text-gold-dark text-xs" /> {t('pwdTitle')}
           </h2>
 
-          {isDemo ? (
-            <DemoBanner t={t} />
-          ) : (
-            <form onSubmit={handlePwd} className="space-y-3">
+          <form onSubmit={handlePwd} className="space-y-3">
               <PwdField
                 label={t('currentPwd')} value={currentPwd} show={showCurrent}
                 onChange={setCurrentPwd} onToggle={() => setShowCurrent(!showCurrent)}
@@ -189,7 +163,6 @@ export default function SecuritePage() {
                 }
               </button>
             </form>
-          )}
         </section>
 
         {/* ── Double authentification ── */}
@@ -211,9 +184,7 @@ export default function SecuritePage() {
             </span>
           </div>
 
-          {isDemo ? (
-            <DemoBanner t={t} />
-          ) : totpEnabled ? (
+          {totpEnabled ? (
             <div className="space-y-3">
               <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                 <i className="fa-solid fa-shield-check" />
@@ -279,15 +250,6 @@ export default function SecuritePage() {
 }
 
 /* ── Sub-components ── */
-
-function DemoBanner({ t }: { t: ReturnType<typeof useTranslations<'securite'>> }) {
-  return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-      <i className="fa-solid fa-flask shrink-0" />
-      {t('demoReadOnly')}
-    </div>
-  );
-}
 
 function Flash({ flash }: { flash: { type: 'ok' | 'err'; msg: string } }) {
   return (

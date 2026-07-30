@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import AgenceClientShell from './AgenceClientShell';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -35,11 +36,12 @@ async function fetchAgency(slug: string): Promise<Agency | null> {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const agency = await fetchAgency(slug);
-  if (!agency) return { title: 'Agence introuvable — AlloAppart' };
+  const t = await getTranslations('agences');
+  if (!agency) return { title: t('metaNotFound') };
   const name = agency.agencyName ?? `${agency.firstName} ${agency.lastName}`;
   return {
-    title: `${name} — Vitrine agence | AlloAppart`,
-    description: agency.bio ?? `Découvrez les ${agency._count.listings} annonces de ${name} sur AlloAppart.`,
+    title: t('metaAgencyTitle', { name }),
+    description: agency.bio ?? t('metaAgencyDescription', { count: agency._count.listings, name }),
     openGraph: { images: agency.avatar ? [agency.avatar] : [] },
   };
 }

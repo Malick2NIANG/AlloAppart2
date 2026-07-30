@@ -5,6 +5,7 @@ import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import Pusher from 'pusher-js';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Message, MessageReplyTo, MessageRoom, User } from '@/types';
 
@@ -12,13 +13,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
-function formatTime(dateStr: string): string {
+function formatTime(dateStr: string, numLocale = 'fr-FR'): string {
   const d = new Date(dateStr);
   const now = new Date();
   const isToday = d.toDateString() === now.toDateString();
   return isToday
-    ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    ? d.toLocaleTimeString(numLocale, { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString(numLocale, { day: '2-digit', month: '2-digit' });
 }
 
 function formatAudioTime(s: number): string {
@@ -30,6 +31,12 @@ function formatAudioTime(s: number): string {
 
 function getInitials(name: string) {
   return name.split(' ').map((n) => n[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || '?';
+}
+
+function getDisplayName(p: { firstName?: string | null; lastName?: string | null; agencyName?: string | null; roles?: string[] } | null | undefined, fallback = 'Utilisateur'): string {
+  if (!p) return fallback;
+  if (p.roles?.includes('PRO_AGENCE') && p.agencyName) return p.agencyName;
+  return `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || fallback;
 }
 
 function isAudioMessage(content: string) {
@@ -126,7 +133,6 @@ function AudioPlayer({ src, isMine }: { src: string; isMine: boolean }) {
             type="button"
             onClick={cycleSpeed}
             className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full transition-colors leading-none ${speedClass}`}
-            title="Changer la vitesse"
           >
             {speed === 1 ? '1×' : `${speed}×`}
           </button>
@@ -142,10 +148,20 @@ function AudioPlayer({ src, isMine }: { src: string; isMine: boolean }) {
 
 interface Props {
   emptyHint?: string;
+  space?: 'bailleur' | 'locataire' | 'agent';
 }
 
-export default function MessagesShell({ emptyHint = 'Vos conversations apparaîtront ici.' }: Props) {
+const SPACE_BADGE_CLS = {
+  bailleur:  { icon: 'fa-house-chimney-user', cls: 'bg-gold-pale text-gold-dark'      },
+  locataire: { icon: 'fa-user',               cls: 'bg-blue-50 text-blue-700'         },
+  agent:     { icon: 'fa-shield-halved',      cls: 'bg-emerald-50 text-emerald-700'   },
+};
+
+export default function MessagesShell({ emptyHint, space }: Props) {
   const { getToken } = useAuth();
+  const t = useTranslations('messagesShell');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
   const searchParams = useSearchParams();
   const roomFromUrl  = searchParams.get('room');
 
@@ -176,6 +192,12 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
   useEffect(() => { meRef.current = me; }, [me]);
 
   const activeRoom = rooms.find((r) => r.id === activeRoomId) ?? null;
+
+  const SPACE_BADGE: Record<string, { label: string; icon: string; cls: string }> = {
+    bailleur:  { label: t('spaceBailleur'),  ...SPACE_BADGE_CLS.bailleur  },
+    locataire: { label: t('spaceLocataire'), ...SPACE_BADGE_CLS.locataire },
+    agent:     { label: t('spaceAgent'),     ...SPACE_BADGE_CLS.agent     },
+  };
 
   /* ── Load rooms + me ──────────────────────────────────────────────────── */
   const loadRooms = useCallback(async () => {
@@ -348,7 +370,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
       setRecordingTime(0);
       timerRef.current = setInterval(() => setRecordingTime((t) => t + 1), 1000);
     } catch {
-      alert("Microphone non disponible. Autorisez l’accès au micro.");
+      alert(t('micUnavailable'));
     }
   };
 
@@ -391,9 +413,9 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
             headers: { Authorization: `Bearer ${token}` },
             body: form,
           });
-          if (!res.ok) throw new Error(`Upload échoué (${res.status})`);
+          if (!res.ok) throw new Error(`Upload failed (${res.status})`);
           const data = await res.json() as { url?: string };
-          if (!data.url) throw new Error('URL manquante dans la réponse');
+          if (!data.url) throw new Error('Missing URL in upload response');
           const msg = await api.post<Message>(
             `/messages/rooms/${activeRoomId}/send`,
             { content: `[AUDIO]:${data.url}` },
@@ -401,7 +423,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
           );
           setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [...prev, { ...msg, sender: me ?? undefined } as Message]);
         } catch (err) {
-          setVoiceError(err instanceof Error ? err.message : 'Envoi du vocal échoué');
+          setVoiceError(err instanceof Error ? err.message : t('voiceMessage'));
         }
         finally { setSending(false); resolve(); }
       };
@@ -415,14 +437,15 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
   const filteredRooms = rooms.filter((r) => {
     if (!q) return true;
     const title = r.listing?.title?.toLowerCase() ?? '';
-    const names = r.participants.map((p) => `${p.firstName ?? ''} ${p.lastName ?? ''}`.toLowerCase()).join(' ');
+    const names = r.participants.map((p) => getDisplayName(p).toLowerCase()).join(' ');
     return title.includes(q) || names.includes(q);
   });
 
+  const userFallback = t('userFallback');
   const otherParticipants = activeRoom?.participants.filter((p) => p.id !== me?.id) ?? [];
   const otherName = otherParticipants
-    .map((p) => `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim())
-    .join(', ') || 'Conversation';
+    .map((p) => getDisplayName(p, userFallback))
+    .join(', ') || t('conversationFallback');
 
   /* ── Render ───────────────────────────────────────────────────────────── */
   return (
@@ -432,17 +455,26 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
       <div className={`flex flex-col border-r border-line bg-bg ${activeRoomId ? 'hidden md:flex' : 'flex'} w-full md:w-80 lg:w-96 shrink-0`}>
 
         <div className="px-4 pt-5 pb-3 border-b border-line shrink-0">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <h1 className="text-lg font-bold text-text">Messages</h1>
             <span className="text-xs font-medium bg-gold-pale text-gold-dark px-2.5 py-1 rounded-full">
-              {rooms.length} conv.
+              {t('convCount', { count: rooms.length })}
             </span>
           </div>
+          {space && (() => {
+            const b = SPACE_BADGE[space];
+            return (
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold mb-1 ${b.cls}`}>
+                <i className={`fa-solid ${b.icon} text-[10px]`} />
+                {b.label}
+              </span>
+            );
+          })()}
           <div className="relative">
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sub text-xs pointer-events-none" />
             <input
               type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher…"
+              placeholder={t('searchPlaceholder')}
               className="w-full rounded-xl border border-line bg-card pl-8 pr-8 py-2 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition"
             />
             {search && (
@@ -472,10 +504,10 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                 <i className="fa-solid fa-comment-dots text-2xl text-gold-dark" />
               </div>
               <p className="font-semibold text-text text-sm">
-                {q ? 'Aucun résultat' : 'Aucune conversation'}
+                {q ? t('noResults') : t('noConversations')}
               </p>
               <p className="text-xs text-sub mt-1">
-                {q ? `Aucun résultat pour "${search}"` : emptyHint}
+                {q ? t('noResultsFor', { search }) : (emptyHint ?? '')}
               </p>
             </div>
           ) : (
@@ -484,7 +516,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                 const lastMsg   = room.messages?.[0];
                 const hasUnread = !!lastMsg && !lastMsg.readAt && lastMsg.senderId !== me?.id;
                 const others    = room.participants.filter((p) => p.id !== me?.id);
-                const name      = others.map((p) => `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim()).join(', ') || 'Conversation';
+                const name      = others.map((p) => getDisplayName(p, userFallback)).join(', ') || t('conversationFallback');
                 const initials  = getInitials(name);
                 const otherAvatar = others.length === 1 ? (others[0] as { avatar?: string | null }).avatar ?? null : null;
                 const isActive  = room.id === activeRoomId;
@@ -520,16 +552,16 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                           {name}
                         </p>
                         {lastMsg && (
-                          <span className="text-[10px] text-sub shrink-0">{formatTime(lastMsg.createdAt)}</span>
+                          <span className="text-[10px] text-sub shrink-0">{formatTime(lastMsg.createdAt, numLocale)}</span>
                         )}
                       </div>
                       <p className="text-xs text-sub truncate">
-                        {room.listing?.title ?? 'Annonce supprimée'}
+                        {room.listing?.title ?? t('deletedListing')}
                       </p>
                       {(preview || isAudio) && (
                         <p className={`text-xs truncate mt-0.5 flex items-center gap-1 ${hasUnread ? 'text-text font-medium' : 'text-sub'}`}>
                           {isAudio
-                            ? <><i className="fa-solid fa-microphone text-[10px] shrink-0" /> Message vocal</>
+                            ? <><i className="fa-solid fa-microphone text-[10px] shrink-0" /> {t('voiceMessage')}</>
                             : preview
                           }
                         </p>
@@ -554,9 +586,9 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
           <div className="h-20 w-20 rounded-3xl bg-gold-pale flex items-center justify-center mb-5">
             <i className="fa-solid fa-comment-dots text-4xl text-gold-dark" />
           </div>
-          <h2 className="text-lg font-bold text-text mb-1">Vos messages</h2>
+          <h2 className="text-lg font-bold text-text mb-1">{t('yourMessages')}</h2>
           <p className="text-sm text-sub max-w-xs">
-            Sélectionnez une conversation à gauche pour afficher les messages.
+            {t('selectConvHint')}
           </p>
         </div>
       ) : (
@@ -587,7 +619,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                 href={`/bailleur/profil/${otherParticipants[0].id}`}
                 className="shrink-0 text-xs text-gold-dark hover:underline hidden sm:block"
               >
-                Voir profil <i className="fa-solid fa-arrow-up-right-from-square text-[10px] ml-0.5" />
+                {t('viewProfile')} <i className="fa-solid fa-arrow-up-right-from-square text-[10px] ml-0.5" />
               </Link>
             )}
           </div>
@@ -599,7 +631,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                 <i className="fa-solid fa-spinner fa-spin text-xl text-gold-dark" />
               </div>
             ) : messages.length === 0 ? (
-              <p className="text-center text-sm text-sub py-12">Aucun message. Démarrez la conversation !</p>
+              <p className="text-center text-sm text-sub py-12">{t('noMessages')}</p>
             ) : (
               <>
                 {messages.map((msg, i) => {
@@ -615,7 +647,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                       {showDate && (
                         <div className="flex items-center justify-center my-3">
                           <span className="text-[10px] text-sub bg-card border border-line rounded-full px-3 py-1">
-                            {new Date(msg.createdAt).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                            {new Date(msg.createdAt).toLocaleDateString(numLocale, { weekday: 'long', day: 'numeric', month: 'long' })}
                           </span>
                         </div>
                       )}
@@ -634,7 +666,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                             <button type="button" onClick={() => void handleDelete(msg.id)} className={`${actionBtnClass} hover:text-red-500`} title="Supprimer">
                               <i className="fa-solid fa-trash text-[10px]" />
                             </button>
-                            <button type="button" onClick={() => setReplyingTo(msg)} className={actionBtnClass} title="Répondre">
+                            <button type="button" onClick={() => setReplyingTo(msg)} className={actionBtnClass} title={t('reply')}>
                               <i className="fa-solid fa-reply text-[10px]" />
                             </button>
                           </div>
@@ -649,7 +681,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                               : 'bg-card border border-line text-text rounded-bl-sm'
                         }`}>
                           {!isMine && msg.sender && !isDeleted && (
-                            <p className="text-[10px] font-bold text-gold-dark mb-0.5">{msg.sender.firstName}</p>
+                            <p className="text-[10px] font-bold text-gold-dark mb-0.5">{getDisplayName(msg.sender, userFallback)}</p>
                           )}
 
                           {/* Citation du message répondu */}
@@ -663,13 +695,13 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                               }}
                             >
                               <p className={`font-semibold text-[10px] mb-0.5 ${isMine ? 'text-white/70' : 'text-gold-dark'}`}>
-                                {msg.replyTo.sender?.firstName ?? 'Message'}
+                                {msg.replyTo.sender ? getDisplayName(msg.replyTo.sender, userFallback) : t('messageFallback')}
                               </p>
                               {msg.replyTo.deletedAt ? (
-                                <p className={`italic text-[11px] ${isMine ? 'text-white/40' : 'text-sub/60'}`}>Message supprimé</p>
+                                <p className={`italic text-[11px] ${isMine ? 'text-white/40' : 'text-sub/60'}`}>{t('messageDeleted')}</p>
                               ) : isAudioMessage(msg.replyTo.content) ? (
                                 <p className={`text-[11px] flex items-center gap-1 ${isMine ? 'text-white/60' : 'text-sub'}`}>
-                                  <i className="fa-solid fa-microphone text-[9px]" /> Message vocal
+                                  <i className="fa-solid fa-microphone text-[9px]" /> {t('voiceMessage')}
                                 </p>
                               ) : (
                                 <p className={`truncate text-[11px] ${isMine ? 'text-white/60' : 'text-sub'}`}>{msg.replyTo.content}</p>
@@ -680,7 +712,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                           {/* Contenu */}
                           {isDeleted ? (
                             <p className="text-xs italic flex items-center gap-1.5">
-                              <i className="fa-solid fa-ban text-[10px]" /> Message supprimé
+                              <i className="fa-solid fa-ban text-[10px]" /> {t('messageDeleted')}
                             </p>
                           ) : isAudio ? (
                             <AudioPlayer src={getAudioUrl(msg.content)} isMine={isMine} />
@@ -691,8 +723,8 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                           {/* Heure + lu + modifié */}
                           {!isDeleted && (
                             <div className={`flex items-center justify-end gap-1 mt-1 ${isMine ? 'text-white/60' : 'text-sub'}`}>
-                              {msg.editedAt && <span className="text-[9px] italic">modifié</span>}
-                              <span className="text-[10px]">{formatTime(msg.createdAt)}</span>
+                              {msg.editedAt && <span className="text-[9px] italic">{t('editedLabel')}</span>}
+                              <span className="text-[10px]">{formatTime(msg.createdAt, numLocale)}</span>
                               {isMine && (
                                 <i className={`fa-solid text-[9px] ${msg.readAt ? 'fa-check-double text-white/80' : 'fa-check'}`} />
                               )}
@@ -703,7 +735,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                         {/* Actions côté droit pour les autres */}
                         {!isMine && !isDeleted && (
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1">
-                            <button type="button" onClick={() => setReplyingTo(msg)} className={actionBtnClass} title="Répondre">
+                            <button type="button" onClick={() => setReplyingTo(msg)} className={actionBtnClass} title={t('reply')}>
                               <i className="fa-solid fa-reply text-[10px]" />
                             </button>
                           </div>
@@ -722,10 +754,10 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
             <div className="mx-4 flex items-center gap-2 bg-gold-pale border border-gold-dark/20 rounded-xl px-3 py-2">
               <i className="fa-solid fa-reply text-gold-dark text-xs shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-gold-dark">{replyingTo.sender?.firstName ?? 'Message'}</p>
+                <p className="text-[10px] font-bold text-gold-dark">{replyingTo.sender ? getDisplayName(replyingTo.sender, userFallback) : t('messageFallback')}</p>
                 <p className="text-xs text-sub truncate">
                   {isAudioMessage(replyingTo.content)
-                    ? <><i className="fa-solid fa-microphone text-[9px] mr-1" />Message vocal</>
+                    ? <><i className="fa-solid fa-microphone text-[9px] mr-1" />{t('voiceMessage')}</>
                     : replyingTo.content
                   }
                 </p>
@@ -740,7 +772,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
           {editingId && (
             <div className="mx-4 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
               <i className="fa-solid fa-pen text-blue-500 text-xs shrink-0" />
-              <p className="text-xs text-blue-700 flex-1 truncate">Modification du message</p>
+              <p className="text-xs text-blue-700 flex-1 truncate">{t('editingBanner')}</p>
               <button type="button" onClick={cancelEdit} className="text-blue-400 hover:text-blue-600 shrink-0">
                 <i className="fa-solid fa-xmark text-xs" />
               </button>
@@ -768,13 +800,13 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                   <span className="text-sm font-mono text-red-500 tabular-nums">
                     {formatAudioTime(recordingTime)}
                   </span>
-                  <span className="text-xs text-sub">Enregistrement…</span>
+                  <span className="text-xs text-sub">{t('recordingLabel')}</span>
                 </div>
                 <button
                   type="button"
                   onClick={cancelRecording}
                   className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-sub hover:bg-bg hover:text-red-500 transition-colors"
-                  title="Annuler"
+                  title={t('cancelRecordTitle')}
                 >
                   <i className="fa-solid fa-xmark text-sm" />
                 </button>
@@ -783,7 +815,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                   onClick={() => void sendVoice()}
                   disabled={sending || recordingTime === 0}
                   className="btn-gold px-4 py-2.5 disabled:opacity-50 flex items-center gap-2"
-                  title="Envoyer le vocal"
+                  title={t('sendVoiceTitle')}
                 >
                   {sending
                     ? <i className="fa-solid fa-spinner fa-spin text-sm" />
@@ -799,7 +831,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                   type="text" value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
-                  placeholder="Écrivez votre message…"
+                  placeholder={t('messagePlaceholder')}
                   className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:ring-2 focus:ring-gold-dark transition"
                 />
                 {/* Micro si le champ est vide, sinon bouton envoyer */}
@@ -821,7 +853,7 @@ export default function MessagesShell({ emptyHint = 'Vos conversations apparaît
                     onClick={() => void startRecording()}
                     disabled={!activeRoomId || sending}
                     className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-dark hover:bg-gold/30 transition-colors disabled:opacity-40 shrink-0"
-                    title="Enregistrer un message vocal"
+                    title={t('recordVoiceTitle')}
                   >
                     <i className="fa-solid fa-microphone text-sm" />
                   </button>

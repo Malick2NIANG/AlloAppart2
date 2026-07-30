@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Poppins } from 'next/font/google';
 import { ClerkProvider } from '@clerk/nextjs';
 import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages } from 'next-intl/server';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import { cookies } from 'next/headers';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import './globals.css';
@@ -23,26 +23,30 @@ const poppins = Poppins({
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://alloappart.sn';
 
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta');
+  const locale = await getLocale();
+  return {
   metadataBase: new URL(APP_URL),
   title: {
     default: 'AlloAppart',
     template: 'AlloAppart',
   },
-  description: 'Trouvez votre logement idéal au Sénégal avec la certification AlloVérifié™. Appartements, villas, studios à Dakar et partout au Sénégal.',
+  description: t('description'),
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
   },
   openGraph: {
     siteName: 'AlloAppart',
-    locale: 'fr_SN',
+    locale: locale === 'en' ? 'en_US' : 'fr_SN',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
   },
-};
+  };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const locale   = await getLocale();

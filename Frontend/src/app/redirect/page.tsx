@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
@@ -10,16 +9,46 @@ interface MeResponse {
   mustChangePassword: boolean;
 }
 
+async function getClerkToken(): Promise<string | null> {
+  // 1. Via session Clerk en mémoire (navigation client-side)
+  const session = (window as any).Clerk?.session;
+  if (session) {
+    try {
+      const raw = session.lastActiveToken?.getRawString?.() ?? null;
+      if (raw) return raw;
+      const tok = await session.getToken?.();
+      if (tok) return tok;
+    } catch {}
+  }
+
+  // 2. Cookie __session (non-HttpOnly, présent après sign-in)
+  const match = document.cookie.split('; ').find(c => c.startsWith('__session='));
+  if (match) return decodeURIComponent(match.split('=').slice(1).join('='));
+
+  // 3. Attendre que Clerk charge (max 4s) puis réessayer
+  let retries = 0;
+  while (!(window as any).Clerk?.session && retries < 20) {
+    await new Promise(r => setTimeout(r, 200));
+    retries++;
+  }
+  const s2 = (window as any).Clerk?.session;
+  if (s2) {
+    try {
+      const raw2 = s2.lastActiveToken?.getRawString?.() ?? null;
+      if (raw2) return raw2;
+      return await s2.getToken?.() ?? null;
+    } catch {}
+  }
+
+  return null;
+}
+
 export default function RedirectPage() {
-  const { isLoaded, isSignedIn, getToken } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn) { router.replace('/sign-in'); return; }
-
     const doRedirect = async () => {
-      const token = await getToken();
+      const token = await getClerkToken();
       if (!token) { router.replace('/sign-in'); return; }
 
       let me: MeResponse;
@@ -41,7 +70,7 @@ export default function RedirectPage() {
     };
 
     void doRedirect();
-  }, [isLoaded, isSignedIn, getToken, router]);
+  }, [router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

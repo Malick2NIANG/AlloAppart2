@@ -73,6 +73,58 @@ export class NotificationsService {
     }
   }
 
+  async notifyPaymentConfirmed(data: BookingNotificationData & { platformFee: number; landlordAmount: number }): Promise<void> {
+    const title    = escapeHtml(data.listingTitle);
+    const tenant   = escapeHtml(data.tenantName);
+    const landlord = escapeHtml(data.landlordName);
+    const ref      = escapeHtml(data.bookingId);
+    const total    = data.totalAmount.toLocaleString('fr-SN');
+    const net      = data.landlordAmount.toLocaleString('fr-SN');
+    const fee      = data.platformFee.toLocaleString('fr-SN');
+
+    await this.send(
+      data.tenantEmail,
+      'Paiement confirmé — ' + data.listingTitle,
+      '<h2>Bonjour ' + tenant + ',</h2>' +
+      '<p>Votre paiement de <strong>' + total + ' FCFA</strong> a été reçu avec succès.</p>' +
+      '<p>Votre réservation pour <strong>' + title + '</strong> est confirmée.</p>' +
+      '<p>Référence : <code>' + ref + '</code></p>' +
+      "<p>L'équipe Allo-Appart</p>",
+    );
+
+    await this.send(
+      data.landlordEmail,
+      'Nouvelle réservation payée — ' + data.listingTitle,
+      '<h2>Bonjour ' + landlord + ',</h2>' +
+      '<p><strong>' + tenant + '</strong> a payé et réservé votre logement <strong>' + title + '</strong>.</p>' +
+      '<p>Montant total : <strong>' + total + ' FCFA</strong></p>' +
+      '<p>Commission AlloAppart : ' + fee + ' FCFA</p>' +
+      '<p>Votre part nette : <strong>' + net + ' FCFA</strong></p>' +
+      '<p>Les fonds sont sécurisés. Vous les recevrez à la fin du séjour.</p>' +
+      "<p>L'équipe Allo-Appart</p>",
+    );
+
+    if (data.tenantId) {
+      void this.pushInApp(
+        data.tenantId,
+        'PAYMENT_CONFIRMED',
+        'Paiement confirmé !',
+        `Votre réservation pour « ${data.listingTitle} » est confirmée.`,
+        { bookingId: data.bookingId },
+      );
+    }
+
+    if (data.landlordId) {
+      void this.pushInApp(
+        data.landlordId,
+        'PAYMENT_RECEIVED',
+        'Réservation payée !',
+        `${data.tenantName} a payé pour « ${data.listingTitle} ».`,
+        { bookingId: data.bookingId },
+      );
+    }
+  }
+
   async notifyBookingCreated(data: BookingNotificationData): Promise<void> {
     const title = escapeHtml(data.listingTitle);
     const city = escapeHtml(data.listingCity);
@@ -364,6 +416,40 @@ export class NotificationsService {
       `L'agent a décliné la mission pour « ${listingTitle} ». Un autre agent sera assigné.`,
       { verificationId, listingTitle, listingId },
     );
+  }
+
+  // Admin : nouveau signalement d'annonce
+  async notifyAdminReport(
+    listingId: string,
+    listingTitle: string,
+    reporterName: string,
+    reason: string,
+    reportCount: number,
+  ) {
+    const REASON_LABELS: Record<string, string> = {
+      FRAUD:          'Arnaque / fraude',
+      WRONG_PRICE:    'Prix trompeur',
+      WRONG_PHOTOS:   'Photos trompeuses',
+      ALREADY_RENTED: 'Bien déjà loué',
+      WRONG_LOCATION: 'Localisation incorrecte',
+      OFFENSIVE:      'Contenu offensant',
+      OTHER:          'Autre',
+    };
+    const admins = await this.prisma.user.findMany({
+      where: { roles: { has: Role.ADMIN } },
+      select: { id: true },
+    });
+    const label  = REASON_LABELS[reason] ?? reason;
+    const urgent = reportCount >= 3;
+    await Promise.all(admins.map((admin) =>
+      this.pushInApp(
+        admin.id,
+        'LISTING_REPORTED',
+        urgent ? '🚨 Annonce signalée plusieurs fois' : 'Nouvelle signalisation d\'annonce',
+        `« ${listingTitle} » signalée par ${reporterName}. Motif : ${label}. (${reportCount} signalement${reportCount > 1 ? 's' : ''} au total)`,
+        { listingId, listingTitle, reportCount },
+      ),
+    ));
   }
 
   // Admin : l'agent demande à décliner une mission (en attente approbation)

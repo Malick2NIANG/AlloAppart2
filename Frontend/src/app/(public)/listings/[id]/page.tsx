@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { auth } from '@clerk/nextjs/server';
 import { getTranslations, getLocale } from 'next-intl/server';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -7,6 +8,7 @@ import ListingHeroCarousel from './ListingHeroCarousel';
 import ListingContactCard from './ListingContactCard';
 import ListingBookingCard from './ListingBookingCard';
 import ListingReviewForm from './ListingReviewForm';
+import ReportButton from './ReportButton';
 import MapView from '@/components/map/MapView';
 import AvailabilityCalendar from '@/components/listings/AvailabilityCalendar';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
@@ -35,17 +37,17 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     const image = listing.images?.[0];
     return {
       title: `${listing.title} — AlloAppart`,
-      description: listing.description?.slice(0, 155) ?? `${listing.type} à ${listing.city}`,
+      description: listing.description?.slice(0, 155) ?? `${listing.type} · ${listing.city}`,
       openGraph: {
         title: listing.title,
-        description: listing.description?.slice(0, 155) ?? `${listing.type} à ${listing.city}`,
+        description: listing.description?.slice(0, 155) ?? `${listing.type} · ${listing.city}`,
         images: image ? [{ url: image, width: 1200, height: 630, alt: listing.title }] : [],
         type: 'website',
       },
       twitter: {
         card: 'summary_large_image',
         title: listing.title,
-        description: listing.description?.slice(0, 155) ?? `${listing.type} à ${listing.city}`,
+        description: listing.description?.slice(0, 155) ?? `${listing.type} · ${listing.city}`,
         images: image ? [image] : [],
       },
     };
@@ -75,6 +77,18 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
   if (!listing) notFound();
 
+  // Détecte si l'utilisateur connecté est le propriétaire de l'annonce
+  let isOwner = false;
+  try {
+    const { getToken } = await auth();
+    const token = await getToken();
+    if (token) {
+      const { api: authApi } = await import('@/lib/api');
+      const me = await authApi.get<{ id: string }>('/auth/me', token);
+      isOwner = me.id === listing.ownerId;
+    }
+  } catch { /* non connecté ou erreur → isOwner reste false */ }
+
   const price = `${priceToNumber(listing.price).toLocaleString(numLocale)} FCFA/${t('perMonth')}`;
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
@@ -87,13 +101,10 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
       {/* ── Breadcrumb ─────────────────────────────────────────────── */}
       <div className="aa-container mt-6 mb-5">
-        <nav className="flex items-center gap-1.5 text-sm text-sub flex-wrap">
-          <Link href="/" className="hover:text-gold-dark transition-colors">{t('breadcrumbHome')}</Link>
-          <span className="text-sub/50">/</span>
-          <Link href="/listings" className="hover:text-gold-dark transition-colors">{listing.city.split(',')[0]}</Link>
-          <span className="text-sub/50">/</span>
-          <span className="font-medium text-text max-w-[50vw] truncate">{listing.title}</span>
-        </nav>
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-gold-dark transition-colors">
+          <i className="fa-solid fa-arrow-left text-xs" />
+          {t('backToCatalogue')}
+        </Link>
       </div>
 
       {/* ── Hero Carousel ──────────────────────────────────────────── */}
@@ -113,10 +124,10 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           <div className="rounded-2xl border border-line bg-card overflow-hidden">
             <div className="flex items-center gap-2.5 px-5 py-3 border-b border-line">
               <i className="fa-solid fa-cube text-gold-dark text-sm" aria-hidden="true" />
-              <span className="text-sm font-semibold text-text">Visite 3D</span>
+              <span className="text-sm font-semibold text-text">{t('tour3D')}</span>
               <span className="ml-0.5 text-xs font-semibold text-gold-dark">AlloVérifié™</span>
               <span className="ml-auto text-[10px] bg-gold-pale text-gold-dark px-2 py-0.5 rounded-full font-medium">
-                Nouveau
+                {t('newBadge')}
               </span>
             </div>
             <iframe
@@ -181,11 +192,11 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 <div className="flex items-center gap-2 mb-3">
                   <i className="fa-solid fa-shield-halved text-green-700" />
                   <span className="font-semibold text-green-800 text-sm">
-                    AlloVérifié — Audit {listing.verification.auditType === 'FULL' ? 'Complet' : 'Basique'}
+                    {listing.verification.auditType === 'FULL' ? t('auditFull') : t('auditBasic')}
                   </span>
                   {listing.verification.completedAt && (
                     <span className="ml-auto text-xs text-green-600">
-                      {new Date(listing.verification.completedAt).toLocaleDateString('fr-SN', {
+                      {new Date(listing.verification.completedAt).toLocaleDateString(numLocale, {
                         day: '2-digit', month: 'long', year: 'numeric',
                       })}
                     </span>
@@ -202,7 +213,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                     className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-green-700 hover:text-green-900 underline underline-offset-2"
                   >
                     <i className="fa-solid fa-file-lines text-[10px]" />
-                    Voir le rapport d&apos;audit complet
+                    {t('auditReportLink')}
                   </a>
                 )}
               </div>
@@ -230,10 +241,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             )}
 
             <div className="mt-6">
-              <button className="text-sm text-sub hover:text-gold-dark transition-colors flex items-center gap-1.5">
-                <i className="fa-regular fa-flag text-xs" />
-                {t('report')}
-              </button>
+              <ReportButton listingId={listing.id} label={t('report')} />
             </div>
           </div>
 
@@ -301,15 +309,23 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               listingId={listing.id}
               price={price}
               landlordName={ownerFullName(listing.owner)}
+              landlordAvatar={listing.owner?.avatar ?? null}
+              landlordPhone={listing.owner?.phone ?? null}
+              isAgency={listing.owner?.roles?.includes('PRO_AGENCE') ?? false}
+              agencyName={listing.owner?.agencyName ?? null}
+              agencySlug={listing.owner?.agencySlug ?? null}
               perMonth={t('perMonth')}
               priceRaw={priceToNumber(listing.price)}
               numLocale={numLocale}
+              isOwner={isOwner}
             />
 
             {/* Demande de réservation */}
             <ListingBookingCard
               listingId={listing.id}
               pricePerMonth={priceToNumber(listing.price)}
+              pricePerNight={listing.pricePerNight != null ? priceToNumber(listing.pricePerNight) : null}
+              minimumNights={listing.minimumNights ?? null}
               numLocale={numLocale}
             />
 
@@ -339,10 +355,10 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
       {/* ── Back button ────────────────────────────────────────────── */}
       <div className="aa-container mt-16 mb-10 text-center">
-        <Link href="/"
+        <Link href="/listings"
           className="group inline-flex items-center gap-2 rounded-full border border-gold/40 bg-white/80 backdrop-blur-md text-text font-medium text-sm px-5 py-2.5 shadow-md hover:shadow-lg hover:bg-gold-pale hover:text-gold-dark transition-all duration-300">
           <i className="fa-solid fa-arrow-left text-gold-dark group-hover:-translate-x-1 transition-transform duration-300" />
-          Retour au catalogue
+          {t('seeOtherListings')}
         </Link>
       </div>
 

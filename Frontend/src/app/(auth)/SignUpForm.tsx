@@ -53,7 +53,7 @@ export default function SignUpForm() {
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       setView('verify');
     } catch (err: unknown) {
-      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? 'Une erreur est survenue.';
+      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? ts('errorFallback');
       setFlash({ type: 'error', message: msg });
     } finally { setLoading(false); }
   };
@@ -69,7 +69,7 @@ export default function SignUpForm() {
         router.push('/'); router.refresh();
       }
     } catch (err: unknown) {
-      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? 'Code invalide ou expiré.';
+      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? ts('invalidCode');
       setFlash({ type: 'error', message: msg });
     } finally { setLoading(false); }
   };
@@ -228,6 +228,7 @@ function IconInput({ type, value, onChange, icon, placeholder }: {
 function PwdInput({ value, onChange, show, onToggle, error = false }: {
   value: string; onChange: (v: string) => void; show: boolean; onToggle: () => void; error?: boolean;
 }) {
+  const ta = useTranslations('auth');
   return (
     <div className="relative">
       <i className="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
@@ -238,7 +239,7 @@ function PwdInput({ value, onChange, show, onToggle, error = false }: {
         }`} />
       <button type="button" onClick={onToggle}
         className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
-        aria-label={show ? 'Masquer' : 'Afficher'}>
+        aria-label={show ? ta('hidePassword') : ta('showPassword')}>
         <i className={`fa-solid ${show ? 'fa-eye-slash' : 'fa-eye'} text-sm`} />
       </button>
     </div>

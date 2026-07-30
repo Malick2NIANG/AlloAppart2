@@ -11,14 +11,25 @@ export default async function Navbar() {
     <NavbarClient
       locale={locale}
       labels={{
-        listings:          t('listings'),
-        search:            t('search'),
-        mySpace:           t('mySpace'),
-        login:             t('login'),
-        register:          t('register'),
-        openMenu:          t('openMenu'),
-        closeMenu:         t('closeMenu'),
-        searchPlaceholder: t('searchPlaceholder'),
+        listings:                t('listings'),
+        search:                  t('search'),
+        mySpace:                 t('mySpace'),
+        login:                   t('login'),
+        register:                t('register'),
+        openMenu:                t('openMenu'),
+        closeMenu:               t('closeMenu'),
+        searchPlaceholder:       t('searchPlaceholder'),
+        allListings:             t('allListings'),
+        byType:                  t('byType'),
+        discover:                t('discover'),
+        demoMode:                t('demoMode'),
+        signOut:                 t('signOut'),
+        messages:                t('messages'),
+        favorites:               t('favorites'),
+        profileLabel:            t('profileLabel'),
+        security:                t('security'),
+        localityPlaceholder:     t('localityPlaceholder'),
+        mobileSearchPlaceholder: t('mobileSearchPlaceholder'),
       }}
     />
   );

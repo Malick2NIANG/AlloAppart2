@@ -1,23 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 
-type ProfileChoice = 'bailleur_only' | 'dual';
+type PhoneForm = z.infer<ReturnType<typeof createPhoneSchema>>;
 
-const phoneSchema = z.object({
-  phone: z
-    .string()
-    .min(1, 'Numéro requis')
-    .regex(/^\+?[0-9\s\-().]{7,20}$/, 'Format invalide (ex : +221 77 000 00 00)'),
-});
-type PhoneForm = z.infer<typeof phoneSchema>;
+function createPhoneSchema(required: string, invalid: string) {
+  return z.object({
+    phone: z
+      .string()
+      .min(1, required)
+      .regex(/^\+?[0-9\s\-().]{7,20}$/, invalid),
+  });
+}
 
 const variants = {
   enter:  (dir: number) => ({ x: dir * 48, opacity: 0 }),
@@ -25,35 +27,39 @@ const variants = {
   exit:   (dir: number) => ({ x: dir * -48, opacity: 0 }),
 };
 
-const STEPS = [
-  { label: 'Profil',     icon: 'fa-user'           },
-  { label: 'Téléphone',  icon: 'fa-phone'          },
-  { label: 'Conditions', icon: 'fa-file-signature' },
-];
-
-const ENGAGEMENTS = [
-  'Publier des annonces conformes à la réalité du bien',
-  'Accepter la vérification physique AlloVérifié pour obtenir le badge',
-  'Respecter les locataires et répondre aux demandes sous 48h',
-  'Ne pas contourner la plateforme pour les transactions',
-  'Accepter la commission de 0,5 mois de loyer à chaque signature de bail',
-];
-
 const inputCls =
   'w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition';
 
 export default function BecomeBailleurPage() {
+  const t = useTranslations('becomeLandlord');
   const { getToken } = useAuth();
   const router = useRouter();
 
   const [step,       setStep]       = useState(0);
   const [dir,        setDir]        = useState(1);
-  const [profile,    setProfile]    = useState<ProfileChoice>('bailleur_only');
   const [loaded,     setLoaded]     = useState(false);
   const [phoneReady, setPhoneReady] = useState(false);
   const [accepted,   setAccepted]   = useState(false);
   const [busy,       setBusy]       = useState(false);
   const [error,      setError]      = useState<string | null>(null);
+
+  const STEPS = useMemo(() => [
+    { label: t('stepPhone'),      icon: 'fa-phone'          },
+    { label: t('stepConditions'), icon: 'fa-file-signature' },
+  ], [t]);
+
+  const ENGAGEMENTS = useMemo(() => [
+    t('engagement1'),
+    t('engagement2'),
+    t('engagement3'),
+    t('engagement4'),
+    t('engagement5'),
+  ], [t]);
+
+  const phoneSchema = useMemo(
+    () => createPhoneSchema(t('phoneRequired'), t('phoneFormat')),
+    [t],
+  );
 
   const { register, handleSubmit, formState: { errors } } = useForm<PhoneForm>({
     resolver: zodResolver(phoneSchema),
@@ -77,7 +83,10 @@ export default function BecomeBailleurPage() {
           router.replace('/agent/verifications');
           return;
         }
-        setPhoneReady(!!me.phone);
+        if (!!me.phone) {
+          setPhoneReady(true);
+          setStep(1); // sauter l'étape téléphone si déjà renseigné
+        }
       } catch { /* ignore */ }
       setLoaded(true);
     });
@@ -89,18 +98,16 @@ export default function BecomeBailleurPage() {
     setError(null);
   };
 
-  const handleProfileNext = () => go(phoneReady ? 2 : 1);
-
   const handlePhoneSubmit = async (data: PhoneForm) => {
     setBusy(true);
     setError(null);
     try {
       const token = await getToken();
-      if (!token) throw new Error('Non authentifié');
+      if (!token) throw new Error(t('unauthenticated'));
       await api.patch('/auth/me', { phone: data.phone }, token);
-      go(2);
+      go(1);
     } catch {
-      setError('Impossible de sauvegarder le numéro. Réessayez.');
+      setError(t('phoneSaveError'));
     } finally {
       setBusy(false);
     }
@@ -112,12 +119,12 @@ export default function BecomeBailleurPage() {
     setError(null);
     try {
       const token = await getToken();
-      if (!token) throw new Error('Non authentifié');
+      if (!token) throw new Error(t('unauthenticated'));
       await api.patch('/auth/me/activate-bailleur', {}, token);
       router.push('/bailleur/listings');
       router.refresh();
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message ?? "Erreur lors de l'activation.";
+      const msg = (err as { message?: string })?.message ?? t('activationError');
       setError(msg);
     } finally {
       setBusy(false);
@@ -133,12 +140,12 @@ export default function BecomeBailleurPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-10">
+    <div className="py-6">
 
       {/* ── Stepper ── */}
       <div className="mb-8 flex items-center justify-center">
         {STEPS.map((s, i) => {
-          const done   = i < step || (i === 1 && step === 2);
+          const done   = i < step;
           const active = i === step;
           return (
             <div key={i} className="flex items-center">
@@ -163,7 +170,7 @@ export default function BecomeBailleurPage() {
       <div className="overflow-hidden">
         <AnimatePresence mode="wait" custom={dir}>
 
-          {/* ── Step 0 : Profil ── */}
+          {/* ── Step 0 : Téléphone ── */}
           {step === 0 && (
             <motion.div key="step0" custom={dir} variants={variants}
               initial="enter" animate="center" exit="exit"
@@ -171,64 +178,10 @@ export default function BecomeBailleurPage() {
 
               <div className="mb-6 text-center">
                 <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-gold-pale">
-                  <i className="fa-solid fa-house-chimney text-xl text-gold-dark" />
-                </div>
-                <h1 className="text-xl font-extrabold text-text">Quel est votre profil ?</h1>
-                <p className="mt-1 text-sm text-sub">Choisissez comment vous souhaitez utiliser Allo-Appart</p>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                {([
-                  { val: 'bailleur_only' as const, icon: 'fa-house',      title: 'Bailleur uniquement',  sub: 'Je mets mon bien en location'      },
-                  { val: 'dual'          as const, icon: 'fa-right-left', title: 'Bailleur & Locataire', sub: 'Je loue ET je cherche un logement' },
-                ]).map(({ val, icon, title, sub }) => (
-                  <button key={val} type="button" onClick={() => setProfile(val)}
-                    className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition-all ${
-                      profile === val
-                        ? 'border-gold bg-gold-pale ring-2 ring-gold/20'
-                        : 'border-line bg-card hover:border-gold/40'
-                    }`}>
-                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
-                      profile === val ? 'bg-gold/20' : 'border border-line bg-bg'
-                    }`}>
-                      <i className={`fa-solid ${icon} text-base ${profile === val ? 'text-gold-dark' : 'text-sub'}`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-text">{title}</p>
-                      <p className="mt-0.5 text-xs text-sub">{sub}</p>
-                    </div>
-                    {profile === val && (
-                      <i className="fa-solid fa-circle-check shrink-0 text-gold-dark" />
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <p className="mt-4 text-center text-xs text-sub">
-                Dans les deux cas, vous gardez accès à toutes les fonctionnalités locataire
-              </p>
-
-              <button onClick={handleProfileNext}
-                className="btn-gold mt-6 w-full justify-center rounded-full py-3 text-sm font-bold">
-                Continuer <i className="fa-solid fa-arrow-right ml-1 text-xs" />
-              </button>
-            </motion.div>
-          )}
-
-          {/* ── Step 1 : Téléphone ── */}
-          {step === 1 && (
-            <motion.div key="step1" custom={dir} variants={variants}
-              initial="enter" animate="center" exit="exit"
-              transition={{ duration: 0.22 }}>
-
-              <BackBtn onClick={() => go(0)} />
-
-              <div className="mb-6 text-center">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-gold-pale">
                   <i className="fa-solid fa-phone text-xl text-gold-dark" />
                 </div>
-                <h2 className="text-xl font-extrabold text-text">Votre numéro de téléphone</h2>
-                <p className="mt-1 text-sm text-sub">Requis pour activer votre espace bailleur et être contacté</p>
+                <h2 className="text-xl font-extrabold text-text">{t('phoneTitle')}</h2>
+                <p className="mt-1 text-sm text-sub">{t('phoneSubtitle')}</p>
               </div>
 
               {error && <ErrorBanner msg={error} />}
@@ -236,7 +189,7 @@ export default function BecomeBailleurPage() {
               <form onSubmit={handleSubmit(handlePhoneSubmit)} className="flex flex-col gap-4">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-text">
-                    Numéro international <span className="text-red-400">*</span>
+                    {t('phoneLabel')} <span className="text-red-400">*</span>
                   </label>
                   <div className="relative">
                     <i className="fa-solid fa-phone absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
@@ -253,27 +206,27 @@ export default function BecomeBailleurPage() {
                 <button type="submit" disabled={busy}
                   className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold disabled:opacity-50">
                   {busy
-                    ? <><i className="fa-solid fa-spinner fa-spin" /> Enregistrement…</>
-                    : <>Continuer <i className="fa-solid fa-arrow-right ml-1 text-xs" /></>}
+                    ? <><i className="fa-solid fa-spinner fa-spin" /> {t('saving')}</>
+                    : <>{t('continue')} <i className="fa-solid fa-arrow-right ml-1 text-xs" /></>}
                 </button>
               </form>
             </motion.div>
           )}
 
-          {/* ── Step 2 : Conditions ── */}
-          {step === 2 && (
-            <motion.div key="step2" custom={dir} variants={variants}
+          {/* ── Step 1 : Conditions ── */}
+          {step === 1 && (
+            <motion.div key="step1" custom={dir} variants={variants}
               initial="enter" animate="center" exit="exit"
               transition={{ duration: 0.22 }}>
 
-              <BackBtn onClick={() => go(phoneReady ? 0 : 1)} />
+              {!phoneReady && <BackBtn onClick={() => go(0)} label={t('back')} />}
 
               <div className="mb-6 text-center">
                 <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-gold-pale">
                   <i className="fa-solid fa-file-signature text-xl text-gold-dark" />
                 </div>
-                <h2 className="text-xl font-extrabold text-text">Avant de continuer</h2>
-                <p className="mt-1 text-sm text-sub">Prenez connaissance de vos engagements en tant que bailleur</p>
+                <h2 className="text-xl font-extrabold text-text">{t('conditionsTitle')}</h2>
+                <p className="mt-1 text-sm text-sub">{t('conditionsSubtitle')}</p>
               </div>
 
               <div className="mb-5 rounded-2xl border border-line bg-card p-5">
@@ -296,9 +249,9 @@ export default function BecomeBailleurPage() {
                   onChange={(e) => setAccepted(e.target.checked)}
                   className="mt-0.5 h-4 w-4 shrink-0 accent-(--color-gold)" />
                 <span className="text-sm text-text">
-                  J'accepte les{' '}
-                  <span className="font-semibold text-gold-dark">conditions bailleurs</span>{' '}
-                  d'Allo-Appart
+                  {t('acceptLabel')}{' '}
+                  <span className="font-semibold text-gold-dark">{t('acceptTerms')}</span>{' '}
+                  {t('acceptSuffix')}
                 </span>
               </label>
 
@@ -306,8 +259,8 @@ export default function BecomeBailleurPage() {
                 disabled={!accepted || busy}
                 className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold disabled:opacity-50">
                 {busy
-                  ? <><i className="fa-solid fa-spinner fa-spin" /> Activation…</>
-                  : <><i className="fa-solid fa-house-chimney-user" /> Activer mon espace bailleur</>}
+                  ? <><i className="fa-solid fa-spinner fa-spin" /> {t('activating')}</>
+                  : <><i className="fa-solid fa-house-chimney-user" /> {t('activate')}</>}
               </button>
             </motion.div>
           )}
@@ -318,11 +271,11 @@ export default function BecomeBailleurPage() {
   );
 }
 
-function BackBtn({ onClick }: { onClick: () => void }) {
+function BackBtn({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button onClick={onClick}
       className="mb-5 flex items-center gap-2 text-sm text-sub transition hover:text-text">
-      <i className="fa-solid fa-arrow-left text-xs" /> Retour
+      <i className="fa-solid fa-arrow-left text-xs" /> {label}
     </button>
   );
 }

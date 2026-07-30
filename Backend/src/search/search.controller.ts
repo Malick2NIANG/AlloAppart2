@@ -37,7 +37,7 @@ function validateMeilisearchFilter(filter: string): void {
   for (const token of tokens) {
     if (FILTER_KEYWORDS.has(token.toUpperCase())) continue;
     if (!ALLOWED_FILTER_FIELDS.includes(token)) {
-      throw new BadRequestException(`Champ de filtre non autorisé : ${token}`);
+      throw new BadRequestException(`Filter field not allowed: ${token}`);
     }
   }
 }
@@ -46,7 +46,7 @@ function validateMeilisearchSort(sortFields: string[]): void {
   for (const field of sortFields) {
     const fieldName = field.replace(/:asc|:desc/gi, '');
     if (!ALLOWED_SORT_FIELDS.includes(fieldName)) {
-      throw new BadRequestException(`Champ de tri non autorisé : ${fieldName}`);
+      throw new BadRequestException(`Sort field not allowed: ${fieldName}`);
     }
   }
 }

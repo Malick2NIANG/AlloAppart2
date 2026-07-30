@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, Suspense } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Listing, PaginatedResponse } from '@/types';
 import Link from 'next/link';
@@ -13,17 +14,6 @@ import { useToast } from '@/components/ui/Toast';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'DRAFT' | 'RENTED' | 'SUSPENDED';
 
-const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: 'ALL',       label: 'Tous les statuts' },
-  { value: 'ACTIVE',    label: 'Actives'           },
-  { value: 'DRAFT',     label: 'Brouillons'        },
-  { value: 'RENTED',    label: 'Louées'            },
-  { value: 'SUSPENDED', label: 'Suspendues'        },
-];
-
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'Active', DRAFT: 'Brouillon', RENTED: 'Louée', SUSPENDED: 'Suspendue',
-};
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE:    'bg-green-100 text-green-700',
   DRAFT:     'bg-amber-50 text-amber-700 border border-amber-200',
@@ -48,6 +38,9 @@ export default function AdminListingsPage() {
 function AdminListingsContent() {
   const { getToken }   = useAuth();
   const { toast }      = useToast();
+  const t              = useTranslations('admin');
+  const tRef           = useRef(t);
+  tRef.current         = t;
   const searchParams   = useSearchParams();
   const defaultStatus  = (searchParams.get('status') ?? 'ALL') as StatusFilter;
 
@@ -63,6 +56,21 @@ function AdminListingsContent() {
   const [deleteModal, setDeleteModal] = useState<string | null>(null);
   const LIMIT_OPTIONS = [10, 20, 50] as const;
 
+  const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = useMemo(() => [
+    { value: 'ALL',       label: t('allStatuses')      },
+    { value: 'ACTIVE',    label: t('listingActive')    },
+    { value: 'DRAFT',     label: t('listingDraft')     },
+    { value: 'RENTED',    label: t('listingRented')    },
+    { value: 'SUSPENDED', label: t('listingSuspended') },
+  ], [t]);
+
+  const STATUS_LABELS: Record<string, string> = {
+    ACTIVE:    t('statusActive'),
+    DRAFT:     t('statusDraft'),
+    RENTED:    t('statusRented'),
+    SUSPENDED: t('statusSuspended'),
+  };
+
   const fetchListings = useCallback(async (p: number, s: StatusFilter, c: string, lim = limit) => {
     const token = await getToken();
     if (!token) return;
@@ -76,7 +84,7 @@ function AdminListingsContent() {
       setListings(res.data);
       setTotal(res.total);
     } catch {
-      setError('Impossible de charger les annonces.');
+      setError(tRef.current('listingsLoadError'));
     } finally {
       setLoading(false);
     }
@@ -106,9 +114,9 @@ function AdminListingsContent() {
     try {
       await api.patch(`/listings/${id}/${action}`, {}, token);
       await fetchListings(page, status, city);
-      toast.success(action === 'activate' ? 'Annonce activée' : 'Annonce suspendue');
+      toast.success(action === 'activate' ? t('toastListingActivated') : t('toastListingSuspended'));
     } catch {
-      toast.error('Erreur. Veuillez réessayer.');
+      toast.error(t('errGeneric'));
     } finally {
       setActionId(null);
     }
@@ -125,9 +133,9 @@ function AdminListingsContent() {
       await api.delete(`/listings/${id}`, token);
       setListings((prev) => prev.filter((l) => l.id !== id));
       setTotal((prev) => prev - 1);
-      toast.success('Annonce supprimée');
+      toast.success(t('toastListingDeleted'));
     } catch {
-      toast.error('Erreur lors de la suppression.');
+      toast.error(t('errDelete'));
       await fetchListings(page, status, city);
     } finally {
       setActionId(null);
@@ -139,8 +147,8 @@ function AdminListingsContent() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text">Toutes les annonces</h1>
-        <p className="mt-1 text-sm text-sub">{total} annonce{total > 1 ? 's' : ''}</p>
+        <h1 className="text-2xl font-bold text-text">{t('listingsTitle')}</h1>
+        <p className="mt-1 text-sm text-sub">{t('listingsCount', { count: total })}</p>
       </div>
 
       {/* Filters */}
@@ -152,14 +160,14 @@ function AdminListingsContent() {
               value={city}
               onChange={(e) => setCity(e.target.value)}
               onKeyDown={handleCitySearch}
-              placeholder="Filtrer par ville…"
+              placeholder={t('listingsCityPh')}
               className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-8 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40"
             />
             {city && (
               <button
                 onClick={() => { setCity(''); setPage(1); fetchListings(1, status, ''); }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-sub hover:text-text transition-colors"
-                title="Effacer la recherche"
+                title={t('listingsClearSearch')}
               >
                 <i className="fa-solid fa-xmark text-sm" />
               </button>
@@ -168,7 +176,7 @@ function AdminListingsContent() {
           <button
             onClick={() => { setPage(1); fetchListings(1, status, city); }}
             className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-sub hover:text-text hover:border-gold transition-colors shrink-0"
-            title="Rechercher"
+            title={t('listingsSearch')}
           >
             <i className="fa-solid fa-magnifying-glass text-sm" />
           </button>
@@ -183,7 +191,7 @@ function AdminListingsContent() {
           ))}
         </select>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-xs text-sub whitespace-nowrap">Lignes :</span>
+          <span className="text-xs text-sub whitespace-nowrap">{t('rowsLabel')}</span>
           <div className="flex gap-1">
             {LIMIT_OPTIONS.map((l) => (
               <button key={l} onClick={() => { setLimit(l); setPage(1); fetchListings(1, status, city, l); }}
@@ -204,7 +212,7 @@ function AdminListingsContent() {
           <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
           <p className="text-sm text-sub">{error}</p>
           <button onClick={() => fetchListings(page, status, city)} className="mt-4 btn-gold text-sm">
-            <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+            <i className="fa-solid fa-rotate-right mr-1.5" />{t('retry')}
           </button>
         </div>
       ) : listings.length === 0 ? (
@@ -212,7 +220,7 @@ function AdminListingsContent() {
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
             <i className="fa-solid fa-house text-2xl text-gold-dark" />
           </div>
-          <p className="text-sub">Aucune annonce trouvée.</p>
+          <p className="text-sub">{t('listingsEmpty')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -222,14 +230,14 @@ function AdminListingsContent() {
                 <p className="font-semibold text-text truncate">{listing.title}</p>
                 <p className="text-sm text-sub mt-0.5">
                   <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
-                  {listing.city} · {formatPrice(listing.price)}/mois
+                  {listing.city} · {formatPrice(listing.price)}{t('perMonth')}
                 </p>
                 <p className="text-xs text-sub mt-0.5">
                   <i className="fa-solid fa-user text-xs mr-1" />
                   {listing.owner?.firstName} {listing.owner?.lastName}
                   {listing.isVerified && (
                     <span className="ml-2 text-emerald-600 font-medium">
-                      <i className="fa-solid fa-shield-halved text-xs mr-0.5" />AlloVérifié
+                      <i className="fa-solid fa-shield-halved text-xs mr-0.5" />{t('alloVerifie')}
                     </span>
                   )}
                 </p>
@@ -240,7 +248,7 @@ function AdminListingsContent() {
                 </span>
                 <Link href={`/listings/${listing.id}`} target="_blank"
                   className="text-xs font-medium text-gold-dark hover:underline">
-                  Voir <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
+                  {t('view')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
                 </Link>
                 {listing.status === 'SUSPENDED' || listing.status === 'DRAFT' ? (
                   <button
@@ -250,7 +258,7 @@ function AdminListingsContent() {
                   >
                     {actionId === listing.id + 'activate'
                       ? <i className="fa-solid fa-spinner fa-spin" />
-                      : <><i className="fa-solid fa-circle-check text-xs mr-1" />Activer</>}
+                      : <><i className="fa-solid fa-circle-check text-xs mr-1" />{t('activate')}</>}
                   </button>
                 ) : listing.status === 'ACTIVE' ? (
                   <button
@@ -260,7 +268,7 @@ function AdminListingsContent() {
                   >
                     {actionId === listing.id + 'suspend'
                       ? <i className="fa-solid fa-spinner fa-spin" />
-                      : <><i className="fa-solid fa-ban text-xs mr-1" />Suspendre</>}
+                      : <><i className="fa-solid fa-ban text-xs mr-1" />{t('suspend')}</>}
                   </button>
                 ) : null}
                 <button
@@ -285,15 +293,15 @@ function AdminListingsContent() {
             disabled={page <= 1}
             className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
           >
-            <i className="fa-solid fa-chevron-left text-xs" /> Précédent
+            <i className="fa-solid fa-chevron-left text-xs" /> {t('previous')}
           </button>
-          <span className="text-sm text-sub">Page {page} / {totalPages}</span>
+          <span className="text-sm text-sub">{t('pageOf', { page, total: totalPages })}</span>
           <button
             onClick={() => setPage((p) => p + 1)}
             disabled={page >= totalPages}
             className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
           >
-            Suivant <i className="fa-solid fa-chevron-right text-xs" />
+            {t('next')} <i className="fa-solid fa-chevron-right text-xs" />
           </button>
         </div>
       )}
@@ -302,9 +310,9 @@ function AdminListingsContent() {
         open={deleteModal !== null}
         onClose={() => setDeleteModal(null)}
         onConfirm={handleDelete}
-        title="Supprimer cette annonce ?"
-        description="Cette action est irréversible. L'annonce sera définitivement supprimée."
-        confirmLabel="Supprimer"
+        title={t('confirmDeleteListingTitle')}
+        description={t('confirmDeleteListingDesc')}
+        confirmLabel={t('delete')}
         variant="danger"
       />
     </div>

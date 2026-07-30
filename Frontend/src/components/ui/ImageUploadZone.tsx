@@ -1,9 +1,15 @@
 'use client';
 
 import { useState, useRef, DragEvent } from 'react';
+import { useTranslations } from 'next-intl';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
-const MAX_SIZE = 8 * 1024 * 1024; // 8 MB
+const MAX_IMG_SIZE   = 8   * 1024 * 1024; // 8 MB
+const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200 MB
+
+const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+const isVideoFile  = (f: File)   => VIDEO_TYPES.includes(f.type);
+const isVideoUrl   = (url: string) => /\.(mp4|webm|mov|avi)(\?|$)/i.test(url);
 
 interface UploadItem {
   id: string;
@@ -27,6 +33,7 @@ function syncUrls(items: UploadItem[], onChange: (imgs: string[]) => void) {
 }
 
 export default function ImageUploadZone({ images, onChange, getToken }: Props) {
+  const t = useTranslations('upload');
   const [items, setItems] = useState<UploadItem[]>(
     () => images.map((url) => ({ id: genId(), url, status: 'done' as const, name: url.split('/').pop() ?? 'photo' }))
   );
@@ -38,7 +45,9 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
     const fileArr = Array.from(files);
 
     // Client-side size validation
-    const oversized = fileArr.some((f) => f.size > MAX_SIZE);
+    const oversized = fileArr.some((f) =>
+      isVideoFile(f) ? f.size > MAX_VIDEO_SIZE : f.size > MAX_IMG_SIZE
+    );
     if (oversized) {
       setSizeError(true);
       setTimeout(() => setSizeError(false), 4000);
@@ -130,14 +139,17 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
           <i className="fa-solid fa-cloud-arrow-up text-2xl text-gold-dark" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-semibold text-text">Glissez vos photos ici</p>
-          <p className="text-xs text-sub mt-0.5">ou <span className="text-gold-dark underline">cliquez pour parcourir</span></p>
+          <p className="text-sm font-semibold text-text">{t('dropHere')}</p>
+          <p className="text-xs text-sub mt-0.5">{t('or')} <span className="text-gold-dark underline">{t('browse')}</span></p>
         </div>
-        <p className="text-[11px] text-sub">JPG, PNG, WEBP — 8 Mo max par photo</p>
+        <div className="text-center space-y-0.5">
+          <p className="text-[11px] text-sub">{t('photoLimits')}</p>
+          <p className="text-[11px] text-sub">{t('videoLimits')}</p>
+        </div>
         <input
           ref={inputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/x-msvideo"
           multiple
           className="hidden"
           onChange={(e) => { if (e.target.files?.length) uploadFiles(e.target.files); e.target.value = ''; }}
@@ -146,7 +158,7 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
 
       {sizeError && (
         <p className="flex items-center gap-1.5 text-xs text-red-500">
-          <i className="fa-solid fa-circle-exclamation" /> Une ou plusieurs photos dépassent 8 Mo.
+          <i className="fa-solid fa-circle-exclamation" /> {t('fileTooLarge')}
         </p>
       )}
 
@@ -163,6 +175,15 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
                   <i className="fa-solid fa-circle-exclamation text-red-400" />
                   <p className="text-[10px] text-red-500 truncate w-full">{item.name}</p>
                 </div>
+              ) : isVideoUrl(item.url) ? (
+                <div className="relative h-full w-full bg-gray-900">
+                  <video src={item.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60">
+                      <i className="fa-solid fa-play text-white text-xs ml-0.5" />
+                    </div>
+                  </div>
+                </div>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.url} alt="" className="h-full w-full object-cover" />
@@ -171,7 +192,7 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
               {/* Badge principale */}
               {idx === 0 && item.status === 'done' && (
                 <span className="absolute left-1.5 top-1.5 rounded-full bg-gold px-2 py-0.5 text-[9px] font-bold text-gray-900">
-                  Principale
+                  {t('primary')}
                 </span>
               )}
 
@@ -182,7 +203,7 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
                   onClick={(e) => { e.stopPropagation(); setPrimary(item.id); }}
                   className="absolute left-1.5 top-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-semibold text-white opacity-0 transition group-hover:opacity-100 hover:bg-gold hover:text-gray-900"
                 >
-                  <i className="fa-solid fa-star text-[8px] mr-1" />Principale
+                  <i className="fa-solid fa-star text-[8px] mr-1" />{t('primary')}
                 </button>
               )}
 
@@ -201,7 +222,9 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
 
       {items.length > 0 && (
         <p className="text-[11px] text-sub">
-          {items.filter((i) => i.status === 'done').length} photo(s) · La première sera la photo principale
+          {t('photoCount', { count: items.filter((i) => i.status === 'done' && !isVideoUrl(i.url)).length })}
+          {items.some((i) => i.status === 'done' && isVideoUrl(i.url)) && ` · ${t('videoSuffix')}`}
+          {' '}· {t('firstIsPrimary')}
         </p>
       )}
     </div>

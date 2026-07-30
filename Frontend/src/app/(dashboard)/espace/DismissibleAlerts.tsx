@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   overdueVerifications: number;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function DismissibleAlerts({ overdueVerifications, expiringSubscriptions, suspendedListings }: Props) {
+  const t = useTranslations('admin');
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const dismiss = (key: string) => setDismissed((prev) => new Set([...prev, key]));
@@ -19,19 +21,19 @@ export function DismissibleAlerts({ overdueVerifications, expiringSubscriptions,
       key: 'verif',
       href: '/espace/verifications',
       icon: 'fa-solid fa-shield-halved',
-      label: `${overdueVerifications} vérif${overdueVerifications > 1 ? 's' : ''} >24h sans traitement`,
+      label: t('alertOverdueVerifs', { count: overdueVerifications }),
     },
     expiringSubscriptions > 0 && !dismissed.has('sub') && {
       key: 'sub',
       href: '/espace/subscriptions',
       icon: 'fa-solid fa-id-card',
-      label: `${expiringSubscriptions} abonnement${expiringSubscriptions > 1 ? 's' : ''} expirant dans 7 j`,
+      label: t('alertExpiringSubs', { count: expiringSubscriptions }),
     },
     suspendedListings > 0 && !dismissed.has('suspended') && {
       key: 'suspended',
       href: '/espace/listings?status=SUSPENDED',
       icon: 'fa-solid fa-house-circle-xmark',
-      label: `${suspendedListings} annonce${suspendedListings > 1 ? 's' : ''} suspendue${suspendedListings > 1 ? 's' : ''}`,
+      label: t('alertSuspendedListings', { count: suspendedListings }),
     },
   ].filter(Boolean) as { key: string; href: string; icon: string; label: string }[];
 
@@ -41,7 +43,7 @@ export function DismissibleAlerts({ overdueVerifications, expiringSubscriptions,
     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
       <div className="mb-3 flex items-center gap-2">
         <i className="fa-solid fa-triangle-exclamation text-amber-600" />
-        <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">Points d&apos;attention</p>
+        <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">{t('alertsTitle')}</p>
       </div>
       <div className="flex flex-wrap gap-3">
         {alerts.map((alert) => (
@@ -56,7 +58,7 @@ export function DismissibleAlerts({ overdueVerifications, expiringSubscriptions,
             <button
               onClick={() => dismiss(alert.key)}
               className="pr-2.5 text-amber-400 hover:text-amber-700 dark:hover:text-amber-200 transition-colors"
-              title="Fermer"
+              title={t('alertClose')}
             >
               <i className="fa-solid fa-xmark text-xs" />
             </button>

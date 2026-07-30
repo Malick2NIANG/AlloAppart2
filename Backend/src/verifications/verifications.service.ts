@@ -24,7 +24,7 @@ export class VerificationsService {
       where: { id: dto.listingId },
     });
 
-    if (!listing) throw new NotFoundException('Annonce introuvable');
+    if (!listing) throw new NotFoundException('Listing not found');
 
     const isOwner = listing.ownerId === requesterId;
     const requester = await this.prisma.user.findUniqueOrThrow({
@@ -32,7 +32,7 @@ export class VerificationsService {
     });
     const isAdmin = requester.roles.includes(Role.ADMIN);
 
-    if (!isOwner && !isAdmin) throw new ForbiddenException('Non autorisé');
+    if (!isOwner && !isAdmin) throw new ForbiddenException('Not authorized');
 
     // Bloquer les doublons : une seule verif active par annonce
     const existing = await this.prisma.verification.findFirst({
@@ -72,8 +72,8 @@ export class VerificationsService {
         agent: { select: { id: true, firstName: true, lastName: true } },
       },
     });
-    if (!v) throw new NotFoundException('Mission introuvable');
-    if (v.agentId !== agentId) throw new ForbiddenException('Non autorisé');
+    if (!v) throw new NotFoundException('Mission not found');
+    if (v.agentId !== agentId) throw new ForbiddenException('Not authorized');
     return v;
   }
 
@@ -221,9 +221,9 @@ export class VerificationsService {
       include: { listing: { include: { owner: { select: { id: true } } } } },
     });
 
-    if (v.agentId !== agentId) throw new ForbiddenException('Non autorisé');
+    if (v.agentId !== agentId) throw new ForbiddenException('Not authorized');
     if (v.status !== VerifStatus.SCHEDULED) {
-      throw new BadRequestException('Seules les missions planifiées peuvent être déclinées.');
+      throw new BadRequestException('Only scheduled missions can be declined.');
     }
 
     // Met en attente d'approbation admin (ne prend pas effet immédiatement)
@@ -244,7 +244,7 @@ export class VerificationsService {
       include: { listing: { include: { owner: { select: { id: true } } } } },
     });
     if (v.status !== VerifStatus.DECLINE_PENDING) {
-      throw new BadRequestException('Cette vérification n\'est pas en attente de déclin.');
+      throw new BadRequestException('This verification is not pending decline.');
     }
     const updated = await this.prisma.verification.update({
       where: { id },
@@ -257,7 +257,7 @@ export class VerificationsService {
   async refuseDecline(id: string) {
     const v = await this.prisma.verification.findUniqueOrThrow({ where: { id } });
     if (v.status !== VerifStatus.DECLINE_PENDING) {
-      throw new BadRequestException('Cette vérification n\'est pas en attente de déclin.');
+      throw new BadRequestException('This verification is not pending decline.');
     }
     return this.prisma.verification.update({
       where: { id },
@@ -293,8 +293,8 @@ export class VerificationsService {
       include: { listing: { include: { owner: { select: { id: true } } } } },
     });
 
-    if (!v.agentId) throw new ForbiddenException('Aucun agent assigné');
-    if (v.agentId !== agentId) throw new ForbiddenException('Non autorisé');
+    if (!v.agentId) throw new ForbiddenException('No agent assigned');
+    if (v.agentId !== agentId) throw new ForbiddenException('Not authorized');
 
     // Bloquer si la visite est planifiée dans plus de 15 minutes
     const earliest = new Date(v.scheduledAt.getTime() - 15 * 60 * 1000);
@@ -321,10 +321,10 @@ export class VerificationsService {
       include: { listing: { include: { owner: { select: { id: true } } } } },
     });
 
-    if (!v.agentId) throw new ForbiddenException('Aucun agent assigné');
-    if (v.agentId !== agentId) throw new ForbiddenException('Non autorisé');
+    if (!v.agentId) throw new ForbiddenException('No agent assigned');
+    if (v.agentId !== agentId) throw new ForbiddenException('Not authorized');
     if (v.status !== VerifStatus.IN_PROGRESS)
-      throw new BadRequestException('La visite doit être démarrée avant de pouvoir certifier le bien');
+      throw new BadRequestException('Visit must be started before certifying the property');
 
     await this.prisma.listing.update({
       where: { id: v.listingId },
@@ -379,11 +379,11 @@ export class VerificationsService {
   async validate(id: string, adminId: string) {
     const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
     if (!admin.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Réservé aux administrateurs');
+      throw new ForbiddenException('Admin only');
     }
 
     const v = await this.prisma.verification.findUnique({ where: { id } });
-    if (!v) throw new NotFoundException('Vérification introuvable');
+    if (!v) throw new NotFoundException('Verification not found');
 
     if (v.status !== VerifStatus.DONE) {
       throw new BadRequestException(
@@ -411,7 +411,7 @@ export class VerificationsService {
     const isAgent = v.agentId !== null && v.agentId === user.id;
     const isAdmin = user.roles.includes(Role.ADMIN);
 
-    if (!isAgent && !isAdmin) throw new ForbiddenException('Non autorisé');
+    if (!isAgent && !isAdmin) throw new ForbiddenException('Not authorized');
 
     return this.prisma.verification.update({
       where: { id },
@@ -426,15 +426,15 @@ export class VerificationsService {
       include: { listing: { select: { ownerId: true } } },
     });
 
-    if (!v) throw new NotFoundException('Vérification introuvable');
+    if (!v) throw new NotFoundException('Verification not found');
     if (v.status !== VerifStatus.DONE) {
-      throw new BadRequestException('La notation n\'est disponible qu\'après une visite terminée (statut DONE).');
+      throw new BadRequestException('Rating is only available after a completed visit (status DONE).');
     }
     if (v.listing.ownerId !== raterId) {
       throw new ForbiddenException('Seul le bailleur de l\'annonce peut noter l\'agent.');
     }
     if (!v.agentId) {
-      throw new BadRequestException('Aucun agent assigné à cette vérification.');
+      throw new BadRequestException('No agent assigned to this verification.');
     }
 
     // Upsert — un seul avis par vérification

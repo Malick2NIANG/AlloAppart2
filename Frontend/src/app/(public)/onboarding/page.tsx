@@ -48,7 +48,7 @@ export default function OnboardingPage() {
       router.push('/espace');
     } catch (err) {
       console.error('Onboarding error:', err);
-      setError('Une erreur est survenue. Réessayez.');
+      setError(t('error'));
       setLoading(false);
     }
   };

@@ -1,17 +1,18 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import LocationPicker from '@/components/map/LocationPicker';
 
-/* ── Constants ───────────────────────────────────────────────────────── */
+/* ── Constants (no translations needed) ───────────────────────────────── */
 
 const LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
 
@@ -21,59 +22,56 @@ const SENEGAL_REGIONS = [
   'Sédhiou', 'Kédougou', 'Louga', 'Diourbel',
 ];
 
-const AMENITIES = [
-  { key: 'wifi',        icon: 'fa-wifi',          label: 'Wi-Fi'             },
-  { key: 'clim',        icon: 'fa-snowflake',      label: 'Climatisation'     },
-  { key: 'tv',          icon: 'fa-tv',             label: 'Télévision'        },
-  { key: 'cuisine',     icon: 'fa-utensils',       label: 'Cuisine équipée'   },
-  { key: 'douche',      icon: 'fa-shower',         label: 'Douche / SdB'      },
-  { key: 'gardien',     icon: 'fa-shield-halved',  label: 'Gardiennage'       },
-  { key: 'parking',     icon: 'fa-car',            label: 'Parking'           },
-  { key: 'piscine',     icon: 'fa-water',          label: 'Piscine'           },
-  { key: 'balcon',      icon: 'fa-door-open',      label: 'Balcon / Terrasse' },
-  { key: 'generateur',  icon: 'fa-bolt',           label: 'Générateur'        },
-];
-
-const TYPE_META: Record<string, { icon: string; label: string }> = {
-  APPARTEMENT: { icon: 'fa-building',       label: 'Appartement' },
-  VILLA:       { icon: 'fa-house-chimney',  label: 'Villa'       },
-  STUDIO:      { icon: 'fa-door-open',      label: 'Studio'      },
-  CHAMBRE:     { icon: 'fa-bed',            label: 'Chambre'     },
-  BUREAU:      { icon: 'fa-briefcase',      label: 'Bureau'      },
+// Only icon values at module level — labels come from t() inside component
+const TYPE_ICONS: Record<string, string> = {
+  APPARTEMENT: 'fa-building',
+  VILLA:       'fa-house-chimney',
+  STUDIO:      'fa-door-open',
+  CHAMBRE:     'fa-bed',
+  BUREAU:      'fa-briefcase',
 };
 
-const STEP_META = [
-  { icon: 'fa-tag',          label: 'Type & Titre'     },
-  { icon: 'fa-list-check',   label: 'Caractéristiques' },
-  { icon: 'fa-location-dot', label: 'Localisation'     },
-  { icon: 'fa-coins',        label: 'Prix'             },
-  { icon: 'fa-images',       label: 'Photos'           },
-  { icon: 'fa-eye',          label: 'Récapitulatif'    },
-];
+const AMENITY_ICONS: Record<string, string> = {
+  wifi:       'fa-wifi',
+  clim:       'fa-snowflake',
+  tv:         'fa-tv',
+  cuisine:    'fa-utensils',
+  douche:     'fa-shower',
+  gardien:    'fa-shield-halved',
+  parking:    'fa-car',
+  piscine:    'fa-water',
+  balcon:     'fa-door-open',
+  generateur: 'fa-bolt',
+};
 
 const TOTAL_STEPS = 5; // indices 0-4, recap at 5
+const DRAFT_KEY = 'aa_listing_draft';
 
-/* ── Zod schema ──────────────────────────────────────────────────────── */
+type DemoRole = 'visitor' | 'locataire' | 'bailleur' | 'dual' | 'admin' | 'agent';
 
-const schema = z.object({
-  type:        z.enum(LISTING_TYPES),
-  title:       z.string().min(5,  'Titre trop court (5 caractères min)'),
-  description: z.string().min(20, 'Description trop courte (20 caractères min)'),
-  surface:     z.number().positive().optional(),
-  rooms:       z.number().int().min(0).optional(),
-  beds:        z.number().int().min(0).optional(),
-  baths:       z.number().int().min(0).optional(),
-  amenities:   z.array(z.string()).default([]),
-  region:      z.string().min(2, 'Région requise'),
-  city:        z.string().min(2, 'Ville requise'),
-  address:     z.string().min(5, 'Adresse requise'),
-  lat:         z.number(),
-  lng:         z.number(),
-  price:       z.number().positive('Loyer requis (> 0)'),
-  images:      z.array(z.string()).min(1, 'Au moins une photo requise'),
-});
+/* ── Zod schema factory (translations injected at runtime) ──────────── */
 
-type FormValues = z.infer<typeof schema>;
+function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
+  return z.object({
+    type:        z.enum(LISTING_TYPES),
+    title:       z.string().min(5,  t('zTitleShort')),
+    description: z.string().min(20, t('zDescShort')),
+    surface:     z.number().positive().optional(),
+    rooms:       z.number().int().min(0).optional(),
+    beds:        z.number().int().min(0).optional(),
+    baths:       z.number().int().min(0).optional(),
+    amenities:   z.array(z.string()).default([]),
+    region:      z.string().min(2, t('regionRequired')),
+    city:        z.string().min(2, t('zCityRequired')),
+    address:     z.string().min(5, t('zAddressRequired')),
+    lat:         z.number(),
+    lng:         z.number(),
+    price:       z.number().positive(t('zPricePositive')),
+    images:      z.array(z.string()).min(1, t('zPhotoRequired')),
+  });
+}
+
+type FormValues = z.infer<ReturnType<typeof makeSchema>>;
 
 /* Champs validés par étape */
 const STEP_FIELDS: (keyof FormValues)[][] = [
@@ -84,27 +82,59 @@ const STEP_FIELDS: (keyof FormValues)[][] = [
   ['images'],
 ];
 
-type DemoRole = 'visitor' | 'locataire' | 'bailleur' | 'dual' | 'admin' | 'agent';
-
-const DRAFT_KEY = 'aa_listing_draft';
-
 /* ── Page principale ─────────────────────────────────────────────────── */
 
 export default function PublierPage() {
   const { isSignedIn, getToken } = useAuth();
   const router = useRouter();
+  const t = useTranslations('publish');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-SN';
 
-  const [step,        setStep]        = useState(0);
-  const [demoRole,    setDemoRole]    = useState<DemoRole>('visitor');
-  const [mounted,     setMounted]     = useState(false);
-  const [success,     setSuccess]     = useState<'published' | 'draft' | false>(false);
-  const [apiError,    setApiError]    = useState<string | null>(null);
-  const [userRoles,   setUserRoles]   = useState<string[]>([]);
-  const [rolesLoaded, setRolesLoaded] = useState(false);
+  const [step,          setStep]          = useState(0);
+  const [demoRole,      setDemoRole]      = useState<DemoRole>('visitor');
+  const [mounted,       setMounted]       = useState(false);
+  const [success,       setSuccess]       = useState<'published' | 'draft' | false>(false);
+  const [apiError,      setApiError]      = useState<string | null>(null);
+  const [userRoles,     setUserRoles]     = useState<string[]>([]);
+  const [rolesLoaded,   setRolesLoaded]   = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
-  const [submitMode,  setSubmitMode]  = useState<'draft' | 'publish'>('publish');
+  const [submitMode,    setSubmitMode]    = useState<'draft' | 'publish'>('publish');
 
   const prevSignedIn = useRef<boolean | undefined>(undefined);
+
+  // Type/amenity meta computed from translations
+  const TYPE_META = useMemo(() => ({
+    APPARTEMENT: { icon: 'fa-building',      label: t('typeAppartement') },
+    VILLA:       { icon: 'fa-house-chimney', label: t('typeVilla')       },
+    STUDIO:      { icon: 'fa-door-open',     label: t('typeStudio')      },
+    CHAMBRE:     { icon: 'fa-bed',           label: t('typeChambre')     },
+    BUREAU:      { icon: 'fa-briefcase',     label: t('typeBureau')      },
+  }), [t]);
+
+  const AMENITIES = useMemo(() => [
+    { key: 'wifi',       icon: AMENITY_ICONS.wifi,       label: t('amenityWifi')           },
+    { key: 'clim',       icon: AMENITY_ICONS.clim,       label: t('amenityClimatisation')  },
+    { key: 'tv',         icon: AMENITY_ICONS.tv,         label: t('amenityTv')             },
+    { key: 'cuisine',    icon: AMENITY_ICONS.cuisine,    label: t('amenityCuisine')        },
+    { key: 'douche',     icon: AMENITY_ICONS.douche,     label: t('amenityDouche')         },
+    { key: 'gardien',    icon: AMENITY_ICONS.gardien,    label: t('amenityGardiennage')    },
+    { key: 'parking',    icon: AMENITY_ICONS.parking,    label: t('amenityParking')        },
+    { key: 'piscine',    icon: AMENITY_ICONS.piscine,    label: t('amenityPiscine')        },
+    { key: 'balcon',     icon: AMENITY_ICONS.balcon,     label: t('amenityBalconTerrasse') },
+    { key: 'generateur', icon: AMENITY_ICONS.generateur, label: t('amenityGenerateur')     },
+  ], [t]);
+
+  const STEP_LABELS = useMemo(() => [
+    { icon: 'fa-tag',          label: t('step0Label') },
+    { icon: 'fa-list-check',   label: t('step1Label') },
+    { icon: 'fa-location-dot', label: t('step2Label') },
+    { icon: 'fa-coins',        label: t('step3Label') },
+    { icon: 'fa-images',       label: t('step4Label') },
+    { icon: 'fa-eye',          label: t('step5Label') },
+  ], [t]);
+
+  const schema = useMemo(() => makeSchema(t), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { register, handleSubmit, watch, setValue, trigger,
     formState: { errors, isSubmitting } } = useForm<FormValues>({
@@ -128,12 +158,11 @@ export default function PublierPage() {
 
   useEffect(() => {
     if (!draftRestored) return;
-    const t = setTimeout(() => setDraftRestored(false), 5000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDraftRestored(false), 5000);
+    return () => clearTimeout(timer);
   }, [draftRestored]);
 
   useEffect(() => {
-    // Restore draft saved from a previous session
     try {
       const saved = localStorage.getItem(DRAFT_KEY);
       if (saved) {
@@ -156,15 +185,13 @@ export default function PublierPage() {
     setMounted(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Récupère les rôles réels dès que l'utilisateur est connecté
-  // ADMIN → admin dashboard, AGENT_TERRAIN → verifications : cette page n'est pas pour eux
   useEffect(() => {
     if (!isSignedIn) return;
     getToken().then(async (token) => {
       if (!token) return;
       try {
-        const { api } = await import('@/lib/api');
-        const me = await api.get<{ roles: string[] }>('/auth/me', token);
+        const { api: apiLib } = await import('@/lib/api');
+        const me = await apiLib.get<{ roles: string[] }>('/auth/me', token);
         if (me.roles.includes('ADMIN')) { router.replace('/espace'); return; }
         if (me.roles.includes('AGENT_TERRAIN')) { router.replace('/agent/verifications'); return; }
         setUserRoles(me.roles);
@@ -192,10 +219,10 @@ export default function PublierPage() {
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-gold-pale ring-4 ring-gold/20">
             <i className="fa-solid fa-house-chimney text-2xl text-gold-dark" />
           </div>
-          <h1 className="text-xl font-extrabold text-text">Publier une annonce</h1>
-          <p className="mt-2 text-sm text-sub">Connectez-vous pour déposer votre annonce gratuitement.</p>
+          <h1 className="text-xl font-extrabold text-text">{t('signInTitle')}</h1>
+          <p className="mt-2 text-sm text-sub">{t('signInDesc')}</p>
           <Link href="/sign-in" className="btn-gold mt-6 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold">
-            <i className="fa-solid fa-arrow-right-to-bracket" /> Se connecter
+            <i className="fa-solid fa-arrow-right-to-bracket" /> {t('signIn')}
           </Link>
         </div>
       </main>
@@ -213,32 +240,29 @@ export default function PublierPage() {
 
   /* ── Utilisateur connecté mais LOCATAIRE seulement ── */
   if (isSignedIn && !isBailleur) {
+    const BECOME_FEATURES = [
+      { icon: 'fa-eye',            text: t('becomeFeature1') },
+      { icon: 'fa-calendar-check', text: t('becomeFeature2') },
+      { icon: 'fa-lock',           text: t('becomeFeature3') },
+      { icon: 'fa-comment-dots',   text: t('becomeFeature4') },
+      { icon: 'fa-chart-line',     text: t('becomeFeature5') },
+    ];
     return (
       <main className="bg-bg min-h-screen py-12 px-4">
         <div className="mx-auto w-full max-w-lg">
 
-          {/* Header */}
           <div className="mb-8 text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gold-pale ring-4 ring-gold/20">
               <i className="fa-solid fa-house-chimney text-2xl text-gold-dark" />
             </div>
-            <h1 className="text-2xl font-extrabold text-text">Publiez votre bien sur Allo-Appart</h1>
-            <p className="mt-2 text-sm text-sub">
-              Activez votre espace bailleur — gratuit, sans abonnement mensuel.
-            </p>
+            <h1 className="text-2xl font-extrabold text-text">{t('becomeTitle')}</h1>
+            <p className="mt-2 text-sm text-sub">{t('becomeSubtitle')}</p>
           </div>
 
-          {/* Ce que vous gagnez */}
           <div className="mb-5 rounded-2xl border border-line bg-card p-5">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-sub">Ce que vous obtenez</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-sub">{t('becomeFeatureTitle')}</p>
             <ul className="space-y-3">
-              {[
-                { icon: 'fa-eye',           text: 'Visibilité nationale — Dakar, Thiès, Saly, Saint-Louis et toutes les régions' },
-                { icon: 'fa-calendar-check',text: 'Gestion des réservations et des candidats en temps réel' },
-                { icon: 'fa-lock',          text: 'Paiement sécurisé en séquestre — vous êtes payé à la remise des clés' },
-                { icon: 'fa-comment-dots',  text: 'Messagerie intégrée avec vos locataires, traçable et sécurisée' },
-                { icon: 'fa-chart-line',    text: 'Tableau de bord : statistiques, taux de vue, revenus' },
-              ].map(({ icon, text }) => (
+              {BECOME_FEATURES.map(({ icon, text }) => (
                 <li key={icon} className="flex items-start gap-3 text-sm text-text">
                   <i className={`fa-solid ${icon} mt-0.5 shrink-0 text-gold-dark`} />
                   {text}
@@ -247,56 +271,41 @@ export default function PublierPage() {
             </ul>
           </div>
 
-          {/* Modèle de commission */}
           <div className="mb-5 rounded-2xl border border-gold/30 bg-gold-pale p-5">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gold-dark">Notre modèle — transparent</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gold-dark">{t('commissionTitle')}</p>
             <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <i className="fa-solid fa-handshake mt-0.5 shrink-0 text-gold-dark" />
                 <div>
-                  <p className="text-sm font-semibold text-text">Commission à la signature uniquement</p>
-                  <p className="mt-0.5 text-xs text-sub">
-                    L'équivalent d'un <span className="font-semibold text-text">demi-mois de loyer</span>, prélevé sur le bailleur à la signature du bail.
-                    Zéro frais pour le locataire. Zéro abonnement mensuel pour vous.
-                  </p>
+                  <p className="text-sm font-semibold text-text">{t('commissionSignature')}</p>
+                  <p className="mt-0.5 text-xs text-sub">{t('commissionSignatureDesc')}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <i className="fa-solid fa-shield-halved mt-0.5 shrink-0 text-gold-dark" />
                 <div>
-                  <p className="text-sm font-semibold text-text">Badge AlloVérifié™ — optionnel</p>
-                  <p className="mt-0.5 text-xs text-sub">
-                    Un agent se déplace pour certifier votre bien physiquement.
-                    <span className="font-semibold text-text"> 25 000 FCFA</span> (audit basique) ·
-                    <span className="font-semibold text-text"> 60 000 FCFA</span> (audit complet + rapport juridique).
-                    Les biens certifiés apparaissent en priorité dans les résultats.
-                  </p>
+                  <p className="text-sm font-semibold text-text">{t('verifiedBadgeTitle')}</p>
+                  <p className="mt-0.5 text-xs text-sub">{t('verifiedBadgeDesc')}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <i className="fa-solid fa-bolt mt-0.5 shrink-0 text-gold-dark" />
                 <div>
-                  <p className="text-sm font-semibold text-text">Boost — optionnel</p>
-                  <p className="mt-0.5 text-xs text-sub">
-                    Remontez votre annonce en tête des résultats pendant 7 jours.
-                    <span className="font-semibold text-text"> 5 000 FCFA</span> par boost.
-                  </p>
+                  <p className="text-sm font-semibold text-text">{t('boostTitle')}</p>
+                  <p className="mt-0.5 text-xs text-sub">{t('boostDesc')}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* CTA — redirige vers le flow multi-étapes (téléphone + conditions) */}
           <Link href="/become-bailleur"
             className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold">
-            <i className="fa-solid fa-house-chimney-user" /> Activer mon espace bailleur — gratuit
+            <i className="fa-solid fa-house-chimney-user" /> {t('activateBailleur')}
           </Link>
-          <p className="mt-3 text-center text-xs text-sub">
-            Aucun abonnement · Commission uniquement à la signature du bail
-          </p>
+          <p className="mt-3 text-center text-xs text-sub">{t('commissionNote')}</p>
           <div className="mt-4 text-center">
             <Link href="/espace" className="inline-flex items-center gap-1.5 text-xs text-sub hover:text-gold-dark transition-colors">
-              <i className="fa-solid fa-arrow-left text-[10px]" /> Retour à mon espace
+              <i className="fa-solid fa-arrow-left text-[10px]" /> {t('backToSpace')}
             </Link>
           </div>
 
@@ -315,23 +324,24 @@ export default function PublierPage() {
             <i className={`fa-solid ${isDraft ? 'fa-floppy-disk text-blue-600' : 'fa-circle-check text-emerald-600'} text-2xl`} />
           </div>
           <h1 className="text-xl font-extrabold text-text">
-            {isDemo ? 'Simulation réussie !' : isDraft ? 'Brouillon enregistré !' : 'Annonce publiée !'}
+            {isDemo ? t('successDemoTitle') : isDraft ? t('successDraftTitle') : t('successPublishedTitle')}
           </h1>
           <p className="mt-2 text-sm text-sub">
-            {isDemo
-              ? 'En mode démo, l\'annonce n\'est pas enregistrée. Créez un compte pour publier.'
-              : isDraft
-                ? 'Votre annonce est enregistrée en brouillon. Vous pouvez la publier depuis votre espace.'
-                : 'Votre annonce est en ligne. Elle apparaît dans les résultats de recherche.'}
+            {isDemo ? t('successDescDemo') : isDraft ? t('successDescDraft') : t('successDescPublished')}
           </p>
           <div className="mt-6 flex flex-col gap-3">
-            <Link href={isDraft ? '/bailleur/listings' : '/espace'} className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold">
+            <Link
+              href={isDraft ? '/bailleur/listings' : '/espace'}
+              className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold"
+            >
               <i className={`fa-solid ${isDraft ? 'fa-list' : 'fa-house-chimney'}`} />
-              {isDraft ? 'Voir mes annonces' : 'Mon espace'}
+              {isDraft ? t('goToMyListings') : t('goToMySpace')}
             </Link>
-            <button onClick={() => { localStorage.removeItem(DRAFT_KEY); setSuccess(false); setStep(0); }}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all">
-              <i className="fa-solid fa-plus" /> Publier une autre annonce
+            <button
+              onClick={() => { localStorage.removeItem(DRAFT_KEY); setSuccess(false); setStep(0); }}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+            >
+              <i className="fa-solid fa-plus" /> {t('publishAnother')}
             </button>
           </div>
         </div>
@@ -360,10 +370,19 @@ export default function PublierPage() {
       }, token ?? undefined);
       localStorage.removeItem(DRAFT_KEY);
       setSuccess(submitMode === 'draft' ? 'draft' : 'published');
-    } catch (err: unknown) {
-      setApiError((err as Error)?.message ?? 'Une erreur est survenue.');
+    } catch {
+      setApiError(t('apiError'));
     }
   };
+
+  const STEP_HEADERS = [
+    { title: t('step0Header'), sub: t('step0Sub') },
+    { title: t('step1Header'), sub: t('step1Sub') },
+    { title: t('step2Header'), sub: t('step2Sub') },
+    { title: t('step3Header'), sub: t('step3Sub') },
+    { title: t('step4Header'), sub: t('step4Sub') },
+    { title: t('step5Header'), sub: t('step5Sub') },
+  ];
 
   return (
     <main className="py-10 px-4 bg-bg min-h-screen">
@@ -371,19 +390,19 @@ export default function PublierPage() {
 
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-xs text-sub">
-          <Link href="/bailleur" className="hover:text-gold-dark transition-colors">Mon espace</Link>
+          <Link href="/bailleur" className="hover:text-gold-dark transition-colors">{t('breadcrumbSpace')}</Link>
           <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
-          <span className="text-gold-dark font-medium">Publier une annonce</span>
+          <span className="text-gold-dark font-medium">{t('pageTitle')}</span>
         </nav>
 
         <h1 className="mb-6 flex items-center gap-2 text-xl font-extrabold text-text">
-          <i className="fa-solid fa-circle-plus text-gold-dark" /> Publier une annonce
+          <i className="fa-solid fa-circle-plus text-gold-dark" /> {t('pageTitle')}
         </h1>
 
         {/* Bannière brouillon restauré */}
         {draftRestored && (
           <div className="mb-4 flex items-center justify-between gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-            <span><i className="fa-solid fa-floppy-disk mr-2" />Brouillon restauré — vos données ont été récupérées.</span>
+            <span><i className="fa-solid fa-floppy-disk mr-2" />{t('draftRestoredMsg')}</span>
             <button onClick={() => setDraftRestored(false)} className="shrink-0 text-blue-400 hover:text-blue-700 transition-colors">
               <i className="fa-solid fa-xmark" />
             </button>
@@ -394,12 +413,12 @@ export default function PublierPage() {
         {isDemo && (
           <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
             <i className="fa-solid fa-flask shrink-0" />
-            Mode démo — votre annonce ne sera pas enregistrée.
+            {t('demoModeMsg')}
           </div>
         )}
 
         {/* Indicateur d'étapes */}
-        <StepIndicator current={step} />
+        <StepIndicator current={step} stepLabels={STEP_LABELS} />
 
         {/* Formulaire */}
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -408,20 +427,20 @@ export default function PublierPage() {
             {/* ── Étape 0 : Type & Titre ── */}
             {step === 0 && (
               <>
-                <StepHeader title="Type & Titre" sub="De quel type de bien s'agit-il ?" />
+                <StepHeader title={STEP_HEADERS[0].title} sub={STEP_HEADERS[0].sub} />
 
                 <div>
-                  <FieldLabel label="Type de bien" required />
+                  <FieldLabel label={t('fieldTypeLabel')} required />
                   <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
-                    {LISTING_TYPES.map((t) => {
-                      const active = values.type === t;
-                      const meta   = TYPE_META[t];
+                    {LISTING_TYPES.map((type) => {
+                      const active = values.type === type;
+                      const meta   = TYPE_META[type];
                       return (
-                        <button key={t} type="button" onClick={() => setValue('type', t)}
+                        <button key={type} type="button" onClick={() => setValue('type', type)}
                           className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-all ${
                             active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
                           }`}>
-                          <i className={`fa-solid ${meta.icon} text-xl ${active ? 'text-gold-dark' : 'text-sub'}`} />
+                          <i className={`fa-solid ${TYPE_ICONS[type]} text-xl ${active ? 'text-gold-dark' : 'text-sub'}`} />
                           <span className={`text-[11px] font-semibold ${active ? 'text-gold-dark' : 'text-sub'}`}>
                             {meta.label}
                           </span>
@@ -431,18 +450,18 @@ export default function PublierPage() {
                   </div>
                 </div>
 
-                <Field label="Titre de l'annonce" error={errors.title?.message} required>
+                <Field label={t('fieldTitleLabel')} error={errors.title?.message} required>
                   <input {...register('title')}
-                    placeholder="Ex : Appartement 3 pièces meublé au Plateau"
+                    placeholder={t('fieldTitlePh')}
                     className="input-field" />
                 </Field>
 
-                <Field label="Description" error={errors.description?.message} required>
+                <Field label={t('fieldDescLabel')} error={errors.description?.message} required>
                   <textarea {...register('description')} rows={5}
-                    placeholder="Décrivez votre bien en détail : luminosité, état, proximité services, transports…"
+                    placeholder={t('fieldDescPh')}
                     className="input-field resize-none" />
                   <p className="mt-1 text-right text-[11px] text-sub">
-                    {(values.description || '').length} car. (20 min)
+                    {t('fieldDescCharCount', { count: (values.description || '').length })}
                   </p>
                 </Field>
               </>
@@ -451,14 +470,14 @@ export default function PublierPage() {
             {/* ── Étape 1 : Caractéristiques ── */}
             {step === 1 && (
               <>
-                <StepHeader title="Caractéristiques" sub="Surface, pièces et équipements" />
+                <StepHeader title={STEP_HEADERS[1].title} sub={STEP_HEADERS[1].sub} />
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   {([
-                    { key: 'surface' as const, label: 'Surface (m²)',  ph: '85' },
-                    { key: 'rooms'   as const, label: 'Pièces',        ph: '3'  },
-                    { key: 'beds'    as const, label: 'Chambres',      ph: '2'  },
-                    { key: 'baths'   as const, label: 'Salle(s) de bain', ph: '1' },
+                    { key: 'surface' as const, label: t('fieldSurface'),  ph: '85' },
+                    { key: 'rooms'   as const, label: t('fieldRooms'),    ph: '3'  },
+                    { key: 'beds'    as const, label: t('fieldBeds'),     ph: '2'  },
+                    { key: 'baths'   as const, label: t('fieldBaths'),    ph: '1'  },
                   ]).map(({ key, label, ph }) => (
                     <Field key={key} label={label}>
                       <input type="number" min={0} {...register(key, { valueAsNumber: true })} placeholder={ph} className="input-field" />
@@ -467,7 +486,7 @@ export default function PublierPage() {
                 </div>
 
                 <div>
-                  <FieldLabel label="Équipements" />
+                  <FieldLabel label={t('fieldAmenities')} />
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {AMENITIES.map(({ key, icon, label }) => {
                       const active = (values.amenities || []).includes(key);
@@ -494,26 +513,26 @@ export default function PublierPage() {
             {/* ── Étape 2 : Localisation ── */}
             {step === 2 && (
               <>
-                <StepHeader title="Localisation" sub="Où se trouve votre bien ?" />
+                <StepHeader title={STEP_HEADERS[2].title} sub={STEP_HEADERS[2].sub} />
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="Région" error={errors.region?.message} required>
+                  <Field label={t('fieldRegion')} error={errors.region?.message} required>
                     <select {...register('region')} className="input-field">
-                      <option value="">— Choisir une région —</option>
+                      <option value="">{t('fieldRegionDefault')}</option>
                       {SENEGAL_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
                     </select>
                   </Field>
-                  <Field label="Ville / Quartier" error={errors.city?.message} required>
-                    <input {...register('city')} placeholder="Ex : Plateau, Dakar" className="input-field" />
+                  <Field label={t('fieldCity')} error={errors.city?.message} required>
+                    <input {...register('city')} placeholder={t('fieldCityPh')} className="input-field" />
                   </Field>
                 </div>
 
-                <Field label="Adresse complète" error={errors.address?.message} required>
-                  <input {...register('address')} placeholder="Rue, numéro, résidence…" className="input-field" />
+                <Field label={t('fieldAddress')} error={errors.address?.message} required>
+                  <input {...register('address')} placeholder={t('fieldAddressPh')} className="input-field" />
                 </Field>
 
                 <div>
-                  <p className="mb-2 text-sm font-medium text-text">Position sur la carte</p>
+                  <p className="mb-2 text-sm font-medium text-text">{t('fieldMapPos')}</p>
                   <div className="h-64 overflow-hidden rounded-2xl border border-line">
                     <LocationPicker
                       defaultLat={values.lat ?? 14.6937}
@@ -532,12 +551,12 @@ export default function PublierPage() {
             {/* ── Étape 3 : Prix ── */}
             {step === 3 && (
               <>
-                <StepHeader title="Prix" sub="Quel est le loyer mensuel demandé ?" />
+                <StepHeader title={STEP_HEADERS[3].title} sub={STEP_HEADERS[3].sub} />
 
-                <Field label="Loyer mensuel (FCFA)" error={errors.price?.message} required>
+                <Field label={t('fieldRent')} error={errors.price?.message} required>
                   <div className="relative">
                     <input type="number" min={0} {...register('price', { valueAsNumber: true })}
-                      placeholder="Ex : 350 000"
+                      placeholder={t('fieldRentPh')}
                       className="input-field pr-16" />
                     <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-sub">
                       FCFA
@@ -547,10 +566,10 @@ export default function PublierPage() {
 
                 {Number(values.price) > 0 && (
                   <div className="rounded-2xl border border-gold/30 bg-gold-pale px-5 py-4">
-                    <p className="text-xs text-sub mb-1">Loyer mensuel</p>
+                    <p className="text-xs text-sub mb-1">{t('pricePreviewLabel')}</p>
                     <p className="text-3xl font-extrabold text-gold-dark">
-                      {Number(values.price).toLocaleString('fr-SN')}
-                      <span className="ml-2 text-base font-semibold text-sub">FCFA / mois</span>
+                      {Number(values.price).toLocaleString(numLocale)}
+                      <span className="ml-2 text-base font-semibold text-sub">{t('fieldRentUnit')}</span>
                     </p>
                   </div>
                 )}
@@ -560,7 +579,7 @@ export default function PublierPage() {
             {/* ── Étape 4 : Photos ── */}
             {step === 4 && (
               <>
-                <StepHeader title="Photos" sub="Ajoutez au moins une photo de votre bien (jpg, png, webp — 8 Mo max)" />
+                <StepHeader title={STEP_HEADERS[4].title} sub={STEP_HEADERS[4].sub} />
                 <ImageUploadZone
                   images={values.images || []}
                   onChange={(imgs) => setValue('images', imgs, { shouldValidate: true })}
@@ -568,7 +587,7 @@ export default function PublierPage() {
                 />
                 {errors.images && (
                   <p className="flex items-center gap-1.5 text-xs text-red-500">
-                    <i className="fa-solid fa-circle-exclamation" /> Au moins une photo est requise
+                    <i className="fa-solid fa-circle-exclamation" /> {t('photoRequired')}
                   </p>
                 )}
               </>
@@ -577,8 +596,8 @@ export default function PublierPage() {
             {/* ── Étape 5 : Récapitulatif ── */}
             {step === 5 && (
               <>
-                <StepHeader title="Récapitulatif" sub="Vérifiez les informations avant de publier" />
-                <RecapCard values={values} />
+                <StepHeader title={STEP_HEADERS[5].title} sub={STEP_HEADERS[5].sub} />
+                <RecapCard values={values} TYPE_META={TYPE_META} AMENITIES={AMENITIES} numLocale={numLocale} />
                 {apiError && (
                   <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
                     <i className="fa-solid fa-circle-exclamation shrink-0" /> {apiError}
@@ -593,23 +612,22 @@ export default function PublierPage() {
             {step > 0 ? (
               <button type="button" onClick={() => setStep((s) => s - 1)}
                 className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all">
-                <i className="fa-solid fa-arrow-left text-xs" /> Retour
+                <i className="fa-solid fa-arrow-left text-xs" /> {t('backBtn')}
               </button>
             ) : (
               <Link href="/espace"
                 className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all">
-                <i className="fa-solid fa-arrow-left text-xs" /> Annuler
+                <i className="fa-solid fa-arrow-left text-xs" /> {t('cancelBtn')}
               </Link>
             )}
 
             {step < TOTAL_STEPS ? (
               <button type="button" onClick={advance}
                 className="btn-gold inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold">
-                Suivant <i className="fa-solid fa-arrow-right text-xs" />
+                {t('nextBtn')} <i className="fa-solid fa-arrow-right text-xs" />
               </button>
             ) : (
               <div className="flex items-center gap-3">
-                {/* Brouillon */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
@@ -617,11 +635,10 @@ export default function PublierPage() {
                   className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all disabled:opacity-50"
                 >
                   {isSubmitting && submitMode === 'draft'
-                    ? <><i className="fa-solid fa-spinner fa-spin" /> Enregistrement…</>
-                    : <><i className="fa-solid fa-floppy-disk text-xs" /> Brouillon</>
+                    ? <><i className="fa-solid fa-spinner fa-spin" /> {t('savingDraft')}</>
+                    : <><i className="fa-solid fa-floppy-disk text-xs" /> {t('draftBtn')}</>
                   }
                 </button>
-                {/* Publier */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
@@ -629,8 +646,8 @@ export default function PublierPage() {
                   className="btn-gold inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-50"
                 >
                   {isSubmitting && submitMode === 'publish'
-                    ? <><i className="fa-solid fa-spinner fa-spin" /> Publication…</>
-                    : <><i className="fa-solid fa-paper-plane text-xs" /> Publier</>
+                    ? <><i className="fa-solid fa-spinner fa-spin" /> {t('publishing')}</>
+                    : <><i className="fa-solid fa-paper-plane text-xs" /> {t('publishBtn')}</>
                   }
                 </button>
               </div>
@@ -642,13 +659,18 @@ export default function PublierPage() {
   );
 }
 
-
 /* ── Indicateur d'étapes ─────────────────────────────────────────────── */
 
-function StepIndicator({ current }: { current: number }) {
+function StepIndicator({
+  current,
+  stepLabels,
+}: {
+  current: number;
+  stepLabels: { icon: string; label: string }[];
+}) {
   return (
     <div className="flex items-center overflow-x-auto pb-1">
-      {STEP_META.map((s, i) => {
+      {stepLabels.map((s, i) => {
         const done   = i < current;
         const active = i === current;
         return (
@@ -660,12 +682,10 @@ function StepIndicator({ current }: { current: number }) {
             }`}>
               {done ? <i className="fa-solid fa-check text-[10px]" /> : i + 1}
             </div>
-            <span className={`ml-1.5 mr-1 hidden text-xs font-medium sm:block ${
-              active ? 'text-text' : 'text-sub'
-            }`}>
+            <span className={`ml-1.5 mr-1 hidden text-xs font-medium sm:block ${active ? 'text-text' : 'text-sub'}`}>
               {s.label}
             </span>
-            {i < STEP_META.length - 1 && (
+            {i < stepLabels.length - 1 && (
               <div className={`mx-1 h-px w-5 transition-all ${done ? 'bg-emerald-400' : 'bg-line'}`} />
             )}
           </div>
@@ -677,47 +697,57 @@ function StepIndicator({ current }: { current: number }) {
 
 /* ── Récapitulatif ───────────────────────────────────────────────────── */
 
-function RecapCard({ values }: { values: FormValues }) {
+function RecapCard({
+  values,
+  TYPE_META,
+  AMENITIES,
+  numLocale,
+}: {
+  values: FormValues;
+  TYPE_META: Record<string, { icon: string; label: string }>;
+  AMENITIES: { key: string; icon: string; label: string }[];
+  numLocale: string;
+}) {
+  const t = useTranslations('publish');
   const amenityLabels = (values.amenities || []).map(
     (a) => AMENITIES.find((am) => am.key === a)?.label ?? a
   );
   const meta = TYPE_META[values.type];
 
+  const recapItems = [
+    { icon: 'fa-ruler-combined', label: t('recapSurface'), value: values.surface ? `${values.surface} m²` : '—' },
+    { icon: 'fa-door-open',      label: t('recapPieces'),  value: values.rooms?.toString() || '—'              },
+    { icon: 'fa-bed',            label: t('recapBeds'),    value: values.beds?.toString() || '—'               },
+    { icon: 'fa-shower',         label: t('recapSdb'),     value: values.baths?.toString() || '—'              },
+    { icon: 'fa-location-dot',   label: t('recapCity'),    value: values.city || '—'                           },
+    { icon: 'fa-map',            label: t('recapRegion'),  value: values.region || '—'                         },
+  ];
+
   return (
     <div className="space-y-5">
-      {/* Aperçu image */}
       {values.images?.[0] && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={values.images[0]} alt="Aperçu"
+        <img src={values.images[0]} alt=""
           className="h-52 w-full rounded-xl object-cover border border-line" />
       )}
 
-      {/* Type + Prix */}
       <div className="flex items-center justify-between">
         <span className="inline-flex items-center gap-2 rounded-full border border-line bg-bg px-3 py-1.5 text-sm font-semibold text-text">
           <i className={`fa-solid ${meta.icon} text-gold-dark`} /> {meta.label}
         </span>
         <span className="text-xl font-extrabold text-gold-dark">
-          {Number(values.price).toLocaleString('fr-SN')} <span className="text-sm font-semibold text-sub">FCFA/mois</span>
+          {Number(values.price).toLocaleString(numLocale)}
+          <span className="ml-1 text-sm font-semibold text-sub"> {t('fieldRentUnit')}</span>
         </span>
       </div>
 
-      {/* Titre */}
       <div>
         <p className="text-base font-bold text-text">{values.title}</p>
         <p className="mt-1 text-sm text-sub line-clamp-2">{values.description}</p>
       </div>
 
-      {/* Grille infos */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-        {[
-          { icon: 'fa-ruler-combined', label: 'Surface',   value: values.surface ? `${values.surface} m²` : '—'       },
-          { icon: 'fa-door-open',      label: 'Pièces',    value: values.rooms?.toString() || '—'                     },
-          { icon: 'fa-bed',            label: 'Chambres',  value: values.beds?.toString() || '—'                      },
-          { icon: 'fa-shower',         label: 'SdB',       value: values.baths?.toString() || '—'                     },
-          { icon: 'fa-location-dot',   label: 'Ville',     value: values.city || '—'                                   },
-          { icon: 'fa-map',            label: 'Région',    value: values.region || '—'                                 },
-        ].map(({ icon, label, value }) => (
+        {recapItems.map(({ icon, label, value }) => (
           <div key={label} className="rounded-xl border border-line bg-bg px-3 py-2.5">
             <p className="text-[10px] uppercase tracking-wide text-sub">{label}</p>
             <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-text">
@@ -727,16 +757,14 @@ function RecapCard({ values }: { values: FormValues }) {
         ))}
       </div>
 
-      {/* Adresse */}
       <div className="flex items-start gap-2 rounded-xl border border-line bg-bg px-3 py-2.5">
         <i className="fa-solid fa-location-dot mt-0.5 text-gold-dark text-xs shrink-0" />
         <p className="text-sm text-text">{values.address}{values.city ? `, ${values.city}` : ''}</p>
       </div>
 
-      {/* Équipements */}
       {amenityLabels.length > 0 && (
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-sub">Équipements</p>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-sub">{t('recapEquipements')}</p>
           <div className="flex flex-wrap gap-1.5">
             {amenityLabels.map((a) => (
               <span key={a} className="rounded-full bg-gold-pale px-2.5 py-1 text-xs font-medium text-gold-dark">
@@ -747,15 +775,14 @@ function RecapCard({ values }: { values: FormValues }) {
         </div>
       )}
 
-      {/* Galerie miniatures */}
       {(values.images || []).length > 1 && (
         <div>
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-sub">
-            {values.images.length} photo(s)
+            {t('photosCount', { count: values.images.length })}
           </p>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {values.images.map((url, i) => (
-              // eslint-disable-next-line @next/next/no-img-element -- dynamic Cloudinary URL from upload
+              // eslint-disable-next-line @next/next/no-img-element
               <img key={i} src={url} alt=""
                 className="h-14 w-20 shrink-0 rounded-lg border border-line object-cover"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />

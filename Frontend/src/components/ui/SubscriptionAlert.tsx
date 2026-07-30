@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 
 type AlertLevel = 'ok' | 'warning' | 'critical' | 'expired' | 'none';
@@ -43,6 +44,7 @@ const ALERT_CONFIG: Record<
 
 export default function SubscriptionAlert() {
   const { getToken, sessionId } = useAuth();
+  const t = useTranslations('subscriptionAlert');
   const [alert, setAlert]       = useState<AlertData | null>(null);
   const todayKey = `sub_alert_dismissed_${new Date().toISOString().slice(0, 10)}`;
   const [dismissed, setDismissed] = useState<boolean>(
@@ -92,13 +94,9 @@ export default function SubscriptionAlert() {
   const config = ALERT_CONFIG[alert.level];
 
   const message = () => {
-    if (alert.level === 'expired') {
-      return 'Votre abonnement a expiré. Vos annonces sont suspendues jusqu\'au renouvellement.';
-    }
-    if (alert.level === 'critical') {
-      return `Votre abonnement expire dans ${alert.daysLeft} jour${alert.daysLeft === 1 ? '' : 's'}. Renouvelez maintenant pour éviter toute interruption.`;
-    }
-    return `Votre abonnement expire dans ${alert.daysLeft} jours.`;
+    if (alert.level === 'expired') return t('expired');
+    if (alert.level === 'critical') return t('critical', { days: alert.daysLeft ?? 0 });
+    return t('warning', { days: alert.daysLeft ?? 0 });
   };
 
   return (
@@ -116,13 +114,13 @@ export default function SubscriptionAlert() {
             href="/bailleur/abonnement"
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${config.btnClass}`}
           >
-            Renouveler
+            {t('renew')}
           </Link>
           {(alert.level === 'warning' || alert.level === 'expired') && (
             <button
               onClick={alert.level === 'warning' ? dismiss : dismissExpired}
               className={`${config.text} opacity-60 hover:opacity-100 transition`}
-              aria-label="Fermer"
+              aria-label={t('dismiss')}
             >
               <i className="fa-solid fa-xmark text-sm" />
             </button>

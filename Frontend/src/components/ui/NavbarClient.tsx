@@ -10,12 +10,17 @@ import LanguageSwitcher from './LanguageSwitcher';
 import type { Locale } from '@/i18n/config';
 import { api } from '@/lib/api';
 import type { MessageRoom, User } from '@/types';
+import { useTranslations } from 'next-intl';
 
 interface Labels {
   listings: string; search: string;
   mySpace: string;  login: string;  register: string;
   openMenu: string; closeMenu: string;
   searchPlaceholder: string;
+  allListings: string; byType: string; discover: string;
+  demoMode: string; signOut: string; messages: string;
+  favorites: string; profileLabel: string; security: string;
+  localityPlaceholder: string; mobileSearchPlaceholder: string;
 }
 
 interface Props { locale: Locale; labels: Labels; }
@@ -24,21 +29,21 @@ type DropdownKey = 'listings' | 'regions' | 'profile';
 type DemoRole    = 'visitor' | 'locataire' | 'bailleur' | 'dual' | 'admin' | 'agent';
 
 const LISTING_TYPES = [
-  { key: 'APPARTEMENT', icon: 'fa-building',      fr: 'Appartements', en: 'Apartments'  },
-  { key: 'STUDIO',      icon: 'fa-bed',            fr: 'Studios',      en: 'Studios'     },
-  { key: 'VILLA',       icon: 'fa-house-user',     fr: 'Villas',       en: 'Villas'      },
-  { key: 'BUREAU',      icon: 'fa-briefcase',      fr: 'Bureaux',      en: 'Offices'     },
-  { key: 'CHAMBRE',     icon: 'fa-door-open',      fr: 'Chambres',     en: 'Rooms'       },
+  { key: 'APPARTEMENT', icon: 'fa-building'   },
+  { key: 'STUDIO',      icon: 'fa-bed'        },
+  { key: 'VILLA',       icon: 'fa-house-user' },
+  { key: 'BUREAU',      icon: 'fa-briefcase'  },
+  { key: 'CHAMBRE',     icon: 'fa-door-open'  },
 ];
 
 interface ListingsDropdownProps {
-  locale: Locale;
   allListings: string;
   byType: string;
+  typeLabels: Record<string, string>;
   onClose: () => void;
 }
 
-function ListingsDropdown({ locale, allListings, byType, onClose }: ListingsDropdownProps) {
+function ListingsDropdown({ allListings, byType, typeLabels, onClose }: ListingsDropdownProps) {
   return (
     <div className="absolute top-full left-0 mt-2 w-56 bg-card border border-line rounded-2xl shadow-xl p-2 z-50">
       <Link href="/listings" onClick={onClose}
@@ -51,7 +56,7 @@ function ListingsDropdown({ locale, allListings, byType, onClose }: ListingsDrop
         <Link key={type.key} href={`/listings?type=${type.key}`} onClick={onClose}
           className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
           <i className={`fa-solid ${type.icon} text-gold-dark text-xs w-4`} />
-          {locale === 'en' ? type.en : type.fr}
+          {typeLabels[type.key]}
         </Link>
       ))}
     </div>
@@ -62,12 +67,15 @@ interface ProfileDropdownProps {
   userName: string;
   userEmail: string;
   isDemo: boolean;
-  locale: Locale;
+  demoMode: string;
+  profileLabel: string;
+  security: string;
+  signOut: string;
   onClose: () => void;
   onSignOut: () => void;
 }
 
-function ProfileDropdown({ userName, userEmail, isDemo, locale, onClose, onSignOut }: ProfileDropdownProps) {
+function ProfileDropdown({ userName, userEmail, isDemo, demoMode, profileLabel, security, signOut, onClose, onSignOut }: ProfileDropdownProps) {
   return (
     <div className="absolute top-full right-0 mt-2 w-56 bg-card border border-line rounded-2xl shadow-xl p-2 z-50">
       {/* User info */}
@@ -76,7 +84,7 @@ function ProfileDropdown({ userName, userEmail, isDemo, locale, onClose, onSignO
         <p className="text-xs text-sub truncate">{userEmail}</p>
         {isDemo && (
           <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-            <i className="fa-solid fa-flask text-[9px]" /> Mode démo
+            <i className="fa-solid fa-flask text-[9px]" /> {demoMode}
           </span>
         )}
       </div>
@@ -84,8 +92,8 @@ function ProfileDropdown({ userName, userEmail, isDemo, locale, onClose, onSignO
 
       {/* Settings */}
       {[
-        { href: '/profil',          icon: 'fa-solid fa-user-circle',   label: locale === 'en' ? 'Profile'  : 'Mon profil' },
-        { href: '/profil/securite', icon: 'fa-solid fa-shield-halved', label: locale === 'en' ? 'Security' : 'Sécurité'   },
+        { href: '/profil',          icon: 'fa-solid fa-user-circle',   label: profileLabel },
+        { href: '/profil/securite', icon: 'fa-solid fa-shield-halved', label: security     },
       ].map((item) => (
         <Link key={item.href} href={item.href} onClick={onClose}
           className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
@@ -96,11 +104,11 @@ function ProfileDropdown({ userName, userEmail, isDemo, locale, onClose, onSignO
 
       <div className="border-t border-line my-1" />
 
-      {/* Déconnexion */}
+      {/* Sign out */}
       <button onClick={onSignOut}
         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 transition">
         <i className="fa-solid fa-right-from-bracket text-xs w-4 text-center" />
-        Déconnexion
+        {signOut}
       </button>
     </div>
   );
@@ -118,6 +126,9 @@ const DEMO_USERS: Record<Exclude<DemoRole, 'visitor'>, { name: string; initials:
 };
 
 export default function NavbarClient({ locale, labels }: Props) {
+  const tListings  = useTranslations('listings');
+  const typeLabels = tListings.raw('typeLabels') as Record<string, string>;
+
   const { isSignedIn, getToken } = useAuth();
   const { signOut }    = useClerk();
   const { user }       = useUser();
@@ -139,11 +150,6 @@ export default function NavbarClient({ locale, labels }: Props) {
 
   const navRef  = useRef<HTMLDivElement>(null);
   const authRef = useRef<HTMLDivElement>(null);
-
-  /* ── Labels locaux ───────────────────────────────────────── */
-  const L = locale === 'en'
-    ? { allListings: 'All listings', byType: 'By type', popularRegions: 'Popular regions', discover: 'Discover', mySpace: 'My Space' }
-    : { allListings: 'Toutes les annonces', byType: 'Par type', popularRegions: 'Régions populaires', discover: 'Découvrir', mySpace: 'Espace' };
 
   /* ── Demo mode ───────────────────────────────────────────── */
   useEffect(() => {
@@ -192,11 +198,11 @@ export default function NavbarClient({ locale, labels }: Props) {
             ? '/bailleur/messages'
             : '/locataire/messages';
       setMessagesHref(href);
-      setUserAvatar(me.avatar ?? user?.imageUrl ?? null);
+      setUserAvatar(me.avatar ?? null);
       const count = rooms.filter((r) => r.messages?.[0] && !r.messages[0].readAt && r.messages[0].senderId !== me.id).length;
       setUnreadCount(count);
     } catch {}
-  }, [isSignedIn, getToken, user?.imageUrl]);
+  }, [isSignedIn, getToken]);
 
   useEffect(() => { void refreshProfile(); }, [refreshProfile]);
 
@@ -298,7 +304,7 @@ export default function NavbarClient({ locale, labels }: Props) {
               <i className="fa-solid fa-location-dot text-gold-dark text-sm opacity-80 shrink-0" />
               <input name="q" type="text" value={searchVal}
                 onChange={(e) => setSearchVal(e.target.value)}
-                placeholder="Localité"
+                placeholder={labels.localityPlaceholder}
                 className="min-w-0 flex-1 bg-transparent text-sm text-text placeholder:text-sub outline-none" />
             </div>
             <span className="hidden lg:block h-5 w-px bg-gray-200 dark:bg-white/15 shrink-0" />
@@ -331,10 +337,10 @@ export default function NavbarClient({ locale, labels }: Props) {
             <div className="relative">
               <button onClick={() => toggleDropdown('listings')}
                 className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 ${pathname.startsWith('/listings') ? 'text-gold-dark' : 'text-text/85 hover:text-gold-dark'}`}>
-                {L.discover}
+                {labels.discover}
                 <i className={`fa-solid fa-chevron-down text-[10px] transition-transform duration-200 ${openDropdown === 'listings' ? 'rotate-180' : ''}`} />
               </button>
-              {openDropdown === 'listings' && <ListingsDropdown locale={locale} allListings={L.allListings} byType={L.byType} onClose={() => setOpenDropdown(null)} />}
+              {openDropdown === 'listings' && <ListingsDropdown allListings={labels.allListings} byType={labels.byType} typeLabels={typeLabels} onClose={() => setOpenDropdown(null)} />}
             </div>
 
             {/* Espace — visible uniquement si connecté */}
@@ -346,7 +352,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                     : 'text-text/85 hover:text-gold-dark'
                 }`}>
                 <i className="fa-solid fa-grip-vertical text-[11px]" />
-                {L.mySpace}
+                {labels.mySpace}
               </Link>
             )}
           </nav>
@@ -395,7 +401,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                       </span>
                     )}
                   </button>
-                  {openDropdown === 'profile' && <ProfileDropdown userName={userName ?? ''} userEmail={userEmail ?? ''} isDemo={isDemo} locale={locale} onClose={() => setOpenDropdown(null)} onSignOut={handleSignOut} />}
+                  {openDropdown === 'profile' && <ProfileDropdown userName={userName ?? ''} userEmail={userEmail ?? ''} isDemo={isDemo} demoMode={labels.demoMode} profileLabel={labels.profileLabel} security={labels.security} signOut={labels.signOut} onClose={() => setOpenDropdown(null)} onSignOut={handleSignOut} />}
                 </div>
               </div>
             ) : (
@@ -433,7 +439,7 @@ export default function NavbarClient({ locale, labels }: Props) {
           <form onSubmit={handleSearch} className="mb-3 grid gap-2 p-3 rounded-2xl border border-line bg-card">
             <input type="text" name="q" value={searchVal}
               onChange={(e) => setSearchVal(e.target.value)}
-              placeholder="Quartier, ville, mot-clé…"
+              placeholder={labels.mobileSearchPlaceholder}
               className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none" />
             <div className="grid grid-cols-2 gap-2">
               <input type="number" name="minPrice" min="0" value={minPrice}
@@ -455,20 +461,20 @@ export default function NavbarClient({ locale, labels }: Props) {
             <div>
               <button onClick={() => setMobileExpanded((p) => p === 'listings' ? null : 'listings')}
                 className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold text-sub hover:bg-card hover:text-text transition">
-                {L.discover}
+                {labels.discover}
                 <i className={`fa-solid fa-chevron-down text-xs transition-transform duration-200 ${mobileExpanded === 'listings' ? 'rotate-180' : ''}`} />
               </button>
               {mobileExpanded === 'listings' && (
                 <div className="ml-4 mt-1 flex flex-col gap-0.5">
                   <Link href="/listings" onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-text hover:bg-gold-pale hover:text-gold-dark transition">
-                    <i className="fa-solid fa-list text-gold-dark text-xs w-4" />{L.allListings}
+                    <i className="fa-solid fa-list text-gold-dark text-xs w-4" />{labels.allListings}
                   </Link>
                   {LISTING_TYPES.map((type) => (
                     <Link key={type.key} href={`/listings?type=${type.key}`} onClick={() => setMobileOpen(false)}
                       className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
                       <i className={`fa-solid ${type.icon} text-gold-dark text-xs w-4`} />
-                      {locale === 'en' ? type.en : type.fr}
+                      {typeLabels[type.key]}
                     </Link>
                   ))}
                 </div>
@@ -479,7 +485,7 @@ export default function NavbarClient({ locale, labels }: Props) {
             {effectiveSignedIn && (
               <Link href={spaceHref} onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-sub hover:bg-card hover:text-text transition">
-                <i className="fa-solid fa-grip-vertical text-gold-dark text-xs w-4" />{L.mySpace}
+                <i className="fa-solid fa-grip-vertical text-gold-dark text-xs w-4" />{labels.mySpace}
               </Link>
             )}
           </nav>
@@ -508,7 +514,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium text-text hover:bg-card transition">
                     <span className="flex items-center gap-3">
-                      <i className="fa-solid fa-comment-dots text-gold-dark w-4" /> Messages
+                      <i className="fa-solid fa-comment-dots text-gold-dark w-4" /> {labels.messages}
                     </span>
                     {unreadCount > 0 && (
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
@@ -521,13 +527,13 @@ export default function NavbarClient({ locale, labels }: Props) {
                 {/* Favoris */}
                 <Link href="/listings?tab=favoris" onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-text hover:bg-card transition">
-                  <i className="fa-solid fa-heart text-red-400 w-4" /> Favoris
+                  <i className="fa-solid fa-heart text-red-400 w-4" /> {labels.favorites}
                 </Link>
 
                 <div className="border-t border-line pt-2 mt-1 flex flex-col gap-1">
                   {[
-                    { href: '/profil',          icon: 'fa-solid fa-user-circle',   label: locale === 'en' ? 'Profile'  : 'Mon profil' },
-                    { href: '/profil/securite', icon: 'fa-solid fa-shield-halved', label: locale === 'en' ? 'Security' : 'Sécurité'   },
+                    { href: '/profil',          icon: 'fa-solid fa-user-circle',   label: labels.profileLabel },
+                    { href: '/profil/securite', icon: 'fa-solid fa-shield-halved', label: labels.security     },
                   ].map((item) => (
                     <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
                       className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
@@ -538,7 +544,7 @@ export default function NavbarClient({ locale, labels }: Props) {
 
                 <button onClick={() => { setMobileOpen(false); handleSignOut(); }}
                   className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition">
-                  <i className="fa-solid fa-right-from-bracket w-4 text-xs" /> Déconnexion
+                  <i className="fa-solid fa-right-from-bracket w-4 text-xs" /> {labels.signOut}
                 </button>
               </>
             ) : (

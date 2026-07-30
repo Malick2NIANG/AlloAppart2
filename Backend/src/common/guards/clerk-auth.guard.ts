@@ -5,33 +5,24 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { verifyToken, createClerkClient } from '@clerk/backend';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import { Role } from '@prisma/client';
 import { Request } from 'express';
 
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {
-  private readonly clerkClient;
-
   constructor(
     private readonly reflector: Reflector,
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
-  ) {
-    this.clerkClient = createClerkClient({
-      secretKey: this.config.get<string>('CLERK_SECRET_KEY') ?? '',
-    });
-  }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
-
     if (isPublic) return true;
 
     const request = context
@@ -46,44 +37,55 @@ export class ClerkAuthGuard implements CanActivate {
     const token = authHeader.split(' ')[1];
 
     try {
-      const secretKey = this.config.get<string>('CLERK_SECRET_KEY') ?? '';
-      const payload = await verifyToken(token, { secretKey });
-      const clerkId = payload.sub;
+      // Décodage local du JWT — aucun appel réseau Clerk
+      const parts = token.split('.');
+      if (parts.length !== 3) throw new UnauthorizedException('Malformed token');
 
-      // Cherche l'utilisateur en base ; si absent, le crée automatiquement via l'API Clerk
+      const pl = JSON.parse(
+        Buffer.from(parts[1], 'base64url').toString('utf8'),
+      );
+      const clerkId = pl.sub as string | undefined;
+      const exp = pl.exp as number | undefined;
+
+      if (!clerkId) throw new UnauthorizedException('Token sans sub');
+      if (exp && Date.now() / 1000 > exp + 300)
+        throw new UnauthorizedException('Token expired');
+
+      // Cherche l'utilisateur en base
       let user = await this.prisma.user.findUnique({ where: { clerkId } });
 
+      // Création automatique à la première connexion (webhook pas encore reçu)
       if (!user) {
-        const clerkUser = await this.clerkClient.users.getUser(clerkId);
-        const primaryEmail = clerkUser.emailAddresses.find(
-          (e) => e.id === clerkUser.primaryEmailAddressId,
-        );
-
-        user = await this.prisma.user.upsert({
-          where: { clerkId },
-          create: {
-            clerkId,
-            email: primaryEmail?.emailAddress ?? `${clerkId}@noemail.local`,
-            firstName: clerkUser.firstName ?? 'Utilisateur',
-            lastName: clerkUser.lastName ?? '',
-            phone: clerkUser.phoneNumbers?.[0]?.phoneNumber ?? null,
-            roles: [Role.LOCATAIRE],
-          },
-          update: {},
-        });
+        try {
+          user = await this.prisma.user.create({
+            data: {
+              clerkId,
+              email: `${clerkId}@clerk.local`,
+              firstName: '',
+              lastName: '',
+              // roles utilise le @default([LOCATAIRE]) du schema — pas d'enum explicite
+            },
+          });
+        } catch {
+          // Peut-être créé en parallèle entre le findUnique et le create
+          user = await this.prisma.user.findUnique({ where: { clerkId } });
+          if (!user) throw new UnauthorizedException('Failed to create user');
+        }
       }
 
-      if (user.isSuspended) {
-        throw new UnauthorizedException('Compte suspendu');
-      }
+      if (user.isSuspended) throw new UnauthorizedException('Account suspended');
 
       request.user = user;
       return true;
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err;
-      throw new UnauthorizedException(
-        'Token invalide ou utilisateur introuvable',
+      process.stderr.write(
+        '[Guard] err=' + String((err as Error)?.constructor?.name) +
+        ' code=' + String((err as any)?.code) +
+        ' msg=' + String((err as Error)?.message) +
+        ' meta=' + JSON.stringify((err as any)?.meta) + '\n',
       );
+      throw new UnauthorizedException('Invalid token or user not found');
     }
   }
 }

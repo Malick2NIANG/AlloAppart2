@@ -82,9 +82,23 @@ export class CreateListingDto {
   @IsUrl({}, { each: true })
   @Matches(/^https:\/\/res\.cloudinary\.com\//, {
     each: true,
-    message: 'Les images doivent être hébergées sur Cloudinary',
+    message: 'Images must be hosted on Cloudinary',
   })
   images?: string[];
+
+  /** Tarif par nuit (optionnel — pour les séjours courts < 25 jours) */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  pricePerNight?: number;
+
+  /** Durée minimum de séjour en nuits */
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Type(() => Number)
+  minimumNights?: number;
 
   @IsOptional()
   @IsArray()

@@ -5,6 +5,7 @@ import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import Pusher from 'pusher-js';
 import { api } from '@/lib/api';
+import { useTranslations } from 'next-intl';
 
 interface Notif {
   id: string;
@@ -17,32 +18,20 @@ interface Notif {
 }
 
 const TYPE_ICON: Record<string, { icon: string; color: string }> = {
-  // Vérifications
   VERIF_ASSIGNED:    { icon: 'fa-shield-halved',    color: 'text-blue-500'    },
   VERIF_SCHEDULED:   { icon: 'fa-calendar-check',   color: 'text-blue-600'    },
   VERIF_IN_PROGRESS: { icon: 'fa-person-walking',   color: 'text-purple-500'  },
   VERIF_DONE:        { icon: 'fa-circle-check',      color: 'text-emerald-500' },
   VERIF_DECLINED:    { icon: 'fa-ban',               color: 'text-amber-500'   },
   VERIF_VALIDATED:   { icon: 'fa-medal',             color: 'text-gold'        },
-  // Réservations
   NEW_BOOKING:       { icon: 'fa-calendar-plus',    color: 'text-blue-500'    },
   BOOKING_CONFIRMED: { icon: 'fa-circle-check',     color: 'text-emerald-500' },
   BOOKING_CANCELLED: { icon: 'fa-calendar-xmark',   color: 'text-red-500'     },
-  // Avis
   REVIEW_RECEIVED:   { icon: 'fa-star',             color: 'text-gold'        },
 };
 
-function relativeTime(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1)  return 'à l\'instant';
-  if (m < 60) return `il y a ${m} min`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `il y a ${h}h`;
-  return `il y a ${Math.floor(h / 24)}j`;
-}
-
 export default function NotificationBell({ userId }: { userId: string }) {
+  const t             = useTranslations('notifications');
   const { getToken }  = useAuth();
   const [notifs,      setNotifs]      = useState<Notif[]>([]);
   const [unread,      setUnread]      = useState(0);
@@ -50,6 +39,16 @@ export default function NotificationBell({ userId }: { userId: string }) {
   const [loading,     setLoading]     = useState(false);
   const dropdownRef   = useRef<HTMLDivElement>(null);
   const tokenRef      = useRef<string | null>(null);
+
+  const relativeTime = (dateStr: string): string => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const m    = Math.floor(diff / 60000);
+    if (m < 1)  return t('justNow');
+    if (m < 60) return t('minutesAgo', { count: m });
+    const h = Math.floor(m / 60);
+    if (h < 24) return t('hoursAgo', { count: h });
+    return t('daysAgo', { count: Math.floor(h / 24) });
+  };
 
   /* ── Fetch ───────────────────────────────────────────────── */
   const fetchNotifs = useCallback(async () => {
@@ -129,11 +128,10 @@ export default function NotificationBell({ userId }: { userId: string }) {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Bouton cloche */}
       <button
         onClick={handleOpen}
         className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-bg text-sub hover:text-text hover:bg-card transition-colors"
-        aria-label="Notifications"
+        aria-label={t('title')}
       >
         <i className="fa-solid fa-bell text-sm" />
         {unread > 0 && (
@@ -143,12 +141,11 @@ export default function NotificationBell({ userId }: { userId: string }) {
         )}
       </button>
 
-      {/* Dropdown */}
       {open && (
         <div className="absolute right-0 top-11 z-50 w-80 rounded-2xl border border-line bg-card shadow-xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-line">
-            <p className="text-sm font-semibold text-main">Notifications</p>
+            <p className="text-sm font-semibold text-main">{t('title')}</p>
             {notifs.length > 0 && (
               <button
                 onClick={async () => {
@@ -161,7 +158,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
                 }}
                 className="text-[10px] text-sub hover:text-gold-dark transition-colors"
               >
-                Tout marquer lu
+                {t('markAllRead')}
               </button>
             )}
           </div>
@@ -171,7 +168,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
             {notifs.length === 0 ? (
               <div className="py-10 text-center">
                 <i className="fa-solid fa-bell-slash text-2xl text-line mb-2" />
-                <p className="text-xs text-sub">Aucune notification</p>
+                <p className="text-xs text-sub">{t('empty')}</p>
               </div>
             ) : (
               notifs.map((n) => {
@@ -182,8 +179,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
                     onClick={() => void markOne(n.id)}
                     className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-bg transition-colors ${!n.isRead ? 'bg-blue-50/40' : ''}`}
                   >
-                    {/* Icône type */}
-                    <div className={`shrink-0 h-8 w-8 rounded-xl flex items-center justify-center bg-bg border border-line mt-0.5`}>
+                    <div className="shrink-0 h-8 w-8 rounded-xl flex items-center justify-center bg-bg border border-line mt-0.5">
                       <i className={`fa-solid ${cfg.icon} text-xs ${cfg.color}`} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -202,14 +198,14 @@ export default function NotificationBell({ userId }: { userId: string }) {
             )}
           </div>
 
-          {/* Footer — lien vers page complète */}
+          {/* Footer */}
           <div className="border-t border-line px-4 py-2.5 text-center">
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
               className="text-xs font-medium text-gold-dark hover:underline"
             >
-              Voir toutes les notifications <i className="fa-solid fa-arrow-right text-[10px] ml-1" />
+              {t('seeAll')} <i className="fa-solid fa-arrow-right text-[10px] ml-1" />
             </Link>
           </div>
         </div>

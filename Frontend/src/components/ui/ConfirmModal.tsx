@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -10,6 +11,7 @@ interface ConfirmModalProps {
   title: string;
   description?: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   variant?: 'danger' | 'default';
 }
 
@@ -19,9 +21,11 @@ export function ConfirmModal({
   onConfirm,
   title,
   description,
-  confirmLabel = 'Confirmer',
+  confirmLabel,
+  cancelLabel,
   variant = 'default',
 }: ConfirmModalProps) {
+  const t       = useTranslations('modal');
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {
@@ -33,6 +37,9 @@ export function ConfirmModal({
       setLoading(false);
     }
   };
+
+  const resolvedConfirmLabel = confirmLabel ?? t('confirm');
+  const resolvedCancelLabel  = cancelLabel  ?? t('cancel');
 
   return (
     <AnimatePresence>
@@ -67,7 +74,7 @@ export function ConfirmModal({
                 disabled={loading}
                 className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-sub transition-colors hover:text-text disabled:opacity-50"
               >
-                Annuler
+                {resolvedCancelLabel}
               </button>
               <button
                 type="button"
@@ -80,8 +87,8 @@ export function ConfirmModal({
                 }`}
               >
                 {loading ? (
-                  <><i className="fa-solid fa-spinner fa-spin mr-1.5" />{confirmLabel}</>
-                ) : confirmLabel}
+                  <><i className="fa-solid fa-spinner fa-spin mr-1.5" />{resolvedConfirmLabel}</>
+                ) : resolvedConfirmLabel}
               </button>
             </div>
           </motion.div>

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import type { Verification } from '@/types';
@@ -19,26 +20,20 @@ interface DetailVerif extends Omit<Verification, 'listing' | 'agent'> {
   agent?: { id: string; firstName: string; lastName: string };
 }
 
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-}
-function fmtTime(d: string) {
-  return new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-}
-
 const STATUS_STEPS = ['REQUESTED', 'SCHEDULED', 'IN_PROGRESS', 'DONE'] as const;
-const STATUS_LABEL: Record<string, string> = {
-  REQUESTED: 'Demandée', SCHEDULED: 'Planifiée', IN_PROGRESS: 'En cours',
-  DONE: 'Certifiée', REJECTED: 'Rejetée', DECLINE_PENDING: 'Déclin en attente',
-};
 
 export default function MissionDetailPage() {
   const { id }       = useParams<{ id: string }>();
   const router       = useRouter();
   const { getToken } = useAuth();
   const { toast }    = useToast();
+  const t            = useTranslations('agent');
+  const locale       = useLocale();
+  const numLocale    = locale === 'en' ? 'en-US' : 'fr-FR';
   const toastRef     = useRef(toast);
   toastRef.current   = toast;
+  const tRef         = useRef(t);
+  tRef.current       = t;
 
   const [v,               setV]               = useState<DetailVerif | null>(null);
   const [loading,         setLoading]         = useState(true);
@@ -54,6 +49,18 @@ export default function MissionDetailPage() {
   const [declineReason,   setDeclineReason]   = useState('');
   const photoRef = useRef<HTMLInputElement>(null);
 
+  const STATUS_LABEL: Record<string, string> = {
+    REQUESTED:       t('statusRequested'),
+    SCHEDULED:       t('statusScheduled'),
+    IN_PROGRESS:     t('statusInProgress'),
+    DONE:            t('statusDone'),
+    REJECTED:        t('statusRejected'),
+    DECLINE_PENDING: t('statusDeclinePending'),
+  };
+
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString(numLocale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const fmtTime = (d: string) => new Date(d).toLocaleTimeString(numLocale, { hour: '2-digit', minute: '2-digit' });
+
   const load = useCallback(async () => {
     const token = await getToken();
     if (!token) return;
@@ -61,7 +68,7 @@ export default function MissionDetailPage() {
       const data = await api.get<DetailVerif>(`/verifications/${id}/detail`, token);
       setV(data);
     } catch {
-      toastRef.current.error('Mission introuvable.');
+      toastRef.current.error(tRef.current('missionNotFound'));
       router.push('/agent/verifications');
     } finally { setLoading(false); }
   }, [id, getToken, router]);
@@ -75,13 +82,13 @@ export default function MissionDetailPage() {
     try {
       await api.patch(`/verifications/${id}/${action}`, body ?? {}, token);
       toastRef.current.success(
-        action === 'start' ? 'Mission démarrée !' :
-        action === 'complete' ? 'Bien certifié ✓' : 'Déclin soumis à l\'admin',
+        action === 'start' ? t('actionStarted') :
+        action === 'complete' ? t('actionCertifiedDetail') : t('declineSubmittedAdmin'),
       );
       await load();
       setShowComplete(false); setShowDecline(false);
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message ?? 'Erreur. Veuillez réessayer.';
+      const msg = (err as { message?: string })?.message ?? t('genericError');
       toastRef.current.error(msg);
     } finally { setActing(false); }
   };
@@ -132,7 +139,7 @@ export default function MissionDetailPage() {
 
       {/* ── Retour ── */}
       <Link href="/agent/verifications" className="inline-flex items-center gap-2 text-sm text-sub hover:text-gold-dark transition-colors">
-        <i className="fa-solid fa-arrow-left text-xs" /> Retour aux missions
+        <i className="fa-solid fa-arrow-left text-xs" /> {t('backToMissions')}
       </Link>
 
       {/* ── Header mission ── */}
@@ -146,13 +153,13 @@ export default function MissionDetailPage() {
             }`} />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-extrabold text-text leading-tight">{v.listing?.title ?? 'Mission'}</h1>
+            <h1 className="text-lg font-extrabold text-text leading-tight">{v.listing?.title ?? t('missionFallback')}</h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
                 isInProgress ? 'bg-purple-50 text-purple-600' : isDone ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
               }`}>{STATUS_LABEL[v.status] ?? v.status}</span>
               <span className="text-[11px] font-medium bg-gold-pale text-gold-dark px-2.5 py-0.5 rounded-full">
-                {v.auditType === 'BASIC' ? 'Basic' : 'Full'}
+                {v.auditType === 'BASIC' ? t('auditBasic') : t('auditFull')}
               </span>
             </div>
           </div>
@@ -161,13 +168,13 @@ export default function MissionDetailPage() {
         {/* Date / heure */}
         <div className="flex items-center gap-2 text-sm text-sub mt-2">
           <i className="fa-regular fa-calendar text-gold-dark text-xs" />
-          <span>{fmtDate(v.scheduledAt)} à <strong className="text-text">{fmtTime(v.scheduledAt)}</strong></span>
+          <span>{fmtDate(v.scheduledAt)} · <strong className="text-text">{fmtTime(v.scheduledAt)}</strong></span>
         </div>
       </div>
 
       {/* ── Timeline statut ── */}
       <div className="rounded-2xl border border-line bg-card p-5">
-        <h2 className="text-xs font-bold text-sub uppercase tracking-wider mb-4">Progression</h2>
+        <h2 className="text-xs font-bold text-sub uppercase tracking-wider mb-4">{t('progression')}</h2>
         <div className="flex items-center gap-0">
           {STATUS_STEPS.map((step, i) => {
             const done    = stepIdx >= i;
@@ -201,12 +208,12 @@ export default function MissionDetailPage() {
       {images.length > 0 && (
         <div className="rounded-2xl border border-line bg-card overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={images[activeImg]} alt="Logement" className="w-full h-52 object-cover" />
+          <img src={images[activeImg]} alt={v.listing?.title ?? ''} className="w-full h-52 object-cover" />
           {images.length > 1 && (
             <div className="flex gap-1.5 p-3 overflow-x-auto">
               {images.map((img, i) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={img} alt={`Vue ${i+1}`}
+                <img key={i} src={img} alt={`${i + 1}`}
                   onClick={() => setActiveImg(i)}
                   className={`h-12 w-16 object-cover rounded-lg cursor-pointer shrink-0 transition-all ${
                     i === activeImg ? 'ring-2 ring-gold-dark' : 'opacity-60 hover:opacity-100'
@@ -220,10 +227,10 @@ export default function MissionDetailPage() {
 
       {/* ── Adresse + Maps ── */}
       <div className="rounded-2xl border border-line bg-card p-5">
-        <h2 className="text-xs font-bold text-sub uppercase tracking-wider mb-3">Localisation</h2>
+        <h2 className="text-xs font-bold text-sub uppercase tracking-wider mb-3">{t('localisation')}</h2>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="font-semibold text-text text-sm">{v.listing?.address ?? 'Adresse non renseignée'}</p>
+            <p className="font-semibold text-text text-sm">{v.listing?.address ?? t('addressMissing')}</p>
             <p className="text-xs text-sub mt-0.5">
               <i className="fa-solid fa-location-dot text-gold-dark text-[10px] mr-1" />
               {v.listing?.city}
@@ -232,7 +239,7 @@ export default function MissionDetailPage() {
           {mapsUrl && (
             <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
               className="shrink-0 flex items-center gap-1.5 rounded-xl bg-gold-pale text-gold-dark text-xs font-semibold px-3 py-2 hover:bg-gold/20 transition-colors">
-              <i className="fa-solid fa-map-location-dot text-sm" /> Itinéraire
+              <i className="fa-solid fa-map-location-dot text-sm" /> {t('itinerary')}
             </a>
           )}
         </div>
@@ -241,7 +248,7 @@ export default function MissionDetailPage() {
       {/* ── Propriétaire ── */}
       {v.listing?.owner && (
         <div className="rounded-2xl border border-line bg-card p-5">
-          <h2 className="text-xs font-bold text-sub uppercase tracking-wider mb-3">Propriétaire</h2>
+          <h2 className="text-xs font-bold text-sub uppercase tracking-wider mb-3">{t('ownerLabel')}</h2>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-gold-pale flex items-center justify-center text-sm font-bold text-gold-dark shrink-0">
@@ -249,20 +256,20 @@ export default function MissionDetailPage() {
               </div>
               <div>
                 <p className="font-semibold text-text text-sm">{v.listing.owner.firstName} {v.listing.owner.lastName}</p>
-                <p className="text-xs text-sub">Propriétaire</p>
+                <p className="text-xs text-sub">{t('ownerLabel')}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {v.listing.owner.phone && (
                 <a href={`tel:${v.listing.owner.phone}`}
                   className="h-9 w-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition-colors"
-                  title="Appeler">
+                  title={t('callTitle')}>
                   <i className="fa-solid fa-phone text-sm" />
                 </a>
               )}
               <Link href={`/agent/messages?listing=${v.listingId}`}
                 className="h-9 w-9 rounded-full bg-gold-pale flex items-center justify-center text-gold-dark hover:bg-gold/20 transition-colors"
-                title="Messagerie">
+                title={t('chatTitle')}>
                 <i className="fa-solid fa-comment-dots text-sm" />
               </Link>
             </div>
@@ -273,11 +280,11 @@ export default function MissionDetailPage() {
       {/* ── Photos de visite (si DONE) ── */}
       {isDone && v.photos && v.photos.length > 0 && (
         <div className="rounded-2xl border border-line bg-card p-5">
-          <h2 className="text-xs font-bold text-sub uppercase tracking-wider mb-3">Photos de visite ({v.photos.length})</h2>
+          <h2 className="text-xs font-bold text-sub uppercase tracking-wider mb-3">{t('visitPhotosCount', { count: v.photos.length })}</h2>
           <div className="grid grid-cols-3 gap-2">
             {v.photos.map((url, i) => (
               // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={url} alt={`Photo ${i+1}`} className="aspect-square rounded-xl object-cover" />
+              <img key={i} src={url} alt={`${i + 1}`} className="aspect-square rounded-xl object-cover" />
             ))}
           </div>
         </div>
@@ -286,12 +293,12 @@ export default function MissionDetailPage() {
       {/* ── Rapport (si DONE) ── */}
       {isDone && (v.notes ?? v.reportUrl) && (
         <div className="rounded-2xl border border-line bg-card p-5 space-y-3">
-          <h2 className="text-xs font-bold text-sub uppercase tracking-wider">Rapport</h2>
+          <h2 className="text-xs font-bold text-sub uppercase tracking-wider">{t('reportTitle')}</h2>
           {v.notes && <p className="text-sm text-text leading-relaxed">{v.notes}</p>}
           {v.reportUrl && (
             <a href={v.reportUrl} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-gold-dark text-sm hover:underline">
-              <i className="fa-solid fa-file-lines" /> Voir le rapport complet
+              <i className="fa-solid fa-file-lines" /> {t('seeFullReport')}
             </a>
           )}
         </div>
@@ -304,14 +311,14 @@ export default function MissionDetailPage() {
             canStart ? (
               <button onClick={() => void doAction('start')} disabled={acting}
                 className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3.5 disabled:opacity-50 transition-colors">
-                {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-play text-sm" /> Démarrer la visite</>}
+                {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-play text-sm" /> {t('startVisit')}</>}
               </button>
             ) : (
               <div className="w-full flex items-center gap-3 rounded-2xl bg-blue-50 border border-blue-200 px-5 py-3.5">
                 <i className="fa-solid fa-clock text-blue-500 text-lg shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-blue-700">Visite planifiée à {fmtTime(v.scheduledAt)}</p>
-                  <p className="text-xs text-blue-500">Démarrage disponible dans {minsLeft} min</p>
+                  <p className="text-sm font-semibold text-blue-700">{t('visitScheduledAt', { time: fmtTime(v.scheduledAt) })}</p>
+                  <p className="text-xs text-blue-500">{t('startAvailableIn', { mins: minsLeft })}</p>
                 </div>
               </div>
             )
@@ -319,13 +326,13 @@ export default function MissionDetailPage() {
           {isInProgress && (
             <button onClick={() => setShowComplete(true)} disabled={acting}
               className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 disabled:opacity-50 transition-colors">
-              <i className="fa-solid fa-shield-check text-sm" /> Certifier le bien
+              <i className="fa-solid fa-shield-check text-sm" /> {t('certifyProperty')}
             </button>
           )}
           {isScheduled && (
             <button onClick={() => setShowDecline(true)} disabled={acting}
               className="w-full flex items-center justify-center gap-2 rounded-2xl border border-amber-200 text-amber-600 hover:bg-amber-50 font-medium py-3 text-sm transition-colors">
-              <i className="fa-solid fa-xmark" /> Décliner la mission
+              <i className="fa-solid fa-xmark" /> {t('declineMission')}
             </button>
           )}
         </div>
@@ -335,19 +342,19 @@ export default function MissionDetailPage() {
       {showComplete && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={(e) => e.target === e.currentTarget && setShowComplete(false)}>
           <div className="w-full max-w-lg bg-card rounded-2xl shadow-xl p-6 space-y-4">
-            <h3 className="font-bold text-text text-lg">Certifier le bien</h3>
-            <p className="text-sm text-sub">Mission : <span className="font-semibold text-text">{v.listing?.title}</span></p>
+            <h3 className="font-bold text-text text-lg">{t('certifyModalTitle')}</h3>
+            <p className="text-sm text-sub">{t('missionLabel')} <span className="font-semibold text-text">{v.listing?.title}</span></p>
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-sub uppercase tracking-wide mb-1.5 block">Observations de terrain</label>
+                <label className="text-xs font-semibold text-sub uppercase tracking-wide mb-1.5 block">{t('fieldObservations')}</label>
                 <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
-                  placeholder="État du bien, remarques, points importants..."
+                  placeholder={t('fieldObservationsPh')}
                   className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-sub uppercase tracking-wide mb-1.5 block">
-                  Photos terrain ({photos.length})
+                  {t('fieldPhotosCount', { count: photos.length })}
                 </label>
                 {photos.length > 0 && (
                   <div className="grid grid-cols-4 gap-2 mb-2">
@@ -365,18 +372,18 @@ export default function MissionDetailPage() {
                 )}
                 <button type="button" onClick={() => photoRef.current?.click()} disabled={uploadingPhotos}
                   className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-bg py-2.5 text-sm text-sub hover:border-gold/40 hover:text-gold-dark transition-colors">
-                  {uploadingPhotos ? <><i className="fa-solid fa-spinner fa-spin" /> Envoi…</> : <><i className="fa-solid fa-camera" /> Ajouter des photos</>}
+                  {uploadingPhotos ? <><i className="fa-solid fa-spinner fa-spin" /> {t('uploading')}</> : <><i className="fa-solid fa-camera" /> {t('addPhotos')}</>}
                 </button>
                 <input ref={photoRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-sub uppercase tracking-wide mb-1.5 block">Lien rapport (optionnel)</label>
+                <label className="text-xs font-semibold text-sub uppercase tracking-wide mb-1.5 block">{t('fieldReportUrlShort')}</label>
                 <input type="url" value={reportUrl} onChange={(e) => setReportUrl(e.target.value)}
                   placeholder="https://drive.google.com/..." className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-emerald-500" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-sub uppercase tracking-wide mb-1.5 block">
-                  Lien visite 3D <span className="text-gold-dark font-bold">AlloVérifié™</span> <span className="text-sub font-normal">(optionnel)</span>
+                  {t('fieldTour3d')} <span className="text-gold-dark font-bold">AlloVérifié™</span> <span className="text-sub font-normal">{t('fieldOptional')}</span>
                 </label>
                 <input type="url" value={tourUrl} onChange={(e) => setTourUrl(e.target.value)}
                   placeholder="https://lumalabs.ai/capture/..." className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-emerald-500" />
@@ -386,12 +393,12 @@ export default function MissionDetailPage() {
             <div className="flex gap-3 pt-1">
               <button onClick={() => { setShowComplete(false); setPhotos([]); }}
                 className="flex-1 rounded-xl border border-line text-sub hover:bg-bg text-sm font-medium py-2.5 transition-colors">
-                Annuler
+                {t('cancel')}
               </button>
               <button onClick={() => void doAction('complete', { notes: notes.trim() || undefined, reportUrl: reportUrl.trim() || undefined, tourUrl: tourUrl.trim() || undefined, photos: photos.length ? photos : undefined })}
                 disabled={acting}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 disabled:opacity-50 transition-colors">
-                {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-shield-check" /> Certifier</>}
+                {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-shield-check" /> {t('certify')}</>}
               </button>
             </div>
           </div>
@@ -402,25 +409,25 @@ export default function MissionDetailPage() {
       {showDecline && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={(e) => e.target === e.currentTarget && setShowDecline(false)}>
           <div className="w-full max-w-lg bg-card rounded-2xl shadow-xl p-6 space-y-4">
-            <h3 className="font-bold text-text text-lg">Décliner la mission</h3>
+            <h3 className="font-bold text-text text-lg">{t('declineMission')}</h3>
             <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 flex items-start gap-2">
               <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-blue-700">Votre demande sera transmise à l&apos;admin. Un motif est obligatoire.</p>
+              <p className="text-xs text-blue-700">{t('declineInfoShort')}</p>
             </div>
             <textarea rows={4} value={declineReason} onChange={(e) => setDeclineReason(e.target.value)}
-              placeholder="Motif du déclin (indisponibilité, zone trop éloignée…)"
+              placeholder={t('declineReasonPhShort')}
               maxLength={500}
               className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
             <p className="text-[11px] text-sub text-right -mt-2">{declineReason.length}/500</p>
             <div className="flex gap-3">
               <button onClick={() => { setShowDecline(false); setDeclineReason(''); }}
                 className="flex-1 rounded-xl border border-line text-sub hover:bg-bg text-sm font-medium py-2.5 transition-colors">
-                Annuler
+                {t('cancel')}
               </button>
               <button onClick={() => void doAction('decline', { reason: declineReason })}
                 disabled={!declineReason.trim() || acting}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold py-2.5 disabled:opacity-50 transition-colors">
-                {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-paper-plane text-xs" /> Soumettre</>}
+                {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-paper-plane text-xs" /> {t('submit')}</>}
               </button>
             </div>
           </div>

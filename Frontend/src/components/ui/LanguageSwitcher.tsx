@@ -2,6 +2,7 @@
 
 import { useTransition, useRef, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, Check } from 'lucide-react';
 import { setLocale } from '@/i18n/actions';
 import { locales, localeLabels, type Locale } from '@/i18n/config';
@@ -35,18 +36,6 @@ function FlagIcon({ countryCode }: { countryCode: string }) {
     </svg>
   );
 
-  if (countryCode === 'sn') return (
-    <svg viewBox="0 0 30 20" width="22" height="15" style={style}>
-      <rect width="10" height="20" fill="#00853F" />
-      <rect x="10" width="10" height="20" fill="#FDEF42" />
-      <rect x="20" width="10" height="20" fill="#E31B23" />
-      <polygon
-        points="15,6.2 15.89,8.77 18.61,8.83 16.45,10.47 17.23,13.08 15,11.52 12.77,13.08 13.55,10.47 11.39,8.83 14.11,8.77"
-        fill="#00853F"
-      />
-    </svg>
-  );
-
   return null;
 }
 
@@ -73,6 +62,7 @@ export default function LanguageSwitcher({ currentLocale }: Props) {
     });
   };
 
+  const t = useTranslations('nav');
   const current = localeLabels[currentLocale];
 
   return (
@@ -93,7 +83,7 @@ export default function LanguageSwitcher({ currentLocale }: Props) {
       {open && (
         <div
           role="listbox"
-          aria-label="Sélectionner une langue"
+          aria-label={t('selectLanguage')}
           className="absolute right-0 top-11 z-50 min-w-38 overflow-hidden rounded-xl border border-line bg-card shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
         >
           {locales.map((locale) => {

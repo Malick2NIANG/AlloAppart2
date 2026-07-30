@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Booking, PaginatedResponse } from '@/types';
 import { formatDate, formatPrice } from '@/lib/utils';
@@ -11,12 +12,6 @@ import { useToast } from '@/components/ui/Toast';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING:   'En attente',
-  CONFIRMED: 'Confirmée',
-  CANCELLED: 'Annulée',
-  COMPLETED: 'Terminée',
-};
 const STATUS_COLORS: Record<string, string> = {
   PENDING:   'bg-amber-50 text-amber-700 border border-amber-200',
   CONFIRMED: 'bg-blue-50 text-blue-700',
@@ -24,12 +19,6 @@ const STATUS_COLORS: Record<string, string> = {
   COMPLETED: 'bg-green-100 text-green-700',
 };
 
-const ESCROW_LABELS: Record<string, string> = {
-  AWAITING_PAYMENT: 'Paiement attendu',
-  HELD:             'Fonds en séquestre',
-  RELEASED:         'Libéré au bailleur',
-  REFUNDED:         'Remboursé',
-};
 const ESCROW_COLORS: Record<string, string> = {
   AWAITING_PAYMENT: 'bg-gray-50 text-gray-500 border border-gray-200',
   HELD:             'bg-amber-50 text-amber-700 border border-amber-300',
@@ -48,6 +37,10 @@ type PaymentModal = { id: string; action: 'release' | 'refund'; amount: string |
 export default function AdminBookingsPage() {
   const { getToken } = useAuth();
   const { toast }    = useToast();
+  const t            = useTranslations('admin');
+  const tRef         = useRef(t);
+  tRef.current       = t;
+
   const [bookings, setBookings]         = useState<Booking[]>([]);
   const [total, setTotal]               = useState(0);
   const [page, setPage]                 = useState(1);
@@ -59,6 +52,19 @@ export default function AdminBookingsPage() {
   const [paymentModal, setPaymentModal] = useState<PaymentModal | null>(null);
   const [limit, setLimit]               = useState(20);
   const LIMIT_OPTIONS = [10, 20, 50] as const;
+
+  const STATUS_LABELS: Record<string, string> = {
+    PENDING:   t('bookingStatusPending'),
+    CONFIRMED: t('bookingStatusConfirmed'),
+    CANCELLED: t('bookingStatusCancelled'),
+    COMPLETED: t('bookingStatusCompleted'),
+  };
+  const ESCROW_LABELS: Record<string, string> = {
+    AWAITING_PAYMENT: t('escrowAwaiting'),
+    HELD:             t('escrowHeld'),
+    RELEASED:         t('escrowReleased'),
+    REFUNDED:         t('escrowRefunded'),
+  };
 
   const fetchData = useCallback(async (p: number, s: StatusFilter, lim = limit) => {
     const token = await getToken();
@@ -72,7 +78,7 @@ export default function AdminBookingsPage() {
       setBookings(res.data);
       setTotal(res.total);
     } catch {
-      setError('Impossible de charger les réservations.');
+      setError(tRef.current('bookingsLoadError'));
     } finally {
       setLoading(false);
     }
@@ -90,9 +96,9 @@ export default function AdminBookingsPage() {
       await api.patch(`/bookings/${id}/cancel`, {}, token);
       setBookings((prev) => prev.map((b) => b.id === id ? { ...b, status: 'CANCELLED' } : b));
       setCancelModal(null);
-      toast.success('Réservation annulée');
+      toast.success(t('toastBookingCancelled'));
     } catch {
-      toast.error('Erreur lors de l\'annulation.');
+      toast.error(t('errCancel'));
     } finally { setActionId(null); }
   };
 
@@ -107,9 +113,9 @@ export default function AdminBookingsPage() {
       const newStatus = action === 'release' ? 'RELEASED' : 'REFUNDED';
       setBookings((prev) => prev.map((b) => b.id === id ? { ...b, escrowStatus: newStatus } : b));
       setPaymentModal(null);
-      toast.success(action === 'release' ? 'Fonds libérés au bailleur ✓' : 'Remboursement effectué ✓');
+      toast.success(action === 'release' ? t('toastFundsReleased') : t('toastRefunded'));
     } catch {
-      toast.error(action === 'release' ? 'Erreur lors de la libération.' : 'Erreur lors du remboursement.');
+      toast.error(action === 'release' ? t('errRelease') : t('errRefund'));
     } finally { setActionId(null); }
   };
 
@@ -118,8 +124,8 @@ export default function AdminBookingsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text">Toutes les réservations</h1>
-        <p className="mt-1 text-sm text-sub">{total} réservation{total > 1 ? 's' : ''}</p>
+        <h1 className="text-2xl font-bold text-text">{t('bookingsTitle')}</h1>
+        <p className="mt-1 text-sm text-sub">{t('bookingsCount', { count: total })}</p>
       </div>
 
       {/* Filtres */}
@@ -129,14 +135,14 @@ export default function AdminBookingsPage() {
           onChange={(e) => { setStatusFilter(e.target.value as StatusFilter); setPage(1); }}
           className="rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-gold"
         >
-          <option value="ALL">Tous les statuts</option>
-          <option value="PENDING">En attente</option>
-          <option value="CONFIRMED">Confirmées</option>
-          <option value="COMPLETED">Terminées</option>
-          <option value="CANCELLED">Annulées</option>
+          <option value="ALL">{t('allStatuses')}</option>
+          <option value="PENDING">{t('bookingPending')}</option>
+          <option value="CONFIRMED">{t('bookingConfirmed')}</option>
+          <option value="COMPLETED">{t('bookingCompleted')}</option>
+          <option value="CANCELLED">{t('bookingCancelled')}</option>
         </select>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-xs text-sub whitespace-nowrap">Lignes :</span>
+          <span className="text-xs text-sub whitespace-nowrap">{t('rowsLabel')}</span>
           <div className="flex gap-1">
             {LIMIT_OPTIONS.map((l) => (
               <button key={l} onClick={() => { setLimit(l); setPage(1); void fetchData(1, statusFilter, l); }}
@@ -158,7 +164,7 @@ export default function AdminBookingsPage() {
           <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
           <p className="text-sm text-sub">{error}</p>
           <button onClick={() => void fetchData(page, statusFilter)} className="mt-4 btn-gold text-sm">
-            <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+            <i className="fa-solid fa-rotate-right mr-1.5" />{t('retry')}
           </button>
         </div>
       ) : bookings.length === 0 ? (
@@ -166,7 +172,7 @@ export default function AdminBookingsPage() {
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
             <i className="fa-solid fa-calendar-check text-2xl text-gold-dark" />
           </div>
-          <p className="text-sub">Aucune réservation trouvée.</p>
+          <p className="text-sub">{t('bookingsEmpty')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -225,7 +231,7 @@ export default function AdminBookingsPage() {
                       >
                         {actionId === booking.id + 'cancel'
                           ? <i className="fa-solid fa-spinner fa-spin" />
-                          : <><i className="fa-solid fa-xmark text-xs mr-1" />Annuler réservation</>}
+                          : <><i className="fa-solid fa-xmark text-xs mr-1" />{t('cancelBooking')}</>}
                       </button>
                     )}
 
@@ -238,7 +244,7 @@ export default function AdminBookingsPage() {
                       >
                         {actionId === booking.id + 'release'
                           ? <i className="fa-solid fa-spinner fa-spin" />
-                          : <><i className="fa-solid fa-lock-open text-xs mr-1" />Libérer au bailleur</>}
+                          : <><i className="fa-solid fa-lock-open text-xs mr-1" />{t('releaseFunds')}</>}
                       </button>
                     )}
 
@@ -251,7 +257,7 @@ export default function AdminBookingsPage() {
                       >
                         {actionId === booking.id + 'refund'
                           ? <i className="fa-solid fa-spinner fa-spin" />
-                          : <><i className="fa-solid fa-rotate-left text-xs mr-1" />Rembourser locataire</>}
+                          : <><i className="fa-solid fa-rotate-left text-xs mr-1" />{t('refundTenant')}</>}
                       </button>
                     )}
                   </div>
@@ -267,12 +273,12 @@ export default function AdminBookingsPage() {
         <div className="flex items-center justify-between mt-6">
           <button onClick={() => setPage((p) => p - 1)} disabled={page <= 1}
             className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
-            <i className="fa-solid fa-chevron-left text-xs" /> Précédent
+            <i className="fa-solid fa-chevron-left text-xs" /> {t('previous')}
           </button>
-          <span className="text-sm text-sub">Page {page} / {totalPages}</span>
+          <span className="text-sm text-sub">{t('pageOf', { page, total: totalPages })}</span>
           <button onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages}
             className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
-            Suivant <i className="fa-solid fa-chevron-right text-xs" />
+            {t('next')} <i className="fa-solid fa-chevron-right text-xs" />
           </button>
         </div>
       )}
@@ -282,9 +288,9 @@ export default function AdminBookingsPage() {
         open={cancelModal !== null}
         onClose={() => setCancelModal(null)}
         onConfirm={() => void handleCancel()}
-        title="Annuler cette réservation ?"
-        description="Cette action est irréversible. Le statut passera à Annulée."
-        confirmLabel="Annuler la réservation"
+        title={t('confirmCancelBookingTitle')}
+        description={t('confirmCancelBookingDesc')}
+        confirmLabel={t('confirmCancelBookingLabel')}
         variant="danger"
       />
 
@@ -293,9 +299,9 @@ export default function AdminBookingsPage() {
         open={paymentModal?.action === 'release'}
         onClose={() => setPaymentModal(null)}
         onConfirm={() => void handlePaymentAction()}
-        title="Libérer les fonds au bailleur ?"
-        description={`Les fonds (${paymentModal ? formatPrice(paymentModal.amount) : ''}) seront transférés au bailleur. Cette action est irréversible.`}
-        confirmLabel="Confirmer la libération"
+        title={t('confirmReleaseTitle')}
+        description={t('confirmReleaseDesc', { amount: paymentModal ? formatPrice(paymentModal.amount) : '' })}
+        confirmLabel={t('confirmReleaseLabel')}
         variant="default"
       />
 
@@ -304,9 +310,9 @@ export default function AdminBookingsPage() {
         open={paymentModal?.action === 'refund'}
         onClose={() => setPaymentModal(null)}
         onConfirm={() => void handlePaymentAction()}
-        title="Rembourser le locataire ?"
-        description={`Les fonds (${paymentModal ? formatPrice(paymentModal.amount) : ''}) seront remboursés au locataire. Cette action est irréversible.`}
-        confirmLabel="Confirmer le remboursement"
+        title={t('confirmRefundTitle')}
+        description={t('confirmRefundDesc', { amount: paymentModal ? formatPrice(paymentModal.amount) : '' })}
+        confirmLabel={t('confirmRefundLabel')}
         variant="danger"
       />
     </div>

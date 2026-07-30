@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import type { User } from '@/types';
@@ -20,8 +21,13 @@ interface AgentStats {
 export default function AgentProfilPage() {
   const { getToken } = useAuth();
   const { toast }    = useToast();
+  const t            = useTranslations('agent');
+  const locale       = useLocale();
+  const numLocale    = locale === 'en' ? 'en-US' : 'fr-FR';
   const toastRef     = useRef(toast);
   toastRef.current   = toast;
+  const tRef         = useRef(t);
+  tRef.current       = t;
 
   const [user,    setUser]    = useState<User | null>(null);
   const [stats,   setStats]   = useState<AgentStats | null>(null);
@@ -73,7 +79,7 @@ export default function AgentProfilPage() {
       const res  = await fetch(`${API_URL}/upload`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
       const data = await res.json() as { url?: string };
       if (data.url) { setAvatar(data.url); }
-    } catch { toastRef.current.error('Erreur upload photo'); }
+    } catch { toastRef.current.error(tRef.current('avatarUploadError')); }
     finally { setUploading(false); e.target.value = ''; }
   };
 
@@ -92,8 +98,8 @@ export default function AgentProfilPage() {
         avatar:       avatar           || undefined,
       }, token);
       setUser(updated);
-      toastRef.current.success('Profil mis à jour !');
-    } catch { toastRef.current.error('Erreur lors de la mise à jour.'); }
+      toastRef.current.success(t('profileSaved'));
+    } catch { toastRef.current.error(t('profileSaveError')); }
     finally { setSaving(false); }
   };
 
@@ -106,25 +112,34 @@ export default function AgentProfilPage() {
 
   const initials = `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase();
 
+  const statCards = [
+    { key: 'scheduled', icon: 'fa-calendar-check', label: t('statScheduledShort'),    val: stats?.assigned      ?? 0, color: 'text-blue-600',    bg: 'bg-blue-50' },
+    { key: 'progress',  icon: 'fa-person-walking', label: t('statInProgressLabel'),   val: stats?.inProgress    ?? 0, color: 'text-purple-600',  bg: 'bg-purple-50' },
+    { key: 'month',     icon: 'fa-shield-check',   label: t('statThisMonth'),         val: stats?.doneThisMonth ?? 0, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { key: 'rating',    icon: 'fa-star',           label: t('statAvgRatingShort'),
+      val: stats?.averageRating != null ? stats.averageRating.toFixed(1) : '—', color: 'text-gold-dark', bg: 'bg-gold-pale' },
+  ];
+
+  const accountRows = [
+    { key: 'email',  icon: 'fa-envelope',     label: t('accEmail'),               val: user.email },
+    { key: 'since',  icon: 'fa-calendar',     label: t('accMemberSince'),         val: new Date(user.createdAt).toLocaleDateString(numLocale, { month: 'long', year: 'numeric' }) },
+    { key: 'certif', icon: 'fa-shield-check', label: t('accTotalCertifications'), val: stats?.doneTotal ?? '—' },
+  ];
+
   return (
     <div className="space-y-5">
 
       {/* ── Header ── */}
       <h1 className="text-xl font-extrabold text-text">
         <i className="fa-solid fa-user-circle text-gold-dark mr-2" />
-        Mon profil
+        {t('profileTitle')}
       </h1>
 
       {/* ── Stats résumé ── */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { icon: 'fa-calendar-check', label: 'Planifiées',    val: stats.assigned,      color: 'text-blue-600',    bg: 'bg-blue-50' },
-            { icon: 'fa-person-walking', label: 'En cours',      val: stats.inProgress,    color: 'text-purple-600',  bg: 'bg-purple-50' },
-            { icon: 'fa-shield-check',   label: 'Ce mois',       val: stats.doneThisMonth, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { icon: 'fa-star',           label: 'Note moy.',     val: stats.averageRating != null ? stats.averageRating.toFixed(1) : '—', color: 'text-gold-dark', bg: 'bg-gold-pale' },
-          ].map((s) => (
-            <div key={s.label} className="rounded-2xl border border-line bg-card p-4 flex flex-col items-center gap-1.5">
+          {statCards.map((s) => (
+            <div key={s.key} className="rounded-2xl border border-line bg-card p-4 flex flex-col items-center gap-1.5">
               <div className={`h-9 w-9 rounded-xl flex items-center justify-center ${s.bg}`}>
                 <i className={`fa-solid ${s.icon} ${s.color} text-sm`} />
               </div>
@@ -143,7 +158,7 @@ export default function AgentProfilPage() {
           <div className="relative shrink-0">
             {avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatar} alt="Avatar" className="h-16 w-16 rounded-2xl object-cover" />
+              <img src={avatar} alt={`${firstName} ${lastName}`} className="h-16 w-16 rounded-2xl object-cover" />
             ) : (
               <div className="h-16 w-16 rounded-2xl bg-gold-pale flex items-center justify-center text-xl font-extrabold text-gold-dark">
                 {initials || <i className="fa-solid fa-user" />}
@@ -160,7 +175,7 @@ export default function AgentProfilPage() {
             <p className="font-bold text-text">{firstName} {lastName}</p>
             <p className="text-xs text-sub mt-0.5">{user.email}</p>
             <p className="text-[11px] font-medium bg-gold-pale text-gold-dark rounded-full px-2.5 py-0.5 inline-block mt-1.5">
-              <i className="fa-solid fa-id-badge mr-1 text-[9px]" />Agent terrain
+              <i className="fa-solid fa-id-badge mr-1 text-[9px]" />{t('roleFieldAgent')}
             </p>
           </div>
           <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
@@ -169,26 +184,26 @@ export default function AgentProfilPage() {
         {/* Nom / Prénom */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">Prénom</label>
+            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">{t('fieldFirstName')}</label>
             <input value={firstName} onChange={(e) => setFirstName(e.target.value)}
-              placeholder="Prénom" maxLength={100}
+              placeholder={t('fieldFirstName')} maxLength={100}
               className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40" />
           </div>
           <div>
-            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">Nom</label>
+            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">{t('fieldLastName')}</label>
             <input value={lastName} onChange={(e) => setLastName(e.target.value)}
-              placeholder="Nom" maxLength={100}
+              placeholder={t('fieldLastName')} maxLength={100}
               className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40" />
           </div>
         </div>
 
         {/* Téléphone */}
         <div>
-          <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">Téléphone</label>
+          <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">{t('fieldPhone')}</label>
           <div className="relative">
             <i className="fa-solid fa-phone absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-xs" />
             <input value={phone} onChange={(e) => setPhone(e.target.value)}
-              type="tel" placeholder="+221 77 000 00 00"
+              type="tel" placeholder={t('fieldPhonePh')}
               className="w-full rounded-xl border border-line bg-bg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40" />
           </div>
         </div>
@@ -196,26 +211,26 @@ export default function AgentProfilPage() {
         {/* Zone de couverture */}
         <div>
           <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">
-            Zone de couverture
+            {t('fieldCoverageZone')}
           </label>
           <div className="relative">
             <i className="fa-solid fa-location-dot absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-xs" />
             <input value={coverageZone} onChange={(e) => setCoverageZone(e.target.value)}
-              placeholder="Ex : Dakar, Plateau, Mermoz…" maxLength={200}
+              placeholder={t('fieldCoverageZonePh')} maxLength={200}
               className="w-full rounded-xl border border-line bg-bg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40" />
           </div>
-          <p className="text-[11px] text-sub mt-1.5">Les quartiers ou villes où vous intervenez.</p>
+          <p className="text-[11px] text-sub mt-1.5">{t('coverageZoneHint')}</p>
         </div>
 
         {/* Bio */}
         <div>
           <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 flex items-center justify-between">
-            <span>Bio / Présentation</span>
+            <span>{t('fieldBio')}</span>
             <span className={`font-medium ${bio.length > 450 ? 'text-amber-500' : 'text-sub'}`}>{bio.length}/500</span>
           </label>
           <textarea rows={4} value={bio} onChange={(e) => setBio(e.target.value)}
             maxLength={500}
-            placeholder="Parlez brièvement de votre expérience, vos points forts en tant qu'agent terrain…"
+            placeholder={t('fieldBioPh')}
             className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none" />
         </div>
 
@@ -223,21 +238,17 @@ export default function AgentProfilPage() {
         <button type="submit" disabled={saving}
           className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 disabled:opacity-50 transition-colors">
           {saving
-            ? <><i className="fa-solid fa-spinner fa-spin" /> Enregistrement…</>
-            : <><i className="fa-solid fa-floppy-disk text-sm" /> Enregistrer les modifications</>}
+            ? <><i className="fa-solid fa-spinner fa-spin" /> {t('saving')}</>
+            : <><i className="fa-solid fa-floppy-disk text-sm" /> {t('saveChanges')}</>}
         </button>
       </form>
 
       {/* ── Infos compte ── */}
       <div className="rounded-2xl border border-line bg-card p-5 space-y-3">
-        <h2 className="text-xs font-bold text-sub uppercase tracking-wider">Informations du compte</h2>
+        <h2 className="text-xs font-bold text-sub uppercase tracking-wider">{t('accountInfo')}</h2>
         <div className="divide-y divide-line">
-          {[
-            { icon: 'fa-envelope', label: 'Email', val: user.email },
-            { icon: 'fa-calendar', label: 'Membre depuis', val: new Date(user.createdAt).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) },
-            { icon: 'fa-shield-check', label: 'Certifications totales', val: stats?.doneTotal ?? '—' },
-          ].map((r) => (
-            <div key={r.label} className="flex items-center justify-between py-2.5">
+          {accountRows.map((r) => (
+            <div key={r.key} className="flex items-center justify-between py-2.5">
               <div className="flex items-center gap-2.5">
                 <div className="h-7 w-7 rounded-lg bg-bg flex items-center justify-center">
                   <i className={`fa-solid ${r.icon} text-sub text-[11px]`} />

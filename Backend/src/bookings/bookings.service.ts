@@ -19,11 +19,17 @@ export class BookingsService {
   async create(tenantId: string, dto: CreateBookingDto) {
     const listing = await this.prisma.listing.findUniqueOrThrow({
       where: { id: dto.listingId },
-      select: { price: true, title: true, city: true, owner: true },
+      select: { price: true, pricePerNight: true, minimumNights: true, title: true, city: true, owner: true },
     });
+    if (listing.owner.id === tenantId) {
+      throw new ForbiddenException(
+        'Vous ne pouvez pas réserver votre propre annonce',
+      );
+    }
     const startDate = new Date(dto.startDate);
-    const endDate = dto.endDate ? new Date(dto.endDate) : null;
+    const endDate   = dto.endDate ? new Date(dto.endDate) : null;
     const farFuture = new Date('9999-12-31');
+
     const overlap = await this.prisma.booking.findFirst({
       where: {
         listingId: dto.listingId,
@@ -37,15 +43,41 @@ export class BookingsService {
         'Ces dates sont deja reservees pour ce logement',
       );
     }
-    const months = endDate
-      ? Math.max(
-          1,
-          (endDate.getFullYear() - startDate.getFullYear()) * 12 +
-            (endDate.getMonth() - startDate.getMonth()) +
-            (endDate.getDate() > startDate.getDate() ? 1 : 0),
-        )
+
+    // ── Nombre de jours de séjour ────────────────────────────────────────────
+    const days = endDate
+      ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
       : 1;
-    const totalAmount = Number(listing.price) * months;
+
+    // Vérification séjour minimum
+    if (listing.minimumNights && days < listing.minimumNights) {
+      throw new BadRequestException(
+        `Cette annonce requiert un séjour minimum de ${listing.minimumNights} nuit(s).`,
+      );
+    }
+
+    // ── Calcul du montant total ──────────────────────────────────────────────
+    // Règle :
+    //   < 25 jours → tarif nuit préféré (tarif mensuel ÷ 30 × jours en fallback)
+    //   ≥ 25 jours → tarif mensuel × (jours/30) préféré (tarif nuit × jours en fallback)
+    const MONTHLY_THRESHOLD = 25;
+    const hasMonthly = Number(listing.price) > 0;
+    const hasNightly = listing.pricePerNight && Number(listing.pricePerNight) > 0;
+
+    let totalAmount: number;
+    if (days >= MONTHLY_THRESHOLD) {
+      totalAmount = hasMonthly
+        ? Math.round(Number(listing.price) * (days / 30))
+        : Math.round(Number(listing.pricePerNight) * days);
+    } else {
+      totalAmount = hasNightly
+        ? Math.round(Number(listing.pricePerNight) * days)
+        : Math.round((Number(listing.price) / 30) * days);
+    }
+    // ────────────────────────────────────────────────────────────────────────
+    const commissionRate = Number(process.env.COMMISSION_RATE ?? '0.10');
+    const platformFee    = Math.round(totalAmount * commissionRate);
+    const landlordAmount = totalAmount - platformFee;
     const booking = await this.prisma.booking.create({
       data: {
         listingId: dto.listingId,
@@ -53,6 +85,8 @@ export class BookingsService {
         startDate,
         endDate: endDate ?? undefined,
         totalAmount,
+        platformFee,
+        landlordAmount,
         status: BookingStatus.PENDING,
       },
       include: { listing: { include: { owner: true } }, tenant: true },
@@ -118,11 +152,11 @@ export class BookingsService {
       where: { id },
       include: { listing: true, tenant: true },
     });
-    if (!booking) throw new NotFoundException('Reservation introuvable');
+    if (!booking) throw new NotFoundException('Booking not found');
     const isOwner = booking.listing.ownerId === userId;
     const isTenant = booking.tenantId === userId;
     if (!isOwner && !isTenant)
-      throw new ForbiddenException('Acces non autorise');
+      throw new ForbiddenException('Access denied');
     return booking;
   }
 
@@ -131,11 +165,11 @@ export class BookingsService {
       where: { id },
       include: { listing: true, tenant: true },
     });
-    if (!booking) throw new NotFoundException('Reservation introuvable');
+    if (!booking) throw new NotFoundException('Booking not found');
     const isOwner = booking.listing.ownerId === userId;
     const isTenant = booking.tenantId === userId;
     if (!isOwner && !isTenant)
-      throw new ForbiddenException('Acces non autorise');
+      throw new ForbiddenException('Access denied');
     return booking;
   }
 
@@ -145,7 +179,7 @@ export class BookingsService {
       include: { listing: { include: { owner: true } }, tenant: true },
     });
     if (booking.listing.ownerId !== ownerId)
-      throw new ForbiddenException('Non autorise');
+      throw new ForbiddenException('Not authorized');
     if (booking.status !== BookingStatus.PENDING) {
       throw new BadRequestException(
         'Impossible de confirmer, statut: ' + booking.status,
@@ -179,7 +213,7 @@ export class BookingsService {
     const isOwnerOrTenant =
       booking.tenantId === user.id || booking.listing.ownerId === user.id;
     if (!isOwnerOrTenant && !user.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Non autorise');
+      throw new ForbiddenException('Not authorized');
     }
     if (
       booking.status === BookingStatus.CANCELLED ||
@@ -189,13 +223,40 @@ export class BookingsService {
         "Impossible d'annuler, statut: " + booking.status,
       );
     }
+
+    // ── Politique d'annulation pour les réservations confirmées ─────────────
+    // Séjour déjà commencé → annulation impossible
+    if (booking.status === BookingStatus.CONFIRMED) {
+      const now              = new Date();
+      const startDate        = new Date(booking.startDate);
+      const hoursUntilStart  = (startDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+      if (hoursUntilStart < 0) {
+        throw new BadRequestException(
+          'Impossible d\'annuler : le séjour a déjà commencé.',
+        );
+      }
+    }
+
+    // Politique de remboursement :
+    // >7 jours avant l'arrivée  → remboursement intégral (REFUNDED)
+    // ≤7 jours avant l'arrivée  → aucun remboursement (RELEASED au bailleur)
+    let newEscrowStatus = booking.escrowStatus;
+    if (booking.escrowStatus === EscrowStatus.HELD) {
+      const hoursUntilStart =
+        (new Date(booking.startDate).getTime() - Date.now()) / (1000 * 60 * 60);
+      newEscrowStatus =
+        hoursUntilStart > 7 * 24
+          ? EscrowStatus.REFUNDED   // remboursement intégral
+          : EscrowStatus.RELEASED;  // fonds libérés au bailleur
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     const updated = await this.prisma.booking.update({
       where: { id },
       data: {
-        status: BookingStatus.CANCELLED,
-        ...(booking.escrowStatus === EscrowStatus.HELD && {
-          escrowStatus: EscrowStatus.REFUNDED,
-        }),
+        status:       BookingStatus.CANCELLED,
+        escrowStatus: newEscrowStatus,
       },
       include: { listing: { include: { owner: true } }, tenant: true },
     });
@@ -243,7 +304,7 @@ export class BookingsService {
     });
     const isOwner = booking.listing.ownerId === user.id;
     if (!isOwner && !user.roles.includes(Role.ADMIN))
-      throw new ForbiddenException('Non autorise');
+      throw new ForbiddenException('Not authorized');
     if (booking.status !== BookingStatus.CONFIRMED) {
       throw new BadRequestException(
         'Impossible de terminer, statut: ' + booking.status,

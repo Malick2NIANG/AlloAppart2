@@ -88,7 +88,7 @@ export class AgencesService {
     });
 
     if (!agency || !agency.roles?.includes(Role.PRO_AGENCE) || agency.isSuspended) {
-      throw new NotFoundException('Agence introuvable.');
+      throw new NotFoundException('Agency not found.');
     }
 
     return agency;

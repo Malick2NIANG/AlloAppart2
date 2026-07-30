@@ -5,7 +5,8 @@ import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { useClerk, useAuth } from '@clerk/nextjs';
+import { useClerk, useAuth, useUser } from '@clerk/nextjs';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { MessageRoom } from '@/types';
 import SubscriptionAlert from '@/components/ui/SubscriptionAlert';
@@ -16,15 +17,8 @@ export interface NavItem {
   href: string;
   icon: string;
   exact?: boolean;
+  separator?: boolean; // si true, affiche un séparateur avec label au-dessus
 }
-
-const ROLE_LABELS: Record<string, string> = {
-  LOCATAIRE:     'Locataire',
-  BAILLEUR:      'Bailleur',
-  PRO_AGENCE:    'Agence PRO',
-  AGENT_TERRAIN: 'Agent terrain',
-  ADMIN:         'Admin',
-};
 
 const ROLE_COLORS: Record<string, string> = {
   LOCATAIRE:     'bg-blue-50 text-blue-700',
@@ -34,21 +28,13 @@ const ROLE_COLORS: Record<string, string> = {
   ADMIN:         'bg-red-50 text-red-700',
 };
 
+const DOMINANT_BADGE_CLASS: Record<string, string> = {
+  ADMIN:         'bg-red-100 text-red-700',
+  PRO_AGENCE:    'bg-purple-100 text-purple-700',
+  AGENT_TERRAIN: 'bg-blue-100 text-blue-700',
+};
+
 type DominantRole = 'ADMIN' | 'PRO_AGENCE' | 'AGENT_TERRAIN';
-
-const DOMINANT_BADGE: Record<DominantRole, { label: string; className: string }> = {
-  ADMIN:         { label: 'Admin',         className: 'bg-red-100 text-red-700'        },
-  PRO_AGENCE:    { label: 'Agence PRO',    className: 'bg-purple-100 text-purple-700'  },
-  AGENT_TERRAIN: { label: 'Agent terrain', className: 'bg-blue-100 text-blue-700'      },
-};
-
-const SPACE_LABEL: Record<string, { label: string; sub: string }> = {
-  ADMIN:         { label: 'Admin',           sub: 'Tableau de bord' },
-  PRO_AGENCE:    { label: 'Espace Agence',   sub: 'Pro' },
-  AGENT_TERRAIN: { label: 'Espace Agent',    sub: 'Terrain' },
-  BAILLEUR:      { label: 'Espace Bailleur', sub: '' },
-  LOCATAIRE:     { label: 'Espace',          sub: 'Locataire' },
-};
 
 interface Props {
   userName: string;
@@ -64,15 +50,48 @@ interface Props {
 }
 
 export default function DashboardShell({ userName, userId, roles, navItems, isProAgence = false, userRole, userAvatar, userInitials = '?', pendingVerifCount = 0, children }: Props) {
-  // Effacer le badge quand on est déjà sur la page vérifications
+  const td     = useTranslations('dashboard');
+  const locale = useLocale();
+
+  // Computed translation maps (inside component to access td)
+  const ROLE_LABELS: Record<string, string> = {
+    LOCATAIRE:     td('roleLocataire'),
+    BAILLEUR:      td('roleBailleur'),
+    PRO_AGENCE:    td('roleProAgence'),
+    AGENT_TERRAIN: td('roleAgent'),
+    ADMIN:         td('roleAdmin'),
+  };
+
+  const DOMINANT_BADGE: Record<DominantRole, { label: string; className: string }> = {
+    ADMIN:         { label: td('badgeAdmin'),     className: DOMINANT_BADGE_CLASS.ADMIN         },
+    PRO_AGENCE:    { label: td('badgeProAgence'), className: DOMINANT_BADGE_CLASS.PRO_AGENCE    },
+    AGENT_TERRAIN: { label: td('badgeAgent'),     className: DOMINANT_BADGE_CLASS.AGENT_TERRAIN },
+  };
+
+  const SPACE_LABEL: Record<string, { label: string; sub: string }> = {
+    ADMIN:         { label: td('spaceAdmin'),    sub: td('spaceAdminSub')     },
+    PRO_AGENCE:    { label: td('spaceProAgence'),sub: td('spaceProAgenceSub') },
+    AGENT_TERRAIN: { label: td('spaceAgent'),    sub: td('spaceAgentSub')     },
+    BAILLEUR:      { label: td('spaceBailleur'), sub: ''                       },
+    LOCATAIRE:     { label: td('spaceLocataire'),sub: td('spaceLocataireSub') },
+  };
+
   const [open, setOpen]           = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [tooltip, setTooltip]     = useState<{ label: string; top: number } | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [now, setNow]             = useState(new Date());
   const pathname = usePathname();
   const visibleVerifCount = pathname.includes('/verifications') ? 0 : pendingVerifCount;
   const { signOut } = useClerk();
   const { getToken } = useAuth();
+  const { user } = useUser();
+
+  /* ── Horloge (mise à jour chaque minute) ── */
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
 
   /* ── Badge messages non lus ──────────────────────────────── */
   const fetchUnread = useCallback(async () => {
@@ -99,6 +118,20 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
   useEffect(() => { if (!collapsed) setTooltip(null); }, [collapsed]);
 
   const chipRoles = userRole ? roles.filter((r) => r !== userRole) : roles;
+
+  /* ── Last sign-in relative time ── */
+  const lastSignInText = (() => {
+    if (user?.lastSignInAt == null) return null;
+    const diff = now.getTime() - new Date(user.lastSignInAt).getTime();
+    const min  = Math.floor(diff / 60_000);
+    const h    = Math.floor(min / 60);
+    const d    = Math.floor(h / 24);
+    if (d > 1)    return td('daysAgo',    { count: d });
+    if (d === 1)  return td('yesterday');
+    if (h >= 1)   return td('hoursAgo',   { count: h });
+    if (min >= 1) return td('minutesAgo', { count: min });
+    return td('justNow');
+  })();
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
@@ -149,7 +182,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
             <div className="pl-5 pr-4">
               {(() => {
                 const key = userRole ?? roles[0] ?? '';
-                const info = SPACE_LABEL[key] ?? { label: 'Mon espace', sub: '' };
+                const info = SPACE_LABEL[key] ?? { label: td('spaceFallback'), sub: '' };
                 return (
                   <>
                     <p className="text-xs font-semibold text-gold-dark uppercase tracking-widest leading-none">
@@ -167,7 +200,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
           <button
             onClick={() => setOpen(false)}
             className="absolute right-3 lg:hidden flex h-8 w-8 items-center justify-center rounded-lg text-sub hover:bg-bg transition"
-            aria-label="Fermer le menu"
+            aria-label={td('closeMenu')}
           >
             <i className="fa-solid fa-xmark" />
           </button>
@@ -181,7 +214,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
               <Link href="/profil" className="shrink-0 group relative">
                 {userAvatar ? (
                   <div className="relative h-9 w-9 rounded-full overflow-hidden ring-2 ring-gold/20 group-hover:ring-gold/60 transition-all">
-                    <Image src={userAvatar} alt="Photo de profil" fill className="object-cover" />
+                    <Image src={userAvatar} alt={td('profilePhoto')} fill className="object-cover" />
                   </div>
                 ) : (
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-pale ring-2 ring-transparent group-hover:ring-gold/40 transition-all">
@@ -218,7 +251,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
               <Link href="/profil" className="group relative">
                 {userAvatar ? (
                   <div className="relative h-9 w-9 rounded-full overflow-hidden ring-2 ring-gold/20 group-hover:ring-gold/60 transition-all">
-                    <Image src={userAvatar} alt="Photo de profil" fill className="object-cover" />
+                    <Image src={userAvatar} alt={td('profilePhoto')} fill className="object-cover" />
                   </div>
                 ) : (
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-pale ring-2 ring-transparent group-hover:ring-gold/40 transition-all">
@@ -235,7 +268,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
           {/* Bouton collapse — bord droit, niveau nom */}
           <button
             onClick={() => setCollapsed((c) => !c)}
-            title={collapsed ? 'Ouvrir le menu' : 'Réduire le menu'}
+            title={collapsed ? td('expandMenu') : td('collapseMenu')}
             className="hidden lg:flex absolute -right-3.5 top-1/2 -translate-y-1/2 z-10 h-7 w-7 items-center justify-center rounded-full border border-line bg-card shadow-md text-sub hover:border-gold/60 hover:text-gold-dark transition-all"
           >
             <i className={`fa-solid fa-chevron-${collapsed ? 'right' : 'left'} text-[10px]`} />
@@ -246,6 +279,18 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
         <nav className="flex-1 overflow-y-auto px-2 py-4">
           <ul className="space-y-0.5">
             {navItems.map((item) => {
+              if (item.separator) {
+                return (
+                  <li key={`sep-${item.label}`} className="pt-3 pb-1">
+                    {!collapsed && (
+                      <p className="px-2.5 text-[10px] font-semibold uppercase tracking-widest text-sub/60">
+                        {item.label}
+                      </p>
+                    )}
+                    {collapsed && <div className="mx-auto w-4 border-t border-line" />}
+                  </li>
+                );
+              }
               const active = item.exact
                 ? pathname === item.href
                 : pathname === item.href || pathname.startsWith(item.href + '/');
@@ -315,11 +360,11 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
         <div className="shrink-0 border-t border-line px-2 py-3">
           <Link
             href="/"
-            title={collapsed ? 'Retour au site' : undefined}
+            title={collapsed ? td('backToSite') : undefined}
             onMouseEnter={(e) => {
               if (!collapsed) return;
               const rect = e.currentTarget.getBoundingClientRect();
-              setTooltip({ label: 'Retour au site', top: rect.top + rect.height / 2 });
+              setTooltip({ label: td('backToSite'), top: rect.top + rect.height / 2 });
             }}
             onMouseLeave={() => setTooltip(null)}
             className={`flex items-center rounded-xl px-2.5 py-2 text-sm font-medium text-sub hover:text-text transition-colors
@@ -329,15 +374,15 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
               <i className="fa-solid fa-arrow-left text-sm" />
             </span>
-            {!collapsed && 'Retour au site'}
+            {!collapsed && td('backToSite')}
           </Link>
           <button
             onClick={() => void signOut({ redirectUrl: '/sign-in' })}
-            title={collapsed ? 'Se déconnecter' : undefined}
+            title={collapsed ? td('signOut') : undefined}
             onMouseEnter={(e) => {
               if (!collapsed) return;
               const rect = e.currentTarget.getBoundingClientRect();
-              setTooltip({ label: 'Se déconnecter', top: rect.top + rect.height / 2 });
+              setTooltip({ label: td('signOut'), top: rect.top + rect.height / 2 });
             }}
             onMouseLeave={() => setTooltip(null)}
             className={`flex w-full items-center rounded-xl px-2.5 py-2 text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors
@@ -347,7 +392,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
               <i className="fa-solid fa-right-from-bracket text-sm" />
             </span>
-            {!collapsed && 'Se déconnecter'}
+            {!collapsed && td('signOut')}
           </button>
         </div>
       </aside>
@@ -360,7 +405,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
           <button
             onClick={() => setOpen(true)}
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-line text-sub hover:bg-bg transition"
-            aria-label="Ouvrir le menu"
+            aria-label={td('openMenu')}
           >
             <i className="fa-solid fa-bars" />
           </button>
@@ -371,7 +416,28 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
         </header>
 
         {/* Top bar desktop */}
-        <header className="hidden lg:flex h-14 shrink-0 items-center justify-end gap-3 border-b border-line bg-card px-6">
+        <header className="hidden lg:flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-card px-6">
+          {/* ── Gauche : date, heure, dernière connexion ── */}
+          <div className="flex flex-col justify-center">
+            <div className="flex items-center gap-2">
+              <i className="fa-regular fa-calendar text-gold-dark text-[11px]" />
+              <span className="text-xs font-medium text-text capitalize">
+                {now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+              <span className="h-3 w-px bg-line" />
+              <i className="fa-regular fa-clock text-gold-dark text-[11px]" />
+              <span className="text-xs font-semibold text-text">
+                {now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            {lastSignInText != null && (
+              <p className="text-[10px] text-sub mt-0.5 leading-none">
+                <i className="fa-solid fa-right-to-bracket text-[9px] mr-1" />
+                {td('lastSignIn')} {lastSignInText}
+              </p>
+            )}
+          </div>
+          {/* ── Droite : cloche ── */}
           <NotificationBell userId={userId} />
         </header>
 

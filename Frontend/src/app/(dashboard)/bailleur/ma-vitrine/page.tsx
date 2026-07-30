@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import type { User } from '@/types';
@@ -26,6 +27,7 @@ export default function MaVitrinePage() {
   const { getToken }  = useAuth();
   const router        = useRouter();
   const { toast }     = useToast();
+  const t             = useTranslations('bailleur');
   const toastRef      = useRef(toast);
   toastRef.current    = toast;
 
@@ -51,7 +53,6 @@ export default function MaVitrinePage() {
     if (!token) return;
     try {
       const me = await api.get<User>('/auth/me', token);
-      // Guard : réservé aux PRO_AGENCE
       if (!me.roles?.includes('PRO_AGENCE')) {
         router.replace('/bailleur');
         return;
@@ -69,7 +70,6 @@ export default function MaVitrinePage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // Vérification dispo slug en temps réel (debounce 500ms)
   const checkSlugAvailability = useCallback(async (slug: string) => {
     if (!slug || slug === user?.agencySlug) { setSlugAvail(slug ? true : null); return; }
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) { setSlugAvail(false); return; }
@@ -103,13 +103,13 @@ export default function MaVitrinePage() {
       const res  = await fetch(`${API_URL}/upload`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
       const data = await res.json() as { url?: string };
       if (data.url) setAvatar(data.url);
-    } catch { toastRef.current.error('Erreur upload logo'); }
+    } catch { toastRef.current.error(t('vitrineUploadError')); }
     finally { setUploading(false); e.target.value = ''; }
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (agencySlug && slugAvail === false) { toastRef.current.error('Ce slug n\'est pas disponible.'); return; }
+    if (agencySlug && slugAvail === false) { toastRef.current.error(t('vitrineSlugError')); return; }
     const token = await getToken().catch(() => null);
     if (!token) return;
     setSaving(true);
@@ -122,10 +122,10 @@ export default function MaVitrinePage() {
         avatar:     avatar            || undefined,
       }, token);
       setUser(updated);
-      toastRef.current.success('Vitrine mise à jour !');
+      toastRef.current.success(t('vitrineSaved'));
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message;
-      toastRef.current.error(msg ?? 'Erreur lors de la sauvegarde.');
+      toastRef.current.error(msg ?? t('vitrineSaveError'));
     } finally { setSaving(false); }
   };
 
@@ -148,31 +148,31 @@ export default function MaVitrinePage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-extrabold text-text flex items-center gap-2">
-            <i className="fa-solid fa-store text-gold-dark" /> Ma vitrine
+            <i className="fa-solid fa-store text-gold-dark" /> {t('vitrineTitle')}
           </h1>
-          <p className="text-sm text-sub mt-0.5">Personnalisez votre catalogue public et partagez-le avec vos clients.</p>
+          <p className="text-sm text-sub mt-0.5">{t('vitrineSubtitle')}</p>
         </div>
         {vitrinUrl && (
           <Link href={vitrinUrl} target="_blank"
             className="inline-flex items-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
-            <i className="fa-solid fa-arrow-up-right-from-square text-xs" /> Voir ma vitrine
+            <i className="fa-solid fa-arrow-up-right-from-square text-xs" /> {t('vitrineSeeLink')}
           </Link>
         )}
       </div>
 
-      {/* Aperçu lien */}
+      {/* Public link */}
       {vitrinUrl && (
         <div className="rounded-2xl border border-gold/30 bg-gold-pale/40 p-4 flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-gold/20 flex items-center justify-center shrink-0">
             <i className="fa-solid fa-link text-gold-dark" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold text-sub uppercase tracking-wide">Lien public de votre vitrine</p>
+            <p className="text-[11px] font-bold text-sub uppercase tracking-wide">{t('vitrineLinkLabel')}</p>
             <p className="text-sm font-semibold text-gold-dark truncate">alloAppart.sn{vitrinUrl}</p>
           </div>
           <button
             type="button"
-            onClick={() => { void navigator.clipboard.writeText(`https://alloAppart.sn${vitrinUrl}`); toastRef.current.success('Lien copié !'); }}
+            onClick={() => { void navigator.clipboard.writeText(`https://alloAppart.sn${vitrinUrl}`); toastRef.current.success(t('vitrineLinkCopied')); }}
             className="h-8 w-8 rounded-lg bg-white/60 flex items-center justify-center text-sub hover:text-gold-dark hover:bg-white transition-colors shrink-0">
             <i className="fa-regular fa-copy text-sm" />
           </button>
@@ -183,7 +183,7 @@ export default function MaVitrinePage() {
 
         {/* Logo / Avatar */}
         <div className="rounded-2xl border border-line bg-card p-5">
-          <h2 className="text-xs font-bold text-sub uppercase tracking-wider mb-4">Logo de l&apos;agence</h2>
+          <h2 className="text-xs font-bold text-sub uppercase tracking-wider mb-4">{t('vitrineLogo')}</h2>
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
               {avatar ? (
@@ -200,34 +200,34 @@ export default function MaVitrinePage() {
               </button>
             </div>
             <div>
-              <p className="text-sm font-semibold text-text">Photo ou logo de votre agence</p>
-              <p className="text-xs text-sub mt-0.5">Format recommandé : carré, 400×400 px minimum.</p>
+              <p className="text-sm font-semibold text-text">{t('vitrineLogoHint')}</p>
+              <p className="text-xs text-sub mt-0.5">{t('vitrineLogoDesc')}</p>
             </div>
             <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
           </div>
         </div>
 
-        {/* Identité */}
+        {/* Identity */}
         <div className="rounded-2xl border border-line bg-card p-5 space-y-4">
-          <h2 className="text-xs font-bold text-sub uppercase tracking-wider">Identité de l&apos;agence</h2>
+          <h2 className="text-xs font-bold text-sub uppercase tracking-wider">{t('vitrineIdentity')}</h2>
 
           <div>
-            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">Nom de l&apos;agence</label>
+            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">{t('vitrineAgencyName')}</label>
             <input value={agencyName} onChange={(e) => setAgencyName(e.target.value)}
-              placeholder="Ex : Immobilier Dakar" maxLength={150}
+              placeholder={t('vitrineAgencyNamePh')} maxLength={150}
               className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40" />
           </div>
 
           <div>
             <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">
-              Slug URL <span className="text-sub font-normal">(identifiant unique de votre vitrine)</span>
+              {t('vitrineSlugLabel')} <span className="text-sub font-normal">{t('vitrineSlugDesc')}</span>
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sub text-sm select-none">alloAppart.sn/agences/</span>
               <input
                 value={agencySlug}
                 onChange={(e) => handleSlugChange(e.target.value)}
-                placeholder="immobilier-dakar"
+                placeholder={t('vitrineSlugPh')}
                 maxLength={80}
                 className="w-full rounded-xl border border-line bg-bg pl-[200px] pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40"
               />
@@ -236,26 +236,28 @@ export default function MaVitrinePage() {
               )}
             </div>
             {agencySlug && slugAvail === false && (
-              <p className="text-[11px] text-red-500 mt-1">Ce slug est déjà utilisé. Essayez : {agencySlug}-{Math.floor(Math.random() * 99) + 1}</p>
+              <p className="text-[11px] text-red-500 mt-1">
+                {t('vitrineSlugTaken', { suggestion: `${agencySlug}-${Math.floor(Math.random() * 99) + 1}` })}
+              </p>
             )}
             {agencySlug && slugAvail === true && (
-              <p className="text-[11px] text-emerald-600 mt-1">Disponible !</p>
+              <p className="text-[11px] text-emerald-600 mt-1">{t('vitrineSlugAvailable')}</p>
             )}
-            <p className="text-[11px] text-sub mt-1">Minuscules, chiffres et tirets uniquement.</p>
+            <p className="text-[11px] text-sub mt-1">{t('vitrineSlugNote')}</p>
           </div>
 
           <div>
             <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 flex items-center justify-between">
-              <span>Description / Bio</span>
+              <span>{t('vitrineBioLabel')}</span>
               <span className={bio.length > 450 ? 'text-amber-500' : 'text-sub'}>{bio.length}/500</span>
             </label>
             <textarea rows={4} value={bio} onChange={(e) => setBio(e.target.value)} maxLength={500}
-              placeholder="Présentez votre agence, vos spécialités, votre zone d'intervention…"
+              placeholder={t('fieldDescPh')}
               className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none" />
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">Téléphone public</label>
+            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">{t('vitrinePhone')}</label>
             <div className="relative">
               <i className="fa-solid fa-phone absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-xs" />
               <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel"
@@ -268,8 +270,8 @@ export default function MaVitrinePage() {
         <button type="submit" disabled={saving || (!!agencySlug && slugAvail === false)}
           className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 disabled:opacity-50 transition-colors">
           {saving
-            ? <><i className="fa-solid fa-spinner fa-spin" /> Enregistrement…</>
-            : <><i className="fa-solid fa-floppy-disk text-sm" /> Enregistrer la vitrine</>}
+            ? <><i className="fa-solid fa-spinner fa-spin" /> {t('vitrineSaving')}</>
+            : <><i className="fa-solid fa-floppy-disk text-sm" /> {t('vitrineSave')}</>}
         </button>
       </form>
 

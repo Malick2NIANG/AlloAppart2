@@ -26,6 +26,17 @@ export class PaymentsController {
     return this.paymentsService.handlePaydunyaWebhook(dto);
   }
 
+  /** Vérification active — appelée depuis la page /paiement/confirmation */
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Roles(Role.LOCATAIRE)
+  @Post('verify/:bookingId')
+  verify(
+    @Param('bookingId') bookingId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.paymentsService.verifyBooking(bookingId, user.id);
+  }
+
   @Roles(Role.ADMIN)
   @Post('release/:bookingId')
   release(@Param('bookingId') bookingId: string) {

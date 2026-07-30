@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Booking } from '@/types';
 import { formatDate, formatPrice } from '@/lib/utils';
@@ -14,6 +15,8 @@ import BookingActions from './BookingActions';
 export default function BailleurBookingsPage() {
   const { getToken } = useAuth();
   const { toast }    = useToast();
+  const t            = useTranslations('bailleur');
+
   const [bookings, setBookings]       = useState<Booking[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
@@ -33,11 +36,11 @@ export default function BailleurBookingsPage() {
       setBookings(res.data);
       setTotal(res.total);
     } catch {
-      setError('Impossible de charger les réservations.');
+      setError(t('bookingsLoadError'));
     } finally {
       setLoading(false);
     }
-  }, [getToken, currentPage]);
+  }, [getToken, currentPage, t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -48,14 +51,14 @@ export default function BailleurBookingsPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-text">Réservations reçues</h1>
+        <h1 className="text-2xl font-bold text-text">{t('bookingsTitle')}</h1>
         {!loading && !error && (
           <p className="mt-1 text-sm text-sub">
-            {total} réservation{total > 1 ? 's' : ''}
+            {t('bookingsCount', { count: total })}
             {pending.length > 0 && (
               <span className="ml-2 inline-flex items-center gap-1 text-gold-dark font-medium">
                 <i className="fa-solid fa-circle text-[8px]" />
-                {pending.length} en attente
+                {t('bookingsPending', { count: pending.length })}
               </span>
             )}
           </p>
@@ -71,7 +74,7 @@ export default function BailleurBookingsPage() {
           <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
           <p className="text-sm text-sub">{error}</p>
           <button onClick={fetchData} className="mt-4 btn-gold text-sm">
-            <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+            <i className="fa-solid fa-rotate-right mr-1.5" />{t('retry')}
           </button>
         </div>
       ) : bookings.length === 0 ? (
@@ -79,24 +82,24 @@ export default function BailleurBookingsPage() {
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
             <i className="fa-solid fa-calendar-check text-2xl text-gold-dark" />
           </div>
-          <p className="font-semibold text-text">Aucune réservation reçue</p>
-          <p className="mt-1 text-sm text-sub">Les demandes de vos locataires apparaîtront ici.</p>
+          <p className="font-semibold text-text">{t('bookingsEmpty')}</p>
+          <p className="mt-1 text-sm text-sub">{t('bookingsEmptyHint')}</p>
           <Link href="/publier" className="btn-gold mt-5 inline-flex items-center gap-2 text-sm">
-            <i className="fa-solid fa-plus text-xs" />Publier une annonce
+            <i className="fa-solid fa-plus text-xs" />{t('bookingsPublish')}
           </Link>
         </div>
       ) : (
         <div className="space-y-8">
           {pending.length > 0 && (
-            <Section title="En attente" icon="fa-clock" accent="text-gold-dark"
+            <Section title={t('sectionPending')} icon="fa-clock" accent="text-gold-dark"
               bookings={pending} onActionDone={fetchData} toast={toast} getToken={getToken} />
           )}
           {active.length > 0 && (
-            <Section title="Confirmées" icon="fa-circle-check" accent="text-green-600"
+            <Section title={t('sectionConfirmed')} icon="fa-circle-check" accent="text-green-600"
               bookings={active} onActionDone={fetchData} toast={toast} getToken={getToken} />
           )}
           {archived.length > 0 && (
-            <Section title="Archivées" icon="fa-archive" accent="text-sub"
+            <Section title={t('sectionArchived')} icon="fa-archive" accent="text-sub"
               bookings={archived} onActionDone={fetchData} toast={toast} getToken={getToken} />
           )}
         </div>
@@ -105,7 +108,7 @@ export default function BailleurBookingsPage() {
       {total > 20 && (
         <div className="mt-8 flex items-center justify-between">
           <p className="text-sm text-sub">
-            Page {currentPage} sur {Math.ceil(total / 20)}
+            {t('pageOf', { page: currentPage, total: Math.ceil(total / 20) })}
           </p>
           <div className="flex gap-2">
             <button
@@ -113,14 +116,14 @@ export default function BailleurBookingsPage() {
               disabled={currentPage === 1}
               className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
             >
-              Précédent
+              {t('previous')}
             </button>
             <button
               onClick={() => setCurrentPage((p) => p + 1)}
               disabled={currentPage * 20 >= total}
               className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
             >
-              Suivant
+              {t('next')}
             </button>
           </div>
         </div>
@@ -141,6 +144,7 @@ function Section({
   getToken: () => Promise<string | null>;
 }) {
   const router = useRouter();
+  const t = useTranslations('bailleur');
 
   const contactTenant = async (listingId: string, tenantId: string) => {
     try {
@@ -153,7 +157,7 @@ function Section({
       );
       router.push(`/bailleur/messages/${room.id}`);
     } catch {
-      toast.error('Impossible d\'ouvrir la messagerie.');
+      toast.error(t('contactError'));
     }
   };
 
@@ -189,7 +193,7 @@ function Section({
                 className="text-xs font-medium text-gold-dark hover:underline mt-1 inline-flex items-center gap-1"
               >
                 <i className="fa-solid fa-comment-dots text-xs" />
-                Contacter
+                {t('contactTenant')}
               </button>
             </div>
             <BookingActions

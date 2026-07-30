@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import { priceToNumber } from '@/types';
 import type { Listing } from '@/types';
@@ -13,6 +14,9 @@ import { useToast } from '@/components/ui/Toast';
 export default function FavoritesPage() {
   const { getToken } = useAuth();
   const { toast } = useToast();
+  const t = useTranslations('locataire');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-SN';
   const [favorites, setFavorites] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,10 +29,10 @@ export default function FavoritesPage() {
       if (!token) { setLoading(false); return; }
       api.get<Listing[]>('/listings/favorites', token)
         .then(setFavorites)
-        .catch(() => setError('Impossible de charger vos favoris.'))
+        .catch(() => setError(t('favoritesError')))
         .finally(() => setLoading(false));
     });
-  }, [getToken]);
+  }, [getToken, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -39,9 +43,9 @@ export default function FavoritesPage() {
     try {
       await api.delete(`/listings/${listingId}/favorite`, token);
       setFavorites((prev) => prev.filter((f) => f.id !== listingId));
-      toast.success('Retiré des favoris');
+      toast.success(t('removedFromFavorites'));
     } catch {
-      toast.error('Erreur lors de la suppression.');
+      toast.error(t('removeError'));
     } finally {
       setRemoving(null);
     }
@@ -51,8 +55,8 @@ export default function FavoritesPage() {
     return (
       <div>
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-text">Favoris</h1>
-          <p className="mt-1 text-sm text-sub">Chargement…</p>
+          <h1 className="text-2xl font-bold text-text">{t('favoritesTitle')}</h1>
+          <p className="mt-1 text-sm text-sub">{t('favoritesLoading')}</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} height="220px" />)}
@@ -67,7 +71,7 @@ export default function FavoritesPage() {
         <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
         <p className="text-sm text-sub">{error}</p>
         <button onClick={load} className="mt-4 btn-gold text-sm">
-          <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+          <i className="fa-solid fa-rotate-right mr-1.5" />{t('retryBtn')}
         </button>
       </div>
     );
@@ -76,9 +80,9 @@ export default function FavoritesPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-text">Favoris</h1>
+        <h1 className="text-2xl font-bold text-text">{t('favoritesTitle')}</h1>
         <p className="mt-1 text-sm text-sub">
-          {`${favorites.length} annonce${favorites.length > 1 ? 's' : ''} sauvegardée${favorites.length > 1 ? 's' : ''}`}
+          {t('favoritesCount', { count: favorites.length })}
         </p>
       </div>
 
@@ -87,10 +91,10 @@ export default function FavoritesPage() {
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
             <i className="fa-solid fa-heart text-2xl text-gold-dark" />
           </div>
-          <p className="font-semibold text-text">Aucun favori pour l&apos;instant</p>
-          <p className="mt-1 text-sm text-sub">Cliquez sur le cœur d&apos;une annonce pour la sauvegarder ici.</p>
+          <p className="font-semibold text-text">{t('noFavorites')}</p>
+          <p className="mt-1 text-sm text-sub">{t('noFavoritesHint')}</p>
           <Link href="/listings" className="btn-gold mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold">
-            <i className="fa-solid fa-magnifying-glass text-xs" /> Parcourir les annonces
+            <i className="fa-solid fa-magnifying-glass text-xs" /> {t('browseBtn')}
           </Link>
         </div>
       ) : (
@@ -113,7 +117,7 @@ export default function FavoritesPage() {
                 )}
                 {listing.isVerified && (
                   <span className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white">
-                    <i className="fa-solid fa-shield-halved text-[9px]" /> AlloVérifié
+                    <i className="fa-solid fa-shield-halved text-[9px]" /> {t('verifiedBadge')}
                   </span>
                 )}
                 {/* Remove button */}
@@ -138,14 +142,14 @@ export default function FavoritesPage() {
                 </p>
                 <div className="mt-3 flex items-center justify-between">
                   <p className="text-base font-extrabold text-gold-dark">
-                    {priceToNumber(listing.price).toLocaleString('fr-SN')}
-                    <span className="text-xs font-normal text-sub ml-1">FCFA/mois</span>
+                    {priceToNumber(listing.price).toLocaleString(numLocale)}
+                    <span className="text-xs font-normal text-sub ml-1">{t('priceUnit')}</span>
                   </p>
                   <Link
                     href={`/listings/${listing.id}`}
                     className="text-xs font-medium text-gold-dark hover:underline flex items-center gap-1"
                   >
-                    Voir <i className="fa-solid fa-arrow-right text-[10px]" />
+                    {t('viewBtn')} <i className="fa-solid fa-arrow-right text-[10px]" />
                   </Link>
                 </div>
               </div>

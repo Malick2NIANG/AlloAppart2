@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-const SENDER_SELECT = { id: true, firstName: true, lastName: true } as const;
+const SENDER_SELECT = { id: true, firstName: true, lastName: true, agencyName: true, roles: true } as const;
 const REPLY_TO_SELECT = {
   id: true, content: true, senderId: true, deletedAt: true,
   sender: { select: SENDER_SELECT },
@@ -27,7 +27,7 @@ export class MessagesService {
       where: { participants: { some: { id: userId } } },
       include: {
         listing: { select: { id: true, title: true, images: true } },
-        participants: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        participants: { select: { id: true, firstName: true, lastName: true, avatar: true, agencyName: true, roles: true } },
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
       orderBy: { createdAt: 'desc' },
@@ -54,15 +54,13 @@ export class MessagesService {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
     });
-    if (!listing) throw new NotFoundException('Annonce introuvable');
+    if (!listing) throw new NotFoundException('Listing not found');
     if (listing.ownerId === tenantId) {
-      throw new BadRequestException(
-        'Vous ne pouvez pas vous envoyer un message',
-      );
+      throw new BadRequestException('You cannot send a message to yourself');
     }
     // Si le caller n'est ni le locataire ni le propriétaire → interdit
     if (callerId && callerId !== tenantId && callerId !== listing.ownerId) {
-      throw new ForbiddenException('Non autorise');
+      throw new ForbiddenException('Not authorized');
     }
     const existing = await this.prisma.messageRoom.findFirst({
       where: { listingId, participants: { some: { id: tenantId } } },
@@ -84,7 +82,7 @@ export class MessagesService {
     if (replyToId) {
       const replyMsg = await this.prisma.message.findUnique({ where: { id: replyToId } });
       if (!replyMsg || replyMsg.roomId !== roomId)
-        throw new BadRequestException('Message de référence invalide');
+        throw new BadRequestException('Invalid reference message');
     }
     const message = await this.prisma.message.create({
       data: { roomId, senderId, content, ...(replyToId ? { replyToId } : {}) },
@@ -134,11 +132,11 @@ export class MessagesService {
 
   async editMessage(messageId: string, userId: string, content: string) {
     const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
-    if (!msg) throw new NotFoundException('Message introuvable');
-    if (msg.senderId !== userId) throw new ForbiddenException('Non autorisé');
-    if (msg.deletedAt) throw new BadRequestException('Message supprimé');
+    if (!msg) throw new NotFoundException('Message not found');
+    if (msg.senderId !== userId) throw new ForbiddenException('Not authorized');
+    if (msg.deletedAt) throw new BadRequestException('Message deleted');
     if (msg.content.startsWith('[AUDIO]:'))
-      throw new BadRequestException('Les messages vocaux ne peuvent pas être modifiés');
+      throw new BadRequestException('Voice messages cannot be edited');
 
     const updated = await this.prisma.message.update({
       where: { id: messageId },
@@ -155,8 +153,8 @@ export class MessagesService {
 
   async deleteMessage(messageId: string, userId: string) {
     const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
-    if (!msg) throw new NotFoundException('Message introuvable');
-    if (msg.senderId !== userId) throw new ForbiddenException('Non autorisé');
+    if (!msg) throw new NotFoundException('Message not found');
+    if (msg.senderId !== userId) throw new ForbiddenException('Not authorized');
 
     await this.prisma.message.update({
       where: { id: messageId },
@@ -175,11 +173,11 @@ export class MessagesService {
       include: { participants: { select: { id: true } } },
     });
     if (!room) {
-      throw new NotFoundException('Conversation introuvable');
+      throw new NotFoundException('Conversation not found');
     }
     const isParticipant = room.participants.some((p) => p.id === userId);
     if (!isParticipant) {
-      throw new ForbiddenException('Acces non autorise');
+      throw new ForbiddenException('Access denied');
     }
   }
 }

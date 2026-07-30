@@ -1,8 +1,9 @@
 'use client';
 
-import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
+import { Suspense, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Listing, PaginatedResponse, ListingStatus } from '@/types';
 import Link from 'next/link';
@@ -16,22 +17,13 @@ interface AgentOption { id: string; firstName: string; lastName: string; complet
 
 const ITEMS_PER_PAGE = 6;
 
-const FILTERS: { key: ListingStatus; label: string; icon: string; iconColor: string; bgColor: string }[] = [
-  { key: 'ACTIVE',    label: 'Actives',    icon: 'fa-circle-check',  iconColor: 'text-green-600', bgColor: 'bg-green-50' },
-  { key: 'DRAFT',     label: 'Brouillons', icon: 'fa-pen-to-square', iconColor: 'text-amber-500', bgColor: 'bg-amber-50' },
-  { key: 'RENTED',    label: 'Louées',     icon: 'fa-key',           iconColor: 'text-blue-500',  bgColor: 'bg-blue-50'  },
-  { key: 'SUSPENDED', label: 'Archivées',  icon: 'fa-box-archive',   iconColor: 'text-red-400',   bgColor: 'bg-red-50'   },
-];
+const FILTER_KEYS: ListingStatus[] = ['ACTIVE', 'DRAFT', 'RENTED', 'SUSPENDED'];
 
-const EMPTY_MESSAGES: Record<ListingStatus, string> = {
-  ACTIVE:    'Aucune annonce active — publiez un brouillon pour démarrer',
-  DRAFT:     'Aucun brouillon',
-  RENTED:    'Aucune annonce louée',
-  SUSPENDED: 'Aucune annonce archivée',
-};
-
-const STATUS_LABELS: Record<ListingStatus, string> = {
-  ACTIVE: 'Active', DRAFT: 'Brouillon', RENTED: 'Louée', SUSPENDED: 'Archivée',
+const FILTER_META: Record<ListingStatus, { icon: string; iconColor: string; bgColor: string }> = {
+  ACTIVE:    { icon: 'fa-circle-check',  iconColor: 'text-green-600', bgColor: 'bg-green-50' },
+  DRAFT:     { icon: 'fa-pen-to-square', iconColor: 'text-amber-500', bgColor: 'bg-amber-50' },
+  RENTED:    { icon: 'fa-key',           iconColor: 'text-blue-500',  bgColor: 'bg-blue-50'  },
+  SUSPENDED: { icon: 'fa-box-archive',   iconColor: 'text-red-400',   bgColor: 'bg-red-50'   },
 };
 
 const STATUS_BADGE: Record<ListingStatus, string> = {
@@ -44,6 +36,7 @@ const STATUS_BADGE: Record<ListingStatus, string> = {
 function BailleurListingsContent() {
   const { getToken } = useAuth();
   const { toast } = useToast();
+  const t = useTranslations('bailleur');
   const toastRef = useRef(toast);
   useEffect(() => { toastRef.current = toast; }, [toast]);
   const searchParams = useSearchParams();
@@ -64,6 +57,20 @@ function BailleurListingsContent() {
   const [boostModal,   setBoostModal]   = useState<{ listingId: string; title: string } | null>(null);
   const [boosting,     setBoosting]     = useState<string | null>(null);
 
+  const FILTER_LABELS = useMemo<Record<ListingStatus, string>>(() => ({
+    ACTIVE:    t('filterActive'),
+    DRAFT:     t('filterDraft'),
+    RENTED:    t('filterRented'),
+    SUSPENDED: t('filterArchived'),
+  }), [t]);
+
+  const EMPTY_MESSAGES = useMemo<Record<ListingStatus, string>>(() => ({
+    ACTIVE:    t('emptyActive'),
+    DRAFT:     t('emptyDraft'),
+    RENTED:    t('emptyRented'),
+    SUSPENDED: t('emptyArchived'),
+  }), [t]);
+
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -71,20 +78,19 @@ function BailleurListingsContent() {
       if (!token) { setLoading(false); return; }
       api.get<PaginatedResponse<Listing>>('/listings/mine', token)
         .then((res) => setListings(res.data))
-        .catch(() => setError('Impossible de charger vos annonces.'))
+        .catch(() => setError(t('listingsLoadError')))
         .finally(() => setLoading(false));
     });
-  }, [getToken]);
+  }, [getToken, t]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     const status = searchParams.get('status');
-    if (status === 'boost_success') toastRef.current.success('Boost activé ! Votre annonce est mise en avant.');
-    if (status === 'boost_cancel')  toastRef.current.error('Paiement du boost annulé.');
-  }, [searchParams]);
+    if (status === 'boost_success') toastRef.current.success(t('boostSuccess'));
+    if (status === 'boost_cancel')  toastRef.current.error(t('boostCancelPayment'));
+  }, [searchParams, t]);
 
-  // Reset page quand filtre ou recherche change
   useEffect(() => { setPage(1); }, [filter, search]);
 
   const triggerRevalidation = () => {
@@ -94,7 +100,6 @@ function BailleurListingsContent() {
     }).catch(() => {});
   };
 
-  // Charge la liste des agents une seule fois
   const loadAgents = useCallback(async () => {
     if (agentsLoaded) return;
     const token = await getToken();
@@ -102,7 +107,7 @@ function BailleurListingsContent() {
     try {
       const data = await api.get<AgentOption[]>('/auth/agents', token);
       setAgents(data);
-    } catch { /* non bloquant */ } finally {
+    } catch { /* non-blocking */ } finally {
       setAgentsLoaded(true);
     }
   }, [agentsLoaded, getToken]);
@@ -124,38 +129,35 @@ function BailleurListingsContent() {
         scheduledAt: new Date(verifForm.scheduledAt).toISOString(),
         ...(verifForm.preferredAgentId ? { preferredAgentId: verifForm.preferredAgentId } : {}),
       }, token);
-      toast.success(`Demande AlloVérifié envoyée pour "${verifModal.title}"`);
+      toast.success(t('verifSuccess', { title: verifModal.title }));
       setVerifModal(null);
       setVerifForm({ auditType: 'BASIC', scheduledAt: '', preferredAgentId: '' });
     } catch {
-      toast.error('Erreur lors de la demande. Veuillez réessayer.');
+      toast.error(t('verifError'));
     } finally {
       setVerifLoading(false);
     }
   };
 
-  /** Met à jour le statut d'un listing dans le state local sans re-fetch */
   const patchLocal = (listingId: string, patch: Partial<Listing>) =>
     setListings((prev) => prev.map((l) => l.id === listingId ? { ...l, ...patch } : l));
 
-  /** Archive : DRAFT/ACTIVE → SUSPENDED (corbeille) */
   const archiveListing = async () => {
     if (!archiveModal) return;
     const token = await getToken();
     if (!token) return;
     try {
       await api.patch(`/listings/${archiveModal.listingId}/archive`, {}, token);
-      toast.success(`"${archiveModal.title}" déplacée dans les archives`);
+      toast.success(t('archiveSuccess', { title: archiveModal.title }));
       patchLocal(archiveModal.listingId, { status: 'SUSPENDED' });
       setArchiveModal(null);
       triggerRevalidation();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Impossible d\'archiver cette annonce.');
+      toast.error(err instanceof Error ? err.message : t('archiveError'));
       setArchiveModal(null);
     }
   };
 
-  /** Restaure une annonce archivée → DRAFT ou ACTIVE */
   const restoreListing = async (listingId: string, title: string, targetStatus: 'DRAFT' | 'ACTIVE') => {
     const token = await getToken();
     if (!token) return;
@@ -163,28 +165,27 @@ function BailleurListingsContent() {
       await api.patch(`/listings/${listingId}/restore`, { status: targetStatus }, token);
       toast.success(
         targetStatus === 'ACTIVE'
-          ? `"${title}" republiée avec succès`
-          : `"${title}" remise en brouillon`,
+          ? t('restoreActiveSuccess', { title })
+          : t('restoreDraftSuccess', { title }),
       );
       patchLocal(listingId, { status: targetStatus });
       triggerRevalidation();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Impossible de restaurer cette annonce.');
+      toast.error(err instanceof Error ? err.message : t('restoreError'));
     }
   };
 
-  /** Suppression définitive depuis les archives */
   const deleteListing = async () => {
     if (!deleteModal) return;
     const token = await getToken();
     if (!token) return;
     try {
       await api.delete(`/listings/${deleteModal.listingId}`, token);
-      toast.success(`"${deleteModal.title}" supprimée définitivement`);
+      toast.success(t('deleteSuccess', { title: deleteModal.title }));
       setListings((prev) => prev.filter((l) => l.id !== deleteModal.listingId));
       setDeleteModal(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Impossible de supprimer cette annonce.');
+      toast.error(err instanceof Error ? err.message : t('deleteError'));
       setDeleteModal(null);
     }
   };
@@ -194,11 +195,11 @@ function BailleurListingsContent() {
     if (!token) return;
     try {
       await api.patch(`/listings/${listingId}/unpublish`, {}, token);
-      toast.success(`"${title}" dépubliée et passée en brouillon`);
+      toast.success(t('unpublishSuccess', { title }));
       patchLocal(listingId, { status: 'DRAFT' });
       triggerRevalidation();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Impossible de dépublier cette annonce.');
+      toast.error(err instanceof Error ? err.message : t('unpublishError'));
     }
   };
 
@@ -207,20 +208,18 @@ function BailleurListingsContent() {
     if (!token) return;
     try {
       await api.patch(`/listings/${listingId}/publish`, {}, token);
-      toast.success(`"${title}" publiée`);
+      toast.success(t('publishSuccess', { title }));
       patchLocal(listingId, { status: 'ACTIVE' });
       triggerRevalidation();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Impossible de publier cette annonce.');
+      toast.error(err instanceof Error ? err.message : t('publishError'));
     }
   };
 
-  /** Ouvre le modal de confirmation boost */
   const openBoostModal = (listingId: string, title: string) => {
     setBoostModal({ listingId, title });
   };
 
-  /** Lance réellement le paiement après confirmation */
   const confirmBoost = async () => {
     if (!boostModal) return;
     const { listingId } = boostModal;
@@ -231,13 +230,13 @@ function BailleurListingsContent() {
       if (!token) return;
       const res = await api.post<{ payment_url?: string }>(`/listings/${listingId}/boost`, {}, token);
       if (!res.payment_url) {
-        toast.error('Service de paiement indisponible. Veuillez réessayer.');
+        toast.error(t('boostServiceError'));
         setBoosting(null);
         return;
       }
       window.location.href = res.payment_url;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur lors du boost.');
+      toast.error(err instanceof Error ? err.message : t('boostError'));
       setBoosting(null);
     }
   };
@@ -260,7 +259,7 @@ function BailleurListingsContent() {
         <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
         <p className="text-sm text-sub">{error}</p>
         <button onClick={load} className="mt-4 btn-gold text-sm">
-          <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+          <i className="fa-solid fa-rotate-right mr-1.5" />{t('retry')}
         </button>
       </div>
     );
@@ -273,9 +272,8 @@ function BailleurListingsContent() {
     SUSPENDED: listings.filter((l) => l.status === 'SUSPENDED').length,
   };
 
-  // Filtre statut + recherche texte
-  const q = search.trim().toLowerCase();
-  const filtered  = listings
+  const q        = search.trim().toLowerCase();
+  const filtered = listings
     .filter((l) => l.status === filter)
     .filter((l) => !q || l.title.toLowerCase().includes(q) || l.city.toLowerCase().includes(q));
   const pageCount = Math.ceil(filtered.length / ITEMS_PER_PAGE);
@@ -283,17 +281,18 @@ function BailleurListingsContent() {
 
   return (
     <div>
-      {/* En-tête */}
+      {/* Header */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-text">Mes annonces</h1>
+        <h1 className="text-2xl font-bold text-text">{t('listingsTitle')}</h1>
         <Link href="/publier" className="btn-gold self-start sm:self-auto">
-          <i className="fa-solid fa-plus text-sm" /> Nouvelle annonce
+          <i className="fa-solid fa-plus text-sm" /> {t('newListing')}
         </Link>
       </div>
 
-      {/* Cartes-filtres statut */}
+      {/* Filter tabs */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        {FILTERS.map(({ key, label, icon, iconColor, bgColor }) => {
+        {FILTER_KEYS.map((key) => {
+          const meta = FILTER_META[key];
           const isActive = filter === key;
           return (
             <button
@@ -304,26 +303,26 @@ function BailleurListingsContent() {
               }`}
             >
               <div className="flex items-center justify-between mb-3">
-                <span className={`flex h-9 w-9 items-center justify-center rounded-full ${bgColor}`}>
-                  <i className={`fa-solid ${icon} ${iconColor}`} />
+                <span className={`flex h-9 w-9 items-center justify-center rounded-full ${meta.bgColor}`}>
+                  <i className={`fa-solid ${meta.icon} ${meta.iconColor}`} />
                 </span>
                 <span className="text-2xl font-bold text-text">{counts[key]}</span>
               </div>
-              <p className="text-sm font-medium text-text">{label}</p>
-              {isActive && <p className="text-xs text-gold-dark mt-0.5 font-medium">Sélectionné</p>}
+              <p className="text-sm font-medium text-text">{FILTER_LABELS[key]}</p>
+              {isActive && <p className="text-xs text-gold-dark mt-0.5 font-medium">{t('filterSelected')}</p>}
             </button>
           );
         })}
       </div>
 
-      {/* Barre de recherche */}
+      {/* Search */}
       <div className="mb-6 relative">
         <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-sm pointer-events-none" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher par titre ou ville…"
+          placeholder={t('searchPlaceholder')}
           className="w-full rounded-xl border border-line bg-card pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition"
         />
         {search && (
@@ -336,33 +335,30 @@ function BailleurListingsContent() {
         )}
       </div>
 
-      {/* Résultats */}
+      {/* Results */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
-            <i className={`fa-solid ${q ? 'fa-magnifying-glass' : (FILTERS.find((f) => f.key === filter)?.icon ?? 'fa-house')} text-2xl text-gold-dark`} />
+            <i className={`fa-solid ${q ? 'fa-magnifying-glass' : (FILTER_META[filter]?.icon ?? 'fa-house')} text-2xl text-gold-dark`} />
           </div>
           <p className="font-semibold text-text">
-            {q ? `Aucun résultat pour "${search}"` : EMPTY_MESSAGES[filter]}
+            {q ? t('noResultsFor', { search }) : EMPTY_MESSAGES[filter]}
           </p>
           {!q && filter === 'DRAFT' && (
             <Link href="/publier" className="btn-gold mt-5">
-              <i className="fa-solid fa-plus text-sm" /> Nouvelle annonce
+              <i className="fa-solid fa-plus text-sm" /> {t('newListing')}
             </Link>
           )}
           {q && (
             <button onClick={() => setSearch('')} className="mt-3 text-sm text-gold-dark hover:underline">
-              Effacer la recherche
+              {t('clearSearch')}
             </button>
           )}
         </div>
       ) : (
         <>
-          {/* Compteur résultats si recherche active */}
           {q && (
-            <p className="mb-3 text-sm text-sub">
-              {filtered.length} résultat{filtered.length > 1 ? 's' : ''} pour &quot;{search}&quot;
-            </p>
+            <p className="mb-3 text-sm text-sub">{t('resultsCount', { count: filtered.length, search })}</p>
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -389,34 +385,34 @@ function BailleurListingsContent() {
                 disabled={page === 1}
                 className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
               >
-                Précédent
+                {t('previous')}
               </button>
-              <span className="text-sm text-sub">Page {page} sur {pageCount}</span>
+              <span className="text-sm text-sub">{t('pageOf', { page, total: pageCount })}</span>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page === pageCount}
                 className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
               >
-                Suivant
+                {t('next')}
               </button>
             </div>
           )}
         </>
       )}
 
-      {/* Modale AlloVérifié */}
+      {/* AlloVérifié modal */}
       {verifModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-text mb-1">Demander AlloVérifié</h2>
+            <h2 className="text-lg font-semibold text-text mb-1">{t('verifModalTitle')}</h2>
             <p className="text-sm text-sub mb-5 truncate">{verifModal.title}</p>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-xs font-medium text-sub mb-1.5">Type d&apos;audit</label>
+                <label className="block text-xs font-medium text-sub mb-1.5">{t('verifAuditType')}</label>
                 <div className="flex gap-3">
                   {[
-                    { value: 'BASIC', label: 'Basique', desc: 'Contrôle des points essentiels' },
-                    { value: 'FULL',  label: 'Complet', desc: 'Audit approfondi avec rapport' },
+                    { value: 'BASIC', label: t('verifAuditBasic'), desc: t('verifAuditBasicDesc') },
+                    { value: 'FULL',  label: t('verifAuditFull'),  desc: t('verifAuditFullDesc')  },
                   ].map((opt) => (
                     <button key={opt.value} type="button"
                       onClick={() => setVerifForm((f) => ({ ...f, auditType: opt.value }))}
@@ -430,82 +426,74 @@ function BailleurListingsContent() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-sub mb-1.5">Date et heure souhaitées</label>
+                <label className="block text-xs font-medium text-sub mb-1.5">{t('verifDateLabel')}</label>
                 <input type="datetime-local" min={minDateStr} value={verifForm.scheduledAt}
                   onChange={(e) => setVerifForm((f) => ({ ...f, scheduledAt: e.target.value }))}
                   className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold-dark" />
               </div>
-              {/* Agent préféré — optionnel */}
               <div>
                 <label className="block text-xs font-medium text-sub mb-1.5">
-                  Agent préféré <span className="text-sub font-normal">(optionnel)</span>
+                  {t('verifAgentLabel')} <span className="text-sub font-normal">{t('verifAgentOptional')}</span>
                 </label>
                 <select
                   value={verifForm.preferredAgentId}
                   onChange={(e) => setVerifForm((f) => ({ ...f, preferredAgentId: e.target.value }))}
                   className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold-dark"
                 >
-                  <option value="">— Pas de préférence (recommandé) —</option>
+                  <option value="">{t('verifAgentDefault')}</option>
                   {agents.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.firstName} {a.lastName}
-                      {a.completedMissions > 0 ? ` · ${a.completedMissions} mission${a.completedMissions > 1 ? 's' : ''}` : ''}
+                      {a.completedMissions > 0 ? ` · ${t('newVerifMissions', { count: a.completedMissions })}` : ''}
                     </option>
                   ))}
                 </select>
-                <p className="text-[10px] text-sub mt-1">
-                  L&apos;administrateur reste libre d&apos;attribuer l&apos;agent le plus disponible.
-                </p>
+                <p className="text-[10px] text-sub mt-1">{t('verifAgentNote')}</p>
               </div>
             </div>
             <div className="flex gap-3 mt-6 justify-end">
               <button onClick={() => { setVerifModal(null); setVerifForm({ auditType: 'BASIC', scheduledAt: '', preferredAgentId: '' }); }}
                 className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
-                Annuler
+                {t('cancel')}
               </button>
               <button onClick={requestVerif} disabled={!verifForm.scheduledAt || verifLoading} className="btn-gold text-sm disabled:opacity-50">
-                {verifLoading ? <i className="fa-solid fa-spinner fa-spin" /> : 'Envoyer la demande'}
+                {verifLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('verifSubmit')}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Modale boost ─────────────────────────────────────── */}
+      {/* Boost modal */}
       {boostModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden">
-
-            {/* Bandeau doré */}
             <div className="bg-linear-to-r from-gold to-gold-light px-6 py-5 text-center">
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 mb-3">
                 <i className="fa-solid fa-rocket text-white text-2xl" />
               </div>
-              <h2 className="text-xl font-extrabold text-gray-900">Booster cette annonce</h2>
+              <h2 className="text-xl font-extrabold text-gray-900">{t('boostListModalTitle')}</h2>
               <p className="text-sm text-gray-800/80 mt-1 truncate">&ldquo;{boostModal.title}&rdquo;</p>
             </div>
 
             <div className="p-6">
-              {/* Prix */}
               <div className="flex items-center justify-between rounded-2xl border border-gold/30 bg-gold-pale/60 px-5 py-4 mb-5">
                 <div>
-                  <p className="text-xs font-bold text-sub uppercase tracking-wider">Prix unique</p>
+                  <p className="text-xs font-bold text-sub uppercase tracking-wider">{t('boostPriceLabel')}</p>
                   <p className="text-3xl font-extrabold text-text mt-0.5">5 000 <span className="text-lg font-semibold">FCFA</span></p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-bold text-sub uppercase tracking-wider">Durée</p>
-                  <p className="text-3xl font-extrabold text-gold-dark mt-0.5">7 <span className="text-lg font-semibold">jours</span></p>
+                  <p className="text-xs font-bold text-sub uppercase tracking-wider">{t('boostDurationLabel')}</p>
+                  <p className="text-3xl font-extrabold text-gold-dark mt-0.5">7 <span className="text-lg font-semibold">{t('boostDurationDays')}</span></p>
                 </div>
               </div>
 
-              {/* Avantages */}
-              <p className="text-xs font-bold text-sub uppercase tracking-wider mb-3">Ce que vous obtenez</p>
               <div className="space-y-2.5 mb-6">
                 {[
-                  { icon: 'fa-bolt',             color: 'text-gold-dark', text: 'Badge « En vedette » affiché sur votre annonce' },
-                  { icon: 'fa-arrow-up',          color: 'text-emerald-600', text: 'Priorité dans les résultats de recherche' },
-                  { icon: 'fa-eye',               color: 'text-blue-500', text: 'Visibilité maximale sur l\'accueil et les listes' },
-                  { icon: 'fa-chart-line',         color: 'text-purple-500', text: 'Score de boost +10 pts (cumulable)' },
+                  { icon: 'fa-bolt',       color: 'text-gold-dark',   text: t('boostListBenefit1') },
+                  { icon: 'fa-arrow-up',   color: 'text-emerald-600', text: t('boostListBenefit2') },
+                  { icon: 'fa-eye',        color: 'text-blue-500',    text: t('boostListBenefit3') },
+                  { icon: 'fa-chart-line', color: 'text-purple-500',  text: t('boostListBenefit4') },
                 ].map((item) => (
                   <div key={item.icon} className="flex items-center gap-3">
                     <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line ${item.color}`}>
@@ -516,78 +504,69 @@ function BailleurListingsContent() {
                 ))}
               </div>
 
-              {/* CTA */}
               <div className="flex gap-3">
                 <button
                   onClick={() => setBoostModal(null)}
                   className="flex-1 rounded-xl border border-line py-3 text-sm font-medium text-sub hover:text-text hover:border-text/30 transition-colors"
                 >
-                  Annuler
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={() => void confirmBoost()}
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 text-sm transition-colors"
                 >
                   <i className="fa-solid fa-lock text-xs" />
-                  Payer 5 000 FCFA
+                  {t('boostListPay')}
                 </button>
               </div>
-              <p className="text-[10px] text-sub text-center mt-3">
-                Paiement sécurisé via PayDunya · Sans engagement
-              </p>
+              <p className="text-[10px] text-sub text-center mt-3">{t('boostListPayNote')}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modale archivage (corbeille) */}
+      {/* Archive modal */}
       {archiveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
               <i className="fa-solid fa-box-archive text-amber-500" />
             </div>
-            <h2 className="text-lg font-semibold text-text mb-1">Archiver l&apos;annonce ?</h2>
-            <p className="text-sm text-sub mb-1">
-              &quot;{archiveModal.title}&quot;
-            </p>
-            <p className="text-xs text-sub mb-6">
-              L&apos;annonce sera masquée du public et placée dans vos archives. Vous pourrez la supprimer définitivement depuis l&apos;onglet Archives.
-            </p>
+            <h2 className="text-lg font-semibold text-text mb-1">{t('archiveModalTitle')}</h2>
+            <p className="text-sm text-sub mb-1">&quot;{archiveModal.title}&quot;</p>
+            <p className="text-xs text-sub mb-6">{t('archiveModalDesc')}</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setArchiveModal(null)}
                 className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
-                Annuler
+                {t('cancel')}
               </button>
               <button onClick={() => void archiveListing()}
                 className="text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl transition-colors">
-                Archiver
+                {t('archiveConfirm')}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modale suppression définitive (depuis archives) */}
+      {/* Delete modal */}
       {deleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
               <i className="fa-solid fa-trash text-red-500" />
             </div>
-            <h2 className="text-lg font-semibold text-text mb-1">Suppression définitive</h2>
+            <h2 className="text-lg font-semibold text-text mb-1">{t('deleteModalTitle')}</h2>
             <p className="text-sm text-sub mb-1">&quot;{deleteModal.title}&quot;</p>
-            <p className="text-xs text-sub mb-6">
-              Cette action est irréversible. L&apos;annonce et toutes ses données seront définitivement supprimées.
-            </p>
+            <p className="text-xs text-sub mb-6">{t('deleteModalDesc')}</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteModal(null)}
                 className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
-                Annuler
+                {t('cancel')}
               </button>
               <button onClick={() => void deleteListing()}
                 className="text-sm font-semibold bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl transition-colors">
-                Supprimer définitivement
+                {t('deleteConfirm')}
               </button>
             </div>
           </div>
@@ -622,11 +601,19 @@ function ListingCard({
   onBoost: (id: string, title: string) => void;
   boosting: string | null;
 }) {
+  const t = useTranslations('bailleur');
   const boosted = !!listing.boostUntil && new Date(listing.boostUntil) > new Date();
+
+  const STATUS_LABELS: Record<ListingStatus, string> = {
+    ACTIVE:    t('statusActive'),
+    DRAFT:     t('statusDraft'),
+    RENTED:    t('statusRented'),
+    SUSPENDED: t('statusArchived'),
+  };
 
   return (
     <div className="rounded-xl border border-line bg-card p-4">
-      {/* ligne 1 */}
+      {/* Row 1 */}
       <div className="flex items-start justify-between gap-3">
         <p className="font-semibold text-text truncate">{listing.title}</p>
         <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_BADGE[listing.status]}`}>
@@ -634,62 +621,69 @@ function ListingCard({
         </span>
       </div>
 
-      {/* ligne 2 */}
+      {/* Row 2 */}
       <p className="text-sm text-sub mt-0.5">
         <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
         {listing.city} · {formatPrice(listing.price)}/mois
       </p>
 
-      {/* badges */}
+      {/* Badges */}
       {(listing.isVerified || (listing._count?.bookings ?? 0) > 0 || boosted) && (
         <div className="flex items-center gap-2 mt-2 flex-wrap">
-          {listing.isVerified && (
-            <AlloVerifieBadge />
-          )}
+          {listing.isVerified && <AlloVerifieBadge />}
           {(listing._count?.bookings ?? 0) > 0 && (
             <span className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">
               <i className="fa-solid fa-calendar text-xs mr-1" />
-              {listing._count?.bookings} réservation{(listing._count?.bookings ?? 0) > 1 ? 's' : ''}
+              {t('reservationCount', { count: listing._count?.bookings ?? 0 })}
             </span>
           )}
           {boosted && (
             <span className="text-xs bg-gold-pale text-gold-dark px-2.5 py-1 rounded-full font-medium">
-              <i className="fa-solid fa-rocket text-xs mr-1" />Boostée
+              <i className="fa-solid fa-rocket text-xs mr-1" />{t('badgeBoosted')}
             </span>
           )}
         </div>
       )}
 
-      {/* actions */}
+      {/* Actions */}
       <div className="flex items-center gap-3 mt-3 flex-wrap">
 
         {listing.status === 'ACTIVE' && (
           <>
             <Link href={`/listings/${listing.id}`} className="text-sm font-medium text-gold-dark hover:underline">
-              Voir <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
+              {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
             </Link>
             <button onClick={() => onUnpublish(listing.id, listing.title)}
               className="text-sm font-medium text-sub hover:text-amber-600 transition-colors">
-              <i className="fa-solid fa-eye-slash text-xs mr-1" />Dépublier
+              <i className="fa-solid fa-eye-slash text-xs mr-1" />{t('actionUnpublish')}
             </button>
             {!boosted && (
               <button onClick={() => onBoost(listing.id, listing.title)} disabled={boosting !== null}
                 className="text-xs font-medium text-sub hover:text-gold-dark border border-line hover:border-gold-dark rounded-lg py-1 px-2.5 transition-colors disabled:opacity-50">
                 {boosting === listing.id
                   ? <i className="fa-solid fa-spinner fa-spin text-xs" />
-                  : <><i className="fa-solid fa-rocket text-xs mr-1" />Booster</>
+                  : <><i className="fa-solid fa-rocket text-xs mr-1" />{t('actionBoost')}</>
+                }
+              </button>
+            )}
+            {boosted && (
+              <button onClick={() => onBoost(listing.id, listing.title)} disabled={boosting !== null}
+                className="text-xs font-medium text-sub hover:text-gold-dark border border-line hover:border-gold-dark rounded-lg py-1 px-2.5 transition-colors disabled:opacity-50">
+                {boosting === listing.id
+                  ? <i className="fa-solid fa-spinner fa-spin text-xs" />
+                  : <><i className="fa-solid fa-rocket text-xs mr-1" />{t('actionBoostRenew')}</>
                 }
               </button>
             )}
             {!listing.isVerified && (
               <button onClick={() => onVerify(listing.id, listing.title)}
                 className="text-xs font-medium text-gold-dark hover:text-gold-600 border border-gold-dark hover:bg-gold-pale rounded-lg py-1 px-2.5 transition-colors">
-                <i className="fa-solid fa-shield-halved text-xs mr-1" /> AlloVérifié
+                <i className="fa-solid fa-shield-halved text-xs mr-1" /> {t('actionAlloVerifie')}
               </button>
             )}
             <button onClick={() => onArchive(listing.id, listing.title)}
               className="text-sm font-medium text-sub hover:text-red-500 transition-colors ml-auto">
-              <i className="fa-solid fa-box-archive text-xs mr-1" />Archiver
+              <i className="fa-solid fa-box-archive text-xs mr-1" />{t('actionArchive')}
             </button>
           </>
         )}
@@ -698,21 +692,21 @@ function ListingCard({
           <>
             <Link href={`/bailleur/listings/${listing.id}/edit`}
               className="text-sm font-medium text-sub hover:text-text transition-colors">
-              <i className="fa-solid fa-pen-to-square text-xs mr-1" />Modifier
+              <i className="fa-solid fa-pen-to-square text-xs mr-1" />{t('actionEdit')}
             </Link>
             <button onClick={() => onPublish(listing.id, listing.title)} className="btn-gold text-xs py-1.5 px-3">
-              <i className="fa-solid fa-upload text-xs mr-1" />Publier
+              <i className="fa-solid fa-upload text-xs mr-1" />{t('actionPublish')}
             </button>
             <button onClick={() => onArchive(listing.id, listing.title)}
               className="text-sm font-medium text-sub hover:text-red-500 transition-colors ml-auto">
-              <i className="fa-solid fa-box-archive text-xs mr-1" />Archiver
+              <i className="fa-solid fa-box-archive text-xs mr-1" />{t('actionArchive')}
             </button>
           </>
         )}
 
         {listing.status === 'RENTED' && (
           <Link href={`/listings/${listing.id}`} className="text-sm font-medium text-gold-dark hover:underline">
-            Voir <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
+            {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
           </Link>
         )}
 
@@ -722,19 +716,19 @@ function ListingCard({
               onClick={() => onRestore(listing.id, listing.title, 'DRAFT')}
               className="text-sm font-medium text-sub hover:text-amber-600 transition-colors"
             >
-              <i className="fa-solid fa-pen-to-square text-xs mr-1" />Brouillon
+              <i className="fa-solid fa-pen-to-square text-xs mr-1" />{t('actionRestoreDraft')}
             </button>
             <button
               onClick={() => onRestore(listing.id, listing.title, 'ACTIVE')}
               className="text-sm font-medium text-sub hover:text-green-600 transition-colors"
             >
-              <i className="fa-solid fa-upload text-xs mr-1" />Republier
+              <i className="fa-solid fa-upload text-xs mr-1" />{t('actionRestoreActive')}
             </button>
             <button
               onClick={() => onDelete(listing.id, listing.title)}
               className="text-sm font-medium text-red-500 hover:text-red-700 transition-colors ml-auto"
             >
-              <i className="fa-solid fa-trash text-xs mr-1" />Supprimer
+              <i className="fa-solid fa-trash text-xs mr-1" />{t('actionDelete')}
             </button>
           </>
         )}

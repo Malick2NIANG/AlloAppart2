@@ -12,6 +12,8 @@ import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { FilterListingsDto } from './dto/filter-listings.dto';
 import { ListingStatus, Role, SubscriptionPlan, SubscriptionStatus, User } from '@prisma/client';
+import { CreateReportDto } from './dto/create-report.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 import axios from 'axios';
 import { PaydunyaWebhookDto } from '../payments/dto/paydunya-webhook.dto';
 
@@ -29,6 +31,7 @@ export class ListingsService {
     private readonly prisma: PrismaService,
     private readonly search: SearchService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async findAll(filters: FilterListingsDto) {
@@ -192,7 +195,7 @@ export class ListingsService {
         },
       },
     });
-    if (!listing) throw new NotFoundException('Annonce introuvable');
+    if (!listing) throw new NotFoundException('Listing not found');
     return listing;
   }
 
@@ -247,7 +250,7 @@ export class ListingsService {
   async update(id: string, user: User, dto: UpdateListingDto) {
     const listing = await this.findOne(id);
     if (listing.ownerId !== user.id && !user.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Non autorise');
+      throw new ForbiddenException('Not authorized');
     }
     const updated = await this.prisma.listing.update({
       where: { id },
@@ -261,11 +264,11 @@ export class ListingsService {
   async archiveListing(id: string, userId: string) {
     const listing = await this.prisma.listing.findUniqueOrThrow({ where: { id } });
     if (listing.ownerId !== userId)
-      throw new ForbiddenException('Non autorise');
+      throw new ForbiddenException('Not authorized');
     if (listing.status === ListingStatus.SUSPENDED)
-      throw new BadRequestException('Annonce déjà archivée');
+      throw new BadRequestException('Listing already archived');
     if (listing.status === ListingStatus.RENTED)
-      throw new BadRequestException('Impossible d\'archiver une annonce louée');
+      throw new BadRequestException('Cannot archive a rented listing');
     const updated = await this.prisma.listing.update({
       where: { id },
       data: { status: ListingStatus.SUSPENDED },
@@ -278,9 +281,9 @@ export class ListingsService {
   async restoreListing(id: string, userId: string, targetStatus: 'DRAFT' | 'ACTIVE') {
     const listing = await this.prisma.listing.findUniqueOrThrow({ where: { id } });
     if (listing.ownerId !== userId)
-      throw new ForbiddenException('Non autorise');
+      throw new ForbiddenException('Not authorized');
     if (listing.status !== ListingStatus.SUSPENDED)
-      throw new BadRequestException('Seules les annonces archivées peuvent être restaurées');
+      throw new BadRequestException('Only archived listings can be restored');
     const updated = await this.prisma.listing.update({
       where: { id },
       data: { status: targetStatus === 'ACTIVE' ? ListingStatus.ACTIVE : ListingStatus.DRAFT },
@@ -292,10 +295,10 @@ export class ListingsService {
   async unpublishListing(id: string, userId: string) {
     const listing = await this.prisma.listing.findUniqueOrThrow({ where: { id } });
     if (listing.ownerId !== userId) {
-      throw new ForbiddenException('Non autorise');
+      throw new ForbiddenException('Not authorized');
     }
     if (listing.status !== ListingStatus.ACTIVE) {
-      throw new BadRequestException('Seules les annonces actives peuvent être dépubliées');
+      throw new BadRequestException('Only active listings can be unpublished');
     }
     const updated = await this.prisma.listing.update({
       where: { id },
@@ -308,10 +311,10 @@ export class ListingsService {
   async publishListing(id: string, userId: string) {
     const listing = await this.prisma.listing.findUniqueOrThrow({ where: { id } });
     if (listing.ownerId !== userId) {
-      throw new ForbiddenException('Non autorise');
+      throw new ForbiddenException('Not authorized');
     }
     if (listing.status !== ListingStatus.DRAFT) {
-      throw new BadRequestException('Seules les annonces en brouillon peuvent être publiées');
+      throw new BadRequestException('Only draft listings can be published');
     }
     const updated = await this.prisma.listing.update({
       where: { id },
@@ -352,7 +355,7 @@ export class ListingsService {
   async remove(id: string, user: User) {
     const listing = await this.findOne(id);
     if (listing.ownerId !== user.id && !user.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Non autorise');
+      throw new ForbiddenException('Not authorized');
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -402,7 +405,7 @@ export class ListingsService {
   async boost(id: string, user: User) {
     const listing = await this.findOne(id);
     if (listing.ownerId !== user.id)
-      throw new ForbiddenException('Non autorise');
+      throw new ForbiddenException('Not authorized');
     return this.initiateBoostWithPayDunya(id);
   }
 
@@ -437,7 +440,7 @@ export class ListingsService {
     const privateKey = this.config.get<string>('PAYDUNYA_PRIVATE_KEY');
     const token = this.config.get<string>('PAYDUNYA_TOKEN');
     if (!masterKey || !privateKey || !token) {
-      throw new BadRequestException('Service de paiement indisponible');
+      throw new BadRequestException('Payment service unavailable');
     }
     const baseUrl = isDev
       ? 'https://app.paydunya.com/sandbox-api/v1'
@@ -476,17 +479,17 @@ export class ListingsService {
         this.logger.error(
           `PayDunya boost ERREUR — status: ${axiosErr.response?.status ?? 'N/A'} — body: ${JSON.stringify(axiosErr.response?.data ?? axiosErr.message)}`,
         );
-        throw new BadRequestException('Service de paiement indisponible');
+        throw new BadRequestException('Payment service unavailable');
       });
 
     if (response.data.response_code !== '00') {
       this.logger.error(`PayDunya boost response_code inattendu : ${JSON.stringify(response.data)}`);
-      throw new BadRequestException('Service de paiement indisponible');
+      throw new BadRequestException('Payment service unavailable');
     }
     const invoiceUrl = response.data.invoice_url;
     if (!invoiceUrl) {
       this.logger.error(`PayDunya boost invoice_url absent — réponse : ${JSON.stringify(response.data)}`);
-      throw new BadRequestException('Service de paiement indisponible');
+      throw new BadRequestException('Payment service unavailable');
     }
     const paymentRef = 'PD-' + response.data.token;
     await this.prisma.boostPayment.create({
@@ -637,5 +640,79 @@ export class ListingsService {
       where: { id: userId, favorites: { some: { id: listingId } } },
     });
     return count > 0;
+  }
+
+  async reportListing(listingId: string, reporterId: string, dto: CreateReportDto) {
+    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+    if (!listing) throw new NotFoundException('Listing not found');
+    if (listing.ownerId === reporterId) {
+      throw new BadRequestException('You cannot report your own listing');
+    }
+
+    // Upsert — un seul signalement par utilisateur par annonce
+    const report = await this.prisma.report.upsert({
+      where: { listingId_reporterId: { listingId, reporterId } },
+      create: { listingId, reporterId, reason: dto.reason, description: dto.description },
+      update: { reason: dto.reason, description: dto.description },
+    });
+
+    // Notifier les admins (non bloquant)
+    try {
+      const reporter = await this.prisma.user.findUnique({
+        where: { id: reporterId },
+        select: { firstName: true, lastName: true, email: true },
+      });
+      const reportCount = await this.prisma.report.count({ where: { listingId } });
+      const reporterName = [reporter?.firstName, reporter?.lastName].filter(Boolean).join(' ')
+        || reporter?.email
+        || 'Utilisateur';
+      void this.notifications.notifyAdminReport(
+        listingId,
+        listing.title,
+        reporterName,
+        dto.reason,
+        reportCount,
+      );
+    } catch { /* non bloquant */ }
+
+    return report;
+  }
+
+  async findAllReports() {
+    const listings = await this.prisma.listing.findMany({
+      where: { reports: { some: {} } },
+      include: {
+        reports: {
+          include: {
+            reporter: { select: { id: true, firstName: true, lastName: true, email: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
+      orderBy: { reports: { _count: 'desc' } },
+    });
+
+    return listings.map((l) => ({
+      listingId: l.id,
+      title:     l.title,
+      city:      l.city,
+      status:    l.status,
+      ownerName: [l.owner.firstName, l.owner.lastName].filter(Boolean).join(' ') || l.owner.email,
+      reportCount: l.reports.length,
+      reasons:     [...new Set(l.reports.map((r) => r.reason))],
+      lastReportAt: l.reports[0]?.createdAt ?? null,
+      reports: l.reports.map((r) => ({
+        id:          r.id,
+        reason:      r.reason,
+        description: r.description,
+        createdAt:   r.createdAt,
+        reporter: {
+          id:    r.reporter.id,
+          name:  [r.reporter.firstName, r.reporter.lastName].filter(Boolean).join(' ') || r.reporter.email,
+          email: r.reporter.email,
+        },
+      })),
+    }));
   }
 }

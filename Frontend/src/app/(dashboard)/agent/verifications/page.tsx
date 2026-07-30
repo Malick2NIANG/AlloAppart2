@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Verification } from '@/types';
 import { useToast } from '@/components/ui/Toast';
@@ -19,24 +20,27 @@ interface FullVerif extends Omit<Verification, 'listing'> {
   };
 }
 
-/* ── Helpers ─────────────────────────────────────────────────────────────── */
+/* ── Status visual config (no text) ──────────────────────────────────────── */
 
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-}
-function fmtTime(d: string) {
-  return new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-}
-
-const AUDIT_LABEL: Record<string, string> = { BASIC: 'Basic', FULL: 'Full' };
+const STATUS_STYLE: Record<string, { bg: string; color: string; icon: string }> = {
+  SCHEDULED:       { bg: 'bg-blue-50',    color: 'text-blue-600',    icon: 'fa-calendar-check' },
+  IN_PROGRESS:     { bg: 'bg-purple-50',  color: 'text-purple-600',  icon: 'fa-person-walking' },
+  DONE:            { bg: 'bg-emerald-50', color: 'text-emerald-600', icon: 'fa-shield-check'   },
+  REJECTED:        { bg: 'bg-red-50',     color: 'text-red-600',     icon: 'fa-circle-xmark'   },
+  REQUESTED:       { bg: 'bg-amber-50',   color: 'text-amber-600',   icon: 'fa-clock'          },
+  DECLINE_PENDING: { bg: 'bg-orange-50',  color: 'text-orange-600',  icon: 'fa-hourglass-half' },
+};
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
 
 export default function AgentVerificationsPage() {
   const { getToken } = useAuth();
   const { toast } = useToast();
+  const t = useTranslations('agent');
   const toastRef = useRef(toast);
   toastRef.current = toast;
+  const tRef = useRef(t);
+  tRef.current = t;
   const router = useRouter();
 
   const [tab,          setTab]          = useState<Tab>('assigned');
@@ -70,9 +74,9 @@ export default function AgentVerificationsPage() {
       ]);
       setAssigned(a);
       setHistory(h);
-    } catch { toastRef.current.error('Impossible de charger les missions.'); }
+    } catch { toastRef.current.error(tRef.current('missionsLoadError')); }
     finally { setLoading(false); }
-  }, [getToken]); // toast exclu des deps pour éviter la boucle infinie
+  }, [getToken]); // toast/t exclus des deps pour éviter la boucle infinie
 
   useEffect(() => { void load(); }, [load]);
 
@@ -86,9 +90,13 @@ export default function AgentVerificationsPage() {
     setActing(id + action);
     try {
       await api.patch(`/verifications/${id}/${action}`, body ?? {}, token);
-      toastRef.current.success(action === 'start' ? 'Mission démarrée !' : action === 'complete' ? 'Mission certifiée ✓' : 'Mission rejetée');
+      toastRef.current.success(
+        action === 'start' ? t('actionStarted')
+        : action === 'complete' ? t('actionCertified')
+        : t('actionRejected'),
+      );
       await load();
-    } catch { toastRef.current.error('Erreur. Veuillez réessayer.'); }
+    } catch { toastRef.current.error(t('genericError')); }
     finally { setActing(null); }
   };
 
@@ -123,7 +131,7 @@ export default function AgentVerificationsPage() {
       // L'agent utilise son propre ID comme tenantId → room entre agent et bailleur
       const room = await api.post<{ id: string }>('/messages/rooms', { listingId }, token);
       router.push(`/agent/messages?room=${room.id}`);
-    } catch { toastRef.current.error('Impossible d\'ouvrir la messagerie.'); }
+    } catch { toastRef.current.error(t('chatOpenError')); }
     finally { setOpeningChat(null); }
   };
 
@@ -146,10 +154,10 @@ export default function AgentVerificationsPage() {
     setActing(declineModal.id + 'decline');
     try {
       await api.patch(`/verifications/${declineModal.id}/decline`, { reason: declineReason }, token);
-      toastRef.current.success('Mission déclinée — l\'admin va réassigner.');
+      toastRef.current.success(t('declineSubmitted'));
       setDeclineModal(null); setDeclineReason('');
       await load();
-    } catch { toastRef.current.error('Erreur. Veuillez réessayer.'); }
+    } catch { toastRef.current.error(t('genericError')); }
     finally { setActing(null); }
   };
 
@@ -160,9 +168,9 @@ export default function AgentVerificationsPage() {
     history,
   };
   const TAB_CONFIG: { key: Tab; label: string; icon: string; count?: number }[] = [
-    { key: 'assigned',   label: 'À faire',   icon: 'fa-calendar-check', count: scheduled.length },
-    { key: 'inprogress', label: 'En cours',  icon: 'fa-person-walking', count: inProgress.length },
-    { key: 'history',    label: 'Terminées', icon: 'fa-circle-check' },
+    { key: 'assigned',   label: t('tabTodo'),       icon: 'fa-calendar-check', count: scheduled.length },
+    { key: 'inprogress', label: t('tabInProgress'), icon: 'fa-person-walking', count: inProgress.length },
+    { key: 'history',    label: t('tabDone'),       icon: 'fa-circle-check' },
   ];
 
   /* ── Render ───────────────────────────────────────────────────────────── */
@@ -172,9 +180,9 @@ export default function AgentVerificationsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-extrabold text-text flex items-center gap-2">
-          <i className="fa-solid fa-shield-halved text-gold-dark" /> Mes missions
+          <i className="fa-solid fa-shield-halved text-gold-dark" /> {t('missionsTitle')}
         </h1>
-        <p className="text-sm text-sub mt-0.5">Vérifications AlloVérifié qui vous sont assignées</p>
+        <p className="text-sm text-sub mt-0.5">{t('missionsSubtitle')}</p>
       </div>
 
       {/* Tabs */}
@@ -229,22 +237,20 @@ export default function AgentVerificationsPage() {
 
       {/* ── Modal Décliner ── */}
       {declineModal && (
-        <Modal title="Décliner la mission" onClose={() => { setDeclineModal(null); setDeclineReason(''); }}>
+        <Modal title={t('declineModalTitle')} onClose={() => { setDeclineModal(null); setDeclineReason(''); }}>
           <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 mb-4 flex items-start gap-2">
             <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 shrink-0" />
-            <p className="text-xs text-blue-700">
-              Votre demande sera transmise à l&apos;admin pour approbation. La mission reste assignée jusqu&apos;à sa décision. Un motif est obligatoire.
-            </p>
+            <p className="text-xs text-blue-700">{t('declineInfo')}</p>
           </div>
           <p className="text-sm text-sub mb-2">
-            Mission : <span className="font-semibold text-text">{declineModal.listing?.title}</span>
+            {t('missionLabel')} <span className="font-semibold text-text">{declineModal.listing?.title}</span>
           </p>
           <label className="block text-xs font-semibold text-sub uppercase tracking-wide mb-1.5">
-            Motif du déclin <span className="text-red-500">*</span>
+            {t('declineReasonLabel')} <span className="text-red-500">*</span>
           </label>
           <textarea
             rows={4}
-            placeholder="Expliquez pourquoi vous ne pouvez pas effectuer cette mission (indisponibilité, conflit horaire, etc.)..."
+            placeholder={t('declineReasonPh')}
             value={declineReason}
             onChange={(e) => setDeclineReason(e.target.value)}
             maxLength={500}
@@ -252,7 +258,7 @@ export default function AgentVerificationsPage() {
           />
           <p className="text-[11px] text-sub text-right mt-0.5">{declineReason.length}/500</p>
           <div className="flex gap-3 mt-3 justify-end">
-            <button onClick={() => { setDeclineModal(null); setDeclineReason(''); }} className="btn-cancel text-sm">Annuler</button>
+            <button onClick={() => { setDeclineModal(null); setDeclineReason(''); }} className="btn-cancel text-sm">{t('cancel')}</button>
             <button
               onClick={() => void submitDecline()}
               disabled={!declineReason.trim() || acting !== null}
@@ -260,7 +266,7 @@ export default function AgentVerificationsPage() {
             >
               {acting
                 ? <i className="fa-solid fa-spinner fa-spin" />
-                : <><i className="fa-solid fa-paper-plane text-xs" /> Soumettre à l&apos;admin</>
+                : <><i className="fa-solid fa-paper-plane text-xs" /> {t('submitToAdmin')}</>
               }
             </button>
           </div>
@@ -269,23 +275,23 @@ export default function AgentVerificationsPage() {
 
       {/* ── Modal Terminer ── */}
       {completeModal && (
-        <Modal title="Terminer la vérification" onClose={() => { setCompleteModal(null); setCompleteNotes(''); setCompleteReport(''); setCompleteTour(''); setPhotos([]); }}>
+        <Modal title={t('completeModalTitle')} onClose={() => { setCompleteModal(null); setCompleteNotes(''); setCompleteReport(''); setCompleteTour(''); setPhotos([]); }}>
           <p className="text-sm text-sub mb-4">
-            Mission : <span className="font-semibold text-text">{completeModal.listing?.title}</span>
+            {t('missionLabel')} <span className="font-semibold text-text">{completeModal.listing?.title}</span>
           </p>
 
           <div className="space-y-4">
             {/* Notes */}
-            <Field label="Observations de terrain">
+            <Field label={t('fieldObservations')}>
               <textarea
                 rows={3} value={completeNotes} onChange={(e) => setCompleteNotes(e.target.value)}
-                placeholder="État du bien, remarques, points importants..."
+                placeholder={t('fieldObservationsPh')}
                 className="input-field resize-none"
               />
             </Field>
 
             {/* Photos */}
-            <Field label={`Photos terrain (${photos.length})`}>
+            <Field label={t('fieldPhotosCount', { count: photos.length })}>
               <div className="space-y-2">
                 {photos.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
@@ -311,8 +317,8 @@ export default function AgentVerificationsPage() {
                   className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-bg py-3 text-sm text-sub hover:border-gold/40 hover:text-gold-dark transition-colors"
                 >
                   {uploadingPhotos
-                    ? <><i className="fa-solid fa-spinner fa-spin" /> Envoi…</>
-                    : <><i className="fa-solid fa-camera" /> Ajouter des photos</>
+                    ? <><i className="fa-solid fa-spinner fa-spin" /> {t('uploading')}</>
+                    : <><i className="fa-solid fa-camera" /> {t('addPhotos')}</>
                   }
                 </button>
                 <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
@@ -320,29 +326,29 @@ export default function AgentVerificationsPage() {
             </Field>
 
             {/* Rapport */}
-            <Field label="URL du rapport (optionnel)">
+            <Field label={t('fieldReportUrl')}>
               <input type="url" value={completeReport} onChange={(e) => setCompleteReport(e.target.value)}
                 placeholder="https://drive.google.com/..." className="input-field" />
             </Field>
 
             {/* Visite 3D */}
-            <Field label={<>Lien visite 3D <span className="text-gold-dark font-bold">AlloVérifié™</span> <span className="text-sub font-normal">(optionnel)</span></>}>
+            <Field label={<>{t('fieldTour3d')} <span className="text-gold-dark font-bold">AlloVérifié™</span> <span className="text-sub font-normal">{t('fieldOptional')}</span></>}>
               <input type="url" value={completeTour} onChange={(e) => setCompleteTour(e.target.value)}
                 placeholder="https://lumalabs.ai/capture/..." className="input-field" />
-              <p className="mt-1 text-[11px] text-sub">Filmez avec Luma AI et collez le lien ici.</p>
+              <p className="mt-1 text-[11px] text-sub">{t('tour3dHint')}</p>
             </Field>
           </div>
 
           <div className="flex gap-3 mt-5 justify-end">
-            <button onClick={() => { setCompleteModal(null); setPhotos([]); }} className="btn-cancel text-sm">Annuler</button>
+            <button onClick={() => { setCompleteModal(null); setPhotos([]); }} className="btn-cancel text-sm">{t('cancel')}</button>
             <button
               onClick={() => void submitComplete()}
               disabled={acting !== null}
               className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-2 disabled:opacity-50 transition-colors flex items-center gap-2"
             >
               {acting
-                ? <><i className="fa-solid fa-spinner fa-spin" /> Envoi…</>
-                : <><i className="fa-solid fa-shield-check" /> Certifier le bien</>
+                ? <><i className="fa-solid fa-spinner fa-spin" /> {t('uploading')}</>
+                : <><i className="fa-solid fa-shield-check" /> {t('certifyProperty')}</>
               }
             </button>
           </div>
@@ -365,6 +371,23 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
   onDecline: () => void;
   onContact: () => void;
 }) {
+  const t = useTranslations('agent');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
+
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString(numLocale, { day: 'numeric', month: 'long', year: 'numeric' });
+  const fmtTime = (d: string) => new Date(d).toLocaleTimeString(numLocale, { hour: '2-digit', minute: '2-digit' });
+
+  const STATUS_LABELS: Record<string, string> = {
+    SCHEDULED:       t('statusScheduled'),
+    IN_PROGRESS:     t('statusInProgress'),
+    DONE:            t('statusDone'),
+    REJECTED:        t('statusRejected'),
+    REQUESTED:       t('statusRequested'),
+    DECLINE_PENDING: t('statusDeclinePendingLong'),
+  };
+  const AUDIT_LABELS: Record<string, string> = { BASIC: t('auditBasic'), FULL: t('auditFull') };
+
   const isScheduled   = v.status === 'SCHEDULED';
   const isInProgress  = v.status === 'IN_PROGRESS';
   const isDone        = v.status === 'DONE';
@@ -375,14 +398,8 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
   const canStart  = new Date() >= earliest;
   const minsLeft  = Math.ceil((earliest.getTime() - Date.now()) / 60000);
 
-  const statusCfg = {
-    SCHEDULED:       { label: 'Planifiée',               bg: 'bg-blue-50',    color: 'text-blue-600',    icon: 'fa-calendar-check' },
-    IN_PROGRESS:     { label: 'En cours',                bg: 'bg-purple-50',  color: 'text-purple-600',  icon: 'fa-person-walking' },
-    DONE:            { label: 'Certifiée',               bg: 'bg-emerald-50', color: 'text-emerald-600', icon: 'fa-shield-check'   },
-    REJECTED:        { label: 'Rejetée',                 bg: 'bg-red-50',     color: 'text-red-600',     icon: 'fa-circle-xmark'   },
-    REQUESTED:       { label: 'En attente',              bg: 'bg-amber-50',   color: 'text-amber-600',   icon: 'fa-clock'          },
-    DECLINE_PENDING: { label: 'Déclin en attente admin', bg: 'bg-orange-50',  color: 'text-orange-600',  icon: 'fa-hourglass-half' },
-  }[v.status] ?? { label: v.status, bg: 'bg-bg', color: 'text-sub', icon: 'fa-circle' };
+  const style = STATUS_STYLE[v.status] ?? { bg: 'bg-bg', color: 'text-sub', icon: 'fa-circle' };
+  const statusLabel = STATUS_LABELS[v.status] ?? v.status;
 
   return (
     <div className={`rounded-2xl border bg-card overflow-hidden transition-colors ${
@@ -394,18 +411,18 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
 
       {/* Header cliquable */}
       <button type="button" onClick={onToggle} className="w-full flex items-start gap-4 p-4 text-left hover:bg-bg/40 transition-colors">
-        <div className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center ${statusCfg.bg}`}>
-          <i className={`fa-solid ${statusCfg.icon} ${statusCfg.color}`} />
+        <div className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center ${style.bg}`}>
+          <i className={`fa-solid ${style.icon} ${style.color}`} />
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-0.5">
-            <p className="font-bold text-text text-sm truncate">{v.listing?.title ?? 'Mission'}</p>
-            <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>
-              {statusCfg.label}
+            <p className="font-bold text-text text-sm truncate">{v.listing?.title ?? t('missionFallback')}</p>
+            <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${style.bg} ${style.color}`}>
+              {statusLabel}
             </span>
             <span className="text-[10px] text-sub bg-bg border border-line px-2 py-0.5 rounded-full">
-              {AUDIT_LABEL[v.auditType] ?? v.auditType}
+              {AUDIT_LABELS[v.auditType] ?? v.auditType}
             </span>
           </div>
           <p className="text-xs text-sub">
@@ -414,7 +431,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
           </p>
           <p className="text-xs text-sub mt-0.5">
             <i className="fa-regular fa-calendar text-[10px] mr-1" />
-            {fmtDate(v.scheduledAt)} à {fmtTime(v.scheduledAt)}
+            {fmtDate(v.scheduledAt)} · {fmtTime(v.scheduledAt)}
           </p>
         </div>
 
@@ -433,7 +450,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-text">{v.listing.owner.firstName} {v.listing.owner.lastName}</p>
-                <p className="text-[10px] text-sub">Propriétaire</p>
+                <p className="text-[10px] text-sub">{t('ownerLabel')}</p>
               </div>
               <div className="flex gap-2">
                 {v.listing.owner.phone && (
@@ -457,7 +474,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                   onClick={onContact}
                   disabled={openingChat !== null}
                   className="h-8 w-8 rounded-full bg-gold-pale flex items-center justify-center text-gold-dark hover:bg-gold/20 transition-colors disabled:opacity-50"
-                  title="Messagerie interne"
+                  title={t('internalChat')}
                 >
                   {openingChat === v.id
                     ? <i className="fa-solid fa-spinner fa-spin text-xs" />
@@ -471,13 +488,13 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
           {/* Notes / rapport si DONE */}
           {isDone && v.notes && (
             <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3">
-              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-1">Vos observations</p>
+              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-1">{t('yourObservations')}</p>
               <p className="text-sm text-emerald-800">{v.notes}</p>
             </div>
           )}
           {isDone && v.photos?.length > 0 && (
             <div>
-              <p className="text-[10px] font-bold text-sub uppercase tracking-wide mb-2">Photos ({v.photos.length})</p>
+              <p className="text-[10px] font-bold text-sub uppercase tracking-wide mb-2">{t('photosCount', { count: v.photos.length })}</p>
               <div className="grid grid-cols-3 gap-2">
                 {v.photos.map((url, i) => (
                   <a key={i} href={url} target="_blank" rel="noreferrer" className="aspect-square rounded-xl overflow-hidden block">
@@ -492,7 +509,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
           {/* Motif rejet */}
           {isRejected && v.notes && (
             <div className="rounded-xl bg-red-50 border border-red-100 p-3">
-              <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-1">Motif du rejet</p>
+              <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-1">{t('rejectReason')}</p>
               <p className="text-sm text-red-700">{v.notes}</p>
             </div>
           )}
@@ -502,8 +519,8 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
             <div className="rounded-xl bg-orange-50 border border-orange-200 p-3 flex items-start gap-2">
               <i className="fa-solid fa-hourglass-half text-orange-500 mt-0.5 text-sm" />
               <div>
-                <p className="text-sm font-semibold text-orange-700">Déclin en attente d&apos;approbation</p>
-                <p className="text-xs text-orange-600 mt-0.5">Votre demande de déclin a été transmise à l&apos;admin. Vous serez notifié de sa décision.</p>
+                <p className="text-sm font-semibold text-orange-700">{t('declinePendingTitle')}</p>
+                <p className="text-xs text-orange-600 mt-0.5">{t('declinePendingDesc')}</p>
               </div>
             </div>
           )}
@@ -516,14 +533,14 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                     disabled={acting !== null}
                     className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white text-sm font-semibold py-2.5 disabled:opacity-50 transition-colors"
                   >
-                    {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-play text-xs" /> Démarrer la visite</>}
+                    {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-play text-xs" /> {t('startVisit')}</>}
                   </button>
                 ) : (
                   <div className="flex-1 flex items-center gap-2 rounded-xl bg-blue-50 border border-blue-200 px-4 py-2.5">
                     <i className="fa-solid fa-clock text-blue-500 text-sm shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-blue-700">Visite planifiée à {fmtTime(v.scheduledAt)}</p>
-                      <p className="text-[10px] text-blue-500">Disponible dans {minsLeft} min</p>
+                      <p className="text-xs font-semibold text-blue-700">{t('visitScheduledAt', { time: fmtTime(v.scheduledAt) })}</p>
+                      <p className="text-[10px] text-blue-500">{t('availableIn', { mins: minsLeft })}</p>
                     </div>
                   </div>
                 )
@@ -534,7 +551,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                   disabled={acting !== null}
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 disabled:opacity-50 transition-colors"
                 >
-                  <i className="fa-solid fa-shield-check text-xs" /> Certifier le bien
+                  <i className="fa-solid fa-shield-check text-xs" /> {t('certifyProperty')}
                 </button>
               )}
               {/* Un seul bouton Décliner — motif obligatoire + approbation admin requise */}
@@ -544,7 +561,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                   disabled={acting !== null}
                   className="flex items-center gap-1.5 rounded-xl border border-amber-200 text-amber-600 hover:bg-amber-50 text-sm font-medium px-4 py-2.5 transition-colors disabled:opacity-50"
                 >
-                  <i className="fa-solid fa-ban text-xs" /> Décliner
+                  <i className="fa-solid fa-ban text-xs" /> {t('decline')}
                 </button>
               )}
             </div>
@@ -554,7 +571,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
           <div className="pt-1 flex justify-end">
             <Link href={`/agent/verifications/${v.id}`}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-dark hover:underline">
-              <i className="fa-solid fa-arrow-up-right-from-square text-[10px]" /> Voir le détail complet
+              <i className="fa-solid fa-arrow-up-right-from-square text-[10px]" /> {t('seeFullDetail')}
             </Link>
           </div>
         </div>
@@ -566,10 +583,11 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
 /* ── Empty state ─────────────────────────────────────────────────────────── */
 
 function EmptyState({ tab }: { tab: Tab }) {
+  const t = useTranslations('agent');
   const cfg = {
-    assigned:   { icon: 'fa-calendar-check', text: 'Aucune mission planifiée', sub: 'Les missions assignées par l\'admin apparaîtront ici.' },
-    inprogress: { icon: 'fa-person-walking',  text: 'Aucune visite en cours',  sub: 'Démarrez une mission planifiée pour la voir ici.' },
-    history:    { icon: 'fa-shield-check',    text: 'Aucune mission terminée', sub: 'Votre historique de certifications apparaîtra ici.' },
+    assigned:   { icon: 'fa-calendar-check', text: t('emptyAssignedTitle'),   sub: t('emptyAssignedSub')   },
+    inprogress: { icon: 'fa-person-walking', text: t('emptyInProgressTitle'), sub: t('emptyInProgressSub') },
+    history:    { icon: 'fa-shield-check',   text: t('emptyHistoryTitle'),    sub: t('emptyHistorySub')    },
   }[tab];
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-line bg-card">

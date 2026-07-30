@@ -34,7 +34,9 @@ export interface Listing {
   id: string;
   title: string;
   description: string;
-  price: string | number; // Decimal → string via JSON
+  price: string | number;          // Tarif mensuel — Decimal → string via JSON
+  pricePerNight?: string | number | null; // Tarif par nuit (optionnel)
+  minimumNights?: number | null;          // Durée minimum de séjour en nuits
   type: ListingType;
   status: ListingStatus;
   isVerified: boolean;
@@ -53,7 +55,7 @@ export interface Listing {
   images: string[];
   amenities: string[];
   ownerId: string;
-  owner?: Pick<User, 'id' | 'firstName' | 'lastName' | 'agencyName' | 'agencySlug' | 'avatar' | 'roles'>;
+  owner?: Pick<User, 'id' | 'firstName' | 'lastName' | 'agencyName' | 'agencySlug' | 'avatar' | 'roles' | 'phone'>;
   _count?: { reviews: number; bookings?: number };
   avgRating?: number | null;
   verification?: Verification;
@@ -82,7 +84,9 @@ export interface Booking {
   tenant?: Pick<User, 'id' | 'firstName' | 'lastName'>;
   startDate: string;
   endDate?: string;
-  totalAmount: string; // Decimal → string via JSON
+  totalAmount: string;    // Decimal → string via JSON
+  platformFee?: string;   // commission AlloAppart (10%)
+  landlordAmount?: string; // montant net bailleur
   status: BookingStatus;
   escrowStatus: EscrowStatus;
   paymentRef?: string;
@@ -124,7 +128,7 @@ export interface MessageReplyTo {
   content: string;
   senderId: string;
   deletedAt?: string | null;
-  sender?: Pick<User, 'id' | 'firstName' | 'lastName'>;
+  sender?: Pick<User, 'id' | 'firstName' | 'lastName' | 'agencyName' | 'roles'>;
 }
 
 export interface Message {

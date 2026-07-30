@@ -126,7 +126,7 @@ export default async function RegionPage({
             </div>
             <p className="text-sub">{t('empty')}</p>
             <Link href="/listings" className="btn-gold px-5 py-2.5 rounded-full text-sm font-semibold">
-              {locale === 'fr' ? 'Voir toutes les annonces' : 'See all listings'}
+              {t('viewAll')}
             </Link>
           </div>
         ) : (

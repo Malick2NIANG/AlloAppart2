@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 
 export default function GlobalError({
   error,
@@ -10,6 +11,8 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations('error');
+
   useEffect(() => {
     console.error(error);
   }, [error]);
@@ -19,18 +22,16 @@ export default function GlobalError({
       <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-red-50">
         <i className="fa-solid fa-triangle-exclamation text-4xl text-red-400" />
       </div>
-      <h1 className="text-3xl font-bold text-text">Une erreur est survenue</h1>
-      <p className="mt-3 max-w-sm text-sub">
-        Quelque chose s&apos;est mal passé. Réessayez ou revenez à l&apos;accueil.
-      </p>
+      <h1 className="text-3xl font-bold text-text">{t('title')}</h1>
+      <p className="mt-3 max-w-sm text-sub">{t('description')}</p>
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         <button onClick={reset} className="btn-gold px-6 py-2.5">
           <i className="fa-solid fa-rotate-right mr-2" />
-          Réessayer
+          {t('retry')}
         </button>
         <Link href="/" className="rounded-full border border-line px-6 py-2.5 text-sm font-medium text-text hover:bg-card transition">
           <i className="fa-solid fa-house mr-2" />
-          Accueil
+          {t('home')}
         </Link>
       </div>
     </main>

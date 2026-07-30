@@ -84,7 +84,7 @@ export class SubscriptionsService {
     const token = this.config.get<string>('PAYDUNYA_TOKEN');
 
     if (!masterKey || !privateKey || !token) {
-      throw new BadRequestException('Service de paiement indisponible');
+      throw new BadRequestException('Payment service unavailable');
     }
 
     const baseUrl = isDev
@@ -92,7 +92,7 @@ export class SubscriptionsService {
       : 'https://app.paydunya.com/api/v1';
 
     const response = await axios
-      .post<{ response_code: string; token: string; invoice_url: string }>(
+      .post<{ response_code: string; token: string; response_text: string }>(
         `${baseUrl}/checkout-invoice/create`,
         {
           invoice: {
@@ -119,22 +119,22 @@ export class SubscriptionsService {
         this.logger.error(
           `PayDunya create-invoice ERREUR — status: ${axiosErr.response?.status ?? 'N/A'} — body: ${JSON.stringify(axiosErr.response?.data ?? axiosErr.message)}`,
         );
-        throw new BadRequestException('Service de paiement indisponible');
+        throw new BadRequestException('Payment service unavailable');
       });
 
     if (response.data.response_code !== '00') {
       this.logger.error(
         `PayDunya response_code inattendu : ${JSON.stringify(response.data)}`,
       );
-      throw new BadRequestException('Service de paiement indisponible');
+      throw new BadRequestException('Payment service unavailable');
     }
 
-    const invoiceUrl = response.data.invoice_url;
+    const invoiceUrl = response.data.response_text;
     if (!invoiceUrl) {
       this.logger.error(
-        `PayDunya invoice_url absent malgré response_code 00 — réponse : ${JSON.stringify(response.data)}`,
+        `PayDunya response_text absent malgré response_code 00 — réponse : ${JSON.stringify(response.data)}`,
       );
-      throw new BadRequestException('Service de paiement indisponible');
+      throw new BadRequestException('Payment service unavailable');
     }
 
     const paymentRef = `PD-${response.data.token}`;
@@ -279,7 +279,7 @@ export class SubscriptionsService {
     const sub = await this.prisma.subscription.findUnique({
       where: { userId },
     });
-    if (!sub) throw new BadRequestException("Pas d'abonnement trouve");
+    if (!sub) throw new BadRequestException("No subscription found");
     return this.prisma.subscription.update({
       where: { userId },
       data: { status: SubscriptionStatus.CANCELLED },

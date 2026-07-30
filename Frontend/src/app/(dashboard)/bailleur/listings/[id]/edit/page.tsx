@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter, useParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Listing } from '@/types';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
@@ -19,65 +20,20 @@ const SENEGAL_REGIONS = [
   'Sédhiou', 'Kédougou', 'Louga', 'Diourbel',
 ];
 
-const AMENITIES = [
-  { key: 'wifi',       icon: 'fa-wifi',         label: 'Wi-Fi'             },
-  { key: 'clim',       icon: 'fa-snowflake',     label: 'Climatisation'     },
-  { key: 'tv',         icon: 'fa-tv',            label: 'Télévision'        },
-  { key: 'cuisine',    icon: 'fa-utensils',      label: 'Cuisine équipée'   },
-  { key: 'douche',     icon: 'fa-shower',        label: 'Douche / SdB'      },
-  { key: 'gardien',    icon: 'fa-shield-halved', label: 'Gardiennage'       },
-  { key: 'parking',    icon: 'fa-car',           label: 'Parking'           },
-  { key: 'piscine',    icon: 'fa-water',         label: 'Piscine'           },
-  { key: 'balcon',     icon: 'fa-door-open',     label: 'Balcon / Terrasse' },
-  { key: 'generateur', icon: 'fa-bolt',          label: 'Générateur'        },
-];
+const AMENITY_KEYS = [
+  { key: 'wifi',       icon: 'fa-wifi',         tKey: 'amenityWifi'      },
+  { key: 'clim',       icon: 'fa-snowflake',     tKey: 'amenityAirCon'   },
+  { key: 'tv',         icon: 'fa-tv',            tKey: 'amenityTv'       },
+  { key: 'cuisine',    icon: 'fa-utensils',      tKey: 'amenityKitchen'  },
+  { key: 'douche',     icon: 'fa-shower',        tKey: 'amenityShower'   },
+  { key: 'gardien',    icon: 'fa-shield-halved', tKey: 'amenitySecurity' },
+  { key: 'parking',    icon: 'fa-car',           tKey: 'amenityParking'  },
+  { key: 'piscine',    icon: 'fa-water',         tKey: 'amenityPool'     },
+  { key: 'balcon',     icon: 'fa-door-open',     tKey: 'amenityBalcony'  },
+  { key: 'generateur', icon: 'fa-bolt',          tKey: 'amenityGenerator'},
+] as const;
 
 const asNumberOrUndefined = (v: unknown) => (v === '' || v === null || v === undefined ? undefined : Number(v));
-
-const schema = z.object({
-  title:       z.string().min(5, 'Le titre est trop court — décrivez votre bien en au moins 5 caractères'),
-  description: z.string().min(20, 'La description est trop courte — détaillez votre bien en au moins 20 caractères'),
-  type:        z.enum(LISTING_TYPES),
-  price:       z.number().positive('Le prix doit être un nombre positif — entrez le loyer mensuel en FCFA'),
-  lat:         z.number(),
-  lng:         z.number(),
-  address:     z.string().min(5, "L'adresse est trop courte — précisez la rue et le numéro"),
-  city:        z.string().min(2, 'Indiquez une ville valide'),
-  region:      z.string().min(2, 'Indiquez une région valide'),
-  surface:     z.number().positive('La surface doit être un nombre positif').optional(),
-  rooms:       z.number().int('Le nombre de pièces doit être un nombre entier').min(0, 'Le nombre de pièces ne peut pas être négatif').optional(),
-  beds:        z.number().int('Le nombre de chambres doit être un nombre entier').min(0, 'Le nombre de chambres ne peut pas être négatif').optional(),
-  baths:       z.number().int('Le nombre de SDB doit être un nombre entier').min(0, 'Le nombre de SDB ne peut pas être négatif').optional(),
-  amenities:   z.array(z.string()).default([]),
-  images:      z.array(z.string()).min(1, 'Au moins une photo est requise'),
-});
-
-type FormValues = z.infer<typeof schema>;
-
-const FIELD_LABELS: Record<keyof FormValues, string> = {
-  title: 'Titre',
-  description: 'Description',
-  type: 'Type de bien',
-  price: 'Prix mensuel',
-  lat: 'Latitude',
-  lng: 'Longitude',
-  address: 'Adresse',
-  city: 'Ville',
-  region: 'Région',
-  surface: 'Surface',
-  rooms: 'Pièces',
-  beds: 'Chambres',
-  baths: 'Salles de bain',
-  amenities: 'Équipements',
-  images:    'Photos',
-};
-
-const STEPS: { label: string; fields: (keyof FormValues)[] }[] = [
-  { label: 'Informations de base', fields: ['title', 'description', 'type', 'price'] },
-  { label: 'Localisation',         fields: ['address', 'city', 'region', 'lat', 'lng'] },
-  { label: 'Détails du bien',      fields: ['surface', 'rooms', 'beds', 'baths'] },
-  { label: 'Équipements & Photos', fields: ['amenities', 'images'] },
-];
 
 const inputCls = (hasError: boolean) =>
   `w-full rounded-xl border bg-bg px-3 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:ring-1 transition ${
@@ -88,11 +44,63 @@ export default function EditListingPage() {
   const { id } = useParams<{ id: string }>();
   const { getToken } = useAuth();
   const router = useRouter();
-  const [mapReady, setMapReady]     = useState(false);
-  const [step, setStep]             = useState(0);
+  const t = useTranslations('bailleur');
+  const [mapReady, setMapReady]       = useState(false);
+  const [step, setStep]               = useState(0);
   const [loadingData, setLoadingData] = useState(true);
   const [loadError, setLoadError]     = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const schema = useMemo(() => z.object({
+    title:         z.string().min(5, t('zTitleTooShort')),
+    description:   z.string().min(20, t('zDescTooShort')),
+    type:          z.enum(LISTING_TYPES),
+    price:         z.number().positive(t('zPricePositive')),
+    pricePerNight: z.number().positive(t('zPriceNightPositive')).optional(),
+    minimumNights: z.number().int().min(1, t('zMinNights')).optional(),
+    lat:           z.number(),
+    lng:           z.number(),
+    address:       z.string().min(5, t('zAddressShort')),
+    city:          z.string().min(2, t('zCityShort')),
+    region:        z.string().min(2, t('zRegionShort')),
+    surface:       z.number().positive(t('zSurfacePositive')).optional(),
+    rooms:         z.number().int(t('zRoomsInt')).min(0, t('zRoomsMin')).optional(),
+    beds:          z.number().int(t('zBedsInt')).min(0, t('zBedsMin')).optional(),
+    baths:         z.number().int(t('zBathsInt')).min(0, t('zBathsMin')).optional(),
+    amenities:     z.array(z.string()).default([]),
+    images:        z.array(z.string()).min(1, t('zImageRequired')),
+  }), [t]);
+
+  type FormValues = z.infer<typeof schema>;
+
+  const FIELD_LABELS = useMemo((): Record<string, string> => ({
+    title:         t('fieldTitle'),
+    description:   t('fieldDescription'),
+    type:          t('fieldType'),
+    price:         t('fieldPrice'),
+    pricePerNight: t('fieldPriceNight'),
+    minimumNights: t('fieldMinNights'),
+    lat:           'Latitude',
+    lng:           'Longitude',
+    address:       t('fieldAddress'),
+    city:          t('fieldCity'),
+    region:        t('fieldRegion'),
+    surface:       t('fieldSurface'),
+    rooms:         t('fieldRooms'),
+    beds:          t('fieldBeds'),
+    baths:         t('fieldBaths'),
+    amenities:     t('fieldAmenities'),
+    images:        t('fieldImages'),
+  }), [t]);
+
+  const STEPS = useMemo(() => [
+    { label: t('stepBasicInfo'),       fields: ['title', 'description', 'type', 'price', 'pricePerNight', 'minimumNights'] },
+    { label: t('stepLocation'),         fields: ['address', 'city', 'region', 'lat', 'lng'] },
+    { label: t('stepDetails'),          fields: ['surface', 'rooms', 'beds', 'baths'] },
+    { label: t('stepAmenitiesPhotos'),  fields: ['amenities', 'images'] },
+  ] as { label: string; fields: string[] }[], [t]);
+
+  const AMENITIES = useMemo(() => AMENITY_KEYS.map((a) => ({ key: a.key, icon: a.icon, label: t(a.tKey as Parameters<typeof t>[0]) })), [t]);
 
   const {
     register, handleSubmit, reset, setValue, watch, trigger,
@@ -102,7 +110,6 @@ export default function EditListingPage() {
     mode: 'onBlur',
   });
 
-  // Ref stable pour éviter que reset() dans le useEffect re-déclenche l'effet à chaque cycle
   const resetRef = useRef(reset);
   useEffect(() => { resetRef.current = reset; });
 
@@ -118,34 +125,38 @@ export default function EditListingPage() {
     (async () => {
       const token = await getToken();
       if (!token) {
-        if (!cancelled) { setLoadError("Impossible de charger l'annonce."); setLoadingData(false); }
+        if (!cancelled) { setLoadError(t('editLoadError')); setLoadingData(false); }
         return;
       }
       try {
         const listing = await api.get<Listing>(`/listings/${id}`, token);
         if (cancelled) return;
         resetRef.current({
-          title:       listing.title,
-          description: listing.description,
-          type:        listing.type,
-          price:       typeof listing.price === 'string' ? parseFloat(listing.price) : listing.price,
-          lat:         listing.lat,
-          lng:         listing.lng,
-          address:     listing.address ?? '',
-          city:        listing.city,
-          region:      listing.region,
-          surface:     listing.surface ?? undefined,
-          rooms:       listing.rooms ?? undefined,
-          beds:        listing.beds ?? undefined,
-          baths:       listing.baths ?? undefined,
-          amenities:   listing.amenities ?? [],
-          images:      listing.images ?? [],
+          title:         listing.title,
+          description:   listing.description,
+          type:          listing.type,
+          price:         typeof listing.price === 'string' ? parseFloat(listing.price) : listing.price,
+          pricePerNight: listing.pricePerNight != null
+            ? (typeof listing.pricePerNight === 'string' ? parseFloat(listing.pricePerNight) : listing.pricePerNight)
+            : undefined,
+          minimumNights: listing.minimumNights ?? undefined,
+          lat:           listing.lat,
+          lng:           listing.lng,
+          address:       listing.address ?? '',
+          city:          listing.city,
+          region:        listing.region,
+          surface:       listing.surface ?? undefined,
+          rooms:         listing.rooms ?? undefined,
+          beds:          listing.beds ?? undefined,
+          baths:         listing.baths ?? undefined,
+          amenities:     listing.amenities ?? [],
+          images:        listing.images ?? [],
         });
         setMapReady(true);
         setLoadingData(false);
       } catch {
         if (!cancelled) {
-          setLoadError("Impossible de charger l'annonce.");
+          setLoadError(t('editLoadError'));
           setLoadingData(false);
         }
       }
@@ -156,14 +167,13 @@ export default function EditListingPage() {
 
   const stepFields = STEPS[step].fields;
   const stepErrors = stepFields
-    .filter((f) => errors[f])
-    .map((f) => ({ field: f, label: FIELD_LABELS[f], message: errors[f]?.message as string }));
+    .filter((f) => errors[f as keyof FormValues])
+    .map((f) => ({ field: f, label: FIELD_LABELS[f] ?? f, message: errors[f as keyof FormValues]?.message as string }));
 
   async function goNext() {
-    const valid = await trigger(stepFields);
+    const valid = await trigger(stepFields as (keyof FormValues)[]);
     if (valid) {
       setStep((s) => Math.min(s + 1, STEPS.length - 1));
-      // Évite que le focus reste sur "Suivant" → "Enregistrer" et déclenche une soumission accidentelle
       (document.activeElement as HTMLElement)?.blur();
     }
   }
@@ -180,7 +190,7 @@ export default function EditListingPage() {
       router.push('/bailleur/listings');
       router.refresh();
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde.');
+      setSubmitError(err instanceof Error ? err.message : t('editSaveError'));
     }
   }
 
@@ -198,7 +208,7 @@ export default function EditListingPage() {
         <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
         <p className="text-sm text-sub">{loadError}</p>
         <button onClick={() => router.push('/bailleur/listings')} className="mt-4 btn-gold text-sm">
-          <i className="fa-solid fa-arrow-left mr-1.5" />Retour
+          <i className="fa-solid fa-arrow-left mr-1.5" />{t('editBack')}
         </button>
       </div>
     );
@@ -207,18 +217,18 @@ export default function EditListingPage() {
   return (
     <div className="max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text">Modifier l&apos;annonce</h1>
-        <p className="mt-1 text-sm text-sub">Mettez à jour les informations de votre bien.</p>
+        <h1 className="text-2xl font-bold text-text">{t('editPageTitle')}</h1>
+        <p className="mt-1 text-sm text-sub">{t('editPageSub')}</p>
       </div>
 
-      <StepIndicator current={step} />
+      <StepIndicator current={step} steps={STEPS} />
 
       <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-5">
         {stepErrors.length > 0 && (
           <div className="rounded-xl border border-gold-dark/30 bg-gold-pale/40 p-4">
             <p className="text-sm font-semibold text-text mb-1.5">
               <i className="fa-solid fa-triangle-exclamation text-gold-dark mr-1.5" />
-              Veuillez corriger les champs suivants avant de continuer :
+              {t('stepErrorsTitle')}
             </p>
             <ul className="ml-5 space-y-0.5 text-sm text-sub">
               {stepErrors.map((e) => (
@@ -230,56 +240,86 @@ export default function EditListingPage() {
 
         {step === 0 && (
           <>
-            <Field label="Titre" error={errors.title?.message}>
-              <input {...register('title')} placeholder="Ex : Appartement 3 pièces meublé" className={inputCls(!!errors.title)} />
+            <Field label={t('fieldTitle')} error={errors.title?.message}>
+              <input {...register('title')} placeholder={t('fieldTitlePh')} className={inputCls(!!errors.title)} />
             </Field>
 
-            <Field label="Description" error={errors.description?.message}>
-              <textarea {...register('description')} rows={4} placeholder="Décrivez votre bien..." className={inputCls(!!errors.description)} />
-              <p className="mt-1 text-right text-xs text-sub">{description.length} caractères</p>
+            <Field label={t('fieldDescription')} error={errors.description?.message}>
+              <textarea {...register('description')} rows={4} placeholder={t('fieldDescPh')} className={inputCls(!!errors.description)} />
+              <p className="mt-1 text-right text-xs text-sub">{t('fieldCharCount', { count: description.length })}</p>
             </Field>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Type de bien" error={errors.type?.message}>
+              <Field label={t('fieldType')} error={errors.type?.message}>
                 <select {...register('type')} className={inputCls(!!errors.type)}>
-                  {LISTING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  {LISTING_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
                 </select>
               </Field>
-              <Field label="Prix mensuel" error={errors.price?.message}>
+              <Field label={t('fieldPrice')} error={errors.price?.message}>
                 <div className="relative">
                   <input
                     type="number"
                     {...register('price', { setValueAs: asNumberOrUndefined })}
-                    placeholder="Ex : 350000"
-                    className={`${inputCls(!!errors.price)} pr-20`}
+                    placeholder="350000"
+                    className={`${inputCls(!!errors.price)} pr-24`}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">FCFA/mois</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">{t('fcfaPerMonth')}</span>
                 </div>
               </Field>
+            </div>
+
+            <div className="rounded-xl border border-line bg-bg/60 p-4 space-y-3">
+              <p className="text-xs font-semibold text-sub uppercase tracking-wide">
+                <i className="fa-solid fa-moon mr-1.5 text-gold-dark" />
+                {t('shortStayTitle')}
+              </p>
+              <p className="text-xs text-sub">{t('shortStayDesc')}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label={t('fieldPriceNight')} error={errors.pricePerNight?.message}>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      {...register('pricePerNight', { setValueAs: asNumberOrUndefined })}
+                      placeholder="15000"
+                      className={`${inputCls(!!errors.pricePerNight)} pr-24`}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">{t('fcfaPerNight')}</span>
+                  </div>
+                </Field>
+                <Field label={t('fieldMinNights')} error={errors.minimumNights?.message}>
+                  <input
+                    type="number"
+                    min={1}
+                    {...register('minimumNights', { setValueAs: asNumberOrUndefined })}
+                    placeholder="2"
+                    className={inputCls(!!errors.minimumNights)}
+                  />
+                </Field>
+              </div>
             </div>
           </>
         )}
 
         {step === 1 && (
           <>
-            <Field label="Adresse complète" error={errors.address?.message}>
-              <input {...register('address')} placeholder="Rue, numéro..." className={inputCls(!!errors.address)} />
+            <Field label={t('fieldAddress')} error={errors.address?.message}>
+              <input {...register('address')} placeholder={t('fieldAddressPh')} className={inputCls(!!errors.address)} />
             </Field>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Ville" error={errors.city?.message}>
-                <input {...register('city')} placeholder="Ex : Dakar" className={inputCls(!!errors.city)} />
+              <Field label={t('fieldCity')} error={errors.city?.message}>
+                <input {...register('city')} placeholder={t('fieldCityPh')} className={inputCls(!!errors.city)} />
               </Field>
-              <Field label="Région" error={errors.region?.message}>
+              <Field label={t('fieldRegion')} error={errors.region?.message}>
                 <select {...register('region')} className={inputCls(!!errors.region)}>
-                  <option value="">— Choisir une région —</option>
+                  <option value="">{t('fieldRegionDefault')}</option>
                   {SENEGAL_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
                 </select>
               </Field>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-text">Position sur la carte</label>
+              <label className="mb-1.5 block text-sm font-medium text-text">{t('fieldMapPosition')}</label>
               <div className="h-64 overflow-hidden rounded-xl border border-line">
                 {mapReady && lat != null && lng != null ? (
                   <LocationPicker
@@ -295,7 +335,7 @@ export default function EditListingPage() {
               </div>
               <p className="mt-1 text-xs text-sub">
                 <i className="fa-solid fa-location-crosshairs mr-1 text-gold-dark" />
-                Lat : {lat?.toFixed(4)} — Lng : {lng?.toFixed(4)}
+                {t('fieldCoords', { lat: (lat ?? 0).toFixed(4), lng: (lng ?? 0).toFixed(4) })}
               </p>
             </div>
           </>
@@ -303,16 +343,16 @@ export default function EditListingPage() {
 
         {step === 2 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Field label="Surface (m²)" error={errors.surface?.message}>
+            <Field label={t('fieldSurface')} error={errors.surface?.message}>
               <input type="number" {...register('surface', { setValueAs: asNumberOrUndefined })} placeholder="85" className={inputCls(!!errors.surface)} />
             </Field>
-            <Field label="Pièces" error={errors.rooms?.message}>
+            <Field label={t('fieldRooms')} error={errors.rooms?.message}>
               <input type="number" {...register('rooms', { setValueAs: asNumberOrUndefined })} placeholder="3" className={inputCls(!!errors.rooms)} />
             </Field>
-            <Field label="Chambres" error={errors.beds?.message}>
+            <Field label={t('fieldBeds')} error={errors.beds?.message}>
               <input type="number" {...register('beds', { setValueAs: asNumberOrUndefined })} placeholder="2" className={inputCls(!!errors.beds)} />
             </Field>
-            <Field label="SDB" error={errors.baths?.message}>
+            <Field label={t('fieldBaths')} error={errors.baths?.message}>
               <input type="number" {...register('baths', { setValueAs: asNumberOrUndefined })} placeholder="1" className={inputCls(!!errors.baths)} />
             </Field>
           </div>
@@ -321,7 +361,7 @@ export default function EditListingPage() {
         {step === 3 && (
           <>
             <div>
-              <label className="mb-2 block text-sm font-medium text-text">Équipements</label>
+              <label className="mb-2 block text-sm font-medium text-text">{t('fieldAmenities')}</label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {AMENITIES.map(({ key, icon, label }) => {
                   const active = amenities.includes(key);
@@ -351,7 +391,7 @@ export default function EditListingPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-text">Photos</label>
+              <label className="mb-1.5 block text-sm font-medium text-text">{t('fieldImages')}</label>
               <ImageUploadZone
                 images={images}
                 onChange={(imgs) => setValue('images', imgs, { shouldValidate: true })}
@@ -363,7 +403,6 @@ export default function EditListingPage() {
                 </p>
               )}
             </div>
-
           </>
         )}
 
@@ -381,12 +420,12 @@ export default function EditListingPage() {
             disabled={step === 0}
             className="rounded-xl border border-line bg-card px-4 py-2.5 text-sm font-medium text-sub hover:text-text disabled:opacity-40 transition"
           >
-            <i className="fa-solid fa-arrow-left mr-1.5" />Retour
+            <i className="fa-solid fa-arrow-left mr-1.5" />{t('editBack')}
           </button>
 
           {step < STEPS.length - 1 ? (
             <button type="button" onClick={() => void goNext()} className="btn-gold">
-              Suivant <i className="fa-solid fa-arrow-right ml-1.5" />
+              {t('editNext')} <i className="fa-solid fa-arrow-right ml-1.5" />
             </button>
           ) : (
             <button
@@ -396,8 +435,8 @@ export default function EditListingPage() {
               className="btn-gold disabled:opacity-50"
             >
               {isSubmitting
-                ? <><i className="fa-solid fa-spinner fa-spin" /> Enregistrement...</>
-                : <><i className="fa-solid fa-floppy-disk" /> Enregistrer</>
+                ? <><i className="fa-solid fa-spinner fa-spin" /> {t('editSaving')}</>
+                : <><i className="fa-solid fa-floppy-disk" /> {t('editSave')}</>
               }
             </button>
           )}
@@ -407,11 +446,11 @@ export default function EditListingPage() {
   );
 }
 
-function StepIndicator({ current }: { current: number }) {
+function StepIndicator({ current, steps }: { current: number; steps: { label: string; fields: string[] }[] }) {
   return (
     <div className="mb-8 flex items-center">
-      {STEPS.map((step, i) => (
-        <div key={step.label} className={`flex items-center ${i < STEPS.length - 1 ? 'flex-1' : ''}`}>
+      {steps.map((step, i) => (
+        <div key={step.label} className={`flex items-center ${i < steps.length - 1 ? 'flex-1' : ''}`}>
           <div className="flex flex-col items-center">
             <div className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors ${
               i < current ? 'border-gold-dark bg-gold-dark text-white' :
@@ -424,7 +463,7 @@ function StepIndicator({ current }: { current: number }) {
               {step.label}
             </span>
           </div>
-          {i < STEPS.length - 1 && (
+          {i < steps.length - 1 && (
             <div className={`mx-2 h-0.5 flex-1 ${i < current ? 'bg-gold-dark' : 'bg-line'}`} />
           )}
         </div>
@@ -432,7 +471,6 @@ function StepIndicator({ current }: { current: number }) {
     </div>
   );
 }
-
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
@@ -447,3 +485,4 @@ function Field({ label, error, children }: { label: string; error?: string; chil
     </div>
   );
 }
+

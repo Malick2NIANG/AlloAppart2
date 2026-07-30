@@ -29,7 +29,7 @@ export class RolesGuard implements CanActivate {
     // L'utilisateur doit avoir au moins un des rôles requis dans son tableau de rôles
     const hasRole = requiredRoles.some((role) => user.roles.includes(role));
 
-    if (!hasRole) throw new ForbiddenException('Accès non autorisé');
+    if (!hasRole) throw new ForbiddenException('Access denied');
 
     return true;
   }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
@@ -10,6 +11,7 @@ export default function ChangePasswordPage() {
   const { getToken } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations('changePassword');
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPwd, setConfirmPwd]   = useState('');
@@ -23,24 +25,24 @@ export default function ChangePasswordPage() {
     setError(null);
 
     if (newPassword.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caractères.');
+      setError(t('tooShort'));
       return;
     }
     if (newPassword !== confirmPwd) {
-      setError('Les mots de passe ne correspondent pas.');
+      setError(t('mismatch'));
       return;
     }
 
     setLoading(true);
     try {
       const token = await getToken();
-      if (!token) throw new Error('Session expirée.');
+      if (!token) throw new Error(t('sessionExpired'));
       await api.patch('/auth/me/password', { newPassword }, token);
-      toast.success('Mot de passe mis à jour avec succès.');
+      toast.success(t('success'));
       router.push('/redirect');
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+      setError(err instanceof Error ? err.message : t('errorFallback'));
     } finally {
       setLoading(false);
     }
@@ -61,19 +63,29 @@ export default function ChangePasswordPage() {
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
                 <i className="fa-solid fa-lock-open text-xl text-gold-dark" />
               </div>
-              <h1 className="text-xl font-bold text-text">Changement de mot de passe requis</h1>
-              <p className="mt-1 text-sm text-sub">
-                Pour la sécurité de votre compte, choisissez un nouveau mot de passe avant de continuer.
-              </p>
+              <h1 className="text-xl font-bold text-text">{t('title')}</h1>
+              <p className="mt-1 text-sm text-sub">{t('subtitle')}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-3">
-              <Field label="Nouveau mot de passe">
-                <PwdInput value={newPassword} onChange={setNewPassword} show={showNew} onToggle={() => setShowNew(!showNew)} />
+              <Field label={t('newPassword')}>
+                <PwdInput
+                  value={newPassword}
+                  onChange={setNewPassword}
+                  show={showNew}
+                  onToggle={() => setShowNew(!showNew)}
+                  toggleLabel={showNew ? t('hidePassword') : t('showPassword')}
+                />
               </Field>
 
-              <Field label="Confirmer le mot de passe">
-                <PwdInput value={confirmPwd} onChange={setConfirmPwd} show={showConfirm} onToggle={() => setShowConfirm(!showConfirm)} />
+              <Field label={t('confirmPassword')}>
+                <PwdInput
+                  value={confirmPwd}
+                  onChange={setConfirmPwd}
+                  show={showConfirm}
+                  onToggle={() => setShowConfirm(!showConfirm)}
+                  toggleLabel={showConfirm ? t('hidePassword') : t('showPassword')}
+                />
               </Field>
 
               {error && (
@@ -84,8 +96,8 @@ export default function ChangePasswordPage() {
 
               <button type="submit" disabled={loading} className="btn-gold justify-center disabled:opacity-50">
                 {loading
-                  ? <><i className="fa-solid fa-spinner fa-spin" /> Enregistrement…</>
-                  : <><i className="fa-solid fa-shield-check" /> Valider</>
+                  ? <><i className="fa-solid fa-spinner fa-spin" /> {t('saving')}</>
+                  : <><i className="fa-solid fa-shield-check" /> {t('submit')}</>
                 }
               </button>
             </form>
@@ -105,8 +117,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function PwdInput({ value, onChange, show, onToggle }: {
-  value: string; onChange: (v: string) => void; show: boolean; onToggle: () => void;
+function PwdInput({ value, onChange, show, onToggle, toggleLabel }: {
+  value: string; onChange: (v: string) => void; show: boolean; onToggle: () => void; toggleLabel: string;
 }) {
   return (
     <div className="relative">
@@ -123,7 +135,7 @@ function PwdInput({ value, onChange, show, onToggle }: {
         type="button"
         onClick={onToggle}
         className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
-        aria-label={show ? 'Masquer' : 'Afficher'}
+        aria-label={toggleLabel}
       >
         <i className={`fa-solid ${show ? 'fa-eye-slash' : 'fa-eye'} text-sm`} />
       </button>

@@ -142,13 +142,13 @@ export default async function HomePage() {
           {/* ── Sous-titre dynamique ── */}
           <p className="animate-fadeUp delay-300 mt-5 text-lg text-gray-300 max-w-xl mx-auto">
             {isAdmin
-              ? 'Gérez la plateforme, supervisez les utilisateurs et traitez les vérifications en attente.'
+              ? t('roleAdminSub')
               : isBailleur
-              ? 'Gérez vos annonces, suivez vos réservations et développez votre activité immobilière.'
+              ? t('roleBailleurSub')
               : isAgentTerrain
-              ? 'Consultez vos missions assignées, gérez votre planning et suivez vos performances.'
+              ? t('roleAgentSub')
               : isLocataire
-              ? 'Retrouvez vos favoris, suivez vos réservations et explorez de nouveaux logements.'
+              ? t('roleLocataireSub')
               : t('subtitle')
             }
           </p>
@@ -158,56 +158,56 @@ export default async function HomePage() {
             <div className="animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
               <Link href="/espace"
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-gray-900 shadow-lg hover:bg-gold-light transition-colors">
-                <i className="fa-solid fa-gauge" /> Tableau de bord
+                <i className="fa-solid fa-gauge" /> {t('ctaDashboard')}
               </Link>
               <Link href="/espace/verifications"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
-                <i className="fa-solid fa-clipboard-check" /> Vérifications
+                <i className="fa-solid fa-clipboard-check" /> {t('ctaVerifications')}
               </Link>
               <Link href="/espace/users"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
-                <i className="fa-solid fa-users" /> Utilisateurs
+                <i className="fa-solid fa-users" /> {t('ctaUsers')}
               </Link>
             </div>
           ) : isBailleur ? (
             <div className="animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
               <Link href="/publier"
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-gray-900 shadow-lg hover:bg-gold-light transition-colors">
-                <i className="fa-solid fa-plus" /> Publier une annonce
+                <i className="fa-solid fa-plus" /> {t('ctaPublish')}
               </Link>
               <Link href="/bailleur/listings"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
-                <i className="fa-solid fa-list" /> Mes annonces
+                <i className="fa-solid fa-list" /> {t('ctaMyListings')}
               </Link>
               <Link href="/bailleur"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
-                <i className="fa-solid fa-chart-line" /> Tableau de bord
+                <i className="fa-solid fa-chart-line" /> {t('ctaDashboard')}
               </Link>
             </div>
           ) : isAgentTerrain ? (
             <div className="animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
               <Link href="/agent/missions"
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-gray-900 shadow-lg hover:bg-gold-light transition-colors">
-                <i className="fa-solid fa-map-location-dot" /> Mes missions
+                <i className="fa-solid fa-map-location-dot" /> {t('ctaMyMissions')}
               </Link>
               <Link href="/agent"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
-                <i className="fa-solid fa-chart-line" /> Mon tableau de bord
+                <i className="fa-solid fa-chart-line" /> {t('ctaMyDashboard')}
               </Link>
             </div>
           ) : isLocataire ? (
             <div className="animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
               <Link href="/listings"
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-gray-900 shadow-lg hover:bg-gold-light transition-colors">
-                <i className="fa-solid fa-magnifying-glass" /> Rechercher
+                <i className="fa-solid fa-magnifying-glass" /> {t('ctaSearch')}
               </Link>
               <Link href="/profil?tab=favorites"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
-                <i className="fa-solid fa-heart" /> Mes favoris
+                <i className="fa-solid fa-heart" /> {t('ctaMyFavorites')}
               </Link>
               <Link href="/locataire"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
-                <i className="fa-solid fa-calendar-check" /> Mes réservations
+                <i className="fa-solid fa-calendar-check" /> {t('ctaMyBookings')}
               </Link>
             </div>
           ) : (
@@ -219,7 +219,7 @@ export default async function HomePage() {
               </Link>
               <Link href="/sign-up"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
-                <i className="fa-solid fa-arrow-right" /> Créer un compte
+                <i className="fa-solid fa-arrow-right" /> {t('ctaCreateAccount')}
               </Link>
             </div>
           )}
@@ -248,18 +248,18 @@ export default async function HomePage() {
           <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold-pale px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-gold-dark mb-3">
-                <i className="fa-solid fa-user text-[9px]" /> Particuliers
+                <i className="fa-solid fa-user text-[9px]" /> {t('individualsBadge')}
               </span>
               <h2 className="text-3xl font-bold text-text md:text-4xl">
-                Annonces de particuliers
+                {t('individualsTitle')}
               </h2>
-              <p className="mt-2 text-sub">Louez directement chez des propriétaires partout au Sénégal</p>
+              <p className="mt-2 text-sub">{t('individualsSub')}</p>
             </div>
             <Link
               href="/listings"
               className="btn-outline text-text self-start sm:self-auto whitespace-nowrap"
             >
-              Voir toutes les annonces <i className="fa-solid fa-arrow-right ml-1 text-xs" />
+              {t('seeAllListings')} <i className="fa-solid fa-arrow-right ml-1 text-xs" />
             </Link>
           </div>
 
@@ -307,7 +307,7 @@ export default async function HomePage() {
                       )}
                       {isProAgence && (
                         <span className="flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-sm text-gold text-[10px] font-bold px-2.5 py-0.5">
-                          <i className="fa-solid fa-crown text-[9px]" /> Agence PRO
+                          <i className="fa-solid fa-crown text-[9px]" /> {l.owner?.agencyName ?? 'Agence PRO'}
                         </span>
                       )}
                       {!isBoosted && !isProAgence && isNewListing(l.createdAt) && (
@@ -400,12 +400,12 @@ export default async function HomePage() {
             <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
               <div>
                 <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold-pale px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-gold-dark mb-3">
-                  <i className="fa-solid fa-building text-[9px]" /> Agences partenaires
+                  <i className="fa-solid fa-building text-[9px]" /> {t('agenciesBadge')}
                 </span>
                 <h2 className="text-3xl font-bold text-text md:text-4xl">
-                  Nos agences immobilières
+                  {t('agenciesTitle')}
                 </h2>
-                <p className="mt-2 text-sub">Des professionnels sélectionnés pour vous accompagner</p>
+                <p className="mt-2 text-sub">{t('agenciesSub')}</p>
               </div>
               <Link
                 href="/agences"
@@ -472,11 +472,11 @@ export default async function HomePage() {
                       {href ? (
                         <Link href={href}
                           className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-gold/40 bg-gold-pale hover:bg-gold/20 text-gold-dark text-xs font-semibold py-2 transition-colors">
-                          <i className="fa-solid fa-store text-[10px]" /> Voir la vitrine
+                          <i className="fa-solid fa-store text-[10px]" /> {t('viewVitrine')}
                         </Link>
                       ) : (
                         <div className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-bg text-sub text-xs font-medium py-2 cursor-default">
-                          Vitrine non configurée
+                          {t('noVitrine')}
                         </div>
                       )}
                     </div>
@@ -495,10 +495,10 @@ export default async function HomePage() {
           <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
               <h2 className="text-3xl font-bold text-text md:text-4xl">
-                {locale === 'fr' ? 'Explorer par région' : 'Explore by region'}
+                {t('regionsTitle')}
               </h2>
               <p className="mt-2 text-sub">
-                {locale === 'fr' ? '14 régions, des milliers de logements à louer' : '14 regions, thousands of rentals'}
+                {t('regionsSub')}
               </p>
             </div>
           </div>
@@ -521,7 +521,7 @@ export default async function HomePage() {
             >
               <i className="fa-solid fa-map-location-dot text-2xl text-gold-dark group-hover:scale-110 transition-transform" />
               <span className="text-xs font-semibold text-text">
-                {locale === 'fr' ? 'Voir tout' : 'See all'}
+                {t('seeAllShort')}
               </span>
             </Link>
           </div>
@@ -536,20 +536,20 @@ export default async function HomePage() {
             /* ── Admin ── */
             <>
               <h2 className="max-w-2xl text-3xl font-bold text-white md:text-4xl">
-                <GreetingCTA firstName="BOSS" fallback="Bonjour, BOSS" />
+                <GreetingCTA firstName="BOSS" fallback={t('ctaAdminFallback')} />
               </h2>
               <p className="mt-4 max-w-xl text-gray-300">
-                Tout est sous contrôle. Gérez la plateforme, les utilisateurs et les vérifications en attente.
+                {t('ctaAdminDesc')}
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 <Link href="/espace" className="btn-gold">
-                  <i className="fa-solid fa-gauge mr-1.5 text-sm" /> Tableau de bord
+                  <i className="fa-solid fa-gauge mr-1.5 text-sm" /> {t('ctaDashboard')}
                 </Link>
                 <Link href="/espace/verifications" className="btn-outline text-white">
-                  <i className="fa-solid fa-clipboard-check mr-1.5 text-sm" /> Vérifications
+                  <i className="fa-solid fa-clipboard-check mr-1.5 text-sm" /> {t('ctaVerifications')}
                 </Link>
                 <Link href="/espace/users" className="btn-outline text-white">
-                  <i className="fa-solid fa-users mr-1.5 text-sm" /> Utilisateurs
+                  <i className="fa-solid fa-users mr-1.5 text-sm" /> {t('ctaUsers')}
                 </Link>
               </div>
             </>
@@ -557,21 +557,21 @@ export default async function HomePage() {
             /* ── Bailleur / Pro_Agence ── */
             <>
               <h2 className="max-w-2xl text-3xl font-bold text-white md:text-4xl">
-                <GreetingCTA firstName={firstName ?? null} fallback="Bienvenue sur votre espace" />
+                <GreetingCTA firstName={firstName ?? null} fallback={t('ctaBailleurFallback')} />
               </h2>
               <p className="mt-4 max-w-xl text-gray-300">
-                Gérez vos annonces, suivez vos réservations et développez votre activité.
+                {t('ctaBailleurDesc')}
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 <Link href="/publier" className="btn-gold">
-                  <i className="fa-solid fa-plus mr-1.5 text-sm" /> Publier une annonce
+                  <i className="fa-solid fa-plus mr-1.5 text-sm" /> {t('ctaPublish')}
                 </Link>
                 <Link href="/bailleur/listings" className="btn-outline text-white">
-                  <i className="fa-solid fa-list mr-1.5 text-sm" /> Mes annonces
+                  <i className="fa-solid fa-list mr-1.5 text-sm" /> {t('ctaMyListings')}
                 </Link>
                 {isProAgence && (
                   <Link href="/bailleur/abonnement" className="inline-flex items-center gap-2 rounded-full border border-gold/40 px-5 py-2.5 text-sm font-semibold text-gold hover:bg-gold/10 transition-colors">
-                    <i className="fa-solid fa-crown text-sm" /> Mon abonnement
+                    <i className="fa-solid fa-crown text-sm" /> {t('ctaMySubscription')}
                   </Link>
                 )}
               </div>
@@ -580,17 +580,17 @@ export default async function HomePage() {
             /* ── Agent terrain ── */
             <>
               <h2 className="max-w-2xl text-3xl font-bold text-white md:text-4xl">
-                <GreetingCTA firstName={firstName ?? null} fallback="Votre espace agent" />
+                <GreetingCTA firstName={firstName ?? null} fallback={t('ctaAgentFallback')} />
               </h2>
               <p className="mt-4 max-w-xl text-gray-300">
-                Consultez vos missions du jour, gérez votre planning et suivez vos performances.
+                {t('ctaAgentDesc')}
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 <Link href="/agent/missions" className="btn-gold">
-                  <i className="fa-solid fa-map-location-dot mr-1.5 text-sm" /> Mes missions
+                  <i className="fa-solid fa-map-location-dot mr-1.5 text-sm" /> {t('ctaMyMissions')}
                 </Link>
                 <Link href="/agent" className="btn-outline text-white">
-                  <i className="fa-solid fa-chart-line mr-1.5 text-sm" /> Mon tableau de bord
+                  <i className="fa-solid fa-chart-line mr-1.5 text-sm" /> {t('ctaMyDashboard')}
                 </Link>
               </div>
             </>
@@ -598,20 +598,20 @@ export default async function HomePage() {
             /* ── Locataire ── */
             <>
               <h2 className="max-w-2xl text-3xl font-bold text-white md:text-4xl">
-                <GreetingCTA firstName={firstName ?? null} fallback="Trouvez le logement idéal" />
+                <GreetingCTA firstName={firstName ?? null} fallback={t('ctaLocataireFallback')} />
               </h2>
               <p className="mt-4 max-w-xl text-gray-300">
-                Des milliers d&apos;annonces vérifiées dans toutes les régions du Sénégal.
+                {t('ctaLocataireDesc')}
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-4">
                 <Link href="/listings" className="btn-gold">
-                  <i className="fa-solid fa-magnifying-glass mr-1.5 text-sm" /> Rechercher
+                  <i className="fa-solid fa-magnifying-glass mr-1.5 text-sm" /> {t('ctaSearch')}
                 </Link>
                 <Link href="/profil?tab=favorites" className="btn-outline text-white">
-                  <i className="fa-solid fa-heart mr-1.5 text-sm" /> Mes favoris
+                  <i className="fa-solid fa-heart mr-1.5 text-sm" /> {t('ctaMyFavorites')}
                 </Link>
                 <Link href="/locataire" className="inline-flex items-center gap-2 rounded-full border border-gold/40 px-5 py-2.5 text-sm font-semibold text-gold hover:bg-gold/10 transition-colors">
-                  <i className="fa-solid fa-calendar-check text-sm" /> Mes réservations
+                  <i className="fa-solid fa-calendar-check text-sm" /> {t('ctaMyBookings')}
                 </Link>
               </div>
             </>
@@ -619,18 +619,18 @@ export default async function HomePage() {
             /* ── Visiteur anonyme ── */
             <>
               <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-gold">
-                <i className="fa-solid fa-star" /> Devenez bailleur
+                <i className="fa-solid fa-star" /> {t('ctaVisitorBadge')}
               </span>
               <h2 className="max-w-2xl text-3xl font-bold text-white md:text-4xl">
-                Mettez votre bien en location
+                {t('ctaVisitorTitle')}
               </h2>
-              <p className="mt-4 max-w-xl text-gray-300">Rejoignez des milliers de bailleurs sur Allo-Appart.</p>
+              <p className="mt-4 max-w-xl text-gray-300">{t('ctaVisitorDesc')}</p>
               <div className="mt-8 flex flex-wrap justify-center gap-4">
                 <Link href="/sign-up" className="btn-gold">
-                  Commencer <i className="fa-solid fa-arrow-right ml-1 text-sm" />
+                  {t('ctaVisitorStart')} <i className="fa-solid fa-arrow-right ml-1 text-sm" />
                 </Link>
                 <Link href="/listings" className="btn-outline text-white">
-                  Parcourir les annonces
+                  {t('ctaVisitorBrowse')}
                 </Link>
               </div>
             </>

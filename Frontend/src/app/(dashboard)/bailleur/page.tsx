@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import { formatPrice, formatDate } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
-import type { Booking, Listing, User, BookingStatus, PaginatedResponse } from '@/types';
+import type { Booking, Listing, User, BookingStatus, PaginatedResponse, MessageRoom } from '@/types';
 import Greeting from '@/components/ui/Greeting';
 import {
   BarChart, Bar, LineChart, Line,
@@ -50,23 +51,34 @@ interface ReviewsData {
   total: number;
 }
 
+interface LocataireBooking {
+  id: string;
+  status: string;
+  startDate: string;
+  listing: { title: string; city: string };
+}
+
+interface LocataireStats {
+  totalBookings: number;
+  activeBookings: number;
+  favorites: number;
+  unreadMessages: number;
+}
+
 interface DashboardData {
   me: User;
   isPro: boolean;
+  isDual: boolean;
   stats: OwnerStats;
   bookings: Booking[];
   listings: Listing[];
   subscription: Subscription | null;
   monthly: MonthlyPoint[];
   reviews: ReviewsData;
+  locataireBookings: LocataireBooking[];
+  locataireStats: LocataireStats | null;
+  unreadMessages: number;
 }
-
-const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
-  PENDING:   'En attente',
-  CONFIRMED: 'Confirmée',
-  CANCELLED: 'Refusée',
-  COMPLETED: 'Terminée',
-};
 
 const BOOKING_STATUS_BADGE: Record<BookingStatus, string> = {
   PENDING:   'bg-gold-pale text-gold-dark',
@@ -78,6 +90,10 @@ const BOOKING_STATUS_BADGE: Record<BookingStatus, string> = {
 export default function BailleurDashboardPage() {
   const { getToken } = useAuth();
   const { toast }     = useToast();
+  const t             = useTranslations('bailleur');
+  const locale        = useLocale();
+  const numLocale     = locale === 'en' ? 'en-US' : 'fr-FR';
+
   const [data, setData]       = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
@@ -87,17 +103,33 @@ export default function BailleurDashboardPage() {
   const [reportMonth, setReportMonth]       = useState(defaultMonth);
   const [downloadingReport, setDownloading] = useState(false);
 
+  const BOOKING_STATUS_LABELS = useMemo<Record<BookingStatus, string>>(() => ({
+    PENDING:   t('bookingStatusPending'),
+    CONFIRMED: t('bookingStatusConfirmed'),
+    CANCELLED: t('bookingStatusCancelled'),
+    COMPLETED: t('bookingStatusCompleted'),
+  }), [t]);
+
+  const LOCATAIRE_STATUS = useMemo<Record<string, { label: string; color: string }>>(() => ({
+    PENDING:   { label: t('bookingStatusPending'),   color: 'text-amber-600 bg-amber-50 border-amber-200'       },
+    CONFIRMED: { label: t('bookingStatusConfirmed'), color: 'text-blue-600 bg-blue-50 border-blue-200'          },
+    COMPLETED: { label: t('bookingStatusCompleted'), color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
+    CANCELLED: { label: t('bookingStatusCancelled'), color: 'text-red-600 bg-red-50 border-red-200'             },
+  }), [t]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const token = await getToken();
-      if (!token) throw new Error('Session introuvable');
+      if (!token) throw new Error();
 
       const me = await api.get<User>('/auth/me', token);
-      const isPro = me.roles.includes('PRO_AGENCE');
+      const isPro  = me.roles.includes('PRO_AGENCE');
+      const isDual = me.roles.includes('LOCATAIRE');
 
-      const [stats, bookingsRes, listingsRes, subscription, monthlyRes, reviews] = await Promise.all([
+      const [stats, bookingsRes, listingsRes, subscription, monthlyRes, reviews,
+             locataireBkRes, locataireStRes, roomsRes] = await Promise.all([
         api.get<OwnerStats>('/analytics/owner', token),
         api.get<PaginatedResponse<Booking>>('/bookings/received?page=1&limit=5', token),
         api.get<PaginatedResponse<Listing>>('/listings/mine', token),
@@ -106,24 +138,40 @@ export default function BailleurDashboardPage() {
           : Promise.resolve(null),
         api.get<MonthlyPoint[]>('/analytics/owner/monthly', token),
         api.get<ReviewsData>('/reviews/bailleur/me', token).catch(() => ({ data: [], avgRating: null, total: 0 })),
+        isDual
+          ? api.get<LocataireBooking[]>('/bookings/mine', token).catch(() => [])
+          : Promise.resolve([]),
+        isDual
+          ? api.get<LocataireStats>('/analytics/locataire', token).catch(() => null)
+          : Promise.resolve(null),
+        api.get<MessageRoom[]>('/messages/rooms', token).catch(() => []),
       ]);
+
+      const rooms = roomsRes as MessageRoom[];
+      const unreadMessages = rooms.filter(
+        (r) => r.messages?.[0] && !r.messages[0].readAt && r.messages[0].senderId !== me.id,
+      ).length;
 
       setData({
         me,
         isPro,
+        isDual,
         stats,
         bookings: bookingsRes.data,
         listings: listingsRes.data,
         subscription,
         monthly: monthlyRes,
         reviews,
+        locataireBookings: (locataireBkRes as LocataireBooking[]).slice(0, 3),
+        locataireStats: locataireStRes as LocataireStats | null,
+        unreadMessages,
       });
     } catch {
-      setError('Impossible de charger le tableau de bord.');
+      setError(t('loadError'));
     } finally {
       setLoading(false);
     }
-  }, [getToken]);
+  }, [getToken, t]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -136,7 +184,7 @@ export default function BailleurDashboardPage() {
         `${API}/analytics/owner/report?month=${reportMonth}`,
         { headers: { Authorization: `Bearer ${token ?? ''}` } }
       );
-      if (!res.ok) throw new Error('Erreur serveur');
+      if (!res.ok) throw new Error();
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -145,7 +193,7 @@ export default function BailleurDashboardPage() {
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      toast.error('Impossible de générer le rapport PDF.');
+      toast.error(t('reportError'));
     } finally {
       setDownloading(false);
     }
@@ -171,44 +219,47 @@ export default function BailleurDashboardPage() {
         <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
         <p className="text-sm text-sub">{error}</p>
         <button onClick={() => void load()} className="mt-4 btn-gold text-sm">
-          <i className="fa-solid fa-rotate-right mr-1.5" />Réessayer
+          <i className="fa-solid fa-rotate-right mr-1.5" />{t('retry')}
         </button>
       </div>
     );
   }
 
-  const { me, isPro, stats, bookings, listings, monthly, reviews } = data;
+  const { me, isDual, stats, bookings, listings, monthly, reviews,
+          locataireBookings, locataireStats, unreadMessages } = data;
 
   const pendingCount    = bookings.filter((b) => b.status === 'PENDING').length;
   const unverifiedCount = listings.filter((l) => l.status === 'ACTIVE' && !l.isVerified).length;
-
-  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-
-  const shortcuts = [
-    { label: 'Mes annonces', icon: 'fa-house',          href: '/bailleur/listings'   },
-    { label: 'Réservations', icon: 'fa-calendar-check',  href: '/bailleur/bookings', badge: pendingCount > 0 ? pendingCount : null },
-    { label: 'Messages',     icon: 'fa-comment-dots',    href: '/bailleur/messages'   },
-    ...(isPro ? [{ label: 'Abonnement', icon: 'fa-id-card', href: '/bailleur/abonnement', badge: null }] : []),
-  ];
+  const verifiedCount   = listings.filter((l) => l.isVerified).length;
 
   return (
     <div className="flex flex-col gap-8">
-      {/* En-tête */}
+      {/* Header */}
       <div>
-        <Greeting firstName={me.firstName ?? 'vous'} />
-        <p className="mt-1 text-sm text-sub capitalize">{today}</p>
+        <Greeting firstName={me.firstName ?? t('you')} />
       </div>
 
-      {/* Alertes contextuelles */}
+      {/* Bailleur section divider — dual mode only */}
+      {isDual && (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 border-t border-line" />
+          <span className="text-xs font-semibold uppercase tracking-widest text-gold-dark px-2">
+            <i className="fa-solid fa-house-chimney-user mr-1.5" />{t('spaceBailleurLabel')}
+          </span>
+          <div className="flex-1 border-t border-line" />
+        </div>
+      )}
+
+      {/* Contextual alerts */}
       <div className="flex flex-col gap-3">
         {pendingCount > 0 && (
           <div className="rounded-2xl border border-gold-dark/30 bg-gold-pale/40 p-4 flex items-center justify-between gap-3 flex-wrap">
             <p className="text-sm font-medium text-text">
               <i className="fa-solid fa-clock text-gold-dark mr-2" />
-              {pendingCount} réservation{pendingCount > 1 ? 's' : ''} en attente de votre réponse
+              {t('alertPending', { count: pendingCount })}
             </p>
             <Link href="/bailleur/bookings" className="text-sm font-semibold text-gold-dark hover:underline shrink-0">
-              Voir <i className="fa-solid fa-arrow-right text-xs ml-1" />
+              {t('alertPendingSee')} <i className="fa-solid fa-arrow-right text-xs ml-1" />
             </Link>
           </div>
         )}
@@ -217,10 +268,10 @@ export default function BailleurDashboardPage() {
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between gap-3 flex-wrap">
             <p className="text-sm font-medium text-amber-800">
               <i className="fa-solid fa-shield-halved mr-2" />
-              {unverifiedCount} annonce{unverifiedCount > 1 ? 's' : ''} active{unverifiedCount > 1 ? 's' : ''} sans badge AlloVérifié
+              {t('alertUnverified', { count: unverifiedCount })}
             </p>
             <Link href="/bailleur/listings" className="text-sm font-semibold text-amber-800 hover:underline shrink-0">
-              Voir mes annonces <i className="fa-solid fa-arrow-right text-xs ml-1" />
+              {t('alertUnverifiedSee')} <i className="fa-solid fa-arrow-right text-xs ml-1" />
             </Link>
           </div>
         )}
@@ -228,35 +279,13 @@ export default function BailleurDashboardPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard icon="fa-solid fa-house"          label="Annonces publiées" value={`${stats.publishedListings} / ${stats.totalListings}`} />
-        <KpiCard icon="fa-solid fa-calendar-check" label="Réservations totales" value={`${stats.totalBookings}`} />
-        <KpiCard icon="fa-solid fa-sack-dollar"    label="Revenus totaux"    value={formatPrice(stats.totalRevenue)} />
-        <KpiCard icon="fa-solid fa-star"           label="Note moyenne"      value={stats.avgRating ? `${stats.avgRating.toFixed(1)}/5` : 'N/A'} />
+        <KpiCard icon="fa-solid fa-house"          label={t('kpiListings')}    sub={t('kpiListingsSub')}    value={`${stats.publishedListings} / ${stats.totalListings}`} href="/bailleur/listings" />
+        <KpiCard icon="fa-solid fa-calendar-check" label={t('kpiBookings')}    sub={t('kpiBookingsSub')}    value={`${stats.totalBookings}`}                               href="/bailleur/bookings" badge={pendingCount > 0 ? pendingCount : null} />
+        <KpiCard icon="fa-solid fa-comment-dots"   label={t('kpiMessages')}    sub={t('kpiMessagesSub')}    value={String(unreadMessages)}                                  href="/bailleur/messages" />
+        <KpiCard icon="fa-solid fa-shield-halved"  label={t('kpiAlloVerifie')} sub={t('kpiAlloVerifieSub')} value={String(verifiedCount)}                                  href="/bailleur/verifications" />
       </div>
 
-      {/* Accès rapide */}
-      <div>
-        <h2 className="text-sm font-semibold text-sub mb-3">Accès rapide</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {shortcuts.map((s) => (
-            <Link
-              key={s.href}
-              href={s.href}
-              className="rounded-2xl border border-line bg-card hover:border-gold-dark/40 p-4 flex items-center gap-3 transition-colors"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gold-pale">
-                <i className={`fa-solid ${s.icon} text-gold-dark text-sm`} />
-              </span>
-              <span className="text-sm font-medium text-text">{s.label}</span>
-              {s.badge != null && (
-                <span className="ml-auto text-xs bg-gold-dark text-white rounded-full px-2 py-0.5">{s.badge}</span>
-              )}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Rapport PDF */}
+      {/* PDF Report */}
       <div className="flex items-center gap-3 flex-wrap">
         <input
           type="month"
@@ -270,18 +299,18 @@ export default function BailleurDashboardPage() {
           className="btn-gold text-sm disabled:opacity-50"
         >
           {downloadingReport
-            ? <><i className="fa-solid fa-spinner fa-spin mr-2" />Génération…</>
-            : <><i className="fa-solid fa-file-pdf mr-2" />Rapport PDF</>
+            ? <><i className="fa-solid fa-spinner fa-spin mr-2" />{t('reportGenerating')}</>
+            : <><i className="fa-solid fa-file-pdf mr-2" />{t('reportPdf')}</>
           }
         </button>
       </div>
 
-      {/* Graphique revenus mensuels */}
+      {/* Revenue chart */}
       {monthly.length > 0 && (
         <div className="rounded-2xl border border-line bg-card p-5">
           <h2 className="text-sm font-semibold text-text mb-4">
             <i className="fa-solid fa-sack-dollar text-gold-dark mr-2" />
-            Revenus des 6 derniers mois
+            {t('chartRevenue6m')}
           </h2>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={monthly} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -289,7 +318,7 @@ export default function BailleurDashboardPage() {
               <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
               <Tooltip
-                formatter={(v: ValueType | undefined) => [formatPrice(Number(v)), 'Revenus']}
+                formatter={(v: ValueType | undefined) => [formatPrice(Number(v)), t('chartRevenueLabel')]}
                 contentStyle={{ borderRadius: '12px', fontSize: '12px', border: '1px solid #e5e7eb' }}
               />
               <Bar dataKey="revenue" fill="#b8972a" radius={[6, 6, 0, 0]} />
@@ -298,12 +327,12 @@ export default function BailleurDashboardPage() {
         </div>
       )}
 
-      {/* Graphique réservations mensuelles */}
+      {/* Bookings chart */}
       {monthly.length > 0 && (
         <div className="rounded-2xl border border-line bg-card p-5">
           <h2 className="text-sm font-semibold text-text mb-4">
             <i className="fa-solid fa-calendar-check text-gold-dark mr-2" />
-            Réservations des 6 derniers mois
+            {t('chartBookings6m')}
           </h2>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={monthly} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -311,7 +340,7 @@ export default function BailleurDashboardPage() {
               <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
               <Tooltip
-                formatter={(v: ValueType | undefined) => [Number(v), 'Réservations']}
+                formatter={(v: ValueType | undefined) => [Number(v), t('chartBookingsLabel')]}
                 contentStyle={{ borderRadius: '12px', fontSize: '12px', border: '1px solid #e5e7eb' }}
               />
               <Line dataKey="bookings" stroke="#b8972a" strokeWidth={2} dot={{ r: 4, fill: '#b8972a' }} activeDot={{ r: 6 }} />
@@ -320,12 +349,12 @@ export default function BailleurDashboardPage() {
         </div>
       )}
 
-      {/* Avis reçus */}
+      {/* Reviews */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-sub flex items-center gap-2">
             <i className="fa-solid fa-star text-gold-dark text-xs" />
-            Avis reçus
+            {t('reviewsTitle')}
             {reviews.total > 0 && (
               <span className="text-xs font-normal text-sub">({reviews.total})</span>
             )}
@@ -342,8 +371,8 @@ export default function BailleurDashboardPage() {
         {reviews.data.length === 0 ? (
           <div className="rounded-2xl border border-line bg-card p-6 text-center">
             <i className="fa-regular fa-star text-2xl text-line mb-2 block" />
-            <p className="text-sm text-sub">Aucun avis reçu pour l&apos;instant.</p>
-            <p className="text-xs text-sub mt-1">Les locataires pourront noter leurs séjours une fois terminés.</p>
+            <p className="text-sm text-sub">{t('reviewsEmpty')}</p>
+            <p className="text-xs text-sub mt-1">{t('reviewsEmptyHint')}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -352,6 +381,7 @@ export default function BailleurDashboardPage() {
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex items-center gap-2 min-w-0">
                     {review.author.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={review.author.avatar} alt="" className="h-8 w-8 rounded-full object-cover shrink-0" />
                     ) : (
                       <div className="h-8 w-8 rounded-full bg-gold-pale flex items-center justify-center shrink-0">
@@ -370,7 +400,7 @@ export default function BailleurDashboardPage() {
                   <div className="flex flex-col items-end shrink-0 gap-1">
                     <StarDisplay rating={review.rating} />
                     <span className="text-[11px] text-sub">
-                      {new Date(review.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {new Date(review.createdAt).toLocaleDateString(numLocale, { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
                   </div>
                 </div>
@@ -383,11 +413,11 @@ export default function BailleurDashboardPage() {
         )}
       </div>
 
-      {/* Activité récente */}
+      {/* Recent activity (bailleur) */}
       <div>
-        <h2 className="text-sm font-semibold text-sub mb-3">Activité récente</h2>
+        <h2 className="text-sm font-semibold text-sub mb-3">{t('activityTitle')}</h2>
         {bookings.length === 0 ? (
-          <p className="text-sm text-sub text-center py-8">Aucune réservation reçue pour l&apos;instant.</p>
+          <p className="text-sm text-sub text-center py-8">{t('activityEmpty')}</p>
         ) : (
           <>
             <div className="flex flex-col gap-2">
@@ -396,7 +426,7 @@ export default function BailleurDashboardPage() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-text truncate">{booking.listing?.title ?? booking.listingId}</p>
                     <p className="text-xs text-sub">
-                      de {booking.tenant?.firstName} {booking.tenant?.lastName}
+                      {t('activityFrom')} {booking.tenant?.firstName} {booking.tenant?.lastName}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -410,12 +440,77 @@ export default function BailleurDashboardPage() {
             </div>
             <div className="text-center mt-4">
               <Link href="/bailleur/bookings" className="text-sm font-medium text-gold-dark hover:underline">
-                Voir toutes les réservations <i className="fa-solid fa-arrow-right text-xs ml-1" />
+                {t('activitySeeAll')} <i className="fa-solid fa-arrow-right text-xs ml-1" />
               </Link>
             </div>
           </>
         )}
       </div>
+
+      {/* ══════════════ LOCATAIRE SECTION ══════════════ */}
+      {isDual && (
+        <>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 border-t border-line" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-blue-600 px-2">
+              <i className="fa-solid fa-user mr-1.5" />{t('spaceLocataireLabel')}
+            </span>
+            <div className="flex-1 border-t border-line" />
+          </div>
+
+          {/* Locataire stats */}
+          {locataireStats && (
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+              <LocStatCard icon="fa-calendar-check" label={t('locStatBookings')}  sub={t('locStatBookingsSub')}  value={String(locataireStats.totalBookings)}  href="/locataire/bookings"  />
+              <LocStatCard icon="fa-clock"          label={t('locStatActive')}    sub={t('locStatActiveSub')}    value={String(locataireStats.activeBookings)} href="/locataire/bookings"  />
+              <LocStatCard icon="fa-heart"          label={t('locStatFavorites')} sub={t('locStatFavoritesSub')} value={String(locataireStats.favorites)}       href="/locataire/favorites" />
+              <LocStatCard icon="fa-comment-dots"   label={t('locStatMessages')}  sub={t('locStatMessagesSub')}  value={String(locataireStats.unreadMessages)}  href="/locataire/messages"  />
+            </div>
+          )}
+
+          {/* Last locataire bookings */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-sub">{t('locLastBookings')}</h2>
+              <Link href="/locataire/bookings" className="text-xs font-medium text-blue-600 hover:underline">
+                {t('locataireSeeAll')}
+              </Link>
+            </div>
+            {locataireBookings.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-line bg-card py-10 text-center">
+                <i className="fa-solid fa-calendar-xmark text-xl text-line mb-2 block" />
+                <p className="text-sm text-sub">{t('locataireNoBookings')}</p>
+                <Link href="/" className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:underline">
+                  <i className="fa-solid fa-magnifying-glass text-xs" /> {t('locataireBrowse')}
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {locataireBookings.map((b) => {
+                  const s = LOCATAIRE_STATUS[b.status] ?? { label: b.status, color: 'text-sub bg-bg border-line' };
+                  return (
+                    <Link key={b.id} href="/locataire/bookings"
+                      className="flex items-center gap-4 rounded-xl border border-line bg-card p-4 transition hover:border-blue-200">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                        <i className="fa-solid fa-house text-blue-600 text-sm" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-text">{b.listing.title}</p>
+                        <p className="text-xs text-sub">
+                          <i className="fa-solid fa-location-dot text-xs mr-1" />{b.listing.city} · {formatDate(b.startDate)}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${s.color}`}>
+                        {s.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -435,14 +530,55 @@ function StarDisplay({ rating }: { rating: number }) {
   );
 }
 
-function KpiCard({ label, value, icon }: { label: string; value: string; icon: string }) {
+function LocStatCard({ icon, label, sub, value, href }: {
+  icon: string; label: string; sub: string; value: string; href: string;
+}) {
   return (
-    <div className="rounded-2xl border border-line bg-card p-5">
-      <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-gold-pale">
-        <i className={`${icon} text-gold-dark text-sm`} />
+    <Link
+      href={href}
+      className="group relative flex flex-col justify-between rounded-2xl border border-blue-100 bg-blue-50 p-5 transition hover:border-blue-300 hover:shadow-sm"
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 shadow-sm">
+          <i className={`fa-solid ${icon} text-sm text-blue-600`} />
+        </div>
+        <i className="fa-solid fa-arrow-right text-[10px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
       </div>
-      <p className="text-xl font-bold text-text">{value}</p>
-      <p className="mt-1 text-xs text-sub">{label}</p>
-    </div>
+      <div className="mt-3">
+        <p className="text-2xl font-bold text-blue-700">{value}</p>
+        <p className="mt-0.5 text-xs font-semibold text-blue-600">{label}</p>
+        <p className="text-[10px] text-blue-400 mt-0.5">{sub}</p>
+      </div>
+    </Link>
+  );
+}
+
+function KpiCard({ label, sub, value, icon, href, badge }: {
+  label: string; sub: string; value?: string; icon: string; href: string; badge?: number | null;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group relative flex flex-col justify-between rounded-2xl border border-gold/30 bg-gold-pale p-5 transition hover:border-gold hover:shadow-sm"
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/70 shadow-sm">
+          <i className={`${icon} text-gold-dark text-sm`} />
+        </div>
+        <div className="flex items-center gap-1.5">
+          {badge != null && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gold-dark px-1.5 text-[10px] font-bold text-white">
+              {badge}
+            </span>
+          )}
+          <i className="fa-solid fa-arrow-right text-[10px] text-gold-dark opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+      </div>
+      <div className="mt-3">
+        <p className="text-xl font-bold text-gold-dark">{value ?? '—'}</p>
+        <p className="mt-0.5 text-xs font-semibold text-text">{label}</p>
+        <p className="text-[10px] text-sub mt-0.5">{sub}</p>
+      </div>
+    </Link>
   );
 }

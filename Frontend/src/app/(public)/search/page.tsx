@@ -1,3 +1,4 @@
+import { getTranslations, getLocale } from 'next-intl/server';
 import { api } from '@/lib/api';
 import { type Listing, priceToNumber } from '@/types';
 import Link from 'next/link';
@@ -15,6 +16,9 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
+  const t = await getTranslations('search');
+  const locale = await getLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-SN';
 
   let hits: Listing[] = [];
   let total = 0;
@@ -31,7 +35,7 @@ export default async function SearchPage({
   return (
     <main className="bg-bg min-h-screen">
       <div className="aa-container py-10">
-        <h1 className="mb-6 text-2xl font-extrabold text-text">Recherche</h1>
+        <h1 className="mb-6 text-2xl font-extrabold text-text">{t('title')}</h1>
 
         <form method="GET" className="mb-8 flex gap-3">
           <div className="relative flex-1">
@@ -39,7 +43,7 @@ export default async function SearchPage({
             <input
               name="q"
               defaultValue={q}
-              placeholder="Ville, quartier, type de logement…"
+              placeholder={t('placeholder')}
               className="w-full rounded-2xl border border-line bg-card py-3 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition"
             />
           </div>
@@ -47,19 +51,16 @@ export default async function SearchPage({
             type="submit"
             className="btn-gold rounded-2xl px-6 text-sm font-semibold"
           >
-            Chercher
+            {t('searchBtn')}
           </button>
         </form>
 
         {q && (
           <p className="mb-6 text-sm text-sub">
             {total > 0 ? (
-              <>
-                <span className="font-semibold text-text">{total}</span>{' '}
-                résultat{total > 1 ? 's' : ''} pour «&nbsp;{q}&nbsp;»
-              </>
+              t('resultsFor', { count: total, q })
             ) : (
-              <>Aucun résultat pour �&nbsp;{q}&nbsp;�</>
+              t('noResultsFor', { q })
             )}
           </p>
         )}
@@ -69,15 +70,13 @@ export default async function SearchPage({
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
               <i className="fa-solid fa-magnifying-glass text-2xl text-gold-dark" />
             </div>
-            <p className="font-semibold text-text">Aucun résultat</p>
-            <p className="mt-1 text-sm text-sub">
-              Essayez avec d&apos;autres mots-clés ou explorez toutes les annonces.
-            </p>
+            <p className="font-semibold text-text">{t('noResultsTitle')}</p>
+            <p className="mt-1 text-sm text-sub">{t('noResultsHint')}</p>
             <Link
               href="/listings"
               className="btn-gold mt-6 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold"
             >
-              <i className="fa-solid fa-list" /> Voir toutes les annonces
+              <i className="fa-solid fa-list" /> {t('viewAllListings')}
             </Link>
           </div>
         )}
@@ -87,10 +86,8 @@ export default async function SearchPage({
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
               <i className="fa-solid fa-magnifying-glass text-2xl text-gold-dark" />
             </div>
-            <p className="font-semibold text-text">Lancez une recherche</p>
-            <p className="mt-1 text-sm text-sub">
-              Saisissez une ville, un quartier ou un type de logement.
-            </p>
+            <p className="font-semibold text-text">{t('startSearchTitle')}</p>
+            <p className="mt-1 text-sm text-sub">{t('startSearchHint')}</p>
           </div>
         )}
 
@@ -126,8 +123,10 @@ export default async function SearchPage({
                   {listing.city}
                 </p>
                 <p className="mt-3 font-extrabold text-gold-dark">
-                  {priceToNumber(listing.price).toLocaleString('fr-SN')}
-                  <span className="ml-1 text-xs font-semibold text-sub">FCFA/mois</span>
+                  {priceToNumber(listing.price).toLocaleString(numLocale)}
+                  <span className="ml-1 text-xs font-semibold text-sub">
+                    {t('priceUnit')}/{t('pricePerMonth')}
+                  </span>
                 </p>
               </div>
             </Link>

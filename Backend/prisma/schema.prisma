@@ -38,6 +38,7 @@ model User {
   notifications         Notification[]
   agentRatings          AgentRating[]  @relation("AgentRatings")
   givenRatings          AgentRating[]  @relation("GivenRatings")
+  reports               Report[]       @relation("UserReports")
 
   @@map("users")
 }
@@ -46,7 +47,9 @@ model Listing {
   id           String        @id @default(uuid())
   title        String
   description  String
-  price        Decimal       @db.Decimal(12, 2)
+  price         Decimal       @db.Decimal(12, 2)   // Tarif mensuel (référence principale)
+  pricePerNight Decimal?      @db.Decimal(12, 2)   // Tarif par nuit (optionnel)
+  minimumNights Int?                                // Durée minimum de séjour en nuits
   type         ListingType
   status       ListingStatus @default(DRAFT)
   isVerified   Boolean       @default(false)
@@ -75,6 +78,7 @@ model Listing {
   verifications Verification[]
   favoritedBy   User[]         @relation("UserFavorites")
   boostPayments BoostPayment[]
+  reports       Report[]
 
   @@index([ownerId])
   @@map("listings")
@@ -87,8 +91,10 @@ model Booking {
   status       BookingStatus @default(PENDING)
   startDate    DateTime
   endDate      DateTime?
-  totalAmount  Decimal       @db.Decimal(12, 2)
-  escrowStatus EscrowStatus  @default(AWAITING_PAYMENT)
+  totalAmount    Decimal       @db.Decimal(12, 2)
+  platformFee    Decimal?      @db.Decimal(12, 2)
+  landlordAmount Decimal?      @db.Decimal(12, 2)
+  escrowStatus   EscrowStatus  @default(AWAITING_PAYMENT)
   paymentRef   String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -251,6 +257,16 @@ enum AuditType {
   FULL
 }
 
+enum ReportReason {
+  FRAUD
+  WRONG_PRICE
+  WRONG_PHOTOS
+  ALREADY_RENTED
+  WRONG_LOCATION
+  OFFENSIVE
+  OTHER
+}
+
 enum SubscriptionPlan {
   STARTER
   PRO
@@ -292,6 +308,22 @@ model AgentRating {
 
   @@index([agentId])
   @@map("agent_ratings")
+}
+
+model Report {
+  id          String       @id @default(uuid())
+  listingId   String
+  reporterId  String
+  reason      ReportReason
+  description String?      @db.Text
+  createdAt   DateTime     @default(now())
+
+  listing  Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporter User    @relation("UserReports", fields: [reporterId], references: [id])
+
+  @@unique([listingId, reporterId])
+  @@index([listingId])
+  @@map("reports")
 }
 
 model BoostPayment {

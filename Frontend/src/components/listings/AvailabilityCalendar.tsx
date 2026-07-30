@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 
 interface BookedRange {
   startDate: string;
@@ -12,8 +13,6 @@ interface Props {
   listingId: string;
 }
 
-const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-const DAYS_FR   = ['Lu','Ma','Me','Je','Ve','Sa','Di'];
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() &&
@@ -38,6 +37,22 @@ export default function AvailabilityCalendar({ listingId }: Props) {
   const [loading, setLoading] = useState(true);
   const [year, setYear]       = useState(() => new Date().getFullYear());
   const [month, setMonth]     = useState(() => new Date().getMonth());
+
+  const t         = useTranslations('detail');
+  const locale    = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
+
+  /* Noms de mois / jours localisés — semaine commençant lundi */
+  const MONTHS = useMemo(
+    () => Array.from({ length: 12 }, (_, i) =>
+      new Intl.DateTimeFormat(numLocale, { month: 'long' }).format(new Date(2024, i, 1))),
+    [numLocale],
+  );
+  const DAYS = useMemo(
+    () => Array.from({ length: 7 }, (_, i) =>
+      new Intl.DateTimeFormat(numLocale, { weekday: 'narrow' }).format(new Date(2024, 0, 1 + i))),
+    [numLocale],
+  );
 
   const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -85,13 +100,13 @@ export default function AvailabilityCalendar({ listingId }: Props) {
   return (
     <div className="rounded-2xl border border-line bg-card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-text text-sm">Disponibilités</h3>
+        <h3 className="font-semibold text-text text-sm">{t('availabilityTitle')}</h3>
         <div className="flex items-center gap-2">
           <button onClick={prev} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-bg transition">
             <i className="fa-solid fa-chevron-left text-xs text-sub" />
           </button>
           <span className="text-sm font-medium text-text min-w-[140px] text-center">
-            {MONTHS_FR[month]} {year}
+            {MONTHS[month]} {year}
           </span>
           <button onClick={next} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-bg transition">
             <i className="fa-solid fa-chevron-right text-xs text-sub" />
@@ -106,8 +121,8 @@ export default function AvailabilityCalendar({ listingId }: Props) {
       ) : (
         <>
           <div className="grid grid-cols-7 mb-1">
-            {DAYS_FR.map((d) => (
-              <div key={d} className="text-center text-xs font-semibold text-sub py-1">{d}</div>
+            {DAYS.map((d, i) => (
+              <div key={i} className="text-center text-xs font-semibold text-sub py-1">{d}</div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-px">

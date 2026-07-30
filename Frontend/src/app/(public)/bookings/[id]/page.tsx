@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { formatDate, formatPrice } from '@/lib/utils';
 import type { Booking } from '@/types';
@@ -18,6 +19,7 @@ function BookingResultContent() {
   const status = searchParams.get('status'); // "success" | "cancel"
   const { isSignedIn, getToken } = useAuth();
   const router = useRouter();
+  const t = useTranslations('bookingResult');
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,16 +96,16 @@ function BookingResultContent() {
 
       {/* Title */}
       <h1 className="text-2xl font-bold text-text">
-        {isSuccess ? 'Paiement confirmé !' : isCancelled ? 'Paiement annulé' : 'Vérification en cours…'}
+        {isSuccess ? t('successTitle') : isCancelled ? t('cancelledTitle') : t('processingTitle')}
       </h1>
       <p className="mt-2 text-sub max-w-md">
         {isSuccess
-          ? 'Votre réservation est confirmée. Le bailleur a été notifié et vous contactera prochainement.'
+          ? t('successDesc')
           : isCancelled
-          ? 'Votre paiement a été annulé. Vous pouvez réessayer depuis vos réservations.'
+          ? t('cancelledDesc')
           : isProcessing && pollCount < MAX_POLLS
-          ? 'Votre paiement est en cours de vérification. Cette page se rafraîchit automatiquement…'
-          : 'La confirmation prend plus de temps que prévu. Vérifiez vos réservations dans quelques minutes.'}
+          ? t('processingDesc')
+          : t('timeoutDesc')}
       </p>
 
       {/* Booking summary */}
@@ -116,15 +118,15 @@ function BookingResultContent() {
             {booking.endDate ? ` → ${formatDate(booking.endDate)}` : ''}
           </p>
           <div className="mt-3 flex items-center justify-between">
-            <span className="text-sm text-sub">Montant</span>
+            <span className="text-sm text-sub">{t('amountLabel')}</span>
             <span className="font-bold text-gold-dark">{formatPrice(booking.totalAmount)}</span>
           </div>
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-sm text-sub">Réservation</span>
+            <span className="text-sm text-sub">{t('bookingLabel')}</span>
             <StatusBadge status={booking.status} />
           </div>
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-sm text-sub">Paiement</span>
+            <span className="text-sm text-sub">{t('paymentLabel')}</span>
             <EscrowBadge status={booking.escrowStatus} />
           </div>
         </div>
@@ -137,13 +139,13 @@ function BookingResultContent() {
           className="btn-gold px-6"
         >
           <i className="fa-solid fa-calendar-check text-sm" />
-          Mes réservations
+          {t('myBookings')}
         </Link>
         <Link
           href="/listings"
           className="rounded-xl border border-line bg-card px-6 py-2.5 text-sm font-medium text-sub hover:text-text transition-colors"
         >
-          Continuer la recherche
+          {t('continueSearch')}
         </Link>
       </div>
     </div>
@@ -163,6 +165,7 @@ export default function BookingResultPage() {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const t = useTranslations('bookingResult');
   const styles: Record<string, string> = {
     CONFIRMED: 'bg-green-100 text-green-700',
     PENDING:   'bg-gold-pale text-gold-dark',
@@ -170,10 +173,10 @@ function StatusBadge({ status }: { status: string }) {
     COMPLETED: 'bg-blue-100 text-blue-700',
   };
   const labels: Record<string, string> = {
-    CONFIRMED: 'Confirmée',
-    PENDING:   'En attente',
-    CANCELLED: 'Annulée',
-    COMPLETED: 'Terminée',
+    CONFIRMED: t('statusConfirmed'),
+    PENDING:   t('statusPending'),
+    CANCELLED: t('statusCancelled'),
+    COMPLETED: t('statusCompleted'),
   };
   return (
     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${styles[status] ?? 'bg-card text-sub border border-line'}`}>
@@ -183,6 +186,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function EscrowBadge({ status }: { status: string }) {
+  const t = useTranslations('bookingResult');
   const styles: Record<string, string> = {
     AWAITING_PAYMENT: 'bg-gold-pale text-gold-dark',
     HELD:             'bg-blue-100 text-blue-700',
@@ -190,10 +194,10 @@ function EscrowBadge({ status }: { status: string }) {
     REFUNDED:         'bg-red-100 text-red-700',
   };
   const labels: Record<string, string> = {
-    AWAITING_PAYMENT: 'En attente',
-    HELD:             'Sécurisé',
-    RELEASED:         'Versé',
-    REFUNDED:         'Remboursé',
+    AWAITING_PAYMENT: t('escrowAwaiting'),
+    HELD:             t('escrowHeld'),
+    RELEASED:         t('escrowReleased'),
+    REFUNDED:         t('escrowRefunded'),
   };
   return (
     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${styles[status] ?? 'bg-card text-sub border border-line'}`}>

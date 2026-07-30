@@ -53,7 +53,7 @@ export class UploadService {
   async uploadFile(
     file: Express.Multer.File,
   ): Promise<{ url: string; publicId: string }> {
-    if (!file) throw new BadRequestException('Aucun fichier fourni');
+    if (!file) throw new BadRequestException('No file provided');
 
     const isAudio = file.mimetype.startsWith('audio/');
 
@@ -66,7 +66,7 @@ export class UploadService {
     }
 
     const cloudName = this.config.get<string>('CLOUDINARY_CLOUD_NAME');
-    if (!cloudName) throw new BadRequestException('Cloudinary non configuré');
+    if (!cloudName) throw new BadRequestException('Cloudinary not configured');
 
     return new Promise((resolve, reject) => {
       // Cloudinary utilise resource_type 'video' pour les fichiers audio aussi.

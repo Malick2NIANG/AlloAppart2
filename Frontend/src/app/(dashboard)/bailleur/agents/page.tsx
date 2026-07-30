@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 
@@ -20,13 +21,15 @@ interface Agent {
 /* ── Agent card ──────────────────────────────────────────────────────────── */
 
 function AgentCard({ agent }: { agent: Agent }) {
+  const t = useTranslations('bailleur');
   const initials = [agent.firstName?.[0], agent.lastName?.[0]].filter(Boolean).join('').toUpperCase();
 
   return (
     <div className="bg-white rounded-2xl border border-line shadow-sm p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
-      {/* Avatar + nom */}
+      {/* Avatar + name */}
       <div className="flex items-center gap-3">
         {agent.avatar ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={agent.avatar}
             alt={`${agent.firstName} ${agent.lastName}`}
@@ -38,10 +41,10 @@ function AgentCard({ agent }: { agent: Agent }) {
           </div>
         )}
         <div className="min-w-0">
-          <p className="font-semibold text-main text-base leading-snug truncate">
+          <p className="font-semibold text-text text-base leading-snug truncate">
             {agent.firstName} {agent.lastName}
           </p>
-          <p className="text-xs text-sub mt-0.5">Agent AlloVérifié</p>
+          <p className="text-xs text-sub mt-0.5">{t('agentVerifiedBadge')}</p>
         </div>
       </div>
 
@@ -50,14 +53,14 @@ function AgentCard({ agent }: { agent: Agent }) {
         <div className="flex-1 bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
           <p className="text-xl font-bold text-emerald-600">{agent.completedMissions}</p>
           <p className="text-[10px] text-emerald-700 mt-0.5 leading-tight">
-            {agent.completedMissions === 1 ? 'Mission accomplie' : 'Missions accomplies'}
+            {t('agentMission', { count: agent.completedMissions })}
           </p>
         </div>
         <div className="flex-1 bg-gold/5 rounded-xl p-3 text-center border border-gold/20">
           <p className="text-xl font-bold text-gold">
             <i className="fa-solid fa-shield-halved text-lg" />
           </p>
-          <p className="text-[10px] text-amber-700 mt-0.5 leading-tight">Certifié AlloVérifié</p>
+          <p className="text-[10px] text-amber-700 mt-0.5 leading-tight">{t('agentCertified')}</p>
         </div>
       </div>
 
@@ -84,24 +87,24 @@ function AgentCard({ agent }: { agent: Agent }) {
         {agent.completedMissions >= 10 ? (
           <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
             <i className="fa-solid fa-star text-[9px] text-amber-500" />
-            Agent expérimenté
+            {t('agentExperienced')}
           </span>
         ) : agent.completedMissions >= 3 ? (
           <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
             <i className="fa-solid fa-circle-check text-[9px] text-blue-500" />
-            Agent actif
+            {t('agentActiveLabel')}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
             <i className="fa-solid fa-seedling text-[9px] text-emerald-500" />
-            Nouvel agent
+            {t('agentNew')}
           </span>
         )}
         <Link
           href={`/bailleur/agents/${agent.id}`}
           className="text-[11px] text-gold-dark hover:underline flex items-center gap-1 shrink-0"
         >
-          Voir le profil
+          {t('agentViewProfile')}
           <i className="fa-solid fa-arrow-right text-[9px]" />
         </Link>
       </div>
@@ -113,6 +116,8 @@ function AgentCard({ agent }: { agent: Agent }) {
 
 export default function BailleurAgentsPage() {
   const { getToken } = useAuth();
+  const t = useTranslations('bailleur');
+
   const [agents,  setAgents]  = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');
@@ -124,7 +129,7 @@ export default function BailleurAgentsPage() {
       const data = await api.get<Agent[]>('/auth/agents', token);
       setAgents(data);
     } catch {
-      // erreur non bloquante
+      // non-blocking error
     } finally {
       setLoading(false);
     }
@@ -144,36 +149,31 @@ export default function BailleurAgentsPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
 
-      {/* En-tête */}
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-main">Nos agents AlloVérifié</h1>
-        <p className="text-sm text-sub mt-1">
-          Découvrez nos agents certifiés et exprimez une préférence lors de votre demande de vérification.
-        </p>
+        <h1 className="text-2xl font-bold text-text">{t('agentsTitle')}</h1>
+        <p className="text-sm text-sub mt-1">{t('agentsSubtitle')}</p>
       </div>
 
-      {/* Barre de recherche */}
+      {/* Search */}
       <div className="relative max-w-sm">
         <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sub text-xs" />
         <input
           type="text"
-          placeholder="Rechercher un agent..."
+          placeholder={t('agentSearchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 text-sm border border-line rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-gold/30 text-main placeholder:text-sub"
+          className="w-full pl-9 pr-4 py-2.5 text-sm border border-line rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-gold/30 text-text placeholder:text-sub"
         />
       </div>
 
-      {/* Info encadrée */}
+      {/* Info box */}
       <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
         <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-blue-700 leading-relaxed">
-          Lors de votre demande de vérification AlloVérifié, vous pouvez exprimer une préférence pour l&apos;un de ces agents.
-          L&apos;administrateur reste libre d&apos;effectuer la meilleure attribution possible.
-        </p>
+        <p className="text-xs text-blue-700 leading-relaxed">{t('agentInfoNote')}</p>
       </div>
 
-      {/* Grille */}
+      {/* Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3].map((i) => (
@@ -198,7 +198,7 @@ export default function BailleurAgentsPage() {
         <div className="text-center py-20">
           <i className="fa-solid fa-user-slash text-4xl text-line mb-4" />
           <p className="text-sub text-sm">
-            {search ? 'Aucun agent ne correspond à votre recherche.' : 'Aucun agent disponible pour le moment.'}
+            {search ? t('agentNoResults') : t('agentNone')}
           </p>
         </div>
       ) : (

@@ -90,7 +90,7 @@ export class AnalyticsService {
 
   async getAdminStats(admin: User) {
     if (!admin.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Réservé aux administrateurs');
+      throw new ForbiddenException('Admin only');
     }
 
     const [
@@ -140,7 +140,7 @@ export class AnalyticsService {
 
   async getAdminExtended(admin: User) {
     if (!admin.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Réservé aux administrateurs');
+      throw new ForbiddenException('Admin only');
     }
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -209,7 +209,7 @@ export class AnalyticsService {
 
   async getAdminAlerts(admin: User) {
     if (!admin.roles.includes(Role.ADMIN)) {
-      throw new ForbiddenException('Réservé aux administrateurs');
+      throw new ForbiddenException('Admin only');
     }
 
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -289,7 +289,7 @@ export class AnalyticsService {
     const year  = parseInt(yearStr ?? '', 10);
     const month = parseInt(monthNumStr ?? '', 10);
     if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
-      throw new BadRequestException('Format de mois invalide. Utilisez YYYY-MM.');
+      throw new BadRequestException('Invalid month format. Use YYYY-MM.');
     }
 
     const start = new Date(year, month - 1, 1);
@@ -340,7 +340,7 @@ export class AnalyticsService {
       this.prisma.listing.findMany({
         where: { ownerId },
         select: {
-          id: true, title: true, city: true, type: true, status: true,
+          id: true, title: true, city: true, type: true, status: true, isVerified: true,
           _count: { select: { bookings: true, reviews: true, favoritedBy: true } },
           bookings: {
             where: { status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] } },
@@ -364,7 +364,9 @@ export class AnalyticsService {
       city:           l.city,
       type:           l.type,
       status:         l.status,
+      isVerified:     l.isVerified,
       totalBookings:  l._count.bookings,
+      confirmedBookings: l.bookings.length,
       favorites:      l._count.favoritedBy,
       reviewCount:    l._count.reviews,
       revenue:        l.bookings.reduce((s, b) => s + Number(b.totalAmount), 0),
@@ -375,18 +377,54 @@ export class AnalyticsService {
       .sort((a, b) => b.totalBookings - a.totalBookings)
       .slice(0, 5);
 
+    // ── KPIs enrichis ──────────────────────────────────────────────────
+    const totalBookingsAll   = listingStats.reduce((s, l) => s + l.totalBookings, 0);
+    const confirmedAll       = listingStats.reduce((s, l) => s + l.confirmedBookings, 0);
+    // Taux de conversion : réservations confirmées/complétées / total réservations (%)
+    const conversionRate     = totalBookingsAll > 0
+      ? Math.round((confirmedAll / totalBookingsAll) * 100)
+      : 0;
+
+    // Pression AlloVérifié : annonces actives vérifiées / total annonces actives (%)
+    const activeListingsAll  = listings.filter((l) => l.status === 'ACTIVE');
+    const verifiedActive     = activeListingsAll.filter((l) => l.isVerified).length;
+    const alloVerifieRate    = activeListingsAll.length > 0
+      ? Math.round((verifiedActive / activeListingsAll.length) * 100)
+      : 0;
+
+    // Score global 0-100 (composite)
+    //   – Note moyenne     : 30 pts max
+    //   – Conversion       : 25 pts max
+    //   – AlloVérifié      : 25 pts max
+    //   – Taux publication : 20 pts max
+    const avgRatingVal     = ratingAgg._avg.rating ?? 0;
+    const activeRatio      = listings.length > 0 ? activeListingsAll.length / listings.length : 0;
+    const performanceScore = Math.round(
+      (avgRatingVal / 5) * 30 +
+      (conversionRate / 100) * 25 +
+      (alloVerifieRate / 100) * 25 +
+      activeRatio * 20,
+    );
+    // ──────────────────────────────────────────────────────────────────
+
     return {
       profileViews:  owner.profileViews,
       agencyName:    owner.agencyName,
       agencySlug:    owner.agencySlug,
       subscription:  owner.subscription,
       totalListings: listings.length,
-      activeListings: listings.filter((l) => l.status === 'ACTIVE').length,
+      activeListings: activeListingsAll.length,
       avgRating:     ratingAgg._avg.rating ? Math.round(ratingAgg._avg.rating * 10) / 10 : null,
       reviewCount:   ratingAgg._count.id,
       totalRevenue:  listingStats.reduce((s, l) => s + l.revenue, 0),
       topListings,
       monthly,
+      // KPIs enrichis
+      conversionRate,
+      alloVerifieRate,
+      performanceScore,
+      verifiedActiveCount: verifiedActive,
+      totalActiveCount:    activeListingsAll.length,
     };
   }
 }

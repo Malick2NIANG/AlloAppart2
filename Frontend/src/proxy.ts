@@ -1,32 +1,9 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { clerkMiddleware } from '@clerk/nextjs/server';
 
-const isPublicRoute = createRouteMatcher([
-  '/',
-  '/listings(.*)',
-  '/regions(.*)',
-  '/search(.*)',
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/a-propos(.*)',
-  '/confidentialite(.*)',
-  '/cgu(.*)',
-  '/cookies(.*)',
-  '/plan-du-site(.*)',
-  '/espace(.*)',
-  '/onboarding(.*)',
-  '/messages(.*)',
-  '/profil(.*)',
-  '/publier(.*)',
-  '/api/webhooks(.*)',
-  '/agences(.*)',
-  '/redirect(.*)',
-]);
-
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
-  }
-});
+// clerkMiddleware() sans logique de redirection :
+// - injecte l'état auth dans les Server Components (auth() fonctionne)
+// - ne redirige PAS les routes non-authentifiées (la redirection est gérée par les pages elles-mêmes)
+export default clerkMiddleware();
 
 export const config = {
   matcher: [

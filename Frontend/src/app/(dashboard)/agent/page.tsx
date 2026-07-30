@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Verification } from '@/types';
 
@@ -29,6 +30,9 @@ interface AgentStats {
 
 export default function AgentDashboard() {
   const { getToken } = useAuth();
+  const t = useTranslations('agent');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
   const [stats,   setStats]   = useState<AgentStats | null>(null);
   const [loading, setLoading] = useState(true);
   const fetched = useRef(false);
@@ -51,7 +55,7 @@ export default function AgentDashboard() {
 
   const now = new Date();
   const hour = now.getHours();
-  const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
+  const greeting = hour < 12 ? t('greetingMorning') : hour < 18 ? t('greetingAfternoon') : t('greetingEvening');
 
   return (
     <div className="space-y-7">
@@ -59,10 +63,10 @@ export default function AgentDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-extrabold text-text">
-          {greeting}, <span className="text-gold-dark">Agent</span>
+          {greeting}, <span className="text-gold-dark">{t('roleAgent')}</span>
         </h1>
         <p className="text-sm text-sub mt-0.5">
-          {now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          {now.toLocaleDateString(numLocale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
       </div>
 
@@ -79,28 +83,28 @@ export default function AgentDashboard() {
             icon="fa-calendar-check"
             iconBg="bg-blue-50"
             iconColor="text-blue-600"
-            label="Assignées"
+            label={t('statAssigned')}
             value={stats.assigned}
           />
           <StatCard
             icon="fa-person-walking"
             iconBg="bg-purple-50"
             iconColor="text-purple-600"
-            label="En cours"
+            label={t('statInProgressLabel')}
             value={stats.inProgress}
           />
           <StatCard
             icon="fa-shield-check"
             iconBg="bg-emerald-50"
             iconColor="text-emerald-600"
-            label="Ce mois"
+            label={t('statThisMonth')}
             value={stats.doneThisMonth}
           />
           <StatCard
             icon="fa-trophy"
             iconBg="bg-gold-pale"
             iconColor="text-gold-dark"
-            label="Total certifiées"
+            label={t('statTotalCertified')}
             value={stats.doneTotal}
           />
           {/* Note moyenne */}
@@ -111,12 +115,12 @@ export default function AgentDashboard() {
             {stats.avgRating !== null ? (
               <>
                 <p className="text-2xl font-extrabold text-text">{stats.avgRating.toFixed(1)}<span className="text-sm font-normal text-sub">/5</span></p>
-                <p className="text-xs text-sub mt-0.5">Note moyenne · {stats.totalRatings} avis</p>
+                <p className="text-xs text-sub mt-0.5">{t('avgRatingLabel', { count: stats.totalRatings })}</p>
               </>
             ) : (
               <>
                 <p className="text-base font-bold text-sub">—</p>
-                <p className="text-xs text-sub mt-0.5">Pas encore d'avis</p>
+                <p className="text-xs text-sub mt-0.5">{t('noRatingsYet')}</p>
               </>
             )}
           </div>
@@ -128,10 +132,10 @@ export default function AgentDashboard() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold text-text flex items-center gap-2">
             <i className="fa-solid fa-sun text-gold-dark text-xs" />
-            Missions du jour
+            {t('todayMissions')}
           </h2>
           <Link href="/agent/verifications" className="text-xs text-gold-dark hover:underline">
-            Toutes les missions →
+            {t('allMissionsLink')}
           </Link>
         </div>
 
@@ -144,8 +148,8 @@ export default function AgentDashboard() {
         ) : !stats || stats.todayMissions.length === 0 ? (
           <div className="rounded-2xl border border-line bg-card p-8 text-center">
             <i className="fa-solid fa-coffee text-2xl text-sub mb-3 block" />
-            <p className="font-semibold text-text text-sm">Aucune mission aujourd'hui</p>
-            <p className="text-xs text-sub mt-1">Profitez de votre journée — de nouvelles missions peuvent être assignées à tout moment.</p>
+            <p className="font-semibold text-text text-sm">{t('noMissionsToday')}</p>
+            <p className="text-xs text-sub mt-1">{t('noMissionsTodayHint')}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -162,14 +166,18 @@ export default function AgentDashboard() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold text-text flex items-center gap-2">
               <i className="fa-solid fa-star text-amber-400 text-xs" />
-              Derniers avis reçus
+              {t('recentReviews')}
             </h2>
           </div>
           <div className="rounded-2xl border border-line bg-card divide-y divide-line overflow-hidden">
             {stats.recentRatings.map((r) => {
               const initials = `${r.raterFirstName[0]}${r.raterLastName[0]}`.toUpperCase();
               const diffDays = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 86400000);
-              const timeStr = diffDays === 0 ? 'Aujourd\'hui' : diffDays === 1 ? 'Hier' : `il y a ${diffDays}j`;
+              const timeStr = diffDays === 0
+                ? t('timeToday')
+                : diffDays === 1
+                  ? t('timeYesterday')
+                  : t('timeDaysAgo', { days: diffDays });
               return (
                 <div key={r.id} className="flex items-start gap-3 px-4 py-3">
                   {r.raterAvatar ? (
@@ -204,7 +212,7 @@ export default function AgentDashboard() {
 
       {/* Raccourcis */}
       <section>
-        <h2 className="text-sm font-bold text-text mb-3">Accès rapide</h2>
+        <h2 className="text-sm font-bold text-text mb-3">{t('quickAccess')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Link
             href="/agent/verifications"
@@ -214,8 +222,8 @@ export default function AgentDashboard() {
               <i className="fa-solid fa-shield-halved text-gold-dark" />
             </div>
             <div>
-              <p className="font-semibold text-text text-sm group-hover:text-gold-dark transition-colors">Mes missions</p>
-              <p className="text-xs text-sub">Assignées, en cours, terminées</p>
+              <p className="font-semibold text-text text-sm group-hover:text-gold-dark transition-colors">{t('quickMissions')}</p>
+              <p className="text-xs text-sub">{t('quickMissionsDesc')}</p>
             </div>
             <i className="fa-solid fa-chevron-right text-sub text-xs ml-auto group-hover:text-gold-dark transition-colors" />
           </Link>
@@ -228,8 +236,8 @@ export default function AgentDashboard() {
               <i className="fa-solid fa-comment-dots text-emerald-600" />
             </div>
             <div>
-              <p className="font-semibold text-text text-sm group-hover:text-gold-dark transition-colors">Messages</p>
-              <p className="text-xs text-sub">Échanges avec les bailleurs</p>
+              <p className="font-semibold text-text text-sm group-hover:text-gold-dark transition-colors">{t('quickMessages')}</p>
+              <p className="text-xs text-sub">{t('quickMessagesDesc')}</p>
             </div>
             <i className="fa-solid fa-chevron-right text-sub text-xs ml-auto group-hover:text-gold-dark transition-colors" />
           </Link>
@@ -242,8 +250,8 @@ export default function AgentDashboard() {
               <i className="fa-solid fa-user text-blue-600" />
             </div>
             <div>
-              <p className="font-semibold text-text text-sm group-hover:text-gold-dark transition-colors">Mon profil</p>
-              <p className="text-xs text-sub">Coordonnées, photo</p>
+              <p className="font-semibold text-text text-sm group-hover:text-gold-dark transition-colors">{t('quickProfile')}</p>
+              <p className="text-xs text-sub">{t('quickProfileDesc')}</p>
             </div>
             <i className="fa-solid fa-chevron-right text-sub text-xs ml-auto group-hover:text-gold-dark transition-colors" />
           </Link>
@@ -268,9 +276,12 @@ function StatCard({ icon, iconBg, iconColor, label, value }: {
 }
 
 function MissionCard({ mission }: { mission: Verification & { listing?: { id: string; title: string; city: string; address?: string } } }) {
-  const time = new Date(mission.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const t = useTranslations('agent');
+  const locale = useLocale();
+  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
+  const time = new Date(mission.scheduledAt).toLocaleTimeString(numLocale, { hour: '2-digit', minute: '2-digit' });
   const statusColor = mission.status === 'IN_PROGRESS' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600';
-  const statusLabel = mission.status === 'IN_PROGRESS' ? 'En cours' : 'Planifiée';
+  const statusLabel = mission.status === 'IN_PROGRESS' ? t('statusInProgress') : t('statusScheduled');
 
   return (
     <Link
@@ -280,13 +291,13 @@ function MissionCard({ mission }: { mission: Verification & { listing?: { id: st
       {/* Heure */}
       <div className="shrink-0 text-center w-12">
         <p className="text-lg font-extrabold text-gold-dark leading-none">{time}</p>
-        <p className="text-[9px] text-sub uppercase tracking-wide mt-0.5">Prévu</p>
+        <p className="text-[9px] text-sub uppercase tracking-wide mt-0.5">{t('missionScheduledAbbr')}</p>
       </div>
 
       <div className="w-px h-10 bg-line shrink-0" />
 
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-text text-sm truncate">{mission.listing?.title ?? 'Mission'}</p>
+        <p className="font-semibold text-text text-sm truncate">{mission.listing?.title ?? t('missionFallback')}</p>
         <p className="text-xs text-sub truncate mt-0.5">
           <i className="fa-solid fa-location-dot text-gold-dark text-[10px] mr-1" />
           {mission.listing?.city}{mission.listing?.address ? ` · ${mission.listing.address}` : ''}

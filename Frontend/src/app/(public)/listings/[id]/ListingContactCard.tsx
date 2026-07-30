@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import type { MessageRoom } from '@/types';
 
@@ -11,13 +13,22 @@ interface Props {
   listingId: string;
   price: string;
   landlordName: string;
+  landlordAvatar?: string | null;
   landlordPhone?: string | null;
+  isAgency?: boolean;
+  agencyName?: string | null;
+  agencySlug?: string | null;
   perMonth: string;
   priceRaw: number;
   numLocale: string;
+  isOwner?: boolean;
 }
 
-export default function ListingContactCard({ listingId, landlordName, landlordPhone, perMonth, priceRaw, numLocale }: Props) {
+export default function ListingContactCard({
+  listingId, landlordName, landlordAvatar, landlordPhone,
+  isAgency = false, agencyName, agencySlug,
+  perMonth, priceRaw, numLocale, isOwner = false,
+}: Props) {
   const { isSignedIn } = useUser();
   const { getToken } = useAuth();
   const router   = useRouter();
@@ -78,7 +89,7 @@ export default function ListingContactCard({ listingId, landlordName, landlordPh
       setSent(true);
       setTimeout(() => router.push(`/locataire/messages/${room.id}`), 1200);
     } catch {
-      setError('Erreur lors de l\'envoi. Réessayez.');
+      setError(t('sendError'));
       setMessage(text);
     } finally {
       setSending(false);
@@ -100,7 +111,7 @@ export default function ListingContactCard({ listingId, landlordName, landlordPh
           <button
             onClick={toggleLike}
             disabled={likeLoading}
-            title={liked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            title={liked ? t('removeFavorite') : t('addFavorite')}
             className={`h-10 w-10 rounded-full border grid place-items-center transition ${
               liked ? 'border-red-300 bg-red-50 text-red-400' : 'border-line hover:bg-gold-pale text-sub hover:text-gold-dark'
             }`}>
@@ -114,12 +125,17 @@ export default function ListingContactCard({ listingId, landlordName, landlordPh
           </button>
         </div>
 
-        {/* Contact form — toujours visible, auth au submit */}
+        {/* Contact form — masqué si l'user est le propriétaire */}
         <div className="mt-4">
-          {sent ? (
+          {isOwner ? (
+            <div className="flex items-center gap-2.5 rounded-xl border border-gold/30 bg-gold-pale px-4 py-3 text-sm text-gold-dark">
+              <i className="fa-solid fa-house-chimney-user shrink-0" />
+              <span className="font-medium">{t('yourListing')}</span>
+            </div>
+          ) : sent ? (
             <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
               <i className="fa-solid fa-circle-check" />
-              Message envoyé ! Redirection vers vos messages…
+              {t('messageSent')}
             </div>
           ) : (
             <>
@@ -141,7 +157,7 @@ export default function ListingContactCard({ listingId, landlordName, landlordPh
                 disabled={!message.trim() || sending}
                 className="w-full btn-gold py-2.5 rounded-full font-semibold mt-2 hover:scale-[1.02] transition disabled:opacity-50 flex items-center justify-center gap-2">
                 {sending
-                  ? <><i className="fa-solid fa-spinner fa-spin" /> Envoi…</>
+                  ? <><i className="fa-solid fa-spinner fa-spin" /> {t('contactSending')}</>
                   : t('contactLandlord')
                 }
               </button>
@@ -149,26 +165,76 @@ export default function ListingContactCard({ listingId, landlordName, landlordPh
           )}
         </div>
 
-        {/* Landlord info */}
+        {/* Landlord / Agency info */}
         <div className="mt-5 pt-4 border-t border-line">
-          <p className="text-xs text-sub mb-2">{t('landlordLabel')}</p>
+          {/* Label contextuel */}
+          <div className="flex items-center gap-1.5 mb-3">
+            <i className={`fa-solid ${isAgency ? 'fa-building' : 'fa-user'} text-[10px] text-sub`} />
+            <p className="text-xs text-sub font-medium uppercase tracking-wide">
+              {isAgency ? t('agencyType') : t('landlordType')}
+            </p>
+          </div>
+
+          {/* Avatar + nom */}
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-gold-pale grid place-items-center shrink-0">
-              <i className="fa-solid fa-user text-gold-dark text-sm" />
+            {/* Avatar */}
+            <div className="relative h-10 w-10 shrink-0">
+              {landlordAvatar ? (
+                <Image
+                  src={landlordAvatar}
+                  alt={landlordName}
+                  fill
+                  className="rounded-full object-cover"
+                  sizes="40px"
+                />
+              ) : (
+                <div className={`h-10 w-10 rounded-full grid place-items-center text-sm font-bold ${
+                  isAgency ? 'bg-blue-50 text-blue-700' : 'bg-gold-pale text-gold-dark'
+                }`}>
+                  {isAgency
+                    ? <i className="fa-solid fa-building text-xs" />
+                    : <span>{landlordName.charAt(0).toUpperCase()}</span>
+                  }
+                </div>
+              )}
+              {/* Badge agence */}
+              {isAgency && (
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 border-2 border-card">
+                  <i className="fa-solid fa-check text-[6px] text-white" />
+                </span>
+              )}
             </div>
-            <div>
-              <p className="font-medium text-text text-sm">{landlordName}</p>
-              {landlordPhone && <p className="text-xs text-sub">{landlordPhone}</p>}
+
+            {/* Infos */}
+            <div className="min-w-0">
+              {isAgency && agencyName ? (
+                <>
+                  <p className="font-semibold text-text text-sm truncate">{agencyName}</p>
+                  <p className="text-xs text-sub truncate">{landlordName}</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-text text-sm truncate">{landlordName}</p>
+                  {landlordPhone && <p className="text-xs text-sub">{landlordPhone}</p>}
+                </>
+              )}
             </div>
           </div>
-          <button className="mt-3 text-sm text-gold-dark hover:text-gold transition-colors flex items-center gap-1">
-            {t('otherListings')} <i className="fa-solid fa-arrow-right text-xs" />
-          </button>
+
+          {/* Lien vitrine agence — affiché uniquement pour les agences */}
+          {isAgency && agencySlug && (
+            <Link
+              href={`/agences/${agencySlug}`}
+              className="mt-3 text-sm text-gold-dark hover:text-gold transition-colors flex items-center gap-1"
+            >
+              {t('viewAgencyShowcase')} <i className="fa-solid fa-arrow-right text-xs" />
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* ── Mobile CTA ────────────────────────────────────────────── */}
-      <div className="fixed bottom-3 inset-x-0 z-40 px-4 md:hidden">
+      {/* ── Mobile CTA ─── masqué si propriétaire ──────────────── */}
+      {!isOwner && <div className="fixed bottom-3 inset-x-0 z-40 px-4 md:hidden">
         <div className="mx-auto max-w-md rounded-2xl shadow-lg border border-line bg-white/90 backdrop-blur-xl p-3 flex items-center justify-between">
           <div>
             <p className="text-base font-extrabold text-text">{priceRaw.toLocaleString(numLocale)} FCFA</p>
@@ -180,7 +246,7 @@ export default function ListingContactCard({ listingId, landlordName, landlordPh
             {t('contactBtn')}
           </button>
         </div>
-      </div>
+      </div>}
     </>
   );
 }

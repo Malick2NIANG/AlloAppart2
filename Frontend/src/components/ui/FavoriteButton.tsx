@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter, usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 
 export default function FavoriteButton({ listingId, initialFavorite = false, className = '', size = 'sm' }: Props) {
   const { isSignedIn, getToken } = useAuth();
+  const t        = useTranslations('detail');
   const router   = useRouter();
   const pathname = usePathname();
   const [liked,    setLiked]   = useState(initialFavorite);
@@ -56,7 +58,7 @@ export default function FavoriteButton({ listingId, initialFavorite = false, cla
   return (
     <>
       <button
-        aria-label={liked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+        aria-label={liked ? t('removeFavorite') : t('addFavorite')}
         onClick={handleClick}
         disabled={loading}
         className={`${dim} grid place-items-center rounded-full bg-white/80 transition-all duration-300 hover:bg-gold-pale disabled:opacity-70 ${className}`}

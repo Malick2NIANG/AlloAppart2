@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 
 interface Subscription {
   id: string;
@@ -14,28 +15,14 @@ interface Subscription {
   endDate: string | null;
 }
 
-const PLANS = [
-  {
-    key: 'STARTER' as const,
-    name: 'Starter',
-    price: '75 000',
-    listings: '10 annonces max',
-    features: ['10 annonces actives', 'Messagerie intégrée', 'Tableau de bord', 'Support email'],
-  },
-  {
-    key: 'PRO' as const,
-    name: 'Pro',
-    price: '150 000',
-    listings: 'Annonces illimitées',
-    features: ['Annonces illimitées', 'Messagerie intégrée', 'Analytiques avancées', 'Support prioritaire', 'Badge agence vérifiée'],
-    highlighted: true,
-  },
-];
-
 function AbonnementContent() {
   const { getToken } = useAuth();
   const router       = useRouter();
   const searchParams = useSearchParams();
+  const t            = useTranslations('bailleur');
+  const locale       = useLocale();
+  const numLocale    = locale === 'en' ? 'en-US' : 'fr-FR';
+
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading]           = useState(true);
   const [initiating, setInitiating]     = useState<string | null>(null);
@@ -46,6 +33,25 @@ function AbonnementContent() {
 
   const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
+  // Plans defined with translations — must be inside the component
+  const PLANS = [
+    {
+      key: 'STARTER' as const,
+      name: 'Starter',
+      price: '75 000',
+      listings: t('planStarterListings'),
+      features: [t('planStarterFeature1'), t('planStarterFeature2'), t('planStarterFeature3'), t('planStarterFeature4')],
+    },
+    {
+      key: 'PRO' as const,
+      name: 'Pro',
+      price: '150 000',
+      listings: t('planProListings'),
+      features: [t('planProFeature1'), t('planProFeature2'), t('planProFeature3'), t('planProFeature4'), t('planProFeature5')],
+      highlighted: true,
+    },
+  ];
+
   const showToast = (type: 'success' | 'error', msg: string) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 4000);
@@ -54,7 +60,6 @@ function AbonnementContent() {
   const fetchSubscription = useCallback(async () => {
     try {
       const token = await getToken();
-      // Guard : réservé aux PRO_AGENCE
       const me = await fetch(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
       if (me.ok) {
         const meData = await me.json() as { roles: string[] };
@@ -63,7 +68,7 @@ function AbonnementContent() {
           return;
         }
       }
-      const res   = await fetch(`${API}/subscriptions/me`, {
+      const res = await fetch(`${API}/subscriptions/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -85,7 +90,7 @@ function AbonnementContent() {
     const status = searchParams.get('status');
 
     if (status === 'success') {
-      showToast('success', 'Paiement reçu — votre abonnement sera activé dans quelques instants.');
+      showToast('success', t('abonnementPaymentSuccess'));
       setPolling(true);
       let attempts = 0;
       pollRef.current = setInterval(() => {
@@ -105,7 +110,7 @@ function AbonnementContent() {
                 return;
               }
             }
-          } catch { /* retente au prochain tick */ }
+          } catch { /* retry on next tick */ }
           if (attempts >= 6 && pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
@@ -115,11 +120,12 @@ function AbonnementContent() {
       }, 2000);
     }
 
-    if (status === 'cancel') showToast('error', 'Paiement annulé.');
+    if (status === 'cancel') showToast('error', t('abonnementPaymentCancelled'));
 
     return () => {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const initiate = async (plan: 'STARTER' | 'PRO') => {
@@ -133,26 +139,26 @@ function AbonnementContent() {
       });
       if (!res.ok) {
         const err = await res.json() as { message?: string };
-        showToast('error', err.message ?? 'Erreur lors de l\'initiation du paiement.');
+        showToast('error', err.message ?? t('abonnementInitError'));
         return;
       }
       const body = await res.json() as { payment_url?: string };
       if (!body.payment_url) {
-        showToast('error', 'Service de paiement indisponible. Veuillez réessayer.');
+        showToast('error', t('abonnementPaymentError'));
         return;
       }
       window.location.href = body.payment_url;
     } catch {
-      showToast('error', 'Service de paiement indisponible.');
+      showToast('error', t('abonnementPaymentError2'));
     } finally {
       setInitiating(null);
     }
   };
 
   const statusLabel: Record<string, string> = {
-    ACTIVE:    'Actif',
-    SUSPENDED: 'Expiré',
-    CANCELLED: 'Annulé',
+    ACTIVE:    t('abonnementStatusActive'),
+    SUSPENDED: t('abonnementStatusSuspended'),
+    CANCELLED: t('abonnementStatusCancelled'),
   };
   const statusColor: Record<string, string> = {
     ACTIVE:    'text-green-700 bg-green-50 border-green-200',
@@ -174,7 +180,7 @@ function AbonnementContent() {
 
       {polling && (
         <div className={`fixed z-50 right-4 rounded-xl px-5 py-2 text-xs font-medium text-sub bg-card border border-line shadow ${toast ? 'top-20' : 'top-4'}`}>
-          <i className="fa-solid fa-spinner fa-spin mr-1.5" />Vérification en cours…
+          <i className="fa-solid fa-spinner fa-spin mr-1.5" />{t('abonnementChecking')}
         </div>
       )}
 
@@ -184,21 +190,19 @@ function AbonnementContent() {
             <i className="fa-solid fa-lock text-gold-dark" />
           </div>
           <div>
-            <p className="font-semibold text-text">Un abonnement est requis</p>
-            <p className="text-sm text-sub mt-0.5">
-              Souscrivez à un plan pour publier et gérer vos annonces sur AlloAppart.
-            </p>
+            <p className="font-semibold text-text">{t('abonnementRequired')}</p>
+            <p className="text-sm text-sub mt-0.5">{t('abonnementRequiredHint')}</p>
           </div>
         </div>
       )}
 
-      <h1 className="text-2xl font-bold text-text mb-1">Abonnement</h1>
-      <p className="text-sub text-sm mb-8">Choisissez le plan adapté à votre activité.</p>
+      <h1 className="text-2xl font-bold text-text mb-1">{t('abonnementTitle')}</h1>
+      <p className="text-sub text-sm mb-8">{t('abonnementSubtitle')}</p>
 
-      {/* Abonnement actuel */}
+      {/* Current subscription */}
       {!loading && subscription && subscription.status !== 'CANCELLED' && (
         <div className="mb-8 rounded-2xl border border-line bg-card p-5">
-          <p className="text-xs text-sub font-medium uppercase tracking-wide mb-1">Abonnement actuel</p>
+          <p className="text-xs text-sub font-medium uppercase tracking-wide mb-1">{t('abonnementCurrent')}</p>
           <div className="flex items-center gap-3">
             <span className="text-xl font-bold text-text">{subscription.plan}</span>
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${statusColor[subscription.status] ?? ''}`}>
@@ -206,11 +210,11 @@ function AbonnementContent() {
             </span>
           </div>
           <p className="text-sm text-sub mt-1">
-            {Number(subscription.monthlyFee).toLocaleString('fr-FR')} FCFA / mois
+            {Number(subscription.monthlyFee).toLocaleString(numLocale)} {t('fcfaPerMonth')}
             {subscription.endDate && (
               subscription.status === 'SUSPENDED'
-                ? ` — expiré le ${new Date(subscription.endDate).toLocaleDateString('fr-FR')}`
-                : ` — expire le ${new Date(subscription.endDate).toLocaleDateString('fr-FR')}`
+                ? ` — ${t('abonnementExpiredOn', { date: new Date(subscription.endDate).toLocaleDateString(numLocale) })}`
+                : ` — ${t('abonnementExpiresOn', { date: new Date(subscription.endDate).toLocaleDateString(numLocale) })}`
             )}
           </p>
         </div>
@@ -239,12 +243,12 @@ function AbonnementContent() {
               >
                 {plan.highlighted && (
                   <span className="absolute -top-3 left-6 rounded-full bg-gold px-3 py-1 text-xs font-bold text-gray-900">
-                    Populaire
+                    {t('abonnementPopular')}
                   </span>
                 )}
                 <h2 className="text-lg font-bold text-text">{plan.name}</h2>
                 <p className="mt-1 text-3xl font-extrabold text-text">
-                  {plan.price} <span className="text-base font-medium text-sub">FCFA/mois</span>
+                  {plan.price} <span className="text-base font-medium text-sub">{t('fcfaPerMonth')}</span>
                 </p>
                 <p className="mt-1 text-sm text-sub">{plan.listings}</p>
 
@@ -263,11 +267,9 @@ function AbonnementContent() {
                       disabled
                       className="w-full rounded-xl py-2.5 text-sm font-semibold border border-line bg-gray-50 text-gray-400 cursor-not-allowed"
                     >
-                      Changer de plan
+                      {t('abonnementChangePlan')}
                     </button>
-                    <p className="mt-2 text-xs text-sub text-center">
-                      Contactez le support pour changer de plan.
-                    </p>
+                    <p className="mt-2 text-xs text-sub text-center">{t('abonnementChangePlanNote')}</p>
                   </div>
                 ) : (
                   <button
@@ -282,11 +284,11 @@ function AbonnementContent() {
                     }`}
                   >
                     {isActive ? (
-                      <><i className="fa-solid fa-check mr-1" />Plan actif</>
+                      <><i className="fa-solid fa-check mr-1" />{t('abonnementPlanActive')}</>
                     ) : isCurrent ? (
-                      'Renouveler'
+                      t('abonnementRenew')
                     ) : (
-                      'Choisir ce plan'
+                      t('abonnementChoose')
                     )}
                   </button>
                 )}
@@ -296,24 +298,22 @@ function AbonnementContent() {
         </div>
       )}
 
-      <p className="mt-6 text-xs text-sub text-center">
-        Paiement sécurisé via PayDunya · Wave, Orange Money, carte bancaire
-      </p>
+      <p className="mt-6 text-xs text-sub text-center">{t('abonnementSecureNote')}</p>
 
-      {/* Modale confirmation avant paiement */}
+      {/* Confirmation modal */}
       {confirmPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-gold-pale">
               <i className="fa-solid fa-receipt text-gold-dark" />
             </div>
-            <h2 className="text-lg font-semibold text-text mb-1">Confirmer votre abonnement</h2>
-            <p className="text-sm text-sub mb-5">Vérifiez les détails avant de procéder au paiement.</p>
+            <h2 className="text-lg font-semibold text-text mb-1">{t('abonnementConfirmTitle')}</h2>
+            <p className="text-sm text-sub mb-5">{t('abonnementConfirmSubtitle')}</p>
 
             <div className="rounded-xl border border-line bg-surface p-4 mb-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold text-text">Plan {confirmPlan.name}</span>
-                <span className="text-sm font-bold text-text">{confirmPlan.price} FCFA / mois</span>
+                <span className="text-sm font-semibold text-text">{confirmPlan.name}</span>
+                <span className="text-sm font-bold text-text">{confirmPlan.price} {t('fcfaPerMonth')}</span>
               </div>
               <p className="text-xs text-sub mb-3">{confirmPlan.listings}</p>
               <ul className="space-y-1.5">
@@ -328,7 +328,7 @@ function AbonnementContent() {
 
             <p className="text-xs text-sub text-center mb-5">
               <i className="fa-solid fa-shield-halved mr-1 text-gold-dark" />
-              Paiement sécurisé via PayDunya · Wave, Orange Money, carte bancaire
+              {t('abonnementSecureNote')}
             </p>
 
             <div className="flex gap-3">
@@ -337,7 +337,7 @@ function AbonnementContent() {
                 disabled={initiating !== null}
                 className="flex-1 text-sm font-medium text-sub hover:text-text px-4 py-2.5 rounded-xl border border-line transition-colors disabled:opacity-50"
               >
-                Retour
+                {t('abonnementConfirmBack')}
               </button>
               <button
                 onClick={() => { setConfirmPlan(null); void initiate(confirmPlan.key); }}
@@ -345,9 +345,9 @@ function AbonnementContent() {
                 className="flex-1 btn-gold text-sm disabled:opacity-50"
               >
                 {initiating === confirmPlan.key ? (
-                  <><i className="fa-solid fa-spinner fa-spin mr-2" />Redirection…</>
+                  <><i className="fa-solid fa-spinner fa-spin mr-2" />{t('abonnementConfirmRedirecting')}</>
                 ) : (
-                  <><i className="fa-solid fa-arrow-right mr-2" />Procéder au paiement</>
+                  <><i className="fa-solid fa-arrow-right mr-2" />{t('abonnementConfirmPay')}</>
                 )}
               </button>
             </div>
