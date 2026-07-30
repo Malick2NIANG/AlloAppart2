@@ -17,6 +17,7 @@ import {
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { MailService } from '../mail/mail.service';
 import { Role } from '@prisma/client';
 
 const baseUser = {
@@ -71,6 +72,7 @@ describe('AuthService', () => {
             },
           },
         },
+        { provide: MailService, useValue: { sendWelcome: jest.fn(), sendPasswordChanged: jest.fn() } },
       ],
     }).compile();
 
@@ -171,6 +173,7 @@ describe('AuthService', () => {
                 key === 'CLERK_SECRET_KEY' ? 'sk_test_clerk' : undefined,
             },
           },
+          { provide: MailService, useValue: { sendWelcome: jest.fn(), sendPasswordChanged: jest.fn() } },
         ],
       }).compile();
       const svc = mod.get<AuthService>(AuthService);
