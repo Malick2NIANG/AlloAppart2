@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { t, toLocale, type Locale } from '../i18n/messages';
+
+const SUPPORT_EMAIL = 'alloappart221@gmail.com';
 
 @Injectable()
 export class MailService {
@@ -24,85 +27,111 @@ export class MailService {
     }
   }
 
+  private get from(): string {
+    return (
+      this.config.get<string>('SMTP_FROM') ??
+      'AlloAppart <noreply@alloappart.sn>'
+    );
+  }
+
+  private get frontendUrl(): string {
+    return this.config.get<string>('FRONTEND_URL') ?? 'https://alloappart.sn';
+  }
+
+  /** Enveloppe HTML commune : logo + conteneur. */
+  private shell(inner: string): string {
+    return `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#fff;">
+        <img src="${this.frontendUrl}/images/LOGO.png" alt="AlloAppart" style="height:40px;margin-bottom:24px;" />
+        ${inner}
+      </div>
+    `;
+  }
+
+  private button(label: string, href: string): string {
+    return `<a href="${href}" style="display:inline-block;background:#c9a84c;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;">${label}</a>`;
+  }
+
+  private async deliver(to: string, subject: string, html: string, tag: string): Promise<void> {
+    if (!this.transporter) return;
+    try {
+      await this.transporter.sendMail({ from: this.from, to, subject, html });
+      this.logger.log(`${tag} envoyé → ${to}`);
+    } catch (err) {
+      this.logger.warn(`Échec envoi ${tag} → ${to} : ${String(err)}`);
+    }
+  }
+
   async sendCredentials(opts: {
     to: string;
     firstName: string;
     role: 'agent' | 'agence';
     password: string;
     agencyName?: string;
+    locale?: string | null;
   }): Promise<void> {
     if (!this.transporter) return;
 
-    const from = this.config.get<string>('SMTP_FROM') ?? 'AlloAppart <noreply@alloappart.sn>';
-    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'https://alloappart.sn';
-    const roleLabel = opts.role === 'agent' ? 'Agent terrain' : 'Agence PRO';
-    const subject = `Vos identifiants AlloAppart — ${roleLabel}`;
+    const loc: Locale = toLocale(opts.locale);
+    const roleLabel = t(loc, opts.role === 'agent' ? 'roleAgent' : 'roleAgence');
+    const agencySuffix = opts.agencyName ? ` (${opts.agencyName})` : '';
 
-    const html = `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#fff;">
-        <img src="${frontendUrl}/images/LOGO.png" alt="AlloAppart" style="height:40px;margin-bottom:24px;" />
-        <h2 style="margin:0 0 8px;color:#1a1a1a;">Bienvenue sur AlloAppart, ${opts.firstName}&nbsp;!</h2>
-        <p style="color:#555;margin:0 0 24px;">Votre compte <strong>${roleLabel}</strong>${opts.agencyName ? ` (${opts.agencyName})` : ''} a été créé par l'administrateur.</p>
-        <div style="background:#f9f6ef;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
-          <p style="margin:0 0 8px;font-size:13px;color:#888;">Vos identifiants de connexion</p>
-          <p style="margin:0 0 4px;font-size:15px;"><strong>Email :</strong> ${opts.to}</p>
-          <p style="margin:0;font-size:15px;"><strong>Mot de passe :</strong> <code style="background:#e8e0d0;padding:2px 8px;border-radius:6px;font-size:14px;">${opts.password}</code></p>
-        </div>
-        <p style="color:#555;margin:0 0 16px;">Connectez-vous et changez votre mot de passe dès votre première connexion.</p>
-        <a href="${frontendUrl}/sign-in" style="display:inline-block;background:#c9a84c;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;">Se connecter</a>
-        <p style="margin-top:32px;font-size:12px;color:#aaa;">Si vous n'êtes pas concerné, ignorez cet email.</p>
+    const html = this.shell(`
+      <h2 style="margin:0 0 8px;color:#1a1a1a;">${t(loc, 'mailCredentialsTitle', { firstName: opts.firstName })}</h2>
+      <p style="color:#555;margin:0 0 24px;">${t(loc, 'mailCredentialsIntro', { roleLabel, agencySuffix })}</p>
+      <div style="background:#f9f6ef;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+        <p style="margin:0 0 8px;font-size:13px;color:#888;">${t(loc, 'mailCredentialsBoxTitle')}</p>
+        <p style="margin:0 0 4px;font-size:15px;"><strong>${t(loc, 'mailCredentialsEmailLabel')}</strong> ${opts.to}</p>
+        <p style="margin:0;font-size:15px;"><strong>${t(loc, 'mailCredentialsPasswordLabel')}</strong> <code style="background:#e8e0d0;padding:2px 8px;border-radius:6px;font-size:14px;">${opts.password}</code></p>
       </div>
-    `;
+      <p style="color:#555;margin:0 0 16px;">${t(loc, 'mailCredentialsAdvice')}</p>
+      ${this.button(t(loc, 'commonSignIn'), `${this.frontendUrl}/sign-in`)}
+      <p style="margin-top:32px;font-size:12px;color:#aaa;">${t(loc, 'mailCredentialsIgnore')}</p>
+    `);
 
-    try {
-      await this.transporter.sendMail({ from, to: opts.to, subject, html });
-      this.logger.log(`Credentials email envoyé → ${opts.to}`);
-    } catch (err) {
-      this.logger.warn(`Échec envoi email → ${opts.to} : ${String(err)}`);
-    }
+    await this.deliver(
+      opts.to,
+      t(loc, 'mailCredentialsSubject', { roleLabel }),
+      html,
+      'Credentials email',
+    );
   }
 
-  async sendAccountSuspended(opts: { to: string; firstName: string }): Promise<void> {
+  async sendAccountSuspended(opts: {
+    to: string;
+    firstName: string;
+    locale?: string | null;
+  }): Promise<void> {
     if (!this.transporter) return;
-    const from = this.config.get<string>('SMTP_FROM') ?? 'AlloAppart <noreply@alloappart.sn>';
-    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'https://alloappart.sn';
-    const html = `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#fff;">
-        <img src="${frontendUrl}/images/LOGO.png" alt="AlloAppart" style="height:40px;margin-bottom:24px;" />
-        <h2 style="margin:0 0 8px;color:#1a1a1a;">Votre compte a été suspendu</h2>
-        <p style="color:#555;margin:0 0 16px;">Bonjour ${opts.firstName},</p>
-        <p style="color:#555;margin:0 0 24px;">Votre compte AlloAppart a été suspendu par l'administrateur. Vous ne pouvez plus accéder à la plateforme.</p>
-        <p style="color:#555;margin:0;">Si vous pensez qu'il s'agit d'une erreur, contactez-nous à <a href="mailto:alloappart221@gmail.com" style="color:#c9a84c;">alloappart221@gmail.com</a>.</p>
-        <p style="margin-top:32px;font-size:12px;color:#aaa;">L'équipe AlloAppart</p>
-      </div>
-    `;
-    try {
-      await this.transporter.sendMail({ from, to: opts.to, subject: 'Votre compte AlloAppart a été suspendu', html });
-      this.logger.log(`Suspension email envoyé → ${opts.to}`);
-    } catch (err) {
-      this.logger.warn(`Échec envoi suspension → ${opts.to} : ${String(err)}`);
-    }
+    const loc: Locale = toLocale(opts.locale);
+
+    const html = this.shell(`
+      <h2 style="margin:0 0 8px;color:#1a1a1a;">${t(loc, 'mailSuspendedTitle')}</h2>
+      <p style="color:#555;margin:0 0 16px;">${t(loc, 'commonHello', { firstName: opts.firstName })},</p>
+      <p style="color:#555;margin:0 0 24px;">${t(loc, 'mailSuspendedBody')}</p>
+      <p style="color:#555;margin:0;">${t(loc, 'mailSuspendedContact')} <a href="mailto:${SUPPORT_EMAIL}" style="color:#c9a84c;">${SUPPORT_EMAIL}</a>.</p>
+      <p style="margin-top:32px;font-size:12px;color:#aaa;">${t(loc, 'commonTeam')}</p>
+    `);
+
+    await this.deliver(opts.to, t(loc, 'mailSuspendedSubject'), html, 'Suspension email');
   }
 
-  async sendAccountReactivated(opts: { to: string; firstName: string }): Promise<void> {
+  async sendAccountReactivated(opts: {
+    to: string;
+    firstName: string;
+    locale?: string | null;
+  }): Promise<void> {
     if (!this.transporter) return;
-    const from = this.config.get<string>('SMTP_FROM') ?? 'AlloAppart <noreply@alloappart.sn>';
-    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'https://alloappart.sn';
-    const html = `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#fff;">
-        <img src="${frontendUrl}/images/LOGO.png" alt="AlloAppart" style="height:40px;margin-bottom:24px;" />
-        <h2 style="margin:0 0 8px;color:#1a1a1a;">Votre compte a été réactivé</h2>
-        <p style="color:#555;margin:0 0 16px;">Bonjour ${opts.firstName},</p>
-        <p style="color:#555;margin:0 0 24px;">Bonne nouvelle ! Votre compte AlloAppart a été réactivé. Vous pouvez à nouveau vous connecter et utiliser la plateforme.</p>
-        <a href="${frontendUrl}/sign-in" style="display:inline-block;background:#c9a84c;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;">Se connecter</a>
-        <p style="margin-top:32px;font-size:12px;color:#aaa;">L'équipe AlloAppart</p>
-      </div>
-    `;
-    try {
-      await this.transporter.sendMail({ from, to: opts.to, subject: 'Votre compte AlloAppart a été réactivé', html });
-      this.logger.log(`Réactivation email envoyé → ${opts.to}`);
-    } catch (err) {
-      this.logger.warn(`Échec envoi réactivation → ${opts.to} : ${String(err)}`);
-    }
+    const loc: Locale = toLocale(opts.locale);
+
+    const html = this.shell(`
+      <h2 style="margin:0 0 8px;color:#1a1a1a;">${t(loc, 'mailReactivatedTitle')}</h2>
+      <p style="color:#555;margin:0 0 16px;">${t(loc, 'commonHello', { firstName: opts.firstName })},</p>
+      <p style="color:#555;margin:0 0 24px;">${t(loc, 'mailReactivatedBody')}</p>
+      ${this.button(t(loc, 'commonSignIn'), `${this.frontendUrl}/sign-in`)}
+      <p style="margin-top:32px;font-size:12px;color:#aaa;">${t(loc, 'commonTeam')}</p>
+    `);
+
+    await this.deliver(opts.to, t(loc, 'mailReactivatedSubject'), html, 'Réactivation email');
   }
 }

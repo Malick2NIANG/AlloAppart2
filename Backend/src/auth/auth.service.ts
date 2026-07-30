@@ -496,9 +496,9 @@ export class AuthService {
     this.logger.log(`suspendUser → targetId=${targetId} isSuspended=${String(updated.isSuspended)}`);
 
     if (updated.isSuspended) {
-      void this.mail.sendAccountSuspended({ to: target.email, firstName: target.firstName });
+      void this.mail.sendAccountSuspended({ to: target.email, firstName: target.firstName, locale: target.locale });
     } else {
-      void this.mail.sendAccountReactivated({ to: target.email, firstName: target.firstName });
+      void this.mail.sendAccountReactivated({ to: target.email, firstName: target.firstName, locale: target.locale });
     }
 
     return updated;

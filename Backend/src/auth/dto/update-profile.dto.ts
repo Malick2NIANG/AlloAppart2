@@ -1,4 +1,5 @@
 import {
+  IsIn,
   IsOptional,
   IsString,
   IsPhoneNumber,
@@ -43,4 +44,9 @@ export class UpdateProfileDto {
     message: 'Le slug ne peut contenir que des lettres minuscules, chiffres et tirets (ex: immobilier-dakar)',
   })
   agencySlug?: string;
+
+  /** Langue de communication (emails, SMS, notifications). */
+  @IsOptional()
+  @IsIn(['fr', 'en'])
+  locale?: 'fr' | 'en';
 }

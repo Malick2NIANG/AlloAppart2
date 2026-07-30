@@ -16,6 +16,8 @@ model User {
   bio           String?        @db.Text
   avatar        String?
   coverageZone  String?        @db.VarChar(200)
+  /// Langue de communication (emails, SMS, notifications). Synchronisée depuis le frontend.
+  locale        String         @default("fr") @db.VarChar(5)
   roles         Role[]         @default([LOCATAIRE])
   agencyName               String?        // Renseigné uniquement pour PRO_AGENCE
   agencySlug               String?        @unique @db.VarChar(80) // Slug URL unique ex: immobilier-dakar

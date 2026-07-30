@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import twilio from 'twilio';
+import { t, toLocale, type Locale } from '../i18n/messages';
 
 @Injectable()
 export class SmsService {
@@ -18,6 +19,10 @@ export class SmsService {
     } else {
       this.logger.warn('Twilio non configuré — SMS désactivés');
     }
+  }
+
+  private get url(): string {
+    return this.config.get<string>('FRONTEND_URL') ?? 'alloappart.sn';
   }
 
   // ── Méthode d'envoi générique ────────────────────────────────────────────
@@ -38,17 +43,19 @@ export class SmsService {
     email: string;
     password: string;
     role: 'agent' | 'agence';
+    locale?: string | null;
   }): Promise<void> {
-    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'alloappart.sn';
-    const roleLabel   = opts.role === 'agent' ? 'Agent terrain' : 'Agence PRO';
-    const body =
-      `AlloAppart — Bonjour ${opts.firstName} !\n` +
-      `Votre compte ${roleLabel} a ete cree.\n` +
-      `Email : ${opts.email}\n` +
-      `Mot de passe : ${opts.password}\n` +
-      `Connexion : ${frontendUrl}/sign-in`;
-
-    await this.send(opts.to, body);
+    const loc: Locale = toLocale(opts.locale);
+    await this.send(
+      opts.to,
+      t(loc, 'smsCredentials', {
+        firstName: opts.firstName,
+        roleLabel: t(loc, opts.role === 'agent' ? 'roleAgent' : 'roleAgence'),
+        email: opts.email,
+        password: opts.password,
+        url: this.url,
+      }),
+    );
   }
 
   // ── Réservation confirmée (locataire) ────────────────────────────────────
@@ -56,12 +63,16 @@ export class SmsService {
     to: string;
     firstName: string;
     listingTitle: string;
+    locale?: string | null;
   }): Promise<void> {
-    const body =
-      `AlloAppart — Bonjour ${opts.firstName} !\n` +
-      `Votre réservation pour "${opts.listingTitle}" a ete confirmee par le bailleur.\n` +
-      `Bonne installation !`;
-    await this.send(opts.to, body);
+    const loc: Locale = toLocale(opts.locale);
+    await this.send(
+      opts.to,
+      t(loc, 'smsBookingConfirmed', {
+        firstName: opts.firstName,
+        listingTitle: opts.listingTitle,
+      }),
+    );
   }
 
   // ── Réservation annulée (locataire) ─────────────────────────────────────
@@ -69,12 +80,16 @@ export class SmsService {
     to: string;
     firstName: string;
     listingTitle: string;
+    locale?: string | null;
   }): Promise<void> {
-    const body =
-      `AlloAppart — Bonjour ${opts.firstName},\n` +
-      `Votre réservation pour "${opts.listingTitle}" a ete annulee.\n` +
-      `Consultez nos autres annonces sur alloappart.sn`;
-    await this.send(opts.to, body);
+    const loc: Locale = toLocale(opts.locale);
+    await this.send(
+      opts.to,
+      t(loc, 'smsBookingCancelled', {
+        firstName: opts.firstName,
+        listingTitle: opts.listingTitle,
+      }),
+    );
   }
 
   // ── Nouvelle demande de réservation (bailleur) ───────────────────────────
@@ -83,12 +98,17 @@ export class SmsService {
     firstName: string;
     listingTitle: string;
     tenantName: string;
+    locale?: string | null;
   }): Promise<void> {
-    const body =
-      `AlloAppart — Bonjour ${opts.firstName},\n` +
-      `${opts.tenantName} a fait une demande de réservation pour "${opts.listingTitle}".\n` +
-      `Connectez-vous pour accepter ou refuser.`;
-    await this.send(opts.to, body);
+    const loc: Locale = toLocale(opts.locale);
+    await this.send(
+      opts.to,
+      t(loc, 'smsBookingRequest', {
+        firstName: opts.firstName,
+        tenantName: opts.tenantName,
+        listingTitle: opts.listingTitle,
+      }),
+    );
   }
 
   // ── Alerte abonnement expirant (PRO_AGENCE) ──────────────────────────────
@@ -96,25 +116,32 @@ export class SmsService {
     to: string;
     firstName: string;
     daysLeft: number;
+    locale?: string | null;
   }): Promise<void> {
-    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'alloappart.sn';
-    const body =
-      `AlloAppart — Bonjour ${opts.firstName},\n` +
-      `Votre abonnement PRO expire dans ${opts.daysLeft} jour${opts.daysLeft > 1 ? 's' : ''}.\n` +
-      `Renouvelez-le ici : ${frontendUrl}/bailleur/abonnement`;
-    await this.send(opts.to, body);
+    const loc: Locale = toLocale(opts.locale);
+    await this.send(
+      opts.to,
+      t(loc, 'smsSubscriptionExpiring', {
+        firstName: opts.firstName,
+        daysLeft: opts.daysLeft,
+        url: this.url,
+      }),
+    );
   }
 
   // ── Abonnement suspendu (PRO_AGENCE) ─────────────────────────────────────
   async sendSubscriptionSuspended(opts: {
     to: string;
     firstName: string;
+    locale?: string | null;
   }): Promise<void> {
-    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'alloappart.sn';
-    const body =
-      `AlloAppart — Bonjour ${opts.firstName},\n` +
-      `Votre abonnement PRO est arrivé à expiration et a ete suspendu.\n` +
-      `Renouvelez-le : ${frontendUrl}/bailleur/abonnement`;
-    await this.send(opts.to, body);
+    const loc: Locale = toLocale(opts.locale);
+    await this.send(
+      opts.to,
+      t(loc, 'smsSubscriptionSuspended', {
+        firstName: opts.firstName,
+        url: this.url,
+      }),
+    );
   }
 }

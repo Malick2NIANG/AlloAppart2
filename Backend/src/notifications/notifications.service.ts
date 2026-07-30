@@ -5,7 +5,18 @@ import { Prisma, Role } from '@prisma/client';
 import { OnesignalService } from '../onesignal/onesignal.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PusherService } from '../pusher/pusher.service';
+import {
+  t,
+  toLocale,
+  formatNumber,
+  reasonLabel,
+  DEFAULT_LOCALE,
+  type Locale,
+  type MessageKey,
+} from '../i18n/messages';
 import type { BroadcastSegment } from './dto/broadcast.dto';
+
+const SUPPORT_EMAIL = 'alloappart221@gmail.com';
 
 function escapeHtml(str: string): string {
   return str
@@ -58,6 +69,30 @@ export class NotificationsService {
     );
   }
 
+  /* ── Résolution de la langue ────────────────────────────────────────────
+   * Résolue ici plutôt que passée par les appelants : aucun service métier
+   * n'a besoin de connaître la langue, et on évite d'oublier de la propager.
+   * Coût : une requête légère par destinataire, négligeable pour ce volume.
+   */
+  private async localeOf(opts: { userId?: string; email?: string }): Promise<Locale> {
+    try {
+      const where = opts.userId
+        ? { id: opts.userId }
+        : opts.email
+          ? { email: opts.email }
+          : null;
+      if (!where) return DEFAULT_LOCALE;
+
+      const user = await this.prisma.user.findUnique({
+        where,
+        select: { locale: true },
+      });
+      return toLocale(user?.locale);
+    } catch {
+      return DEFAULT_LOCALE;
+    }
+  }
+
   private async send(to: string, subject: string, html: string): Promise<void> {
     if (!this.config.get<string>('SMTP_USER')) {
       this.logger.warn('Notification skipped (SMTP non configure)');
@@ -73,220 +108,194 @@ export class NotificationsService {
     }
   }
 
-  async notifyPaymentConfirmed(data: BookingNotificationData & { platformFee: number; landlordAmount: number }): Promise<void> {
+  /** Pied de page commun des emails. */
+  private signature(loc: Locale): string {
+    return `<p>${t(loc, 'commonTeam')}</p>`;
+  }
+
+  /* ── Emails transactionnels ─────────────────────────────────────────────── */
+
+  async notifyPaymentConfirmed(
+    data: BookingNotificationData & { platformFee: number; landlordAmount: number },
+  ): Promise<void> {
     const title    = escapeHtml(data.listingTitle);
     const tenant   = escapeHtml(data.tenantName);
     const landlord = escapeHtml(data.landlordName);
     const ref      = escapeHtml(data.bookingId);
-    const total    = data.totalAmount.toLocaleString('fr-SN');
-    const net      = data.landlordAmount.toLocaleString('fr-SN');
-    const fee      = data.platformFee.toLocaleString('fr-SN');
 
+    const [tenantLoc, landlordLoc] = await Promise.all([
+      this.localeOf({ userId: data.tenantId, email: data.tenantEmail }),
+      this.localeOf({ userId: data.landlordId, email: data.landlordEmail }),
+    ]);
+
+    /* Locataire */
     await this.send(
       data.tenantEmail,
-      'Paiement confirmé — ' + data.listingTitle,
-      '<h2>Bonjour ' + tenant + ',</h2>' +
-      '<p>Votre paiement de <strong>' + total + ' FCFA</strong> a été reçu avec succès.</p>' +
-      '<p>Votre réservation pour <strong>' + title + '</strong> est confirmée.</p>' +
-      '<p>Référence : <code>' + ref + '</code></p>' +
-      "<p>L'équipe Allo-Appart</p>",
+      t(tenantLoc, 'mailPaymentTenantSubject', { listingTitle: data.listingTitle }),
+      `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
+      `<p>${t(tenantLoc, 'mailPaymentTenantAmount', { total: formatNumber(tenantLoc, data.totalAmount) })}</p>` +
+      `<p>${t(tenantLoc, 'mailPaymentTenantConfirmed', { listingTitle: title })}</p>` +
+      `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
+      this.signature(tenantLoc),
     );
 
+    /* Bailleur */
     await this.send(
       data.landlordEmail,
-      'Nouvelle réservation payée — ' + data.listingTitle,
-      '<h2>Bonjour ' + landlord + ',</h2>' +
-      '<p><strong>' + tenant + '</strong> a payé et réservé votre logement <strong>' + title + '</strong>.</p>' +
-      '<p>Montant total : <strong>' + total + ' FCFA</strong></p>' +
-      '<p>Commission AlloAppart : ' + fee + ' FCFA</p>' +
-      '<p>Votre part nette : <strong>' + net + ' FCFA</strong></p>' +
-      '<p>Les fonds sont sécurisés. Vous les recevrez à la fin du séjour.</p>' +
-      "<p>L'équipe Allo-Appart</p>",
+      t(landlordLoc, 'mailPaymentLandlordSubject', { listingTitle: data.listingTitle }),
+      `<h2>${t(landlordLoc, 'commonHello', { firstName: landlord })},</h2>` +
+      `<p>${t(landlordLoc, 'mailPaymentLandlordBody', { tenantName: tenant, listingTitle: title })}</p>` +
+      `<p>${t(landlordLoc, 'mailPaymentTotalLabel', { total: formatNumber(landlordLoc, data.totalAmount) })}</p>` +
+      `<p>${t(landlordLoc, 'mailPaymentFeeLabel', { fee: formatNumber(landlordLoc, data.platformFee) })}</p>` +
+      `<p>${t(landlordLoc, 'mailPaymentNetLabel', { net: formatNumber(landlordLoc, data.landlordAmount) })}</p>` +
+      `<p>${t(landlordLoc, 'mailPaymentEscrowNote')}</p>` +
+      this.signature(landlordLoc),
     );
 
     if (data.tenantId) {
-      void this.pushInApp(
-        data.tenantId,
-        'PAYMENT_CONFIRMED',
-        'Paiement confirmé !',
-        `Votre réservation pour « ${data.listingTitle} » est confirmée.`,
-        { bookingId: data.bookingId },
-      );
+      void this.pushInApp(data.tenantId, 'PAYMENT_CONFIRMED',
+        'pushPaymentConfirmedTitle', 'pushPaymentConfirmedBody',
+        { listingTitle: data.listingTitle }, { bookingId: data.bookingId });
     }
 
     if (data.landlordId) {
-      void this.pushInApp(
-        data.landlordId,
-        'PAYMENT_RECEIVED',
-        'Réservation payée !',
-        `${data.tenantName} a payé pour « ${data.listingTitle} ».`,
-        { bookingId: data.bookingId },
-      );
+      void this.pushInApp(data.landlordId, 'PAYMENT_RECEIVED',
+        'pushPaymentReceivedTitle', 'pushPaymentReceivedBody',
+        { tenantName: data.tenantName, listingTitle: data.listingTitle },
+        { bookingId: data.bookingId });
     }
   }
 
   async notifyBookingCreated(data: BookingNotificationData): Promise<void> {
-    const title = escapeHtml(data.listingTitle);
-    const city = escapeHtml(data.listingCity);
-    const tenant = escapeHtml(data.tenantName);
+    const title    = escapeHtml(data.listingTitle);
+    const city     = escapeHtml(data.listingCity);
+    const tenant   = escapeHtml(data.tenantName);
     const landlord = escapeHtml(data.landlordName);
-    const ref = escapeHtml(data.bookingId);
-    const amount = data.totalAmount.toLocaleString('fr-SN');
+    const ref      = escapeHtml(data.bookingId);
+
+    const [tenantLoc, landlordLoc] = await Promise.all([
+      this.localeOf({ userId: data.tenantId, email: data.tenantEmail }),
+      this.localeOf({ userId: data.landlordId, email: data.landlordEmail }),
+    ]);
 
     await this.send(
       data.tenantEmail,
-      'Votre demande de reservation — ' + data.listingTitle,
-      '<h2>Bonjour ' +
-        tenant +
-        ',</h2>' +
-        '<p>Votre demande pour <strong>' +
-        title +
-        '</strong>' +
-        ' a <strong>' +
-        city +
-        '</strong> a ete recue.</p>' +
-        '<p>Montant : <strong>' +
-        amount +
-        ' FCFA</strong></p>' +
-        '<p>Ref : <code>' +
-        ref +
-        '</code></p>' +
-        "<p>L'equipe Allo-Appart</p>",
+      t(tenantLoc, 'mailBookingRequestTenantSubject', { listingTitle: data.listingTitle }),
+      `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
+      `<p>${t(tenantLoc, 'mailBookingRequestTenantBody', { listingTitle: title, city })}</p>` +
+      `<p>${t(tenantLoc, 'mailAmountLabel', { amount: formatNumber(tenantLoc, data.totalAmount) })}</p>` +
+      `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
+      this.signature(tenantLoc),
     );
 
     await this.send(
       data.landlordEmail,
-      'Nouvelle demande de reservation — ' + data.listingTitle,
-      '<h2>Bonjour ' +
-        landlord +
-        ',</h2>' +
-        '<p><strong>' +
-        tenant +
-        '</strong> a fait une demande pour' +
-        ' <strong>' +
-        title +
-        '</strong>.</p>' +
-        '<p>Montant : <strong>' +
-        amount +
-        ' FCFA</strong></p>' +
-        '<p>Connectez-vous a votre espace bailleur pour repondre.</p>' +
-        "<p>L'equipe Allo-Appart</p>",
+      t(landlordLoc, 'mailBookingRequestLandlordSubject', { listingTitle: data.listingTitle }),
+      `<h2>${t(landlordLoc, 'commonHello', { firstName: landlord })},</h2>` +
+      `<p>${t(landlordLoc, 'mailBookingRequestLandlordBody', { tenantName: tenant, listingTitle: title })}</p>` +
+      `<p>${t(landlordLoc, 'mailAmountLabel', { amount: formatNumber(landlordLoc, data.totalAmount) })}</p>` +
+      `<p>${t(landlordLoc, 'mailBookingRequestLandlordAction')}</p>` +
+      this.signature(landlordLoc),
     );
 
+    /* Push OneSignal : un seul texte pour le lot, dans la langue du bailleur
+     * (destinataire principal de l'action attendue). */
     const ids = [data.tenantId, data.landlordId].filter(Boolean) as string[];
     if (ids.length) {
       void this.onesignal.sendToExternalIds(
         ids,
-        'Nouvelle demande de reservation',
-        tenant + ' — ' + data.listingTitle,
+        t(landlordLoc, 'pushNewBookingTitle'),
+        t(landlordLoc, 'pushBookingRequestOneSignal', {
+          tenantName: tenant,
+          listingTitle: data.listingTitle,
+        }),
         { bookingId: data.bookingId },
       );
     }
 
-    // In-app : bailleur reçoit une alerte immédiate
     if (data.landlordId) {
-      void this.pushInApp(
-        data.landlordId,
-        'NEW_BOOKING',
-        'Nouvelle demande de réservation',
-        `${data.tenantName} a demandé « ${data.listingTitle} ».`,
-        { bookingId: data.bookingId, listingTitle: data.listingTitle },
-      );
+      void this.pushInApp(data.landlordId, 'NEW_BOOKING',
+        'pushNewBookingTitle', 'pushNewBookingBody',
+        { tenantName: data.tenantName, listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle });
     }
   }
 
   async notifyBookingConfirmed(data: BookingNotificationData): Promise<void> {
-    const title = escapeHtml(data.listingTitle);
-    const city = escapeHtml(data.listingCity);
+    const title  = escapeHtml(data.listingTitle);
+    const city   = escapeHtml(data.listingCity);
     const tenant = escapeHtml(data.tenantName);
-    const ref = escapeHtml(data.bookingId);
+    const ref    = escapeHtml(data.bookingId);
+
+    const tenantLoc = await this.localeOf({
+      userId: data.tenantId,
+      email: data.tenantEmail,
+    });
 
     await this.send(
       data.tenantEmail,
-      'Reservation confirmee — ' + data.listingTitle,
-      '<h2>Bonne nouvelle, ' +
-        tenant +
-        ' !</h2>' +
-        '<p>Votre reservation pour <strong>' +
-        title +
-        '</strong>' +
-        ' a <strong>' +
-        city +
-        '</strong> est <strong>confirmee</strong>.</p>' +
-        '<p>Ref : <code>' +
-        ref +
-        '</code></p>' +
-        "<p>L'equipe Allo-Appart</p>",
+      t(tenantLoc, 'mailBookingConfirmedSubject', { listingTitle: data.listingTitle }),
+      `<h2>${t(tenantLoc, 'mailBookingConfirmedTitle', { firstName: tenant })}</h2>` +
+      `<p>${t(tenantLoc, 'mailBookingConfirmedBody', { listingTitle: title, city })}</p>` +
+      `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
+      this.signature(tenantLoc),
     );
 
     if (data.tenantId) {
       void this.onesignal.sendToExternalIds(
         [data.tenantId],
-        'Reservation confirmee !',
-        'Votre reservation pour ' + data.listingTitle + ' est confirmee.',
+        t(tenantLoc, 'pushBookingConfirmedTitle'),
+        t(tenantLoc, 'pushBookingConfirmedBody', { listingTitle: data.listingTitle }),
         { bookingId: data.bookingId },
       );
 
-      // In-app : locataire apprend la confirmation
-      void this.pushInApp(
-        data.tenantId,
-        'BOOKING_CONFIRMED',
-        'Réservation confirmée !',
-        `Votre réservation pour « ${data.listingTitle} » est confirmée.`,
-        { bookingId: data.bookingId, listingTitle: data.listingTitle },
-      );
+      void this.pushInApp(data.tenantId, 'BOOKING_CONFIRMED',
+        'pushBookingConfirmedTitle', 'pushBookingConfirmedBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle });
     }
   }
 
   async notifyBookingCancelled(data: BookingNotificationData): Promise<void> {
-    const title = escapeHtml(data.listingTitle);
+    const title  = escapeHtml(data.listingTitle);
     const tenant = escapeHtml(data.tenantName);
-    const ref = escapeHtml(data.bookingId);
+    const ref    = escapeHtml(data.bookingId);
+
+    const tenantLoc = await this.localeOf({
+      userId: data.tenantId,
+      email: data.tenantEmail,
+    });
 
     await this.send(
       data.tenantEmail,
-      'Reservation annulee — ' + data.listingTitle,
-      '<h2>Bonjour ' +
-        tenant +
-        ',</h2>' +
-        '<p>Votre reservation pour <strong>' +
-        title +
-        '</strong>' +
-        ' a ete <strong>annulee</strong>.</p>' +
-        '<p>Ref : <code>' +
-        ref +
-        '</code></p>' +
-        '<p>Contact : alloappart221@gmail.com</p>' +
-        "<p>L'equipe Allo-Appart</p>",
+      t(tenantLoc, 'mailBookingCancelledSubject', { listingTitle: data.listingTitle }),
+      `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
+      `<p>${t(tenantLoc, 'mailBookingCancelledBody', { listingTitle: title })}</p>` +
+      `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
+      `<p>${t(tenantLoc, 'mailContactLabel', { email: SUPPORT_EMAIL })}</p>` +
+      this.signature(tenantLoc),
     );
 
     if (data.tenantId) {
       void this.onesignal.sendToExternalIds(
         [data.tenantId],
-        'Reservation annulee',
-        'Votre reservation pour ' + data.listingTitle + ' a ete annulee.',
+        t(tenantLoc, 'pushBookingCancelledTitle'),
+        t(tenantLoc, 'pushBookingCancelledBody', { listingTitle: data.listingTitle }),
         { bookingId: data.bookingId },
       );
 
-      // In-app : locataire notifié de l'annulation
-      void this.pushInApp(
-        data.tenantId,
-        'BOOKING_CANCELLED',
-        'Réservation annulée',
-        `Votre réservation pour « ${data.listingTitle} » a été annulée.`,
-        { bookingId: data.bookingId, listingTitle: data.listingTitle },
-      );
+      void this.pushInApp(data.tenantId, 'BOOKING_CANCELLED',
+        'pushBookingCancelledTitle', 'pushBookingCancelledBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle });
     }
 
-    // In-app : bailleur notifié si c'est le locataire qui annule
+    /* Bailleur notifié si c'est le locataire qui annule */
     if (data.landlordId && data.tenantId) {
-      void this.pushInApp(
-        data.landlordId,
-        'BOOKING_CANCELLED',
-        'Réservation annulée par le locataire',
-        `${data.tenantName} a annulé sa réservation pour « ${data.listingTitle} ».`,
-        { bookingId: data.bookingId, listingTitle: data.listingTitle },
-      );
+      void this.pushInApp(data.landlordId, 'BOOKING_CANCELLED',
+        'pushBookingCancelledByTenantTitle', 'pushBookingCancelledByTenantBody',
+        { tenantName: data.tenantName, listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle });
     }
   }
 
@@ -299,13 +308,10 @@ export class NotificationsService {
     listingId: string,
   ) {
     const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
-    await this.pushInApp(
-      landlordId,
-      'REVIEW_RECEIVED',
-      'Nouvel avis reçu',
-      `${tenantName} a laissé ${stars} sur « ${listingTitle} ».`,
-      { listingId, listingTitle, rating },
-    );
+    await this.pushInApp(landlordId, 'REVIEW_RECEIVED',
+      'pushReviewReceivedTitle', 'pushReviewReceivedBody',
+      { tenantName, stars, listingTitle },
+      { listingId, listingTitle, rating });
   }
 
   notifyNewMessage(
@@ -313,25 +319,41 @@ export class NotificationsService {
     senderName: string,
     roomId: string,
   ): void {
-    void this.onesignal.sendToExternalIds(
-      [recipientId],
-      'Nouveau message',
-      senderName + ' vous a envoye un message.',
-      { roomId },
+    /* Fire-and-forget : on résout la langue puis on pousse. */
+    void this.localeOf({ userId: recipientId }).then((loc) =>
+      this.onesignal.sendToExternalIds(
+        [recipientId],
+        t(loc, 'pushNewMessageTitle'),
+        t(loc, 'pushNewMessageBody', { senderName }),
+        { roomId },
+      ),
     );
   }
 
-  /* ── In-app notifications (DB + Pusher) ─────────────────────────────── */
-
+  /* ── In-app notifications (DB + Pusher) ─────────────────────────────────
+   * Le titre et le corps sont traduits à l'écriture, dans la langue du
+   * destinataire au moment de l'événement, puis stockés tels quels en base.
+   * Conséquence assumée : une notification déjà créée ne change pas de langue
+   * si l'utilisateur bascule ensuite. Stocker clé + paramètres imposerait de
+   * modifier le modèle Notification et la page frontend — chantier séparé.
+   */
   private async pushInApp(
     userId: string,
     type: string,
-    title: string,
-    body: string,
+    titleKey: MessageKey,
+    bodyKey: MessageKey,
+    params: Record<string, string | number> = {},
     metadata?: Prisma.InputJsonValue,
   ) {
+    const loc = await this.localeOf({ userId });
     const notif = await this.prisma.notification.create({
-      data: { userId, type, title, body, metadata },
+      data: {
+        userId,
+        type,
+        title: t(loc, titleKey, params),
+        body: t(loc, bodyKey, params),
+        metadata,
+      },
     });
     void this.pusher.trigger(`user-${userId}`, 'notification', notif);
     return notif;
@@ -344,13 +366,9 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(
-      agentId,
-      'VERIF_ASSIGNED',
-      'Nouvelle mission AlloVérifié',
-      `Vous avez été assigné à la vérification de « ${listingTitle} ».`,
-      { verificationId, listingTitle, listingId },
-    );
+    await this.pushInApp(agentId, 'VERIF_ASSIGNED',
+      'pushVerifAssignedTitle', 'pushVerifAssignedBody',
+      { listingTitle }, { verificationId, listingTitle, listingId });
   }
 
   // Bailleur : agent assigné (SCHEDULED)
@@ -361,13 +379,9 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(
-      bailleurId,
-      'VERIF_SCHEDULED',
-      'Agent assigné à votre vérification',
-      `${agentName} a été assigné pour vérifier « ${listingTitle} ».`,
-      { verificationId, listingTitle, listingId },
-    );
+    await this.pushInApp(bailleurId, 'VERIF_SCHEDULED',
+      'pushVerifScheduledTitle', 'pushVerifScheduledBody',
+      { agentName, listingTitle }, { verificationId, listingTitle, listingId });
   }
 
   // Bailleur : visite en cours (IN_PROGRESS)
@@ -377,13 +391,9 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(
-      bailleurId,
-      'VERIF_IN_PROGRESS',
-      'Visite AlloVérifié en cours',
-      `La vérification de « ${listingTitle} » a démarré.`,
-      { verificationId, listingTitle, listingId },
-    );
+    await this.pushInApp(bailleurId, 'VERIF_IN_PROGRESS',
+      'pushVerifInProgressTitle', 'pushVerifInProgressBody',
+      { listingTitle }, { verificationId, listingTitle, listingId });
   }
 
   // Bailleur : mission terminée (DONE)
@@ -393,13 +403,9 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(
-      bailleurId,
-      'VERIF_DONE',
-      '✅ Vérification terminée !',
-      `La visite de « ${listingTitle} » est terminée. En attente de validation admin.`,
-      { verificationId, listingTitle, listingId },
-    );
+    await this.pushInApp(bailleurId, 'VERIF_DONE',
+      'pushVerifDoneTitle', 'pushVerifDoneBody',
+      { listingTitle }, { verificationId, listingTitle, listingId });
   }
 
   // Agent : mission déclinée par lui-même (remise en REQUESTED)
@@ -409,13 +415,9 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(
-      bailleurId,
-      'VERIF_DECLINED',
-      'Agent indisponible pour votre mission',
-      `L'agent a décliné la mission pour « ${listingTitle} ». Un autre agent sera assigné.`,
-      { verificationId, listingTitle, listingId },
-    );
+    await this.pushInApp(bailleurId, 'VERIF_DECLINED',
+      'pushVerifDeclinedTitle', 'pushVerifDeclinedBody',
+      { listingTitle }, { verificationId, listingTitle, listingId });
   }
 
   // Admin : nouveau signalement d'annonce
@@ -426,30 +428,35 @@ export class NotificationsService {
     reason: string,
     reportCount: number,
   ) {
-    const REASON_LABELS: Record<string, string> = {
-      FRAUD:          'Arnaque / fraude',
-      WRONG_PRICE:    'Prix trompeur',
-      WRONG_PHOTOS:   'Photos trompeuses',
-      ALREADY_RENTED: 'Bien déjà loué',
-      WRONG_LOCATION: 'Localisation incorrecte',
-      OFFENSIVE:      'Contenu offensant',
-      OTHER:          'Autre',
-    };
     const admins = await this.prisma.user.findMany({
       where: { roles: { has: Role.ADMIN } },
-      select: { id: true },
+      select: { id: true, locale: true },
     });
-    const label  = REASON_LABELS[reason] ?? reason;
     const urgent = reportCount >= 3;
-    await Promise.all(admins.map((admin) =>
-      this.pushInApp(
-        admin.id,
-        'LISTING_REPORTED',
-        urgent ? '🚨 Annonce signalée plusieurs fois' : 'Nouvelle signalisation d\'annonce',
-        `« ${listingTitle} » signalée par ${reporterName}. Motif : ${label}. (${reportCount} signalement${reportCount > 1 ? 's' : ''} au total)`,
-        { listingId, listingTitle, reportCount },
-      ),
-    ));
+
+    await Promise.all(admins.map((admin) => {
+      const loc = toLocale(admin.locale);
+      return this.prisma.notification
+        .create({
+          data: {
+            userId: admin.id,
+            type: 'LISTING_REPORTED',
+            title: t(loc, urgent
+              ? 'pushListingReportedUrgentTitle'
+              : 'pushListingReportedTitle'),
+            body: t(loc, 'pushListingReportedBody', {
+              listingTitle,
+              reporterName,
+              reason: reasonLabel(loc, reason),
+              count: reportCount,
+            }),
+            metadata: { listingId, listingTitle, reportCount },
+          },
+        })
+        .then((notif) => {
+          void this.pusher.trigger(`user-${admin.id}`, 'notification', notif);
+        });
+    }));
   }
 
   // Admin : l'agent demande à décliner une mission (en attente approbation)
@@ -458,19 +465,14 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    // Notifier tous les admins
     const admins = await this.prisma.user.findMany({
       where: { roles: { has: Role.ADMIN } },
       select: { id: true },
     });
     await Promise.all(admins.map((admin) =>
-      this.pushInApp(
-        admin.id,
-        'VERIF_DECLINE_REQUEST',
-        'Demande de déclin à approuver',
-        `Un agent demande à décliner la mission « ${listingTitle} ». Approbation requise.`,
-        { verificationId, listingTitle, listingId },
-      )
+      this.pushInApp(admin.id, 'VERIF_DECLINE_REQUEST',
+        'pushDeclineRequestTitle', 'pushDeclineRequestBody',
+        { listingTitle }, { verificationId, listingTitle, listingId }),
     ));
   }
 
@@ -481,13 +483,9 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(
-      bailleurId,
-      'VERIF_VALIDATED',
-      '🏅 Badge AlloVérifié accordé !',
-      `Votre annonce « ${listingTitle} » a obtenu le badge AlloVérifié.`,
-      { verificationId, listingTitle, listingId },
-    );
+    await this.pushInApp(bailleurId, 'VERIF_VALIDATED',
+      'pushVerifValidatedTitle', 'pushVerifValidatedBody',
+      { listingTitle }, { verificationId, listingTitle, listingId });
   }
 
   /* ── In-app API (endpoints) ───────────────────────────────────────── */
@@ -521,6 +519,8 @@ export class NotificationsService {
     });
   }
 
+  /* Broadcast admin : le titre et le message sont saisis à la main par
+   * l'administrateur, donc envoyés tels quels sans traduction. */
   async broadcastPush(
     title: string,
     message: string,
