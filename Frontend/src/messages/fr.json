@@ -315,12 +315,11 @@
     "seeOtherListings": "Voir d'autres annonces",
     "bookingRedirectDesc": "Vous allez être redirigé vers la page de paiement sécurisée.",
     "bookingMinNightsWarning": "Séjour minimum : {count, plural, one {# nuit} other {# nuits}} pour cette annonce.",
-    "pricingDaysMonthly": "{days} jours (mensuel × {factor})",
     "pricingNightSingular": "nuit",
     "pricingNightPlural": "nuits",
     "pricePerMonthUnit": "FCFA/mois",
     "pricePerNightUnit": "FCFA/nuit",
-    "bookingMonthlyRateNote": "Pour les séjours de 25 jours et plus, le tarif mensuel s'applique automatiquement.",
+    "bookingMonthlyRateNote": "Pour les séjours de 25 jours et plus, le tarif mensuel s’applique : un mois calendaire = un loyer, les jours supplémentaires sont au prorata.",
     "sendError": "Erreur lors de l'envoi. Réessayez.",
     "yourListing": "C'est votre annonce",
     "messageSent": "Message envoyé ! Redirection vers vos messages…",
@@ -348,7 +347,9 @@
     "pricingNights": "{count, plural, one {# nuit} other {# nuits}}",
     "addFavorite": "Ajouter aux favoris",
     "removeFavorite": "Retirer des favoris",
-    "availabilityTitle": "Disponibilités"
+    "availabilityTitle": "Disponibilités",
+    "pricingMonthsOnly": "{months, plural, one {# mois} other {# mois}}",
+    "pricingMonthsPlusDays": "{months, plural, one {# mois} other {# mois}} + {days, plural, one {# jour} other {# jours}}"
   },
   "region": {
     "title": "Annonces à",

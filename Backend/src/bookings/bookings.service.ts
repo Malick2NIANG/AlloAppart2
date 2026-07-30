@@ -9,6 +9,57 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { type User, BookingStatus, EscrowStatus, Role } from '@prisma/client';
 
+const DAYS_PER_MONTH = 30;      // base du prorata pour les jours résiduels
+const MONTHLY_THRESHOLD = 25;   // au-delà, on facture au mois plutôt qu'à la nuit
+
+/**
+ * Ajoute n mois en bornant au dernier jour du mois d'arrivée.
+ *
+ * `setMonth` seul déborde : 31 janvier + 1 mois donnerait le 3 mars. Ici on
+ * obtient le 28 (ou 29) février, ce qui correspond à l'intuition d'un bail.
+ */
+function addMonthsClamped(date: Date, n: number): Date {
+  const day = date.getDate();
+  const r = new Date(date);
+  r.setDate(1);
+  r.setMonth(r.getMonth() + n);
+  const lastDayOfTargetMonth = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
+  r.setDate(Math.min(day, lastDayOfTargetMonth));
+  return r;
+}
+
+/**
+ * Découpe un séjour en mois calendaires complets + jours résiduels.
+ *
+ * Un mois calendaire vaut un loyer mensuel, quel que soit son nombre de jours :
+ * le locataire paie donc exactement le prix affiché « /mois ». Les jours qui
+ * dépassent sont facturés au prorata (loyer ÷ 30).
+ *
+ *   1er juil → 1er août  = 1 mois,  0 jour
+ *   1er juil → 1er oct   = 3 mois,  0 jour
+ *   1er juil → 16 août   = 1 mois, 15 jours
+ */
+export function splitCalendarMonths(
+  start: Date,
+  end: Date,
+): { months: number; remainderDays: number } {
+  let months = 0;
+  let cursor = start;
+
+  for (;;) {
+    const next = addMonthsClamped(start, months + 1);
+    if (next.getTime() > end.getTime()) break;
+    months += 1;
+    cursor = next;
+  }
+
+  const remainderDays = Math.max(
+    0,
+    Math.round((end.getTime() - cursor.getTime()) / 86_400_000),
+  );
+  return { months, remainderDays };
+}
+
 @Injectable()
 export class BookingsService {
   constructor(
@@ -58,21 +109,29 @@ export class BookingsService {
 
     // ── Calcul du montant total ──────────────────────────────────────────────
     // Règle :
-    //   < 25 jours → tarif nuit préféré (tarif mensuel ÷ 30 × jours en fallback)
-    //   ≥ 25 jours → tarif mensuel × (jours/30) préféré (tarif nuit × jours en fallback)
-    const MONTHLY_THRESHOLD = 25;
-    const hasMonthly = Number(listing.price) > 0;
-    const hasNightly = listing.pricePerNight && Number(listing.pricePerNight) > 0;
+    //   < 25 jours → tarif nuit préféré (loyer mensuel ÷ 30 × jours en fallback)
+    //   ≥ 25 jours → mois calendaires × loyer mensuel + jours résiduels au prorata
+    //                (tarif nuit × jours en fallback si pas de loyer mensuel)
+    //
+    // Un mois calendaire = un loyer mensuel, quel que soit son nombre de jours.
+    // Le montant facturé coïncide donc avec le prix affiché « /mois » sur
+    // l'annonce — un séjour du 1er juillet au 1er août coûte un loyer, pas
+    // 31/30 de loyer.
+    const monthlyPrice = Number(listing.price);
+    const nightlyPrice = Number(listing.pricePerNight ?? 0);
+    const hasMonthly = monthlyPrice > 0;
+    const hasNightly = nightlyPrice > 0;
 
     let totalAmount: number;
-    if (days >= MONTHLY_THRESHOLD) {
-      totalAmount = hasMonthly
-        ? Math.round(Number(listing.price) * (days / 30))
-        : Math.round(Number(listing.pricePerNight) * days);
+    if (days >= MONTHLY_THRESHOLD && hasMonthly && endDate) {
+      const { months, remainderDays } = splitCalendarMonths(startDate, endDate);
+      totalAmount = Math.round(
+        months * monthlyPrice + remainderDays * (monthlyPrice / DAYS_PER_MONTH),
+      );
+    } else if (hasNightly) {
+      totalAmount = Math.round(nightlyPrice * days);
     } else {
-      totalAmount = hasNightly
-        ? Math.round(Number(listing.pricePerNight) * days)
-        : Math.round((Number(listing.price) / 30) * days);
+      totalAmount = Math.round((monthlyPrice / DAYS_PER_MONTH) * days);
     }
     // ────────────────────────────────────────────────────────────────────────
     const commissionRate = Number(process.env.COMMISSION_RATE ?? '0.10');

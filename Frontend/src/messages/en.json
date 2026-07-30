@@ -315,12 +315,11 @@
     "seeOtherListings": "See other listings",
     "bookingRedirectDesc": "You will be redirected to the secure payment page.",
     "bookingMinNightsWarning": "Minimum stay: {count, plural, one {# night} other {# nights}} for this listing.",
-    "pricingDaysMonthly": "{days} days (monthly × {factor})",
     "pricingNightSingular": "night",
     "pricingNightPlural": "nights",
     "pricePerMonthUnit": "FCFA/month",
     "pricePerNightUnit": "FCFA/night",
-    "bookingMonthlyRateNote": "For stays of 25 days or more, the monthly rate applies automatically.",
+    "bookingMonthlyRateNote": "For stays of 25 days or more the monthly rate applies: one calendar month = one month’s rent, extra days are pro-rated.",
     "sendError": "Failed to send. Please try again.",
     "yourListing": "This is your listing",
     "messageSent": "Message sent! Redirecting to your messages…",
@@ -348,7 +347,9 @@
     "pricingNights": "{count, plural, one {# night} other {# nights}}",
     "addFavorite": "Add to saved",
     "removeFavorite": "Remove from saved",
-    "availabilityTitle": "Availability"
+    "availabilityTitle": "Availability",
+    "pricingMonthsOnly": "{months, plural, one {# month} other {# months}}",
+    "pricingMonthsPlusDays": "{months, plural, one {# month} other {# months}} + {days, plural, one {# day} other {# days}}"
   },
   "region": {
     "title": "Listings in",

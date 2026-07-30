@@ -21,6 +21,7 @@ const owner: User = {
   agencySlug: null,
   coverageZone: null,
   profileViews: 0,
+  locale: 'fr',
   bailleurTermsAcceptedAt: null,
   bio: null,
   avatar: null,
@@ -43,6 +44,7 @@ const tenant: User = {
   agencySlug: null,
   coverageZone: null,
   profileViews: 0,
+  locale: 'fr',
   bailleurTermsAcceptedAt: null,
   bio: null,
   avatar: null,
@@ -281,9 +283,16 @@ describe('BookingsService', () => {
       );
     });
 
-    it("annule et libere l'escrow si statut HELD", async () => {
+    /* Politique d'annulation : > 7 jours avant l'arrivée → remboursement
+     * intégral, sinon fonds libérés au bailleur. Les dates sont RELATIVES à
+     * maintenant : une date fixe finit par tomber dans le passé et fait
+     * basculer le test dans l'autre branche sans qu'on s'en aperçoive. */
+    const inDays = (n: number) => new Date(Date.now() + n * 86_400_000);
+
+    it("annule et rembourse l'escrow si l'arrivee est dans plus de 7 jours", async () => {
       prismaMock.booking.findUnique.mockResolvedValueOnce({
         ...pendingBooking,
+        startDate: inDays(30),
         escrowStatus: EscrowStatus.HELD,
       });
       prismaMock.booking.update.mockResolvedValueOnce({
@@ -298,6 +307,29 @@ describe('BookingsService', () => {
           data: expect.objectContaining({
             status: BookingStatus.CANCELLED,
             escrowStatus: EscrowStatus.REFUNDED,
+          }),
+        }),
+      );
+    });
+
+    it("annule et libere les fonds au bailleur si l'arrivee est dans moins de 7 jours", async () => {
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        ...pendingBooking,
+        startDate: inDays(3),
+        escrowStatus: EscrowStatus.HELD,
+      });
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...pendingBooking,
+        status: BookingStatus.CANCELLED,
+        escrowStatus: EscrowStatus.RELEASED,
+      });
+      await service.cancel('booking1', tenant);
+      expect(prismaMock.booking.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: expect.objectContaining({
+            status: BookingStatus.CANCELLED,
+            escrowStatus: EscrowStatus.RELEASED,
           }),
         }),
       );

@@ -16,26 +16,76 @@ interface Props {
   numLocale:     string;
 }
 
-/** Calcule le montant total selon les mêmes règles que le backend. */
+/**
+ * Ajoute n mois en bornant au dernier jour du mois d'arrivée.
+ * Doit rester identique à addMonthsClamped du backend
+ * (Backend/src/bookings/bookings.service.ts).
+ */
+function addMonthsClamped(date: Date, n: number): Date {
+  const day = date.getDate();
+  const r = new Date(date);
+  r.setDate(1);
+  r.setMonth(r.getMonth() + n);
+  const lastDayOfTargetMonth = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
+  r.setDate(Math.min(day, lastDayOfTargetMonth));
+  return r;
+}
+
+/** Découpe un séjour en mois calendaires complets + jours résiduels. */
+function splitCalendarMonths(start: Date, end: Date): { months: number; remainderDays: number } {
+  let months = 0;
+  let cursor = start;
+  for (;;) {
+    const next = addMonthsClamped(start, months + 1);
+    if (next.getTime() > end.getTime()) break;
+    months += 1;
+    cursor = next;
+  }
+  return {
+    months,
+    remainderDays: Math.max(0, Math.round((end.getTime() - cursor.getTime()) / 86_400_000)),
+  };
+}
+
+/**
+ * Calcule le montant total selon les mêmes règles que le backend.
+ *
+ * ⚠️ Cette fonction doit rester synchronisée avec le calcul de
+ * Backend/src/bookings/bookings.service.ts (méthode create). Tout écart
+ * afficherait au locataire un montant différent de celui qui lui est facturé.
+ *
+ * Règle : au-delà de 25 jours, un mois calendaire = un loyer mensuel, et les
+ * jours résiduels sont au prorata (loyer ÷ 30).
+ */
 function computePrice(
   days: number,
   pricePerMonth: number,
   pricePerNight: number | null | undefined,
-): { amount: number; isMonthlyRate: boolean } {
+  start: Date | null,
+  end: Date | null,
+): { amount: number; isMonthlyRate: boolean; months: number; remainderDays: number } {
   const hasMonthly = pricePerMonth > 0;
   const hasNightly = !!pricePerNight && pricePerNight > 0;
 
-  if (days >= MONTHLY_THRESHOLD) {
-    const amount = hasMonthly
-      ? Math.round(pricePerMonth * (days / 30))
-      : Math.round((pricePerNight ?? 0) * days);
-    return { amount, isMonthlyRate: true };
-  } else {
-    const amount = hasNightly
-      ? Math.round((pricePerNight ?? 0) * days)
-      : Math.round((pricePerMonth / 30) * days);
-    return { amount, isMonthlyRate: false };
+  if (days >= MONTHLY_THRESHOLD && hasMonthly && start && end) {
+    const { months, remainderDays } = splitCalendarMonths(start, end);
+    return {
+      amount: Math.round(months * pricePerMonth + remainderDays * (pricePerMonth / 30)),
+      isMonthlyRate: true,
+      months,
+      remainderDays,
+    };
   }
+  if (hasNightly) {
+    return {
+      amount: Math.round((pricePerNight ?? 0) * days),
+      isMonthlyRate: false, months: 0, remainderDays: days,
+    };
+  }
+  return {
+    amount: Math.round((pricePerMonth / 30) * days),
+    isMonthlyRate: false, months: 0, remainderDays: days,
+  };
 }
 
 export default function ListingBookingCard({
@@ -64,7 +114,13 @@ export default function ListingBookingCard({
     : null;
 
   const pricing = days !== null && days > 0
-    ? computePrice(days, pricePerMonth, pricePerNight)
+    ? computePrice(
+        days,
+        pricePerMonth,
+        pricePerNight,
+        startDate ? new Date(startDate) : null,
+        endDate ? new Date(endDate) : null,
+      )
     : null;
 
   // Vérification séjour minimum côté client
@@ -203,7 +259,9 @@ export default function ListingBookingCard({
           <div className="flex items-center justify-between">
             <span className="text-sm text-sub">
               {pricing.isMonthlyRate
-                ? t('pricingDaysMonthly', { days, factor: (days / 30).toFixed(1) })
+                ? pricing.remainderDays > 0
+                  ? t('pricingMonthsPlusDays', { months: pricing.months, days: pricing.remainderDays })
+                  : t('pricingMonthsOnly', { months: pricing.months })
                 : t('pricingNights', { count: days })
               }
             </span>
