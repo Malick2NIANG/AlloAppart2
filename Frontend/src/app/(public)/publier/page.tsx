@@ -480,7 +480,9 @@ export default function PublierPage() {
                     { key: 'baths'   as const, label: t('fieldBaths'),    ph: '1'  },
                   ]).map(({ key, label, ph }) => (
                     <Field key={key} label={label}>
-                      <input type="number" min={0} {...register(key, { valueAsNumber: true })} placeholder={ph} className="input-field" />
+                      <input type="number" min={0} {...register(key, {
+                        setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+                      })} placeholder={ph} className="input-field" />
                     </Field>
                   ))}
                 </div>

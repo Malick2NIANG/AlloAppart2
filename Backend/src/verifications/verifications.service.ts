@@ -413,6 +413,21 @@ export class VerificationsService {
 
     if (!isAgent && !isAdmin) throw new ForbiddenException('Not authorized');
 
+    // Contrairement à decline() (restreint à SCHEDULED), reject() n'avait
+    // aucune contrainte de statut : un agent assigné pouvait rejeter — et
+    // donc écraser notes/status — une vérification déjà DONE, y compris
+    // après que le bailleur l'ait notée via rate(). On aligne sur le même
+    // principe : seules les missions encore en cours peuvent être rejetées.
+    if (
+      v.status !== VerifStatus.REQUESTED &&
+      v.status !== VerifStatus.SCHEDULED &&
+      v.status !== VerifStatus.IN_PROGRESS
+    ) {
+      throw new BadRequestException(
+        'Seules les vérifications en cours peuvent être rejetées.',
+      );
+    }
+
     return this.prisma.verification.update({
       where: { id },
       data: { status: VerifStatus.REJECTED, notes: reason },
@@ -454,7 +469,24 @@ export class VerificationsService {
     });
   }
 
-  async findRatingByVerification(verificationId: string) {
+  // IDOR corrigée : seuls le bailleur qui a demandé la vérification (auteur
+  // potentiel de la note), l'agent noté, ou un admin peuvent lire une note —
+  // sinon n'importe quel utilisateur connecté pouvait lire les commentaires
+  // qu'un bailleur a laissés sur un agent, sur n'importe quelle vérification.
+  async findRatingByVerification(verificationId: string, user: User) {
+    const v = await this.prisma.verification.findUnique({
+      where: { id: verificationId },
+      include: { listing: { select: { ownerId: true } } },
+    });
+    if (!v) throw new NotFoundException('Verification not found');
+
+    const isOwner = v.listing.ownerId === user.id;
+    const isRatedAgent = v.agentId === user.id;
+    const isAdmin = user.roles.includes(Role.ADMIN);
+    if (!isOwner && !isRatedAgent && !isAdmin) {
+      throw new ForbiddenException('Not authorized');
+    }
+
     return this.prisma.agentRating.findUnique({ where: { verificationId } });
   }
 }

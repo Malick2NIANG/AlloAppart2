@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# e2e (Playwright) — disposable run artifacts and session storage state
+/e2e/screenshots/
+/e2e/*-storage.json
+/e2e/state.json
+/e2e/log.jsonl

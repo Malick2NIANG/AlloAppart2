@@ -156,7 +156,7 @@ export class VerificationsController {
   }
 
   @Get(':id/rating')
-  getRating(@Param('id') id: string) {
-    return this.verificationsService.findRatingByVerification(id);
+  getRating(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.verificationsService.findRatingByVerification(id, user);
   }
 }

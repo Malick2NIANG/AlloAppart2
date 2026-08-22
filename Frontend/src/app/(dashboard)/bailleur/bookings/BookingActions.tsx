@@ -33,12 +33,12 @@ export default function BookingActions({ bookingId, status, onActionDone, toast 
     complete: t('actionCompleteSuccess'),
   };
 
-  const act = async (action: Action) => {
+  const act = async (action: Action, successMessage?: string) => {
     setLoading(action);
     try {
       const token = await getToken();
       await api.patch(`/bookings/${bookingId}/${action}`, {}, token ?? undefined);
-      toast.success(ACTION_SUCCESS[action]);
+      toast.success(successMessage ?? ACTION_SUCCESS[action]);
       onActionDone();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('actionError'));
@@ -47,16 +47,16 @@ export default function BookingActions({ bookingId, status, onActionDone, toast 
     }
   };
 
-  const btn = (action: Action, className: string) => (
+  const btn = (action: Action, className: string, labelOverride?: string, successMessage?: string) => (
     <button
       key={action}
-      onClick={() => act(action)}
+      onClick={() => act(action, successMessage)}
       disabled={!!loading}
       className={`text-xs px-3 py-1.5 rounded-full font-medium transition disabled:opacity-50 ${className}`}
     >
       {loading === action
         ? <i className="fa-solid fa-spinner fa-spin" />
-        : ACTION_LABELS[action]
+        : (labelOverride ?? ACTION_LABELS[action])
       }
     </button>
   );
@@ -73,6 +73,10 @@ export default function BookingActions({ bookingId, status, onActionDone, toast 
         <>
           <StatusChip status={status} />
           {btn('complete', 'bg-blue-100 text-blue-700 hover:bg-blue-200')}
+          {/* "cancel" hits the same PATCH /bookings/:id/cancel as the PENDING "Refuser"
+              button above, but "Refuser" reads wrong once a booking is already confirmed —
+              use distinct "Annuler" wording and success message for this context. */}
+          {btn('cancel',   'bg-red-100 text-red-700 hover:bg-red-200', t('actionCancelConfirmed'), t('actionCancelConfirmedSuccess'))}
         </>
       )}
       {(status === 'CANCELLED' || status === 'COMPLETED') && (

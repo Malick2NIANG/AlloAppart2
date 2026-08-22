@@ -211,30 +211,54 @@ export class ListingsService {
     });
   }
 
-  async create(ownerId: string, dto: CreateListingDto) {
+  /**
+   * Ne garde dans l'index de recherche (Meilisearch) que les annonces
+   * ACTIVE — sinon un brouillon ou une annonce archivée/dépubliée par son
+   * propriétaire reste trouvable via la recherche publique. `indexListing()`
+   * fait un upsert inconditionnel sans champ `status`, donc l'appelant doit
+   * décider lui-même d'indexer ou de retirer.
+   */
+  private syncSearchIndex(listing: { id: string; status: ListingStatus }): void {
+    if (listing.status === ListingStatus.ACTIVE) {
+      void this.search.indexListing(listing as never).catch(() => undefined);
+    } else {
+      void this.search.deleteListingFromIndex(listing.id).catch(() => undefined);
+    }
+  }
+
+  /**
+   * Vérifie qu'un propriétaire PRO_AGENCE a le droit de publier une annonce
+   * de plus (abonnement actif + respect du plafond STARTER). Centralisé ici
+   * car trois chemins mènent à un statut ACTIVE — create(), publishListing()
+   * et update() — et doivent tous appliquer la même règle : sinon un bailleur
+   * peut créer une annonce en DRAFT (autorisé sans abonnement) puis la publier
+   * via un chemin qui ne vérifie rien, contournant complètement l'abonnement.
+   */
+  private async assertCanPublish(ownerId: string): Promise<void> {
     const owner = await this.prisma.user.findUniqueOrThrow({
       where: { id: ownerId },
       include: { subscription: true },
     });
+    if (!owner.roles.includes(Role.PRO_AGENCE)) return;
 
-    const wantsToPublish = dto.status === ListingStatus.ACTIVE;
-
-    // Checks abonnement PRO_AGENCE (brouillon autorisé sans abonnement)
-    if (owner.roles.includes(Role.PRO_AGENCE) && wantsToPublish) {
-      if (owner.subscription?.status !== SubscriptionStatus.ACTIVE) {
-        throw new ForbiddenException(
-          'Un abonnement actif est requis pour publier des annonces',
+    if (owner.subscription?.status !== SubscriptionStatus.ACTIVE) {
+      throw new ForbiddenException(
+        'Un abonnement actif est requis pour publier des annonces',
+      );
+    }
+    if (owner.subscription.plan === SubscriptionPlan.STARTER) {
+      const count = await this.prisma.listing.count({ where: { ownerId } });
+      if (count >= STARTER_MAX_LISTINGS) {
+        throw new BadRequestException(
+          `Le plan STARTER est limité à ${STARTER_MAX_LISTINGS} annonces. Passez au plan PRO pour publier davantage.`,
         );
       }
-      if (owner.subscription.plan === SubscriptionPlan.STARTER) {
-        const count = await this.prisma.listing.count({ where: { ownerId } });
-        if (count >= STARTER_MAX_LISTINGS) {
-          throw new BadRequestException(
-            `Le plan STARTER est limité à ${STARTER_MAX_LISTINGS} annonces. Passez au plan PRO pour publier davantage.`,
-          );
-        }
-      }
     }
+  }
+
+  async create(ownerId: string, dto: CreateListingDto) {
+    const wantsToPublish = dto.status === ListingStatus.ACTIVE;
+    if (wantsToPublish) await this.assertCanPublish(ownerId);
 
     const listing = await this.prisma.listing.create({
       data: {
@@ -243,7 +267,7 @@ export class ListingsService {
         status: wantsToPublish ? ListingStatus.ACTIVE : ListingStatus.DRAFT,
       },
     });
-    void this.search.indexListing(listing).catch(() => undefined);
+    this.syncSearchIndex(listing);
     return listing;
   }
 
@@ -252,11 +276,17 @@ export class ListingsService {
     if (listing.ownerId !== user.id && !user.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Not authorized');
     }
+    // Defense-in-depth : un appelant interne pourrait passer status=ACTIVE via
+    // un cast (le DTO l'exclut, mais on vérifie quand même au runtime).
+    const rawDto = dto as Record<string, unknown>;
+    if (rawDto['status'] === ListingStatus.ACTIVE && listing.status !== ListingStatus.ACTIVE) {
+      await this.assertCanPublish(listing.ownerId);
+    }
     const updated = await this.prisma.listing.update({
       where: { id },
       data: dto,
     });
-    void this.search.indexListing(updated).catch(() => undefined);
+    this.syncSearchIndex(updated);
     return updated;
   }
 
@@ -273,7 +303,7 @@ export class ListingsService {
       where: { id },
       data: { status: ListingStatus.SUSPENDED },
     });
-    void this.search.indexListing(updated).catch(() => undefined);
+    this.syncSearchIndex(updated);
     return updated;
   }
 
@@ -288,7 +318,7 @@ export class ListingsService {
       where: { id },
       data: { status: targetStatus === 'ACTIVE' ? ListingStatus.ACTIVE : ListingStatus.DRAFT },
     });
-    void this.search.indexListing(updated).catch(() => undefined);
+    this.syncSearchIndex(updated);
     return updated;
   }
 
@@ -304,7 +334,7 @@ export class ListingsService {
       where: { id },
       data: { status: ListingStatus.DRAFT },
     });
-    void this.search.indexListing(updated).catch(() => undefined);
+    this.syncSearchIndex(updated);
     return updated;
   }
 
@@ -316,11 +346,12 @@ export class ListingsService {
     if (listing.status !== ListingStatus.DRAFT) {
       throw new BadRequestException('Only draft listings can be published');
     }
+    await this.assertCanPublish(userId);
     const updated = await this.prisma.listing.update({
       where: { id },
       data: { status: ListingStatus.ACTIVE },
     });
-    void this.search.indexListing(updated).catch(() => undefined);
+    this.syncSearchIndex(updated);
     return updated;
   }
 
@@ -337,7 +368,7 @@ export class ListingsService {
       where: { id },
       data: { status: ListingStatus.ACTIVE },
     });
-    void this.search.indexListing(updated).catch(() => undefined);
+    this.syncSearchIndex(updated);
     return updated;
   }
 

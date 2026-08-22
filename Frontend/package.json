@@ -16,7 +16,7 @@
     "framer-motion": "^12.39.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.16.0",
-    "next": "16.2.6",
+    "next": "16.3.1",
     "next-intl": "^4.12.0",
     "pusher-js": "^8.5.0",
     "react": "19.2.4",
@@ -28,6 +28,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

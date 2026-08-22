@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { verifyToken } from '@clerk/backend';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { Request } from 'express';
@@ -37,19 +38,17 @@ export class ClerkAuthGuard implements CanActivate {
     const token = authHeader.split(' ')[1];
 
     try {
-      // Décodage local du JWT — aucun appel réseau Clerk
-      const parts = token.split('.');
-      if (parts.length !== 3) throw new UnauthorizedException('Malformed token');
-
-      const pl = JSON.parse(
-        Buffer.from(parts[1], 'base64url').toString('utf8'),
-      );
-      const clerkId = pl.sub as string | undefined;
-      const exp = pl.exp as number | undefined;
+      // Vérification cryptographique complète du JWT (signature + expiration
+      // + audience/authorized parties) via le SDK Clerk. L'ancienne version
+      // se contentait de décoder le payload en base64 sans jamais vérifier
+      // la signature — n'importe qui pouvait forger un token avec un `sub`
+      // arbitraire et usurper n'importe quel compte (y compris ADMIN).
+      const payload = await verifyToken(token, {
+        secretKey: this.config.get<string>('CLERK_SECRET_KEY'),
+      });
+      const clerkId = payload.sub;
 
       if (!clerkId) throw new UnauthorizedException('Token sans sub');
-      if (exp && Date.now() / 1000 > exp + 300)
-        throw new UnauthorizedException('Token expired');
 
       // Cherche l'utilisateur en base
       let user = await this.prisma.user.findUnique({ where: { clerkId } });

@@ -334,5 +334,121 @@ describe('BookingsService', () => {
         }),
       );
     });
+
+    // Régression anti-fraude : la pénalité "annulation tardive → fonds
+    // libérés au bailleur" ne doit s'appliquer que si c'est le LOCATAIRE qui
+    // annule. Avant le fix, le bailleur pouvait confirmer une réservation
+    // puis l'annuler lui-même juste avant l'arrivée pour empocher l'escrow
+    // sans jamais fournir le logement.
+    it("rembourse le locataire meme a moins de 7 jours si c'est le BAILLEUR qui annule — le contournement corrige", async () => {
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        ...pendingBooking,
+        status: BookingStatus.CONFIRMED,
+        startDate: inDays(3),
+        escrowStatus: EscrowStatus.HELD,
+      });
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...pendingBooking,
+        status: BookingStatus.CANCELLED,
+        escrowStatus: EscrowStatus.REFUNDED,
+      });
+
+      await service.cancel('booking1', owner);
+
+      expect(prismaMock.booking.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: expect.objectContaining({
+            status: BookingStatus.CANCELLED,
+            escrowStatus: EscrowStatus.REFUNDED,
+          }),
+        }),
+      );
+    });
+  });
+
+  // --- complete ---
+  describe('complete', () => {
+    const confirmedBooking = {
+      ...pendingBooking,
+      status: BookingStatus.CONFIRMED,
+      escrowStatus: EscrowStatus.HELD,
+    };
+
+    it("refuse de liberer l'escrow si le sejour n'est pas encore termine (anti-fraude)", async () => {
+      const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...confirmedBooking,
+        startDate: future,
+        endDate: null,
+      });
+
+      await expect(service.complete('booking1', owner)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prismaMock.booking.update).not.toHaveBeenCalled();
+    });
+
+    it("libere l'escrow une fois la date de fin de sejour passee", async () => {
+      const past = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...confirmedBooking,
+        startDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        endDate: past,
+      });
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...confirmedBooking,
+        status: BookingStatus.COMPLETED,
+        escrowStatus: EscrowStatus.RELEASED,
+      });
+
+      const result = await service.complete('booking1', owner);
+
+      expect(result.status).toBe(BookingStatus.COMPLETED);
+      expect(prismaMock.booking.update).toHaveBeenCalledWith({
+        where: { id: 'booking1' },
+        data: { status: BookingStatus.COMPLETED, escrowStatus: EscrowStatus.RELEASED },
+      });
+    });
+
+    it("se base sur startDate si aucune endDate n'est definie", async () => {
+      const past = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...confirmedBooking,
+        startDate: past,
+        endDate: null,
+      });
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...confirmedBooking,
+        status: BookingStatus.COMPLETED,
+      });
+
+      await expect(service.complete('booking1', owner)).resolves.toBeDefined();
+    });
+
+    it("leve ForbiddenException si l'appelant n'est ni le proprietaire ni un admin", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...confirmedBooking,
+        startDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        endDate: null,
+      });
+
+      await expect(service.complete('booking1', tenant)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it("leve BadRequestException si la reservation n'est pas CONFIRMED", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...confirmedBooking,
+        status: BookingStatus.PENDING,
+        startDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        endDate: null,
+      });
+
+      await expect(service.complete('booking1', owner)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
   });
 });

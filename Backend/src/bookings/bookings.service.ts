@@ -298,16 +298,24 @@ export class BookingsService {
     }
 
     // Politique de remboursement :
-    // >7 jours avant l'arrivée  → remboursement intégral (REFUNDED)
-    // ≤7 jours avant l'arrivée  → aucun remboursement (RELEASED au bailleur)
+    // >7 jours avant l'arrivée ET annulation par le LOCATAIRE → remboursement intégral (REFUNDED)
+    // ≤7 jours avant l'arrivée ET annulation par le LOCATAIRE → pénalité, fonds libérés au bailleur (RELEASED)
+    // Annulation par le bailleur (ou admin en son nom) → toujours REFUNDED, quel que soit le délai.
+    //
+    // Anti-fraude : la pénalité de "délai court" ne doit s'appliquer qu'à une
+    // annulation initiée par le locataire. Sans cette distinction, un bailleur
+    // pouvait confirmer une réservation puis l'annuler lui-même juste avant
+    // l'arrivée pour empocher les fonds séquestrés du locataire sans jamais
+    // fournir le logement.
+    const isTenantCancelling = user.id === booking.tenantId;
     let newEscrowStatus = booking.escrowStatus;
     if (booking.escrowStatus === EscrowStatus.HELD) {
       const hoursUntilStart =
         (new Date(booking.startDate).getTime() - Date.now()) / (1000 * 60 * 60);
       newEscrowStatus =
-        hoursUntilStart > 7 * 24
-          ? EscrowStatus.REFUNDED   // remboursement intégral
-          : EscrowStatus.RELEASED;  // fonds libérés au bailleur
+        isTenantCancelling && hoursUntilStart <= 7 * 24
+          ? EscrowStatus.RELEASED   // pénalité d'annulation tardive par le locataire
+          : EscrowStatus.REFUNDED;  // remboursement intégral
     }
     // ────────────────────────────────────────────────────────────────────────
 
@@ -369,6 +377,20 @@ export class BookingsService {
         'Impossible de terminer, statut: ' + booking.status,
       );
     }
+
+    // Garde-fou anti-fraude : on ne libère l'escrow que si le séjour est
+    // effectivement terminé. Sans cette vérification, un bailleur pouvait
+    // confirmer puis "Terminer" une réservation instantanément et récupérer
+    // les fonds séquestrés du locataire avant même le début du séjour — la
+    // libération anticipée légitime (litige, etc.) reste possible mais
+    // uniquement via POST /payments/release/:bookingId (ADMIN uniquement).
+    const stayEnd = booking.endDate ?? booking.startDate;
+    if (new Date() < new Date(stayEnd)) {
+      throw new BadRequestException(
+        'Impossible de terminer cette réservation avant la fin du séjour prévu.',
+      );
+    }
+
     return this.prisma.booking.update({
       where: { id },
       data: {
