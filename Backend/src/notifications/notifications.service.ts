@@ -476,6 +476,52 @@ export class NotificationsService {
     ));
   }
 
+  // Signalement de non-conformité (Article 9 des CGU) — notifie le bailleur
+  // concerné et tous les admins pour arbitrage.
+  async notifyDisputeReported(
+    landlordId: string,
+    listingTitle: string,
+    bookingId: string,
+    listingId: string,
+  ) {
+    const admins = await this.prisma.user.findMany({
+      where: { roles: { has: Role.ADMIN } },
+      select: { id: true },
+    });
+    await Promise.all([
+      this.pushInApp(landlordId, 'BOOKING_DISPUTED',
+        'pushDisputeReportedLandlordTitle', 'pushDisputeReportedLandlordBody',
+        { listingTitle }, { bookingId, listingTitle, listingId }),
+      ...admins.map((admin) =>
+        this.pushInApp(admin.id, 'BOOKING_DISPUTED',
+          'pushDisputeReportedAdminTitle', 'pushDisputeReportedAdminBody',
+          { listingTitle }, { bookingId, listingTitle, listingId }),
+      ),
+    ]);
+  }
+
+  // Résolution d'un litige par un admin — notifie locataire et bailleur.
+  async notifyDisputeResolved(
+    tenantId: string,
+    landlordId: string,
+    listingTitle: string,
+    bookingId: string,
+    listingId: string,
+    decision: 'RELEASE' | 'REFUND',
+  ) {
+    const released = decision === 'RELEASE';
+    await Promise.all([
+      this.pushInApp(tenantId, 'DISPUTE_RESOLVED',
+        released ? 'pushDisputeResolvedReleaseTenantTitle' : 'pushDisputeResolvedRefundTenantTitle',
+        released ? 'pushDisputeResolvedReleaseTenantBody' : 'pushDisputeResolvedRefundTenantBody',
+        { listingTitle }, { bookingId, listingTitle, listingId }),
+      this.pushInApp(landlordId, 'DISPUTE_RESOLVED',
+        released ? 'pushDisputeResolvedReleaseLandlordTitle' : 'pushDisputeResolvedRefundLandlordTitle',
+        released ? 'pushDisputeResolvedReleaseLandlordBody' : 'pushDisputeResolvedRefundLandlordBody',
+        { listingTitle }, { bookingId, listingTitle, listingId }),
+    ]);
+  }
+
   // Bailleur : badge AlloVérifié accordé par l'admin
   async notifyVerifValidated(
     bailleurId: string,

@@ -13,6 +13,7 @@ const REPLY_TO_SELECT = {
 import { PrismaService } from '../prisma/prisma.service';
 import { PusherService } from '../pusher/pusher.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { sanitizeContactInfo } from './contact-filter.util';
 
 @Injectable()
 export class MessagesService {
@@ -84,8 +85,14 @@ export class MessagesService {
       if (!replyMsg || replyMsg.roomId !== roomId)
         throw new BadRequestException('Invalid reference message');
     }
+    // Les messages vocaux stockent une URL (Cloudinary) dans `content`, jamais
+    // du texte libre — on ne les fait pas passer par le filtre anti-contournement
+    // pour ne pas masquer par erreur les chiffres de l'URL.
+    const safeContent = content.startsWith('[AUDIO]:')
+      ? content
+      : sanitizeContactInfo(content).content;
     const message = await this.prisma.message.create({
-      data: { roomId, senderId, content, ...(replyToId ? { replyToId } : {}) },
+      data: { roomId, senderId, content: safeContent, ...(replyToId ? { replyToId } : {}) },
       include: {
         sender:  { select: SENDER_SELECT },
         replyTo: { select: REPLY_TO_SELECT },
@@ -138,9 +145,10 @@ export class MessagesService {
     if (msg.content.startsWith('[AUDIO]:'))
       throw new BadRequestException('Voice messages cannot be edited');
 
+    const safeContent = sanitizeContactInfo(content).content;
     const updated = await this.prisma.message.update({
       where: { id: messageId },
-      data: { content, editedAt: new Date() },
+      data: { content: safeContent, editedAt: new Date() },
       include: { sender: { select: SENDER_SELECT } },
     });
     void this.pusher.trigger('room-' + msg.roomId, 'message-edited', {

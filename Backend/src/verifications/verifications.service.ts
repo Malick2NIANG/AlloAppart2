@@ -3,8 +3,10 @@
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateVerificationDto } from './dto/create-verification.dto';
@@ -12,8 +14,13 @@ import { CompleteVerificationDto } from './dto/complete-verification.dto';
 import { RateVerificationDto } from './dto/rate-verification.dto';
 import { type User, Role, VerifStatus } from '@prisma/client';
 
+// Durée de validité du badge AlloVérifié — Article 6 des CGU (6 mois)
+const BADGE_VALIDITY_MONTHS = 6;
+
 @Injectable()
 export class VerificationsService {
+  private readonly logger = new Logger(VerificationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notif: NotificationsService,
@@ -488,5 +495,26 @@ export class VerificationsService {
     }
 
     return this.prisma.agentRating.findUnique({ where: { verificationId } });
+  }
+
+  /**
+   * Cron quotidien à minuit — retire le badge AlloVérifié™ des annonces dont
+   * la vérification date de plus de 6 mois (Article 6 des CGU). Le bailleur
+   * doit alors solliciter et régler une nouvelle vérification pour le
+   * renouveler.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async expireOldBadges(): Promise<void> {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - BADGE_VALIDITY_MONTHS);
+
+    const { count } = await this.prisma.listing.updateMany({
+      where: { isVerified: true, verifiedAt: { lt: cutoff } },
+      data: { isVerified: false },
+    });
+
+    if (count > 0) {
+      this.logger.log(`Badge AlloVérifié expiré sur ${count} annonce(s) (vérification > ${BADGE_VALIDITY_MONTHS} mois)`);
+    }
   }
 }

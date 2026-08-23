@@ -126,6 +126,12 @@ const fr = {
   pushListingReportedUrgentTitle: '🚨 Annonce signalée plusieurs fois',
   pushDeclineRequestTitle: 'Demande de déclin à approuver',
   pushNewMessageTitle: 'Nouveau message',
+  pushDisputeReportedLandlordTitle: '⚠️ Signalement de non-conformité',
+  pushDisputeReportedAdminTitle: '⚠️ Nouveau litige à arbitrer',
+  pushDisputeResolvedReleaseTenantTitle: 'Litige tranché',
+  pushDisputeResolvedRefundTenantTitle: 'Litige tranché — remboursement',
+  pushDisputeResolvedReleaseLandlordTitle: 'Litige tranché en votre faveur',
+  pushDisputeResolvedRefundLandlordTitle: 'Litige tranché — remboursement du locataire',
 
   /* Notifications in-app — corps */
   pushPaymentConfirmedBody: 'Votre réservation pour « {listingTitle} » est confirmée.',
@@ -152,6 +158,18 @@ const fr = {
     'Un agent demande à décliner la mission « {listingTitle} ». Approbation requise.',
   pushNewMessageBody: '{senderName} vous a envoyé un message.',
   pushBookingRequestOneSignal: '{tenantName} — {listingTitle}',
+  pushDisputeReportedLandlordBody:
+    'Le locataire a signalé une non-conformité pour « {listingTitle} ». Les fonds sont gelés le temps de l’examen.',
+  pushDisputeReportedAdminBody:
+    'Signalement de non-conformité pour « {listingTitle} ». Examen requis.',
+  pushDisputeResolvedReleaseTenantBody:
+    'Votre signalement pour « {listingTitle} » a été examiné : les fonds ont été libérés au bailleur.',
+  pushDisputeResolvedRefundTenantBody:
+    'Votre signalement pour « {listingTitle} » a été examiné : vous avez été remboursé.',
+  pushDisputeResolvedReleaseLandlordBody:
+    'Le litige concernant « {listingTitle} » a été tranché en votre faveur. Les fonds vous ont été libérés.',
+  pushDisputeResolvedRefundLandlordBody:
+    'Le litige concernant « {listingTitle} » a été tranché en faveur du locataire, qui a été remboursé.',
 
   /* Motifs de signalement (utilisés dans les notifications admin) */
   reasonFRAUD: 'Arnaque / fraude',
@@ -264,6 +282,12 @@ const en: Record<MessageKey, string> = {
   pushListingReportedUrgentTitle: '🚨 Listing reported multiple times',
   pushDeclineRequestTitle: 'Decline request to approve',
   pushNewMessageTitle: 'New message',
+  pushDisputeReportedLandlordTitle: '⚠️ Non-conformity report',
+  pushDisputeReportedAdminTitle: '⚠️ New dispute to arbitrate',
+  pushDisputeResolvedReleaseTenantTitle: 'Dispute resolved',
+  pushDisputeResolvedRefundTenantTitle: 'Dispute resolved — refund',
+  pushDisputeResolvedReleaseLandlordTitle: 'Dispute resolved in your favour',
+  pushDisputeResolvedRefundLandlordTitle: 'Dispute resolved — tenant refunded',
 
   /* In-app notifications — bodies */
   pushPaymentConfirmedBody: 'Your booking for “{listingTitle}” is confirmed.',
@@ -289,6 +313,18 @@ const en: Record<MessageKey, string> = {
     'An agent is requesting to decline the mission “{listingTitle}”. Approval required.',
   pushNewMessageBody: '{senderName} sent you a message.',
   pushBookingRequestOneSignal: '{tenantName} — {listingTitle}',
+  pushDisputeReportedLandlordBody:
+    'The tenant has reported a non-conformity for “{listingTitle}”. Funds are frozen pending review.',
+  pushDisputeReportedAdminBody:
+    'Non-conformity report for “{listingTitle}”. Review required.',
+  pushDisputeResolvedReleaseTenantBody:
+    'Your report for “{listingTitle}” has been reviewed: the funds were released to the landlord.',
+  pushDisputeResolvedRefundTenantBody:
+    'Your report for “{listingTitle}” has been reviewed: you have been refunded.',
+  pushDisputeResolvedReleaseLandlordBody:
+    'The dispute regarding “{listingTitle}” was resolved in your favour. The funds have been released to you.',
+  pushDisputeResolvedRefundLandlordBody:
+    'The dispute regarding “{listingTitle}” was resolved in favour of the tenant, who has been refunded.',
 
   /* Report reasons (used in admin notifications) */
   reasonFRAUD: 'Scam / fraud',

@@ -11,6 +11,7 @@ import { formatPrice } from '@/lib/utils';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
+import { revalidateListingsCache } from './actions';
 
 interface VerifModal { listingId: string; title: string; }
 interface AgentOption { id: string; firstName: string; lastName: string; completedMissions: number; }
@@ -94,10 +95,7 @@ function BailleurListingsContent() {
   useEffect(() => { setPage(1); }, [filter, search]);
 
   const triggerRevalidation = () => {
-    fetch('/api/revalidate', {
-      method: 'POST',
-      headers: { 'x-revalidate-secret': process.env.NEXT_PUBLIC_REVALIDATE_SECRET ?? '' },
-    }).catch(() => {});
+    revalidateListingsCache().catch(() => {});
   };
 
   const loadAgents = useCallback(async () => {

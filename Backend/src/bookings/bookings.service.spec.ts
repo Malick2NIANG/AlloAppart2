@@ -98,6 +98,8 @@ describe('BookingsService', () => {
     notifyBookingCreated: jest.Mock;
     notifyBookingConfirmed: jest.Mock;
     notifyBookingCancelled: jest.Mock;
+    notifyDisputeReported: jest.Mock;
+    notifyDisputeResolved: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -120,6 +122,8 @@ describe('BookingsService', () => {
       notifyBookingCreated: jest.fn().mockResolvedValue(undefined),
       notifyBookingConfirmed: jest.fn().mockResolvedValue(undefined),
       notifyBookingCancelled: jest.fn().mockResolvedValue(undefined),
+      notifyDisputeReported: jest.fn().mockResolvedValue(undefined),
+      notifyDisputeResolved: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -449,6 +453,160 @@ describe('BookingsService', () => {
       await expect(service.complete('booking1', owner)).rejects.toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  // --- reportDispute ---
+  describe('reportDispute', () => {
+    const confirmedHeld = {
+      ...pendingBooking,
+      status: BookingStatus.CONFIRMED,
+      escrowStatus: EscrowStatus.HELD,
+    };
+
+    it('signale une non-conformité dans la fenêtre de 24h et gèle l\'escrow', async () => {
+      const startedRecently = new Date(Date.now() - 2 * 60 * 60 * 1000); // il y a 2h
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...confirmedHeld,
+        startDate: startedRecently,
+      });
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...confirmedHeld,
+        escrowStatus: EscrowStatus.DISPUTED,
+        disputeReason: 'Climatisation en panne',
+        disputeEvidence: ['https://example.com/photo1.jpg'],
+        disputedAt: new Date(),
+      });
+
+      const result = await service.reportDispute('booking1', 'tenant1', {
+        reason: 'Climatisation en panne',
+        evidence: ['https://example.com/photo1.jpg'],
+      });
+
+      expect(result.escrowStatus).toBe(EscrowStatus.DISPUTED);
+      expect(notifMock.notifyDisputeReported).toHaveBeenCalled();
+    });
+
+    it('lève ForbiddenException si un autre user que le locataire signale', async () => {
+      const startedRecently = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...confirmedHeld,
+        startDate: startedRecently,
+      });
+
+      await expect(
+        service.reportDispute('booking1', 'owner1', {
+          reason: 'Climatisation en panne',
+          evidence: ['https://example.com/photo1.jpg'],
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('lève BadRequestException si le délai de 24h est dépassé', async () => {
+      const startedTooLongAgo = new Date(Date.now() - 30 * 60 * 60 * 1000); // il y a 30h
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...confirmedHeld,
+        startDate: startedTooLongAgo,
+      });
+
+      await expect(
+        service.reportDispute('booking1', 'tenant1', {
+          reason: 'Climatisation en panne',
+          evidence: ['https://example.com/photo1.jpg'],
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.booking.update).not.toHaveBeenCalled();
+    });
+
+    it("lève BadRequestException si le séjour n'a pas encore commencé", async () => {
+      const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...confirmedHeld,
+        startDate: future,
+      });
+
+      await expect(
+        service.reportDispute('booking1', 'tenant1', {
+          reason: 'Climatisation en panne',
+          evidence: ['https://example.com/photo1.jpg'],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("lève BadRequestException si l'escrow n'est pas HELD (déjà réglé)", async () => {
+      const startedRecently = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...confirmedHeld,
+        escrowStatus: EscrowStatus.RELEASED,
+        startDate: startedRecently,
+      });
+
+      await expect(
+        service.reportDispute('booking1', 'tenant1', {
+          reason: 'Climatisation en panne',
+          evidence: ['https://example.com/photo1.jpg'],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // --- resolveDispute ---
+  describe('resolveDispute', () => {
+    const disputedBooking = {
+      ...pendingBooking,
+      status: BookingStatus.CONFIRMED,
+      escrowStatus: EscrowStatus.DISPUTED,
+      disputeReason: 'Climatisation en panne',
+      disputeEvidence: ['https://example.com/photo1.jpg'],
+      disputedAt: new Date(),
+    };
+    const admin: User = { ...owner, id: 'admin1', roles: [Role.ADMIN] };
+
+    it('lève ForbiddenException si le caller n\'est pas ADMIN', async () => {
+      await expect(
+        service.resolveDispute('booking1', tenant, { decision: 'RELEASE' }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prismaMock.booking.findUniqueOrThrow).not.toHaveBeenCalled();
+    });
+
+    it('RELEASE : passe la réservation en COMPLETED / escrow RELEASED', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(disputedBooking);
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...disputedBooking,
+        status: BookingStatus.COMPLETED,
+        escrowStatus: EscrowStatus.RELEASED,
+      });
+
+      const result = await service.resolveDispute('booking1', admin, { decision: 'RELEASE' });
+
+      expect(result.status).toBe(BookingStatus.COMPLETED);
+      expect(result.escrowStatus).toBe(EscrowStatus.RELEASED);
+      expect(notifMock.notifyDisputeResolved).toHaveBeenCalled();
+    });
+
+    it('REFUND : passe la réservation en CANCELLED / escrow REFUNDED', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(disputedBooking);
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...disputedBooking,
+        status: BookingStatus.CANCELLED,
+        escrowStatus: EscrowStatus.REFUNDED,
+      });
+
+      const result = await service.resolveDispute('booking1', admin, { decision: 'REFUND' });
+
+      expect(result.status).toBe(BookingStatus.CANCELLED);
+      expect(result.escrowStatus).toBe(EscrowStatus.REFUNDED);
+    });
+
+    it("lève BadRequestException si la réservation n'est pas en litige", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...disputedBooking,
+        escrowStatus: EscrowStatus.HELD,
+      });
+
+      await expect(
+        service.resolveDispute('booking1', admin, { decision: 'RELEASE' }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

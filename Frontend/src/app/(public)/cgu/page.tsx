@@ -3,23 +3,26 @@ import { getTranslations } from 'next-intl/server';
 
 /* Ordre d'affichage + icônes — le texte vit dans les fichiers de locale */
 const SECTION_ORDER = [
-  { key: 'objet',          icon: 'fa-solid fa-file-lines'          },
+  { key: 'objet',          icon: 'fa-solid fa-file-contract'       },
   { key: 'definitions',    icon: 'fa-solid fa-book'                },
   { key: 'inscription',    icon: 'fa-solid fa-user-plus'           },
-  { key: 'bailleurs',      icon: 'fa-solid fa-house-chimney-user'  },
-  { key: 'locataires',     icon: 'fa-solid fa-person-walking-arrow-right' },
+  { key: 'bailleurs',      icon: 'fa-solid fa-house'                },
+  { key: 'locataires',     icon: 'fa-solid fa-key'                  },
   { key: 'allverifie',     icon: 'fa-solid fa-shield-halved'       },
-  { key: 'tarifs',         icon: 'fa-solid fa-coins'               },
-  { key: 'propriete',      icon: 'fa-solid fa-copyright'           },
+  { key: 'tarifs',         icon: 'fa-solid fa-sack-dollar'          },
+  { key: 'annulation',     icon: 'fa-solid fa-calendar-xmark'       },
+  { key: 'litiges',        icon: 'fa-solid fa-scale-balanced'       },
+  { key: 'propriete',      icon: 'fa-solid fa-copyright'            },
   { key: 'responsabilite', icon: 'fa-solid fa-circle-exclamation'  },
-  { key: 'suspension',     icon: 'fa-solid fa-ban'                 },
-  { key: 'droit',          icon: 'fa-solid fa-gavel'               },
-  { key: 'contact',        icon: 'fa-solid fa-envelope'            },
+  { key: 'messagerie',     icon: 'fa-solid fa-comments'             },
+  { key: 'suspension',     icon: 'fa-solid fa-ban'                  },
+  { key: 'droit',          icon: 'fa-solid fa-gavel'                 },
+  { key: 'contact',        icon: 'fa-solid fa-envelope-open-text'  },
 ] as const;
 
 interface Section { title: string; body: string }
 
-export default async function CguPage() {
+export default async function CGUPage() {
   const t = await getTranslations('cgu');
   const sections = t.raw('sections') as Record<string, Section>;
 
@@ -48,7 +51,7 @@ export default async function CguPage() {
         {/* En-tête */}
         <div className="mb-10">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/50 bg-gold-pale px-3 py-1 text-xs font-semibold text-gold-dark">
-            <i className="fa-solid fa-scale-balanced" /> {t('badge')}
+            <i className="fa-solid fa-shield-halved" /> {t('badge')}
           </span>
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-text md:text-4xl">
             {t('title')}

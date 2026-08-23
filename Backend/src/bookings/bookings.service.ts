@@ -7,7 +7,12 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { ReportDisputeDto } from './dto/report-dispute.dto';
+import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import { type User, BookingStatus, EscrowStatus, Role } from '@prisma/client';
+
+// Fenêtre de signalement de non-conformité — Article 9 des CGU
+const DISPUTE_WINDOW_HOURS = 24;
 
 const DAYS_PER_MONTH = 30;      // base du prorata pour les jours résiduels
 const MONTHLY_THRESHOLD = 25;   // au-delà, on facture au mois plutôt qu'à la nuit
@@ -377,6 +382,11 @@ export class BookingsService {
         'Impossible de terminer, statut: ' + booking.status,
       );
     }
+    if (booking.escrowStatus === EscrowStatus.DISPUTED) {
+      throw new BadRequestException(
+        'Cette réservation fait l\'objet d\'un litige en cours — utilisez la résolution de litige plutôt que "Terminer".',
+      );
+    }
 
     // Garde-fou anti-fraude : on ne libère l'escrow que si le séjour est
     // effectivement terminé. Sans cette vérification, un bailleur pouvait
@@ -398,5 +408,107 @@ export class BookingsService {
         escrowStatus: EscrowStatus.RELEASED,
       },
     });
+  }
+
+  /**
+   * Signalement de non-conformité par le locataire — Article 9 des CGU.
+   * Fenêtre de 24h à compter du début du séjour (`startDate`), seule donnée
+   * d'"entrée dans les lieux" disponible dans le modèle actuel. Gèle
+   * l'escrow (passage à DISPUTED) le temps de l'examen du litige.
+   */
+  async reportDispute(id: string, tenantId: string, dto: ReportDisputeDto) {
+    const booking = await this.prisma.booking.findUniqueOrThrow({
+      where: { id },
+      include: { listing: { include: { owner: true } }, tenant: true },
+    });
+    if (booking.tenantId !== tenantId) {
+      throw new ForbiddenException('Not authorized');
+    }
+    if (booking.status !== BookingStatus.CONFIRMED) {
+      throw new BadRequestException(
+        'Seule une réservation confirmée peut faire l\'objet d\'un signalement.',
+      );
+    }
+    if (booking.escrowStatus !== EscrowStatus.HELD) {
+      throw new BadRequestException(
+        'Cette réservation ne peut plus faire l\'objet d\'un signalement (statut : ' +
+          booking.escrowStatus +
+          ').',
+      );
+    }
+
+    const hoursSinceStart =
+      (Date.now() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60);
+    if (hoursSinceStart < 0) {
+      throw new BadRequestException('Le séjour n\'a pas encore commencé.');
+    }
+    if (hoursSinceStart > DISPUTE_WINDOW_HOURS) {
+      throw new BadRequestException(
+        `Le délai de ${DISPUTE_WINDOW_HOURS} heures pour signaler une non-conformité est dépassé.`,
+      );
+    }
+
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: {
+        escrowStatus: EscrowStatus.DISPUTED,
+        disputeReason: dto.reason,
+        disputeEvidence: dto.evidence,
+        disputedAt: new Date(),
+      },
+      include: { listing: { include: { owner: true } }, tenant: true },
+    });
+
+    void this.notifications
+      .notifyDisputeReported(
+        updated.listing.ownerId,
+        updated.listing.title,
+        updated.id,
+        updated.listingId,
+      )
+      .catch(() => {});
+
+    return updated;
+  }
+
+  /**
+   * Résolution d'un litige par un ADMIN — décide de la libération ou du
+   * remboursement des fonds séquestrés (Article 9 des CGU).
+   */
+  async resolveDispute(id: string, admin: User, dto: ResolveDisputeDto) {
+    if (!admin.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Admin only');
+    }
+    const booking = await this.prisma.booking.findUniqueOrThrow({
+      where: { id },
+      include: { listing: { include: { owner: true } }, tenant: true },
+    });
+    if (booking.escrowStatus !== EscrowStatus.DISPUTED) {
+      throw new BadRequestException('Cette réservation n\'est pas en litige.');
+    }
+
+    const releasing = dto.decision === 'RELEASE';
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: {
+        status: releasing ? BookingStatus.COMPLETED : BookingStatus.CANCELLED,
+        escrowStatus: releasing ? EscrowStatus.RELEASED : EscrowStatus.REFUNDED,
+        disputeResolvedAt: new Date(),
+      },
+      include: { listing: { include: { owner: true } }, tenant: true },
+    });
+
+    void this.notifications
+      .notifyDisputeResolved(
+        updated.tenantId,
+        updated.listing.ownerId,
+        updated.listing.title,
+        updated.id,
+        updated.listingId,
+        dto.decision,
+      )
+      .catch(() => {});
+
+    return updated;
   }
 }

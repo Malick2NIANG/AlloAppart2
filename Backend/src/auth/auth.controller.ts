@@ -73,6 +73,7 @@ export class AuthController {
   }
 
   // Changement de mot de passe obligatoire — agents/agences créés par l'admin avec mdp temporaire
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Patch('me/password')
   changePassword(@CurrentUser() user: User, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(user.id, dto);

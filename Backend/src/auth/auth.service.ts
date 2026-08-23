@@ -130,6 +130,15 @@ export class AuthService {
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ success: boolean }> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
+    // Cette route ne sert qu'au changement forcé du mot de passe temporaire
+    // (agents/agences créés par l'admin). Un changement de mot de passe "volontaire"
+    // doit passer par l'UI Clerk elle-même (qui vérifie l'ancien mot de passe).
+    if (!user.mustChangePassword) {
+      throw new ForbiddenException(
+        'Cette route est réservée au changement du mot de passe temporaire initial.',
+      );
+    }
+
     await this.clerkClient.users.updateUser(user.clerkId, {
       password: dto.newPassword,
     });

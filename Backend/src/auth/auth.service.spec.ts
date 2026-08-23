@@ -12,6 +12,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -122,6 +123,44 @@ describe('AuthService', () => {
           lastName: 'User',
         }),
       ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  // --- changePassword ---
+  describe('changePassword', () => {
+    it("lève ForbiddenException si mustChangePassword est false (pas un changement forcé)", async () => {
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        ...baseUser,
+        mustChangePassword: false,
+      });
+
+      await expect(
+        service.changePassword('user1', { newPassword: 'NouveauMdp123!' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('change le mot de passe Clerk et repasse mustChangePassword à false quand autorisé', async () => {
+      const updateUser = jest.fn().mockResolvedValueOnce(undefined);
+      // @ts-expect-error accès à la propriété privée clerkClient pour le mock de test
+      service.clerkClient = { users: { updateUser } };
+
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        ...baseUser,
+        mustChangePassword: true,
+      });
+      prismaMock.user.update.mockResolvedValueOnce({
+        ...baseUser,
+        mustChangePassword: false,
+      });
+
+      const result = await service.changePassword('user1', { newPassword: 'NouveauMdp123!' });
+
+      expect(updateUser).toHaveBeenCalledWith('clerk_abc', { password: 'NouveauMdp123!' });
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 'user1' },
+        data: { mustChangePassword: false },
+      });
+      expect(result).toEqual({ success: true });
     });
   });
 

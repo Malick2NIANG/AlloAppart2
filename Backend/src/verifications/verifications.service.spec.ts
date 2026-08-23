@@ -14,6 +14,7 @@ describe('VerificationsService', () => {
   let prismaMock: {
     verification: { findUniqueOrThrow: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
     agentRating: { findUnique: jest.Mock };
+    listing: { updateMany: jest.Mock };
   };
 
   const baseVerification = {
@@ -27,6 +28,7 @@ describe('VerificationsService', () => {
     prismaMock = {
       verification: { findUniqueOrThrow: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
       agentRating: { findUnique: jest.fn() },
+      listing: { updateMany: jest.fn() },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -149,6 +151,26 @@ describe('VerificationsService', () => {
       await expect(service.findRatingByVerification('inconnu', owner)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  // Cron d'expiration du badge AlloVérifié — Article 6 des CGU (6 mois)
+  describe('expireOldBadges', () => {
+    it('retire le badge des annonces vérifiées il y a plus de 6 mois', async () => {
+      prismaMock.listing.updateMany.mockResolvedValueOnce({ count: 3 });
+
+      await service.expireOldBadges();
+
+      expect(prismaMock.listing.updateMany).toHaveBeenCalledWith({
+        where: { isVerified: true, verifiedAt: { lt: expect.any(Date) } },
+        data: { isVerified: false },
+      });
+    });
+
+    it("ne fait rien de plus si aucune annonce n'est concernée", async () => {
+      prismaMock.listing.updateMany.mockResolvedValueOnce({ count: 0 });
+
+      await expect(service.expireOldBadges()).resolves.toBeUndefined();
     });
   });
 });

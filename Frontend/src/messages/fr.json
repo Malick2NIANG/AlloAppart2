@@ -2317,30 +2317,42 @@
       },
       "allverifie": {
         "title": "6. AlloVérifié™",
-        "body": "AlloVérifié™ est un engagement de vérification terrain effectué par des agents AlloAppart certifiés. Une annonce portant ce label a été physiquement visitée et les informations clés ont été contrôlées (état du logement, superficie, équipements, conformité des photos).\n\nLimite de garantie : AlloVérifié™ ne constitue pas une garantie juridique du contrat de bail et n'engage pas la responsabilité d'AlloAppart quant aux éventuels litiges survenant après la signature du bail entre bailleur et locataire."
+        "body": "AlloVérifié™ est un engagement de vérification terrain effectué par des agents AlloAppart certifiés. Une annonce portant ce label a été physiquement visitée et les informations clés ont été contrôlées (état du logement, superficie, équipements, conformité des photos).\n\nInstant T : le badge AlloVérifié™ atteste de l'état du bien constaté au moment précis de la visite de l'agent. Il ne constitue pas une garantie permanente ou continue de cet état ; AlloAppart ne saurait être tenu responsable d'une dégradation ou d'une panne survenant après la date de vérification, sous réserve du mécanisme de signalement décrit à l'Article 9.\n\nDurée de validité : le badge AlloVérifié™ est valable six (6) mois à compter de la date de la visite. Passé ce délai, il est automatiquement retiré de l'annonce ; le bailleur doit solliciter et régler une nouvelle vérification (25 000 FCFA au tarif en vigueur) pour le renouveler.\n\nLimite de garantie : AlloVérifié™ ne constitue pas une garantie juridique du contrat de bail et n'engage pas la responsabilité d'AlloAppart quant aux éventuels litiges survenant après la signature du bail entre bailleur et locataire, sous réserve de l'Article 9."
       },
       "tarifs": {
-        "title": "7. Tarifs et commissions",
-        "body": "• Publication d'annonces : gratuite pour les bailleurs particuliers.\n• Commission : 5 % du montant du premier loyer pour toute transaction aboutie facilitée par la Plateforme (mise en relation directe ayant conduit à la signature d'un bail).\n• Les tarifs peuvent être modifiés avec un préavis de 30 jours communiqué par e-mail aux utilisateurs enregistrés."
+        "title": "7. Réservation, séquestre et commissions",
+        "body": "• Publication d'annonces : gratuite pour les bailleurs particuliers ; soumise à abonnement pour les agences (PRO_AGENCE).\n• Toute réservation confirmée donne lieu au paiement intégral du montant par le locataire. Les fonds sont conservés en séquestre par AlloAppart et ne sont reversés au bailleur (déduction faite de la commission de la Plateforme) qu'à l'issue de la période de signalement décrite à l'Article 9.\n• Commission : 10 % du montant de la réservation, prélevée sur les fonds séquestrés avant reversement au bailleur.\n• Les tarifs peuvent être modifiés avec un préavis de 30 jours communiqué par e-mail aux utilisateurs enregistrés."
+      },
+      "annulation": {
+        "title": "8. Politique d'annulation",
+        "body": "• Annulation par le locataire plus de sept (7) jours avant la date d'arrivée : remboursement intégral.\n• Annulation par le locataire sept (7) jours ou moins avant la date d'arrivée : les fonds séquestrés sont libérés au bailleur à titre de dédommagement.\n• Annulation par le bailleur, quel que soit le délai : remboursement intégral au locataire."
+      },
+      "litiges": {
+        "title": "9. Signalement de non-conformité et gestion des litiges",
+        "body": "Le locataire dispose d'un délai de vingt-quatre (24) heures à compter de son entrée effective dans les lieux pour signaler, via la Plateforme et avec justificatifs (photos ou vidéos), toute non-conformité substantielle entre l'état constaté du bien et le rapport AlloVérifié™ associé à l'annonce.\n\nPassé ce délai sans signalement, la réservation est réputée conforme et les fonds séquestrés sont destinés à être libérés au bailleur selon le calendrier habituel.\n\nEn cas de signalement recevable dans le délai imparti, AlloAppart gèle le versement des fonds le temps d'examiner le signalement. Le bailleur est invité à remédier au problème ou à proposer une compensation. À défaut d'accord entre les parties, AlloAppart tranche le litige et décide, à sa discrétion raisonnable et au vu des éléments fournis, de la libération totale, partielle, ou du remboursement des fonds séquestrés."
       },
       "propriete": {
-        "title": "8. Propriété intellectuelle",
+        "title": "10. Propriété intellectuelle",
         "body": "La marque AlloAppart, le logo, le label AlloVérifié™ ainsi que l'ensemble des contenus de la Plateforme (textes, images, interfaces, code source) sont la propriété exclusive d'AlloAppart SN SARL et sont protégés par le droit sénégalais de la propriété intellectuelle.\n\nToute reproduction, représentation ou exploitation sans autorisation préalable écrite est strictement interdite."
       },
       "responsabilite": {
-        "title": "9. Responsabilité limitée",
-        "body": "AlloAppart agit en qualité d'intermédiaire technique et de mise en relation. AlloAppart n'est pas partie au contrat de bail conclu entre bailleur et locataire et ne peut être tenu responsable des litiges survenant dans le cadre de cette relation.\n\nAlloAppart s'engage à assurer la disponibilité de la Plateforme dans des conditions normales, mais ne peut garantir une disponibilité ininterrompue."
+        "title": "11. Responsabilité limitée",
+        "body": "AlloAppart agit en qualité d'intermédiaire technique et de mise en relation. AlloAppart n'est pas partie au contrat de bail conclu entre bailleur et locataire et ne peut être tenu responsable des litiges survenant dans le cadre de cette relation, sous réserve des engagements pris aux Articles 6 et 9.\n\nAlloAppart s'engage à assurer la disponibilité de la Plateforme dans des conditions normales, mais ne peut garantir une disponibilité ininterrompue."
+      },
+      "messagerie": {
+        "title": "12. Usage de la messagerie interne",
+        "body": "Les échanges entre bailleurs et locataires doivent avoir lieu exclusivement via la messagerie interne de la Plateforme jusqu'à la confirmation de la réservation. Il est interdit de solliciter ou de transmettre des coordonnées personnelles dans le but de contourner la Plateforme et ses garanties (séquestre, mécanisme de signalement). AlloAppart se réserve le droit de masquer automatiquement ce type de contenu et de suspendre tout compte contrevenant de manière répétée."
       },
       "suspension": {
-        "title": "10. Suspension et résiliation de compte",
+        "title": "13. Suspension et résiliation de compte",
         "body": "AlloAppart se réserve le droit de suspendre ou de résilier un compte utilisateur sans préavis en cas de :\n• Violation des présentes CGU.\n• Fourniture d'informations fausses ou trompeuses.\n• Comportement frauduleux avéré ou tentative d'escroquerie.\n• Décision de justice ou injonction d'une autorité compétente.\n\nL'utilisateur peut supprimer son compte à tout moment depuis les paramètres de son espace personnel."
       },
       "droit": {
-        "title": "11. Droit applicable et juridiction compétente",
+        "title": "14. Droit applicable et juridiction compétente",
         "body": "Les présentes CGU sont régies par le droit de la République du Sénégal.\n\nEn cas de litige relatif à l'interprétation ou à l'exécution des présentes CGU, et à défaut de résolution amiable dans un délai de 30 jours, les parties conviennent de soumettre le différend à la juridiction exclusive du Tribunal de Grande Instance de Dakar."
       },
       "contact": {
-        "title": "12. Contact",
+        "title": "15. Contact",
         "body": "Pour toute question juridique relative aux présentes CGU :\n• E-mail : alloappart221@gmail.com\n• Courrier : AlloAppart SN SARL — Service Juridique, 25 Rue Carnot, Plateau, Dakar 11000, Sénégal"
       }
     }
@@ -2391,7 +2403,7 @@
       },
       "securite": {
         "title": "9. Sécurité",
-        "body": "AlloAppart met en œuvre les mesures techniques et organisationnelles suivantes pour protéger vos données :\n• Chiffrement des communications via le protocole TLS (HTTPS).\n• Hachage des mots de passe avec un algorithme cryptographique robuste (bcrypt).\n• Audits de sécurité réguliers et tests de pénétration.\n• Contrôle strict des accès internes selon le principe du moindre privilège."
+        "body": "AlloAppart met en œuvre les mesures techniques et organisationnelles suivantes pour protéger vos données :\n• Chiffrement des communications via le protocole TLS (HTTPS).\n• L'authentification et la gestion des mots de passe sont intégralement déléguées à Clerk, notre prestataire d'authentification certifié, conformément aux standards de sécurité de l'industrie ; AlloAppart ne stocke jamais de mot de passe.\n• Audits de sécurité réguliers et tests de pénétration.\n• Contrôle strict des accès internes selon le principe du moindre privilège."
       },
       "dpo": {
         "title": "10. Contact du Délégué à la Protection des Données (DPO)",

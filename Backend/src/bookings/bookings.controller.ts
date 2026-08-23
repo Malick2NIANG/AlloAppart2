@@ -14,6 +14,8 @@ import { Public } from '../common/decorators/public.decorator';
 import { BookingsService } from './bookings.service';
 import { PdfService } from '../pdf/pdf.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { ReportDisputeDto } from './dto/report-dispute.dto';
+import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { type User, Role, BookingStatus } from '@prisma/client';
@@ -112,5 +114,27 @@ export class BookingsController {
   @Patch(':id/cancel')
   cancel(@Param('id') id: string, @CurrentUser() user: User) {
     return this.bookingsService.cancel(id, user);
+  }
+
+  // Signalement de non-conformité — Article 9 des CGU, fenêtre de 24h
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Roles(Role.LOCATAIRE)
+  @Patch(':id/report-dispute')
+  reportDispute(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+    @Body() dto: ReportDisputeDto,
+  ) {
+    return this.bookingsService.reportDispute(id, user.id, dto);
+  }
+
+  @Roles(Role.ADMIN)
+  @Patch(':id/resolve-dispute')
+  resolveDispute(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+    @Body() dto: ResolveDisputeDto,
+  ) {
+    return this.bookingsService.resolveDispute(id, user, dto);
   }
 }

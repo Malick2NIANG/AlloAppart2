@@ -2317,30 +2317,42 @@
       },
       "allverifie": {
         "title": "6. AlloVerified™",
-        "body": "AlloVerified™ is an on-site inspection commitment carried out by certified AlloAppart agents. A listing bearing this label has been physically visited and key information has been checked (condition of the property, floor area, amenities, accuracy of photos).\n\nLimit of warranty: AlloVerified™ does not constitute a legal warranty of the lease agreement and does not engage AlloAppart's liability for any disputes arising after the lease is signed between landlord and tenant."
+        "body": "AlloVerified™ is an on-site inspection commitment carried out by certified AlloAppart agents. A listing bearing this label has been physically visited and key information has been checked (condition of the property, floor area, amenities, accuracy of photos).\n\nPoint-in-time snapshot: the AlloVerified™ badge attests to the condition of the property observed at the precise moment of the agent's visit. It does not constitute a permanent or ongoing guarantee of that condition; AlloAppart cannot be held liable for any deterioration or breakdown occurring after the inspection date, subject to the reporting mechanism described in Article 9.\n\nValidity period: the AlloVerified™ badge is valid for six (6) months from the date of the visit. After this period, it is automatically removed from the listing; the landlord must request and pay for a new inspection (25,000 FCFA at the rate in effect) to renew it.\n\nLimit of warranty: AlloVerified™ does not constitute a legal warranty of the lease agreement and does not engage AlloAppart's liability for any disputes arising after the lease is signed between landlord and tenant, subject to Article 9."
       },
       "tarifs": {
-        "title": "7. Fees and commissions",
-        "body": "• Publishing listings: free for individual landlords.\n• Commission: 5% of the first month's rent for any completed transaction facilitated by the Platform (a direct introduction that led to the signing of a lease).\n• Fees may be amended with 30 days' notice sent by email to registered users."
+        "title": "7. Booking, escrow and commissions",
+        "body": "• Publishing listings: free for individual landlords; subject to a subscription for agencies (PRO_AGENCE).\n• Any confirmed booking requires full payment of the amount by the tenant. Funds are held in escrow by AlloAppart and are only released to the landlord (less the Platform's commission) once the reporting period described in Article 9 has elapsed.\n• Commission: 10% of the booking amount, deducted from the escrowed funds before release to the landlord.\n• Fees may be amended with 30 days' notice sent by email to registered users."
+      },
+      "annulation": {
+        "title": "8. Cancellation policy",
+        "body": "• Cancellation by the tenant more than seven (7) days before the arrival date: full refund.\n• Cancellation by the tenant seven (7) days or less before the arrival date: the escrowed funds are released to the landlord as compensation.\n• Cancellation by the landlord, regardless of timing: full refund to the tenant."
+      },
+      "litiges": {
+        "title": "9. Non-conformity reporting and dispute resolution",
+        "body": "The tenant has twenty-four (24) hours from actually moving into the property to report, via the Platform and with supporting evidence (photos or videos), any substantial non-conformity between the observed condition of the property and the AlloVerified™ report associated with the listing.\n\nAfter this period, if no report has been filed, the booking is deemed compliant and the escrowed funds are intended to be released to the landlord according to the usual schedule.\n\nIf an admissible report is filed within the given period, AlloAppart freezes the release of funds while the report is reviewed. The landlord is invited to remedy the issue or offer compensation to the tenant. Failing agreement between the parties, AlloAppart will resolve the dispute and decide, at its reasonable discretion and based on the evidence provided, whether to release the escrowed funds in full, in part, or refund them."
       },
       "propriete": {
-        "title": "8. Intellectual property",
+        "title": "10. Intellectual property",
         "body": "The AlloAppart trademark, the logo, the AlloVerified™ label and all Platform content (text, images, interfaces, source code) are the exclusive property of AlloAppart SN SARL and are protected by Senegalese intellectual property law.\n\nAny reproduction, representation or exploitation without prior written authorisation is strictly prohibited."
       },
       "responsabilite": {
-        "title": "9. Limited liability",
-        "body": "AlloAppart acts as a technical intermediary and introduction service. AlloAppart is not a party to the lease agreement concluded between landlord and tenant and cannot be held liable for disputes arising within that relationship.\n\nAlloAppart undertakes to keep the Platform available under normal conditions but cannot guarantee uninterrupted availability."
+        "title": "11. Limited liability",
+        "body": "AlloAppart acts as a technical intermediary and introduction service. AlloAppart is not a party to the lease agreement concluded between landlord and tenant and cannot be held liable for disputes arising within that relationship, subject to the commitments made in Articles 6 and 9.\n\nAlloAppart undertakes to keep the Platform available under normal conditions but cannot guarantee uninterrupted availability."
+      },
+      "messagerie": {
+        "title": "12. Use of the internal messaging system",
+        "body": "Exchanges between landlords and tenants must take place exclusively through the Platform's internal messaging system until the booking is confirmed. It is prohibited to request or share personal contact details in order to circumvent the Platform and its safeguards (escrow, reporting mechanism). AlloAppart reserves the right to automatically mask this type of content and to suspend any account that repeatedly breaches this rule."
       },
       "suspension": {
-        "title": "10. Account suspension and termination",
+        "title": "13. Account suspension and termination",
         "body": "AlloAppart reserves the right to suspend or terminate a user account without notice in the event of:\n• Breach of these ToS.\n• Provision of false or misleading information.\n• Proven fraudulent behaviour or attempted fraud.\n• A court decision or an order from a competent authority.\n\nUsers may delete their account at any time from the settings of their personal space."
       },
       "droit": {
-        "title": "11. Governing law and jurisdiction",
+        "title": "14. Governing law and jurisdiction",
         "body": "These ToS are governed by the law of the Republic of Senegal.\n\nIn the event of a dispute relating to the interpretation or performance of these ToS, and failing an amicable settlement within 30 days, the parties agree to submit the dispute to the exclusive jurisdiction of the Tribunal de Grande Instance of Dakar."
       },
       "contact": {
-        "title": "12. Contact",
+        "title": "15. Contact",
         "body": "For any legal question relating to these ToS:\n• Email: alloappart221@gmail.com\n• Post: AlloAppart SN SARL — Legal Department, 25 Rue Carnot, Plateau, Dakar 11000, Senegal"
       }
     }
@@ -2391,7 +2403,7 @@
       },
       "securite": {
         "title": "9. Security",
-        "body": "AlloAppart implements the following technical and organisational measures to protect your data:\n• Encryption of communications via the TLS protocol (HTTPS).\n• Password hashing with a robust cryptographic algorithm (bcrypt).\n• Regular security audits and penetration testing.\n• Strict internal access control based on the principle of least privilege."
+        "body": "AlloAppart implements the following technical and organisational measures to protect your data:\n• Encryption of communications via the TLS protocol (HTTPS).\n• Authentication and password management are fully delegated to Clerk, our certified authentication provider, in line with industry security standards; AlloAppart never stores passwords.\n• Regular security audits and penetration testing.\n• Strict internal access control based on the principle of least privilege."
       },
       "dpo": {
         "title": "10. Data Protection Officer (DPO) contact",

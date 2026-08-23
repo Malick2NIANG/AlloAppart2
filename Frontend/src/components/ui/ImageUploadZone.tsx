@@ -28,6 +28,35 @@ function genId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+// Redimensionne/compresse une image côté client avant upload — une photo de
+// smartphone récent (souvent 4-8 Mo) videra sinon le forfait data de
+// l'utilisateur en quelques secondes. On vise ~1920px de côté max et une
+// qualité JPEG raisonnable ; si la compression échoue ou n'aide pas, on
+// renvoie le fichier original tel quel (fail-safe, jamais bloquant).
+async function compressImage(file: File, maxDim = 1920, quality = 0.82): Promise<File> {
+  if (!file.type.startsWith('image/') || file.type === 'image/heic') return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', quality),
+    );
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
+
 function syncUrls(items: UploadItem[], onChange: (imgs: string[]) => void) {
   onChange(items.filter((it) => it.status === 'done').map((it) => it.url));
 }
@@ -72,8 +101,9 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
     await Promise.all(
       fileArr.map(async (file, i) => {
         const itemId = pending[i].id;
+        const uploadFile = isVideoFile(file) ? file : await compressImage(file);
         const fd = new FormData();
-        fd.append('file', file);
+        fd.append('file', uploadFile);
         try {
           const res = await fetch(`${API_URL}/upload`, {
             method: 'POST',

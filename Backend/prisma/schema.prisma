@@ -98,6 +98,12 @@ model Booking {
   landlordAmount Decimal?      @db.Decimal(12, 2)
   escrowStatus   EscrowStatus  @default(AWAITING_PAYMENT)
   paymentRef   String?
+  // Signalement de non-conformité AlloVérifié (Article 9 des CGU) — fenêtre de
+  // 24h après l'entrée dans les lieux pour contester l'état du bien.
+  disputeReason      String?
+  disputeEvidence    String[]  @default([])
+  disputedAt         DateTime?
+  disputeResolvedAt  DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   listing      Listing       @relation(fields: [listingId], references: [id])
@@ -241,6 +247,7 @@ enum BookingStatus {
 enum EscrowStatus {
   AWAITING_PAYMENT
   HELD
+  DISPUTED
   RELEASED
   REFUNDED
 }
