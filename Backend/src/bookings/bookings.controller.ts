@@ -9,6 +9,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { Public } from '../common/decorators/public.decorator';
 import { BookingsService } from './bookings.service';
 import { PdfService } from '../pdf/pdf.service';
@@ -41,6 +42,7 @@ export class BookingsController {
     );
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Roles(Role.LOCATAIRE)
   @Post()
   create(@CurrentUser() user: User, @Body() dto: CreateBookingDto) {
@@ -106,6 +108,7 @@ export class BookingsController {
     return this.bookingsService.confirm(id, user.id);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Patch(':id/cancel')
   cancel(@Param('id') id: string, @CurrentUser() user: User) {
     return this.bookingsService.cancel(id, user);

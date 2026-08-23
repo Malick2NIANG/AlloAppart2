@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { type User, Role } from '@prisma/client';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -33,6 +34,7 @@ export class NotificationsController {
 
   /* ── Admin broadcast ─────────────────────────────────────────────── */
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('broadcast')
   @Roles(Role.ADMIN)
   @HttpCode(200)

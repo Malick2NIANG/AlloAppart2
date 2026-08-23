@@ -1,4 +1,5 @@
 ﻿import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { MessagesService } from './messages.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateRoomDto } from './dto/create-room.dto';
@@ -35,6 +36,7 @@ export class MessagesController {
     return this.messagesService.createRoom(dto.listingId, tenantId, user.id);
   }
 
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('rooms/:id/send')
   send(
     @Param('id') id: string,

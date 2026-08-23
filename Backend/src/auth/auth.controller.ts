@@ -12,7 +12,7 @@
   RawBodyRequest,
   Req,
 } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -32,7 +32,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   // Webhook Clerk (production) — vérification de signature via svix
-  @SkipThrottle()
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @Public()
   @HttpCode(200)
   @Post('webhook')
@@ -106,8 +106,10 @@ export class AuthController {
     return this.authService.findAgents();
   }
 
-  // Profil public d'un agent avec ratings agrégés
-  @Public()
+  // Profil d'un agent avec ratings agrégés — expose le téléphone (pour que
+  // le bailleur puisse contacter l'agent), donc réservé aux utilisateurs
+  // authentifiés (pas de @Public()) pour éviter le moissonnage anonyme de
+  // numéros. Voir le même raisonnement sur findUserProfile ci-dessous.
   @Get('agents/:id')
   findAgentById(@Param('id') id: string) {
     return this.authService.findAgentById(id);

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
+import { useAuth } from '@clerk/nextjs';
 import { api } from '@/lib/api';
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
@@ -65,6 +66,7 @@ function relativeTime(dateStr: string, t: ReturnType<typeof useTranslations>, nu
 
 export default function AgentProfilePage() {
   const params = useParams<{ id: string }>();
+  const { getToken } = useAuth();
   const t = useTranslations('bailleur');
   const locale = useLocale();
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
@@ -74,11 +76,12 @@ export default function AgentProfilePage() {
   const [error,   setError]   = useState('');
 
   useEffect(() => {
-    api.get<AgentProfile>(`/auth/agents/${params.id}`)
+    getToken()
+      .then((token) => api.get<AgentProfile>(`/auth/agents/${params.id}`, token ?? undefined))
       .then(setAgent)
       .catch(() => setError(t('agentNotFound')))
       .finally(() => setLoading(false));
-  }, [params.id, t]);
+  }, [params.id, t, getToken]);
 
   if (loading) {
     return (
