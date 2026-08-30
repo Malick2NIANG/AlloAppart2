@@ -22,17 +22,20 @@ const STATUS_COLORS: Record<string, string> = {
 const ESCROW_COLORS: Record<string, string> = {
   AWAITING_PAYMENT: 'bg-gray-50 text-gray-500 border border-gray-200',
   HELD:             'bg-amber-50 text-amber-700 border border-amber-300',
+  DISPUTED:         'bg-red-50 text-red-700 border border-red-300',
   RELEASED:         'bg-emerald-50 text-emerald-700 border border-emerald-200',
   REFUNDED:         'bg-blue-50 text-blue-700 border border-blue-200',
 };
 const ESCROW_ICONS: Record<string, string> = {
   AWAITING_PAYMENT: 'fa-clock',
   HELD:             'fa-lock',
+  DISPUTED:         'fa-triangle-exclamation',
   RELEASED:         'fa-lock-open',
   REFUNDED:         'fa-rotate-left',
 };
 
 type PaymentModal = { id: string; action: 'release' | 'refund'; amount: string | number };
+type DisputeModal  = { id: string; decision: 'RELEASE' | 'REFUND'; amount: string | number };
 
 export default function AdminBookingsPage() {
   const { getToken } = useAuth();
@@ -50,6 +53,7 @@ export default function AdminBookingsPage() {
   const [actionId, setActionId]         = useState<string | null>(null);
   const [cancelModal, setCancelModal]   = useState<string | null>(null);
   const [paymentModal, setPaymentModal] = useState<PaymentModal | null>(null);
+  const [disputeModal, setDisputeModal] = useState<DisputeModal | null>(null);
   const [limit, setLimit]               = useState(20);
   const LIMIT_OPTIONS = [10, 20, 50] as const;
 
@@ -62,6 +66,7 @@ export default function AdminBookingsPage() {
   const ESCROW_LABELS: Record<string, string> = {
     AWAITING_PAYMENT: t('escrowAwaiting'),
     HELD:             t('escrowHeld'),
+    DISPUTED:         t('escrowDisputed'),
     RELEASED:         t('escrowReleased'),
     REFUNDED:         t('escrowRefunded'),
   };
@@ -116,6 +121,28 @@ export default function AdminBookingsPage() {
       toast.success(action === 'release' ? t('toastFundsReleased') : t('toastRefunded'));
     } catch {
       toast.error(action === 'release' ? t('errRelease') : t('errRefund'));
+    } finally { setActionId(null); }
+  };
+
+  const handleResolveDispute = async () => {
+    if (!disputeModal) return;
+    const { id, decision } = disputeModal;
+    const token = await getToken();
+    if (!token) return;
+    setActionId(id + 'dispute');
+    try {
+      await api.patch(`/bookings/${id}/resolve-dispute`, { decision }, token);
+      setBookings((prev) => prev.map((b) => b.id === id
+        ? {
+            ...b,
+            escrowStatus: decision === 'RELEASE' ? 'RELEASED' : 'REFUNDED',
+            status: decision === 'RELEASE' ? 'COMPLETED' : 'CANCELLED',
+          }
+        : b));
+      setDisputeModal(null);
+      toast.success(t('toastDisputeResolved'));
+    } catch {
+      toast.error(t('errResolveDispute'));
     } finally { setActionId(null); }
   };
 
@@ -179,6 +206,7 @@ export default function AdminBookingsPage() {
           {bookings.map((booking) => {
             const escrow = booking.escrowStatus ?? 'AWAITING_PAYMENT';
             const isHeld = escrow === 'HELD';
+            const isDisputed = escrow === 'DISPUTED';
             return (
               <div key={booking.id} className="rounded-xl border border-line bg-card p-4 flex flex-col gap-3">
                 {/* Ligne principale */}
@@ -219,11 +247,46 @@ export default function AdminBookingsPage() {
                   </div>
                 </div>
 
+                {/* Détail du litige */}
+                {isDisputed && (
+                  <div className="rounded-lg border border-red-200 bg-red-50/60 p-3 flex flex-col gap-2">
+                    {booking.disputedAt && (
+                      <p className="text-xs text-red-700 font-medium">
+                        <i className="fa-solid fa-triangle-exclamation mr-1" />
+                        {t('disputedSince', { date: formatDate(booking.disputedAt) })}
+                      </p>
+                    )}
+                    {booking.disputeReason && (
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">
+                          {t('disputeReasonLabel')}
+                        </p>
+                        <p className="text-sm text-text mt-0.5 whitespace-pre-wrap">{booking.disputeReason}</p>
+                      </div>
+                    )}
+                    {booking.disputeEvidence && booking.disputeEvidence.length > 0 && (
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700 mb-1">
+                          {t('disputeEvidenceLabel')}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {booking.disputeEvidence.map((url, i) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                              className="block h-16 w-16 overflow-hidden rounded-lg border border-line bg-bg">
+                              <img src={url} alt="" className="h-full w-full object-cover" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Actions */}
-                {((booking.status === 'PENDING' || booking.status === 'CONFIRMED') || isHeld) && (
+                {((booking.status === 'PENDING' || booking.status === 'CONFIRMED') || isHeld || isDisputed) && (
                   <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-line">
                     {/* Annuler réservation */}
-                    {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
+                    {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && !isDisputed && (
                       <button
                         onClick={() => setCancelModal(booking.id)}
                         disabled={actionId !== null}
@@ -233,6 +296,30 @@ export default function AdminBookingsPage() {
                           ? <i className="fa-solid fa-spinner fa-spin" />
                           : <><i className="fa-solid fa-xmark text-xs mr-1" />{t('cancelBooking')}</>}
                       </button>
+                    )}
+
+                    {/* Résoudre le litige — séquestre DISPUTED */}
+                    {isDisputed && (
+                      <>
+                        <button
+                          onClick={() => setDisputeModal({ id: booking.id, decision: 'RELEASE', amount: booking.totalAmount })}
+                          disabled={actionId !== null}
+                          className="text-xs font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg px-3 py-1.5 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                        >
+                          {actionId === booking.id + 'dispute'
+                            ? <i className="fa-solid fa-spinner fa-spin" />
+                            : <><i className="fa-solid fa-lock-open text-xs mr-1" />{t('resolveDisputeRelease')}</>}
+                        </button>
+                        <button
+                          onClick={() => setDisputeModal({ id: booking.id, decision: 'REFUND', amount: booking.totalAmount })}
+                          disabled={actionId !== null}
+                          className="text-xs font-medium border border-blue-200 bg-blue-50 text-blue-700 rounded-lg px-3 py-1.5 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                        >
+                          {actionId === booking.id + 'dispute'
+                            ? <i className="fa-solid fa-spinner fa-spin" />
+                            : <><i className="fa-solid fa-rotate-left text-xs mr-1" />{t('resolveDisputeRefund')}</>}
+                        </button>
+                      </>
                     )}
 
                     {/* Libérer les fonds — séquestre HELD */}
@@ -313,6 +400,28 @@ export default function AdminBookingsPage() {
         title={t('confirmRefundTitle')}
         description={t('confirmRefundDesc', { amount: paymentModal ? formatPrice(paymentModal.amount) : '' })}
         confirmLabel={t('confirmRefundLabel')}
+        variant="danger"
+      />
+
+      {/* Modal résolution litige — libération */}
+      <ConfirmModal
+        open={disputeModal?.decision === 'RELEASE'}
+        onClose={() => setDisputeModal(null)}
+        onConfirm={() => void handleResolveDispute()}
+        title={t('confirmResolveReleaseTitle')}
+        description={t('confirmResolveReleaseDesc', { amount: disputeModal ? formatPrice(disputeModal.amount) : '' })}
+        confirmLabel={t('confirmResolveReleaseLabel')}
+        variant="default"
+      />
+
+      {/* Modal résolution litige — remboursement */}
+      <ConfirmModal
+        open={disputeModal?.decision === 'REFUND'}
+        onClose={() => setDisputeModal(null)}
+        onConfirm={() => void handleResolveDispute()}
+        title={t('confirmResolveRefundTitle')}
+        description={t('confirmResolveRefundDesc', { amount: disputeModal ? formatPrice(disputeModal.amount) : '' })}
+        confirmLabel={t('confirmResolveRefundLabel')}
         variant="danger"
       />
     </div>

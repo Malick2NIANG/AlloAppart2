@@ -6,7 +6,7 @@ export type ListingType = 'APPARTEMENT' | 'VILLA' | 'STUDIO' | 'CHAMBRE' | 'BURE
 export type ListingStatus = 'DRAFT' | 'ACTIVE' | 'RENTED' | 'SUSPENDED';
 
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
-export type EscrowStatus = 'AWAITING_PAYMENT' | 'HELD' | 'RELEASED' | 'REFUNDED';
+export type EscrowStatus = 'AWAITING_PAYMENT' | 'HELD' | 'DISPUTED' | 'RELEASED' | 'REFUNDED';
 
 export type VerifStatus = 'REQUESTED' | 'SCHEDULED' | 'IN_PROGRESS' | 'DONE' | 'REJECTED' | 'DECLINE_PENDING';
 export type AuditType = 'BASIC' | 'FULL';
@@ -90,6 +90,10 @@ export interface Booking {
   status: BookingStatus;
   escrowStatus: EscrowStatus;
   paymentRef?: string;
+  disputeReason?: string | null;
+  disputeEvidence?: string[];
+  disputedAt?: string | null;
+  disputeResolvedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

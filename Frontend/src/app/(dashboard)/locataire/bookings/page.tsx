@@ -8,6 +8,9 @@ import { api } from '@/lib/api';
 import type { Booking, BookingStatus } from '@/types';
 import { formatDate, formatPrice } from '@/lib/utils';
 import { SkeletonListRow } from '@/components/ui/Skeleton';
+import ImageUploadZone from '@/components/ui/ImageUploadZone';
+
+const DISPUTE_WINDOW_HOURS = 24;
 
 interface MyReview {
   id: string;
@@ -30,6 +33,7 @@ export default function LocataireBookingsPage() {
   /* Modals */
   const [reviewModal,       setReviewModal]       = useState<{ booking: Booking } | null>(null);
   const [cancellationModal, setCancellationModal] = useState<{ booking: Booking } | null>(null);
+  const [disputeModal,      setDisputeModal]      = useState<{ booking: Booking } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -127,6 +131,7 @@ export default function LocataireBookingsPage() {
               onRefresh={fetchData}
               onReview={(b) => setReviewModal({ booking: b })}
               onCancel={(b) => setCancellationModal({ booking: b })}
+              onDispute={(b) => setDisputeModal({ booking: b })}
             />
           )}
           {archived.length > 0 && (
@@ -152,6 +157,15 @@ export default function LocataireBookingsPage() {
         />
       )}
 
+      {/* Modal signalement de non-conformité (Article 9 des CGU) */}
+      {disputeModal && (
+        <DisputeModal
+          booking={disputeModal.booking}
+          onClose={() => setDisputeModal(null)}
+          onSuccess={() => { setDisputeModal(null); void fetchData(); }}
+        />
+      )}
+
       {/* Modal laisser un avis */}
       {reviewModal && (
         <ReviewModal
@@ -166,7 +180,7 @@ export default function LocataireBookingsPage() {
 
 /* ─── Section ─────────────────────────────────────────────── */
 function Section({
-  title, icon, accent, bookings, reviewedBookingIds, onRefresh, onReview, onCancel,
+  title, icon, accent, bookings, reviewedBookingIds, onRefresh, onReview, onCancel, onDispute,
 }: {
   title: string;
   icon: string;
@@ -176,6 +190,7 @@ function Section({
   onRefresh: () => void;
   onReview: (b: Booking) => void;
   onCancel?: (b: Booking) => void;
+  onDispute?: (b: Booking) => void;
 }) {
   return (
     <div>
@@ -192,6 +207,7 @@ function Section({
             onRefresh={onRefresh}
             onReview={onReview}
             onCancel={onCancel}
+            onDispute={onDispute}
           />
         ))}
       </div>
@@ -201,13 +217,14 @@ function Section({
 
 /* ─── BookingCard ──────────────────────────────────────────── */
 function BookingCard({
-  booking, alreadyReviewed, onRefresh, onReview, onCancel,
+  booking, alreadyReviewed, onRefresh, onReview, onCancel, onDispute,
 }: {
   booking: Booking;
   alreadyReviewed: boolean;
   onRefresh: () => void;
   onReview: (b: Booking) => void;
   onCancel?: (b: Booking) => void;
+  onDispute?: (b: Booking) => void;
 }) {
   const router = useRouter();
   return (
@@ -234,6 +251,7 @@ function BookingCard({
           onRefresh={onRefresh}
           onReview={onReview}
           onCancel={onCancel}
+          onDispute={onDispute}
         />
       </div>
     </div>
@@ -242,13 +260,14 @@ function BookingCard({
 
 /* ─── Actions ──────────────────────────────────────────────── */
 function LocataireBookingActions({
-  booking, alreadyReviewed, onRefresh, onReview, onCancel,
+  booking, alreadyReviewed, onRefresh, onReview, onCancel, onDispute,
 }: {
   booking: Booking;
   alreadyReviewed: boolean;
   onRefresh: () => void;
   onReview: (b: Booking) => void;
   onCancel?: (b: Booking) => void;
+  onDispute?: (b: Booking) => void;
 }) {
   const { getToken } = useAuth();
   const t = useTranslations('locataire');
@@ -342,8 +361,31 @@ function LocataireBookingActions({
           <StatusChip status={status as BookingStatus} />
         )}
 
+        {/* Litige en cours — les fonds sont gelés en attente d'arbitrage admin */}
+        {booking.escrowStatus === 'DISPUTED' && (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-1.5 px-3">
+            <i className="fa-solid fa-hourglass-half text-[10px]" />
+            {t('disputeInProgress')}
+          </span>
+        )}
+
+        {/* Signalement de non-conformité — fenêtre de 24h après l'entrée dans les lieux */}
+        {status === 'CONFIRMED' && booking.escrowStatus === 'HELD' && onDispute && (() => {
+          const hoursSinceStart =
+            (Date.now() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60);
+          if (hoursSinceStart < 0 || hoursSinceStart > 24) return null; // hors fenêtre
+          return (
+            <button
+              onClick={() => onDispute(booking)}
+              className="text-xs font-medium text-amber-700 hover:text-amber-800 border border-amber-200 hover:border-amber-300 rounded-lg py-1.5 px-3 transition-colors"
+            >
+              <i className="fa-solid fa-triangle-exclamation mr-1" />{t('reportDisputeBtn')}
+            </button>
+          );
+        })()}
+
         {/* Annulation d'une réservation CONFIRMED — ouvre le modal avec politique */}
-        {status === 'CONFIRMED' && onCancel && (() => {
+        {status === 'CONFIRMED' && booking.escrowStatus === 'HELD' && onCancel && (() => {
           const hoursUntilStart =
             (new Date(booking.startDate).getTime() - Date.now()) / (1000 * 60 * 60);
           if (hoursUntilStart < 0) return null; // séjour en cours → pas d'annulation
@@ -524,6 +566,125 @@ function CancellationModal({
                 : <><i className="fa-solid fa-xmark" /> {t('confirmCancelBtn')}</>}
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Modal signalement de non-conformité (Article 9 des CGU) ─ */
+function DisputeModal({
+  booking, onClose, onSuccess,
+}: {
+  booking: Booking;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { getToken } = useAuth();
+  const t = useTranslations('locataire');
+  const [reason,     setReason]     = useState('');
+  const [evidence,   setEvidence]   = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+
+  const hoursSinceStart =
+    (Date.now() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60);
+  const hoursLeft = Math.max(0, Math.ceil(DISPUTE_WINDOW_HOURS - hoursSinceStart));
+
+  const handleSubmit = async () => {
+    if (reason.trim().length < 10) { setError(t('disputeReasonTooShort')); return; }
+    if (evidence.length === 0) { setError(t('disputeEvidenceRequired')); return; }
+    setSubmitting(true);
+    setError(null);
+    const token = await getToken();
+    if (!token) { setSubmitting(false); return; }
+    try {
+      await api.patch(`/bookings/${booking.id}/report-dispute`, {
+        reason: reason.trim(),
+        evidence,
+      }, token);
+      onSuccess();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : t('disputeSubmitError'));
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+
+        {/* Header */}
+        <div className="bg-amber-50 border-b border-amber-100 p-5 flex items-start justify-between shrink-0">
+          <div>
+            <p className="text-xs font-semibold text-amber-500 uppercase tracking-wide">{t('disputeModalBadge')}</p>
+            <h3 className="text-lg font-bold text-text mt-0.5 leading-tight line-clamp-2">
+              {booking.listing?.title ?? t('cancelModalFallback')}
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="ml-3 shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-black/5 hover:bg-black/10 transition-colors"
+          >
+            <i className="fa-solid fa-xmark text-sub text-sm" />
+          </button>
+        </div>
+
+        {/* Corps */}
+        <div className="p-5 space-y-4 overflow-y-auto">
+          <div className="rounded-xl p-4 bg-amber-50 border border-amber-200 flex gap-3">
+            <i className="fa-solid fa-hourglass-half text-amber-500 mt-0.5 text-sm shrink-0" />
+            <p className="text-xs text-amber-700">
+              {t('disputeWindowHint', { hours: hoursLeft })}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-sub mb-1.5">
+              {t('disputeReasonLabel')}
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={4}
+              maxLength={1000}
+              placeholder={t('disputeReasonPlaceholder')}
+              className="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-text placeholder:text-sub resize-none focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition"
+            />
+            <p className="text-right text-[11px] text-sub mt-1">{reason.length}/1000</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-sub mb-1.5">
+              {t('disputeEvidenceLabel')}
+            </label>
+            <ImageUploadZone images={evidence} onChange={setEvidence} getToken={getToken} />
+          </div>
+
+          {error && (
+            <p className="text-xs text-red-500 flex items-center gap-1.5">
+              <i className="fa-solid fa-circle-exclamation" />{error}
+            </p>
+          )}
+        </div>
+
+        {/* Boutons */}
+        <div className="p-5 pt-0 flex gap-2 shrink-0">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-line py-2.5 text-sm font-medium text-sub hover:bg-bg transition-colors"
+          >
+            {t('keepBtn')}
+          </button>
+          <button
+            onClick={() => void handleSubmit()}
+            disabled={submitting}
+            className="flex-1 rounded-xl bg-amber-500 hover:bg-amber-600 py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {submitting
+              ? <><i className="fa-solid fa-spinner fa-spin" /> {t('sendingBtn')}</>
+              : <><i className="fa-solid fa-paper-plane" /> {t('disputeSubmitBtn')}</>}
+          </button>
         </div>
       </div>
     </div>
