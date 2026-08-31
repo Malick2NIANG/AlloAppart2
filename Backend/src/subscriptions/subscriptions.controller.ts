@@ -33,6 +33,13 @@ export class SubscriptionsController {
     return this.subscriptionsService.cancel(user.id);
   }
 
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Roles(Role.PRO_AGENCE)
+  @Post('verify')
+  verify(@CurrentUser() user: User) {
+    return this.subscriptionsService.verifySubscription(user.id);
+  }
+
   // Niveau d'alerte — uniquement PRO_AGENCE (elles ont un abonnement mensuel à surveiller)
   @Roles(Role.PRO_AGENCE, Role.ADMIN)
   @Get('me/alert')

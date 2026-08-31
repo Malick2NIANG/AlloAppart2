@@ -5,6 +5,7 @@ import { useAuth } from '@clerk/nextjs';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
+import PaydunyaPaymentModal from '@/components/ui/PaydunyaPaymentModal';
 
 const MONTHLY_THRESHOLD = 25; // jours — au-delà, tarif mensuel appliqué
 
@@ -105,6 +106,9 @@ export default function ListingBookingCard({
   const [loading,     setLoading]     = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [error,       setError]       = useState<string | null>(null);
+  const [paymentModal, setPaymentModal] = useState<{
+    bookingId: string; paymentToken: string; cardUrl: string; amount: number;
+  } | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -139,29 +143,49 @@ export default function ListingBookingCard({
       const token = await getToken();
 
       // Étape 1 : créer la réservation — totalAmount calculé côté serveur
-      const booking = await api.post<{ id: string }>('/bookings', {
+      const booking = await api.post<{ id: string; totalAmount: string }>('/bookings', {
         listingId,
         startDate,
         ...(endDate ? { endDate } : {}),
       }, token ?? undefined);
 
       // Étape 2 : initier le paiement PayDunya
-      setLoading(false);
-      setRedirecting(true);
-      const { payment_url } = await api.post<{ payment_url: string }>(
+      const res = await api.post<{ payment_url: string; paymentToken?: string }>(
         '/payments/initiate',
         { bookingId: booking.id },
         token ?? undefined,
       );
 
-      // Étape 3 : rediriger vers PayDunya
-      window.location.href = payment_url;
+      setLoading(false);
+
+      if (res.paymentToken) {
+        setPaymentModal({
+          bookingId: booking.id,
+          paymentToken: res.paymentToken,
+          cardUrl: res.payment_url,
+          amount: Number(booking.totalAmount ?? 0),
+        });
+      } else {
+        // Bypass dev — redirection directe vers la page de confirmation
+        setRedirecting(true);
+        window.location.href = res.payment_url;
+      }
     } catch (err: unknown) {
       setLoading(false);
       setRedirecting(false);
       const msg = err instanceof Error ? err.message : '';
       setError(msg || t('bookingPayError'));
     }
+  };
+
+  const verifyBookingPayment = async () => {
+    if (!paymentModal) return false;
+    const token = await getToken();
+    if (!token) return false;
+    const res = await api.post<{ status: string }>(
+      `/payments/verify/${paymentModal.bookingId}`, {}, token,
+    );
+    return res.status === 'CONFIRMED';
   };
 
   /* ── Redirection PayDunya ───────────────────────────────────── */
@@ -297,6 +321,21 @@ export default function ListingBookingCard({
           </span>
         )}
       </button>
+
+      {/* Modal paiement réservation (SOFTPAY custom) */}
+      <PaydunyaPaymentModal
+        open={paymentModal !== null}
+        onClose={() => setPaymentModal(null)}
+        amount={paymentModal?.amount ?? 0}
+        paymentToken={paymentModal?.paymentToken ?? null}
+        cardUrl={paymentModal?.cardUrl ?? null}
+        onVerify={verifyBookingPayment}
+        onSuccess={() => {
+          if (paymentModal) {
+            router.push(`/paiement/confirmation?booking_id=${paymentModal.bookingId}`);
+          }
+        }}
+      />
     </div>
   );
 }

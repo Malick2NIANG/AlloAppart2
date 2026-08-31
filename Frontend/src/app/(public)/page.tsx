@@ -201,11 +201,11 @@ export default async function HomePage() {
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-gray-900 shadow-lg hover:bg-gold-light transition-colors">
                 <i className="fa-solid fa-magnifying-glass" /> {t('ctaSearch')}
               </Link>
-              <Link href="/profil?tab=favorites"
+              <Link href="/listings?tab=favoris"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
                 <i className="fa-solid fa-heart" /> {t('ctaMyFavorites')}
               </Link>
-              <Link href="/locataire"
+              <Link href="/locataire/bookings"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
                 <i className="fa-solid fa-calendar-check" /> {t('ctaMyBookings')}
               </Link>
@@ -506,7 +506,7 @@ export default async function HomePage() {
             {REGIONS.slice(0, 10).map((r) => (
               <Link
                 key={r.slug}
-                href={`/regions/${encodeURIComponent(r.slug)}`}
+                href={`/listings?region=${encodeURIComponent(r.slug)}&limit=6&page=1`}
                 className="group flex h-32 flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-bg hover:border-gold-dark/50 hover:bg-gold-pale/30 transition-all duration-300"
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-dark transition-transform duration-300 group-hover:scale-110">
@@ -607,10 +607,10 @@ export default async function HomePage() {
                 <Link href="/listings" className="btn-gold">
                   <i className="fa-solid fa-magnifying-glass mr-1.5 text-sm" /> {t('ctaSearch')}
                 </Link>
-                <Link href="/profil?tab=favorites" className="btn-outline text-white">
+                <Link href="/listings?tab=favoris" className="btn-outline text-white">
                   <i className="fa-solid fa-heart mr-1.5 text-sm" /> {t('ctaMyFavorites')}
                 </Link>
-                <Link href="/locataire" className="inline-flex items-center gap-2 rounded-full border border-gold/40 px-5 py-2.5 text-sm font-semibold text-gold hover:bg-gold/10 transition-colors">
+                <Link href="/locataire/bookings" className="inline-flex items-center gap-2 rounded-full border border-gold/40 px-5 py-2.5 text-sm font-semibold text-gold hover:bg-gold/10 transition-colors">
                   <i className="fa-solid fa-calendar-check text-sm" /> {t('ctaMyBookings')}
                 </Link>
               </div>

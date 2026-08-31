@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SearchService } from '../search/search.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 import { ListingsService } from './listings.service';
 import { ListingStatus, Role, SubscriptionPlan, SubscriptionStatus, type User } from '@prisma/client';
 
@@ -44,6 +45,7 @@ describe('ListingsService', () => {
         { provide: SearchService, useValue: searchMock },
         { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: NotificationsService, useValue: {} },
+        { provide: PaydunyaSoftpayService, useValue: { confirmInvoiceStatus: jest.fn() } },
       ],
     }).compile();
 

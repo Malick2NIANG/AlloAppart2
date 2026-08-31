@@ -151,6 +151,13 @@ export class ListingsController {
     return this.listingsService.boost(id, user);
   }
 
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE, Role.ADMIN)
+  @Post(':id/boost/verify')
+  verifyBoost(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.listingsService.verifyBoost(id, user.id);
+  }
+
   @Roles(Role.ADMIN, Role.AGENT_TERRAIN)
   @Patch(':id/activate')
   activate(@Param('id') id: string, @CurrentUser() user: User) {

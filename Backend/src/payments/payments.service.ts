@@ -47,7 +47,7 @@ export class PaymentsService {
       this.logger.log(
         `[PayDunya] Réutilisation du checkout existant pour booking ${bookingId} → ${token}`,
       );
-      return { payment_url: `${baseUrl}/${token}` };
+      return { payment_url: `${baseUrl}/${token}`, paymentToken: token };
     }
     // ────────────────────────────────────────────────────────────────────────
 
@@ -120,7 +120,12 @@ export class PaymentsService {
             cancel_url:    `${frontendUrl}/locataire/bookings/${bookingId}?status=cancel`,
             callback_url:  `${this.config.get<string>('BACKEND_URL')}/api/v1/payments/webhook/paydunya`,
           },
-          store:       { name: 'AlloAppart' },
+          store: {
+            name: 'AlloAppart',
+            tagline: 'Location immobilière au Sénégal',
+            logo_url: `${frontendUrl}/images/LOGO.png`,
+            website_url: frontendUrl,
+          },
           custom_data: { booking_id: bookingId },
         },
         {
@@ -168,7 +173,7 @@ export class PaymentsService {
       data:  { paymentRef },
     });
 
-    return { payment_url: invoiceUrl, transId: paymentRef };
+    return { payment_url: invoiceUrl, transId: paymentRef, paymentToken: response.data.token };
   }
 
   async handlePaydunyaWebhook(dto: PaydunyaWebhookDto) {

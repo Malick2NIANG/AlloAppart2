@@ -3,9 +3,10 @@ import { ListingsController } from './listings.controller';
 import { ListingsService } from './listings.service';
 import { SearchModule } from '../search/search.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PaydunyaModule } from '../paydunya/paydunya.module';
 
 @Module({
-  imports: [SearchModule, NotificationsModule],
+  imports: [SearchModule, NotificationsModule, PaydunyaModule],
   controllers: [ListingsController],
   providers: [ListingsService],
   exports: [ListingsService],

@@ -11,7 +11,12 @@ import { formatPrice } from '@/lib/utils';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
+import PaydunyaPaymentModal from '@/components/ui/PaydunyaPaymentModal';
 import { revalidateListingsCache } from './actions';
+
+const BOOST_PRICE_XOF = 5_000;
+
+interface BoostPaymentModal { listingId: string; paymentToken: string; cardUrl: string; }
 
 interface VerifModal { listingId: string; title: string; }
 interface AgentOption { id: string; firstName: string; lastName: string; completedMissions: number; }
@@ -57,6 +62,7 @@ function BailleurListingsContent() {
   const [deleteModal,  setDeleteModal]  = useState<{ listingId: string; title: string } | null>(null);
   const [boostModal,   setBoostModal]   = useState<{ listingId: string; title: string } | null>(null);
   const [boosting,     setBoosting]     = useState<string | null>(null);
+  const [boostPaymentModal, setBoostPaymentModal] = useState<BoostPaymentModal | null>(null);
 
   const FILTER_LABELS = useMemo<Record<ListingStatus, string>>(() => ({
     ACTIVE:    t('filterActive'),
@@ -226,17 +232,31 @@ function BailleurListingsContent() {
     try {
       const token = await getToken();
       if (!token) return;
-      const res = await api.post<{ payment_url?: string }>(`/listings/${listingId}/boost`, {}, token);
+      const res = await api.post<{ payment_url?: string; paymentToken?: string }>(
+        `/listings/${listingId}/boost`, {}, token,
+      );
       if (!res.payment_url) {
         toast.error(t('boostServiceError'));
-        setBoosting(null);
         return;
       }
-      window.location.href = res.payment_url;
+      if (res.paymentToken) {
+        setBoostPaymentModal({ listingId, paymentToken: res.paymentToken, cardUrl: res.payment_url });
+      } else {
+        // Bypass dev — redirection directe vers la page de succès
+        window.location.href = res.payment_url;
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('boostError'));
+    } finally {
       setBoosting(null);
     }
+  };
+
+  const verifyBoostPayment = async (listingId: string) => {
+    const token = await getToken();
+    if (!token) return false;
+    const res = await api.post<{ boosted: boolean }>(`/listings/${listingId}/boost/verify`, {}, token);
+    return res.boosted;
   };
 
   const minDate = new Date();
@@ -522,6 +542,17 @@ function BailleurListingsContent() {
           </div>
         </div>
       )}
+
+      {/* Modal paiement boost (SOFTPAY custom) */}
+      <PaydunyaPaymentModal
+        open={boostPaymentModal !== null}
+        onClose={() => setBoostPaymentModal(null)}
+        amount={BOOST_PRICE_XOF}
+        paymentToken={boostPaymentModal?.paymentToken ?? null}
+        cardUrl={boostPaymentModal?.cardUrl ?? null}
+        onVerify={() => boostPaymentModal ? verifyBoostPayment(boostPaymentModal.listingId) : Promise.resolve(false)}
+        onSuccess={() => { toast.success(t('boostSuccess')); load(); }}
+      />
 
       {/* Archive modal */}
       {archiveModal && (

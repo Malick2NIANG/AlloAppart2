@@ -16,6 +16,7 @@ import { CreateReportDto } from './dto/create-report.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import axios from 'axios';
 import { PaydunyaWebhookDto } from '../payments/dto/paydunya-webhook.dto';
+import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 
 const BOOST_PRICE_XOF = 5_000;
 const BOOST_DAYS = 7;
@@ -32,6 +33,7 @@ export class ListingsService {
     private readonly search: SearchService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly softpay: PaydunyaSoftpayService,
   ) {}
 
   async findAll(filters: FilterListingsDto) {
@@ -477,7 +479,7 @@ export class ListingsService {
       ? 'https://app.paydunya.com/sandbox-api/v1'
       : 'https://app.paydunya.com/api/v1';
     const response = await axios
-      .post<{ response_code: string; token: string; invoice_url: string }>(
+      .post<{ response_code: string; token: string; response_text: string }>(
         baseUrl + '/checkout-invoice/create',
         {
           invoice: {
@@ -493,7 +495,12 @@ export class ListingsService {
               this.config.get<string>('BACKEND_URL') +
               '/api/v1/listings/webhook/boost/paydunya',
           },
-          store: { name: 'AlloAppart' },
+          store: {
+            name: 'AlloAppart',
+            tagline: 'Location immobilière au Sénégal',
+            logo_url: `${this.config.get<string>('FRONTEND_URL')}/images/LOGO.png`,
+            website_url: this.config.get<string>('FRONTEND_URL'),
+          },
           custom_data: { listing_id: listingId },
         },
         {
@@ -517,9 +524,10 @@ export class ListingsService {
       this.logger.error(`PayDunya boost response_code inattendu : ${JSON.stringify(response.data)}`);
       throw new BadRequestException('Payment service unavailable');
     }
-    const invoiceUrl = response.data.invoice_url;
+    // PayDunya retourne l'URL dans response_text (pas invoice_url)
+    const invoiceUrl = response.data.response_text;
     if (!invoiceUrl) {
-      this.logger.error(`PayDunya boost invoice_url absent — réponse : ${JSON.stringify(response.data)}`);
+      this.logger.error(`PayDunya boost response_text absent — réponse : ${JSON.stringify(response.data)}`);
       throw new BadRequestException('Payment service unavailable');
     }
     const paymentRef = 'PD-' + response.data.token;
@@ -531,7 +539,7 @@ export class ListingsService {
         durationDays: BOOST_DAYS,
       },
     });
-    return { payment_url: invoiceUrl, transId: paymentRef };
+    return { payment_url: invoiceUrl, transId: paymentRef, paymentToken: response.data.token };
   }
 
   private applyBoost(listingId: string, boostScore: number) {
@@ -544,6 +552,46 @@ export class ListingsService {
         boostScore: Math.min(boostScore + BOOST_SCORE_GAIN, BOOST_SCORE_MAX),
       },
     });
+  }
+
+  /**
+   * Vérification active du boost — appelée depuis l'UI de paiement custom
+   * (SOFTPAY) après paiement via Orange Money / Wave / Free Money, puisque
+   * ces flux n'ont pas de "retour" navigateur déclenchant le webhook.
+   */
+  async verifyBoost(listingId: string, userId: string) {
+    const listing = await this.prisma.listing.findUniqueOrThrow({
+      where: { id: listingId },
+    });
+    if (listing.ownerId !== userId) {
+      throw new ForbiddenException('Not authorized');
+    }
+
+    const now = new Date();
+    if (listing.boostUntil && listing.boostUntil > now) {
+      return { boosted: true };
+    }
+
+    const bp = await this.prisma.boostPayment.findFirst({
+      where: { listingId, status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!bp) return { boosted: false };
+
+    const token = bp.paymentRef.replace('PD-', '');
+    const confirm = await this.softpay.confirmInvoiceStatus(token);
+    if (!confirm || confirm.status !== 'completed') {
+      return { boosted: false };
+    }
+
+    await Promise.all([
+      this.prisma.boostPayment.update({
+        where: { id: bp.id },
+        data: { status: 'CONFIRMED' },
+      }),
+      this.applyBoost(listingId, listing.boostScore),
+    ]);
+    return { boosted: true };
   }
 
   async handleBoostWebhookPayDunya(dto: PaydunyaWebhookDto) {

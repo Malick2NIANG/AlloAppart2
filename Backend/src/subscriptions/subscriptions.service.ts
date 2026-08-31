@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { ListingStatus, SubscriptionPlan, SubscriptionStatus, User } from '@prisma/client';
 import axios from 'axios';
 import { PaydunyaWebhookDto } from '../payments/dto/paydunya-webhook.dto';
+import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 
 const PLAN_PRICES: Record<SubscriptionPlan, number> = {
   STARTER: 75_000,
@@ -20,6 +21,7 @@ export class SubscriptionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly softpay: PaydunyaSoftpayService,
   ) {}
 
   async initiate(userId: string, plan: SubscriptionPlan) {
@@ -102,7 +104,12 @@ export class SubscriptionsService {
             cancel_url: `${this.config.get<string>('FRONTEND_URL')}/bailleur/abonnement?status=cancel`,
             callback_url: `${this.config.get<string>('BACKEND_URL')}/api/v1/subscriptions/webhook/paydunya`,
           },
-          store: { name: 'AlloAppart' },
+          store: {
+            name: 'AlloAppart',
+            tagline: 'Location immobilière au Sénégal',
+            logo_url: `${this.config.get<string>('FRONTEND_URL')}/images/LOGO.png`,
+            website_url: this.config.get<string>('FRONTEND_URL'),
+          },
           custom_data: { subscription_id: subscriptionId },
         },
         {
@@ -143,7 +150,31 @@ export class SubscriptionsService {
       data: { paymentRef },
     });
 
-    return { payment_url: invoiceUrl, transId: paymentRef };
+    return { payment_url: invoiceUrl, transId: paymentRef, paymentToken: response.data.token };
+  }
+
+  /**
+   * Vérification active de l'abonnement — appelée depuis l'UI de paiement
+   * custom (SOFTPAY) après paiement via Orange Money / Wave / Free Money.
+   */
+  async verifySubscription(userId: string) {
+    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    if (!sub) return { active: false };
+    if (sub.status === SubscriptionStatus.ACTIVE) return { active: true };
+    if (!sub.paymentRef?.startsWith('PD-')) return { active: false };
+
+    const token = sub.paymentRef.replace('PD-', '');
+    const confirm = await this.softpay.confirmInvoiceStatus(token);
+    if (!confirm || confirm.status !== 'completed') return { active: false };
+
+    const now = new Date();
+    const endDate = new Date(now);
+    endDate.setDate(endDate.getDate() + 30);
+    await this.prisma.subscription.update({
+      where: { id: sub.id },
+      data: { status: SubscriptionStatus.ACTIVE, startDate: now, endDate },
+    });
+    return { active: true };
   }
 
   async handlePaydunyaWebhook(dto: PaydunyaWebhookDto) {
