@@ -128,10 +128,10 @@ export default function PaydunyaPaymentModal({
       );
       setSoftpayResult(res);
       if (res.success) {
-        if (target === 'wave' && res.url) {
-          window.open(res.url, '_blank', 'noopener,noreferrer');
-        }
-        if (target === 'orange-money' && res.url) {
+        // En sandbox (dev), les 3 méthodes renvoient l'URL de la page
+        // hébergée PayDunya (compte de test) au lieu d'un deep-link
+        // opérateur — même mécanisme que la carte, ouvert pour les 3.
+        if (res.url) {
           window.open(res.url, '_blank', 'noopener,noreferrer');
         }
         setPolling(true);

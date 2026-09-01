@@ -70,39 +70,42 @@ export class PaydunyaSoftpayService {
   }
 
   /**
-   * En sandbox, PayDunya n'expose PAS les endpoints par opérateur
-   * (softpay/new-orange-money-senegal, softpay/wave-senegal, etc.) — ce sont
-   * des chemins réservés au mode LIVE. Le test en sandbox passe par un
-   * unique endpoint générique simulant n'importe quel moyen de paiement,
-   * authentifié avec un compte de test PayDunya (email/téléphone/mot de
-   * passe), configuré via PAYDUNYA_TEST_EMAIL / _PHONE / _PASSWORD.
-   * Voir https://developers.paydunya.com/doc/FR/sandbox_softpay
+   * En sandbox, PayDunya n'expose AUCUN endpoint SOFTPAY (paiement direct
+   * sans redirection), quel que soit le chemin — confirmé empiriquement en
+   * testant 4 chemins plausibles/documentés (softpay/checkout/make-payment,
+   * softpay/paydunya, softpay/wave-senegal, softpay/new-orange-money-senegal)
+   * sous sandbox-api/v1 : les 4 renvoient un 404 HTML générique du site
+   * PayDunya (pas une réponse API), alors que checkout-invoice/create et
+   * .../confirm/:token fonctionnent normalement sous ce même préfixe.
+   * La doc "Sandbox SoftPay" (https://developers.paydunya.com/doc/FR/sandbox_softpay)
+   * semble donc obsolète ou jamais réellement implémentée côté PayDunya.
+   *
+   * Le seul moyen constaté de tester un paiement SOFTPAY en sandbox est de
+   * rediriger vers la page hébergée de l'invoice — son URL suit le format
+   * déterministe `https://paydunya.com/sandbox-checkout/invoice/{token}`
+   * (confirmé par les réponses réelles de checkout-invoice/create) — qui
+   * affiche un formulaire de connexion avec le compte de test PayDunya
+   * (PAYDUNYA_TEST_EMAIL / _PHONE / _PASSWORD). C'est exactement le même
+   * mécanisme que le paiement carte (redirection + polling), simplement
+   * jamais branché jusqu'ici pour Orange Money / Wave / Free Money.
    */
-  private async sandboxSimulate(paymentToken: string): Promise<SoftpayResult> {
+  private sandboxSimulate(paymentToken: string): SoftpayResult {
     const email = this.config.get<string>('PAYDUNYA_TEST_EMAIL');
     const phone = this.config.get<string>('PAYDUNYA_TEST_PHONE');
     const password = this.config.get<string>('PAYDUNYA_TEST_PASSWORD');
     if (!email || !phone || !password) {
       this.logger.error(
-        'PAYDUNYA_TEST_EMAIL/_PHONE/_PASSWORD manquants — nécessaires pour simuler un paiement SOFTPAY en sandbox (voir doc PayDunya Sandbox SoftPay).',
+        'PAYDUNYA_TEST_EMAIL/_PHONE/_PASSWORD manquants — nécessaires pour afficher les identifiants du compte de test sur la page de paiement sandbox PayDunya.',
       );
       throw new BadRequestException(
         'Simulation de paiement indisponible en environnement de test (compte de test PayDunya non configuré).',
       );
     }
-    const res = await axios
-      .post<{ success: boolean; message: string }>(
-        `${this.baseUrl()}/softpay/checkout/make-payment`,
-        {
-          phone_phone: phone,
-          customer_email: email,
-          password,
-          invoice_token: paymentToken,
-        },
-        { headers: this.headers() },
-      )
-      .catch((err: unknown) => this.handleError(err, 'Sandbox simulate'));
-    return { success: res.data.success, message: res.data.message };
+    return {
+      success: true,
+      message: `Connectez-vous sur la page PayDunya avec ${email} (ou ${phone}) et le mot de passe de test configuré.`,
+      url: `https://paydunya.com/sandbox-checkout/invoice/${paymentToken}`,
+    };
   }
 
   async payWithOrangeMoney(c: SoftpayCustomer): Promise<SoftpayResult> {
@@ -222,7 +225,9 @@ export class PaydunyaSoftpayService {
 
     const data = rawBody?.['data'];
     if (!data || typeof data !== 'object') {
-      this.logger.warn('PayDunya callback rejeté — payload invalide (pas de noeud "data")');
+      this.logger.warn(
+        'PayDunya callback rejeté — payload invalide (pas de noeud "data")',
+      );
       throw new BadRequestException('Invalid callback payload');
     }
     const dataObj = data as Record<string, unknown>;
@@ -233,7 +238,10 @@ export class PaydunyaSoftpayService {
       throw new BadRequestException('Missing callback signature');
     }
 
-    const expectedHash = crypto.createHash('sha512').update(masterKey).digest('hex');
+    const expectedHash = crypto
+      .createHash('sha512')
+      .update(masterKey)
+      .digest('hex');
     const receivedBuf = Buffer.from(receivedHash, 'hex');
     const expectedBuf = Buffer.from(expectedHash, 'hex');
     const validHash =
@@ -241,7 +249,9 @@ export class PaydunyaSoftpayService {
       crypto.timingSafeEqual(receivedBuf, expectedBuf);
 
     if (!validHash) {
-      this.logger.warn('PayDunya callback rejeté — signature invalide (hash ne correspond pas)');
+      this.logger.warn(
+        'PayDunya callback rejeté — signature invalide (hash ne correspond pas)',
+      );
       throw new BadRequestException('Invalid callback signature');
     }
 
@@ -252,7 +262,9 @@ export class PaydunyaSoftpayService {
         : undefined;
     if (typeof token !== 'string' || token.length === 0) {
       this.logger.warn('PayDunya callback rejeté — token de facture absent');
-      throw new BadRequestException('Invalid callback payload — missing invoice token');
+      throw new BadRequestException(
+        'Invalid callback payload — missing invoice token',
+      );
     }
 
     const customDataRaw = dataObj['custom_data'];
