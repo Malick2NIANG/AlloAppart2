@@ -4,7 +4,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ListingStatus, SubscriptionPlan, SubscriptionStatus, User } from '@prisma/client';
 import axios from 'axios';
-import { PaydunyaWebhookDto } from '../payments/dto/paydunya-webhook.dto';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 
 const PLAN_PRICES: Record<SubscriptionPlan, number> = {
@@ -177,40 +176,18 @@ export class SubscriptionsService {
     return { active: true };
   }
 
-  async handlePaydunyaWebhook(dto: PaydunyaWebhookDto) {
-    const masterKey = this.config.get<string>('PAYDUNYA_MASTER_KEY');
-    const privateKey = this.config.get<string>('PAYDUNYA_PRIVATE_KEY');
-    const token = this.config.get<string>('PAYDUNYA_TOKEN');
-    if (!masterKey || !privateKey || !token) {
-      throw new BadRequestException('PAYDUNYA_* manquant');
-    }
+  /**
+   * Webhook IPN PayDunya pour les abonnements PRO_AGENCE. Comme pour les
+   * réservations et le boost : le payload entrant n'est jamais une source de
+   * vérité — `verifyAndParseCallback` vérifie le hash, puis on rappelle
+   * `confirmInvoiceStatus` nous-mêmes auprès de PayDunya pour connaître le
+   * statut réel.
+   */
+  async handlePaydunyaWebhook(rawBody: Record<string, unknown>) {
+    const { token, customData } = this.softpay.verifyAndParseCallback(rawBody);
 
-    const isDev = this.config.get<string>('NODE_ENV') !== 'production';
-    const baseUrl = isDev
-      ? 'https://app.paydunya.com/sandbox-api/v1'
-      : 'https://app.paydunya.com/api/v1';
-
-    const confirm = await axios
-      .get<{
-        response_code: string;
-        status: string;
-        custom_data: { subscription_id: string };
-      }>(`${baseUrl}/checkout-invoice/confirm/${dto.data}`, {
-        headers: {
-          'PAYDUNYA-MASTER-KEY': masterKey,
-          'PAYDUNYA-PRIVATE-KEY': privateKey,
-          'PAYDUNYA-TOKEN': token,
-        },
-      })
-      .catch(() => {
-        throw new BadRequestException(
-          'Impossible de confirmer le paiement PayDunya',
-        );
-      });
-
-    const { status, custom_data } = confirm.data;
-    const subscriptionId = custom_data?.subscription_id;
-    if (!subscriptionId) return { ok: true };
+    const subscriptionId = customData['subscription_id'];
+    if (typeof subscriptionId !== 'string' || !subscriptionId) return { ok: true };
 
     const subscription = await this.prisma.subscription.findUnique({
       where: { id: subscriptionId },
@@ -219,7 +196,12 @@ export class SubscriptionsService {
       return { ok: true };
     }
 
-    if (status === 'completed') {
+    const confirm = await this.softpay.confirmInvoiceStatus(token);
+    if (!confirm) {
+      throw new BadRequestException('Impossible de confirmer le paiement PayDunya');
+    }
+
+    if (confirm.status === 'completed') {
       const now = new Date();
       const endDate = new Date(now);
       endDate.setDate(endDate.getDate() + 30);
@@ -229,10 +211,12 @@ export class SubscriptionsService {
           status: SubscriptionStatus.ACTIVE,
           startDate: now,
           endDate,
-          paymentRef: `PD-${dto.data}`,
+          paymentRef: `PD-${token}`,
         },
       });
     }
+    // 'cancelled' / 'failed' / 'pending' — l'abonnement reste SUSPENDED,
+    // rien à faire de plus ici (pas d'état "échoué" dédié côté abonnement).
     return { ok: true };
   }
 

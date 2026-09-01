@@ -7,7 +7,6 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { type User, Role } from '@prisma/client';
 import { InitiateSubscriptionDto } from './dto/initiate-subscription.dto';
 import { AdminExtendDto } from './dto/admin-extend.dto';
-import { PaydunyaWebhookDto } from '../payments/dto/paydunya-webhook.dto';
 
 @Controller('subscriptions')
 export class SubscriptionsController {
@@ -74,10 +73,12 @@ export class SubscriptionsController {
     return this.subscriptionsService.extendById(id, dto.days ?? 30);
   }
 
+  // Body non typé par un DTO class-validator : voir la note équivalente dans
+  // PaymentsController.webhookPaydunya — même raison.
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @Public()
   @Post('webhook/paydunya')
-  webhookPaydunya(@Body() dto: PaydunyaWebhookDto) {
-    return this.subscriptionsService.handlePaydunyaWebhook(dto);
+  webhookPaydunya(@Body() body: Record<string, unknown>) {
+    return this.subscriptionsService.handlePaydunyaWebhook(body);
   }
 }

@@ -19,7 +19,6 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { type User, Role, ListingStatus } from '@prisma/client';
 import { Throttle } from '@nestjs/throttler';
-import { PaydunyaWebhookDto } from '../payments/dto/paydunya-webhook.dto';
 
 @Controller('listings')
 export class ListingsController {
@@ -170,10 +169,12 @@ export class ListingsController {
     return this.listingsService.suspendListing(id, user);
   }
 
+  // Body non typé par un DTO class-validator : voir la note équivalente dans
+  // PaymentsController.webhookPaydunya — même raison.
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @Public()
   @Post('webhook/boost/paydunya')
-  boostWebhookPaydunya(@Body() dto: PaydunyaWebhookDto) {
-    return this.listingsService.handleBoostWebhookPayDunya(dto);
+  boostWebhookPaydunya(@Body() body: Record<string, unknown>) {
+    return this.listingsService.handleBoostWebhookPayDunya(body);
   }
 }

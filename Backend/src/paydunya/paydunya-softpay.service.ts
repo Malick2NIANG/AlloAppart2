@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import * as crypto from 'crypto';
 
 /**
  * Service partagé pour l'intégration PayDunya SOFTPAY / PSR (Paiement Sans
@@ -190,6 +191,77 @@ export class PaydunyaSoftpayService {
       totalAmount: Number(res.data.invoice?.total_amount ?? 0),
       customData: res.data.custom_data ?? {},
     };
+  }
+
+  /**
+   * Vérifie et parse un callback IPN (webhook) PayDunya reçu en
+   * `application/x-www-form-urlencoded`, dont le corps entier est imbriqué
+   * sous une clé racine `data` (ex: `data[invoice][token]`, `data[hash]`,
+   * `data[custom_data][booking_id]`, ...). Express/Nest le transforme en
+   * `{ data: { invoice: { token }, hash, custom_data, status, ... } }`.
+   *
+   * SÉCURITÉ — deux couches indépendantes, aucune des deux n'est sautable :
+   *  1. Le hash (SHA-512 de notre PAYDUNYA_MASTER_KEY) filtre le bruit / les
+   *     appels totalement étrangers à notre compte PayDunya.
+   *  2. Cette vérification ne suffit PAS à elle seule : ce hash est une
+   *     valeur fixe (pas une signature par requête), donc potentiellement
+   *     rejouable. C'est pourquoi les appelants de cette méthode ne doivent
+   *     JAMAIS faire confiance au `status`/montant contenus dans ce payload
+   *     — ils doivent systématiquement rappeler `confirmInvoiceStatus(token)`
+   *     en autoregardant PayDunya avec nos clés d'API, qui est la seule
+   *     source de vérité authentifiée.
+   */
+  verifyAndParseCallback(rawBody: Record<string, unknown>): {
+    token: string;
+    customData: Record<string, unknown>;
+  } {
+    const masterKey = this.config.get<string>('PAYDUNYA_MASTER_KEY');
+    if (!masterKey) {
+      throw new BadRequestException('Payment service unavailable');
+    }
+
+    const data = rawBody?.['data'];
+    if (!data || typeof data !== 'object') {
+      this.logger.warn('PayDunya callback rejeté — payload invalide (pas de noeud "data")');
+      throw new BadRequestException('Invalid callback payload');
+    }
+    const dataObj = data as Record<string, unknown>;
+
+    const receivedHash = dataObj['hash'];
+    if (typeof receivedHash !== 'string' || receivedHash.length === 0) {
+      this.logger.warn('PayDunya callback rejeté — hash absent');
+      throw new BadRequestException('Missing callback signature');
+    }
+
+    const expectedHash = crypto.createHash('sha512').update(masterKey).digest('hex');
+    const receivedBuf = Buffer.from(receivedHash, 'hex');
+    const expectedBuf = Buffer.from(expectedHash, 'hex');
+    const validHash =
+      receivedBuf.length === expectedBuf.length &&
+      crypto.timingSafeEqual(receivedBuf, expectedBuf);
+
+    if (!validHash) {
+      this.logger.warn('PayDunya callback rejeté — signature invalide (hash ne correspond pas)');
+      throw new BadRequestException('Invalid callback signature');
+    }
+
+    const invoice = dataObj['invoice'];
+    const token =
+      invoice && typeof invoice === 'object'
+        ? (invoice as Record<string, unknown>)['token']
+        : undefined;
+    if (typeof token !== 'string' || token.length === 0) {
+      this.logger.warn('PayDunya callback rejeté — token de facture absent');
+      throw new BadRequestException('Invalid callback payload — missing invoice token');
+    }
+
+    const customDataRaw = dataObj['custom_data'];
+    const customData =
+      customDataRaw && typeof customDataRaw === 'object'
+        ? (customDataRaw as Record<string, unknown>)
+        : {};
+
+    return { token, customData };
   }
 
   private handleError(err: unknown, method: string): never {

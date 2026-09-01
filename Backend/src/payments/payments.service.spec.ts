@@ -1,19 +1,46 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
+import { BookingStatus, EscrowStatus } from '@prisma/client';
 
 describe('PaymentsService', () => {
   let service: PaymentsService;
+  let prismaMock: {
+    booking: { findFirst: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
+  };
+  let softpayMock: {
+    verifyAndParseCallback: jest.Mock;
+    confirmInvoiceStatus: jest.Mock;
+  };
+  let notificationsMock: { notifyPaymentConfirmed: jest.Mock };
 
   beforeEach(async () => {
+    prismaMock = {
+      booking: {
+        findFirst: jest.fn(),
+        findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+    };
+    softpayMock = {
+      verifyAndParseCallback: jest.fn(),
+      confirmInvoiceStatus: jest.fn(),
+    };
+    notificationsMock = {
+      notifyPaymentConfirmed: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentsService,
-        { provide: PrismaService, useValue: { booking: { findFirst: jest.fn(), update: jest.fn() } } },
+        { provide: PrismaService, useValue: prismaMock },
         { provide: ConfigService, useValue: { get: () => undefined } },
-        { provide: NotificationsService, useValue: { notifyPaymentConfirmed: jest.fn() } },
+        { provide: NotificationsService, useValue: notificationsMock },
+        { provide: PaydunyaSoftpayService, useValue: softpayMock },
       ],
     }).compile();
 
@@ -22,5 +49,173 @@ describe('PaymentsService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  // Régression : le webhook IPN PayDunya faisait auparavant confiance au
+  // statut/montant contenus dans le payload entrant (potentiellement rejoué
+  // ou forgé). Il doit désormais systématiquement revérifier lui-même le
+  // statut auprès de PayDunya via confirmInvoiceStatus, jamais depuis le
+  // payload du webhook.
+  describe('handlePaydunyaWebhook', () => {
+    it('rejette le payload si verifyAndParseCallback échoue (hash invalide)', async () => {
+      softpayMock.verifyAndParseCallback.mockImplementation(() => {
+        throw new BadRequestException('Invalid callback signature');
+      });
+
+      await expect(
+        service.handlePaydunyaWebhook({ data: { hash: 'bidon' } }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.booking.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('ignore silencieusement si aucun booking_id dans custom_data', async () => {
+      softpayMock.verifyAndParseCallback.mockReturnValue({
+        token: 'tok1',
+        customData: {},
+      });
+
+      const result = await service.handlePaydunyaWebhook({});
+
+      expect(result).toEqual({ ok: true });
+      expect(prismaMock.booking.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('ne fait rien si le booking est déjà CONFIRMED (idempotence)', async () => {
+      softpayMock.verifyAndParseCallback.mockReturnValue({
+        token: 'tok1',
+        customData: { booking_id: 'b1' },
+      });
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'b1',
+        status: BookingStatus.CONFIRMED,
+        totalAmount: 10000,
+      });
+
+      const result = await service.handlePaydunyaWebhook({});
+
+      expect(result).toEqual({ ok: true });
+      expect(softpayMock.confirmInvoiceStatus).not.toHaveBeenCalled();
+      expect(prismaMock.booking.update).not.toHaveBeenCalled();
+    });
+
+    it('ne fait JAMAIS confiance au statut du payload — confirme via confirmInvoiceStatus', async () => {
+      softpayMock.verifyAndParseCallback.mockReturnValue({
+        token: 'tok1',
+        customData: { booking_id: 'b1' },
+      });
+      prismaMock.booking.findUnique
+        .mockResolvedValueOnce({
+          id: 'b1',
+          status: BookingStatus.PENDING,
+          totalAmount: 10000,
+        })
+        .mockResolvedValueOnce({
+          id: 'b1',
+          tenant: { email: 't@x.com', firstName: 'T', lastName: 'T' },
+          listing: {
+            owner: {
+              email: 'o@x.com',
+              firstName: 'O',
+              lastName: 'O',
+              id: 'o1',
+            },
+            title: 'X',
+            city: 'Dakar',
+          },
+          totalAmount: 10000,
+          platformFee: 0,
+          landlordAmount: 10000,
+        });
+      softpayMock.confirmInvoiceStatus.mockResolvedValueOnce({
+        status: 'completed',
+        totalAmount: 10000,
+        customData: {},
+      });
+
+      await service.handlePaydunyaWebhook({
+        data: { status: 'completed' /* ignoré */ },
+      });
+
+      expect(softpayMock.confirmInvoiceStatus).toHaveBeenCalledWith('tok1');
+      expect(prismaMock.booking.update).toHaveBeenCalledWith({
+        where: { id: 'b1' },
+        data: {
+          status: BookingStatus.CONFIRMED,
+          escrowStatus: EscrowStatus.HELD,
+          paymentRef: 'PD-tok1',
+        },
+      });
+    });
+
+    it('rejette si le montant confirmé par PayDunya ne correspond pas au montant attendu', async () => {
+      softpayMock.verifyAndParseCallback.mockReturnValue({
+        token: 'tok1',
+        customData: { booking_id: 'b1' },
+      });
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'b1',
+        status: BookingStatus.PENDING,
+        totalAmount: 10000,
+      });
+      softpayMock.confirmInvoiceStatus.mockResolvedValueOnce({
+        status: 'completed',
+        totalAmount: 500, // montant incohérent
+        customData: {},
+      });
+
+      await expect(service.handlePaydunyaWebhook({})).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prismaMock.booking.update).not.toHaveBeenCalled();
+    });
+
+    it("marque le booking CANCELLED si PayDunya confirme un statut 'cancelled'", async () => {
+      softpayMock.verifyAndParseCallback.mockReturnValue({
+        token: 'tok1',
+        customData: { booking_id: 'b1' },
+      });
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'b1',
+        status: BookingStatus.PENDING,
+        totalAmount: 10000,
+      });
+      softpayMock.confirmInvoiceStatus.mockResolvedValueOnce({
+        status: 'cancelled',
+        totalAmount: 0,
+        customData: {},
+      });
+
+      await service.handlePaydunyaWebhook({});
+
+      expect(prismaMock.booking.update).toHaveBeenCalledWith({
+        where: { id: 'b1' },
+        data: {
+          status: BookingStatus.CANCELLED,
+          escrowStatus: EscrowStatus.REFUNDED,
+        },
+      });
+    });
+
+    it("ne touche à rien si le statut confirmé est 'pending'", async () => {
+      softpayMock.verifyAndParseCallback.mockReturnValue({
+        token: 'tok1',
+        customData: { booking_id: 'b1' },
+      });
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'b1',
+        status: BookingStatus.PENDING,
+        totalAmount: 10000,
+      });
+      softpayMock.confirmInvoiceStatus.mockResolvedValueOnce({
+        status: 'pending',
+        totalAmount: 10000,
+        customData: {},
+      });
+
+      const result = await service.handlePaydunyaWebhook({});
+
+      expect(result).toEqual({ ok: true });
+      expect(prismaMock.booking.update).not.toHaveBeenCalled();
+    });
   });
 });

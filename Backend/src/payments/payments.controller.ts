@@ -7,7 +7,6 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { type User, Role } from '@prisma/client';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
-import { PaydunyaWebhookDto } from './dto/paydunya-webhook.dto';
 import { SoftpayPaymentDto } from './dto/softpay-payment.dto';
 
 @Controller('payments')
@@ -24,11 +23,15 @@ export class PaymentsController {
     return this.paymentsService.initiate(dto.bookingId, user.id);
   }
 
+  // Body non typé par un DTO class-validator : le payload IPN PayDunya est
+  // imbriqué et sa forme dépend du moyen de paiement (carte, mobile money) —
+  // `verifyAndParseCallback` (PaydunyaSoftpayService) valide et extrait tout
+  // ce qui compte à partir de ce corps brut, hash de signature inclus.
   @Throttle({ default: { limit: 60, ttl: 60000 } })
   @Public()
   @Post('webhook/paydunya')
-  webhookPaydunya(@Body() dto: PaydunyaWebhookDto) {
-    return this.paymentsService.handlePaydunyaWebhook(dto);
+  webhookPaydunya(@Body() body: Record<string, unknown>) {
+    return this.paymentsService.handlePaydunyaWebhook(body);
   }
 
   /** Vérification active — appelée depuis la page /paiement/confirmation */

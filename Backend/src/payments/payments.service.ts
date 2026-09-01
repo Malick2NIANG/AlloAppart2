@@ -10,7 +10,7 @@ import {
   User,
 } from '@prisma/client';
 import axios from 'axios';
-import { PaydunyaWebhookDto } from './dto/paydunya-webhook.dto';
+import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 
 type BookingWithDetails = Booking & { listing: Listing; tenant: User };
 
@@ -22,6 +22,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly softpay: PaydunyaSoftpayService,
   ) {}
 
   async initiate(bookingId: string, tenantId: string) {
@@ -176,48 +177,25 @@ export class PaymentsService {
     return { payment_url: invoiceUrl, transId: paymentRef, paymentToken: response.data.token };
   }
 
-  async handlePaydunyaWebhook(dto: PaydunyaWebhookDto) {
-    const masterKey  = this.config.get<string>('PAYDUNYA_MASTER_KEY');
-    const privateKey = this.config.get<string>('PAYDUNYA_PRIVATE_KEY');
-    const token      = this.config.get<string>('PAYDUNYA_TOKEN');
+  /**
+   * Webhook IPN PayDunya pour les réservations. Le payload entrant n'est
+   * JAMAIS une source de vérité : `verifyAndParseCallback` filtre le bruit
+   * via le hash, puis on rappelle `confirmInvoiceStatus` nous-mêmes auprès de
+   * PayDunya (avec nos clés d'API) pour connaître le statut réel — c'est la
+   * seule donnée de statut/montant à laquelle on fait confiance.
+   */
+  async handlePaydunyaWebhook(rawBody: Record<string, unknown>) {
+    const { token, customData } = this.softpay.verifyAndParseCallback(rawBody);
 
-    if (!masterKey || !privateKey || !token) {
-      throw new BadRequestException('PAYDUNYA_* manquant');
-    }
-
-    const isDev   = this.config.get<string>('NODE_ENV') !== 'production';
-    const baseUrl = isDev
-      ? 'https://app.paydunya.com/sandbox-api/v1'
-      : 'https://app.paydunya.com/api/v1';
-
-    const confirm = await axios
-      .get<{
-        response_code: string;
-        status:        string;
-        custom_data:   { booking_id: string };
-        invoice:       { total_amount: number };
-      }>(`${baseUrl}/checkout-invoice/confirm/${dto.data}`, {
-        headers: {
-          'PAYDUNYA-MASTER-KEY':  masterKey,
-          'PAYDUNYA-PRIVATE-KEY': privateKey,
-          'PAYDUNYA-TOKEN':       token,
-        },
-      })
-      .catch(() => {
-        throw new BadRequestException(
-          'Impossible de confirmer le paiement PayDunya',
-        );
-      });
-
-    const { status, custom_data, invoice } = confirm.data;
-    const bookingId = custom_data?.booking_id;
-    if (!bookingId) return { ok: true };
+    const bookingId = customData['booking_id'];
+    if (typeof bookingId !== 'string' || !bookingId) return { ok: true };
 
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
     });
     if (!booking) return { ok: true };
 
+    // Idempotence : déjà traité (par le webhook ou par la vérification active)
     if (
       booking.status === BookingStatus.CONFIRMED ||
       booking.status === BookingStatus.COMPLETED
@@ -225,22 +203,26 @@ export class PaymentsService {
       return { ok: true };
     }
 
-    const expectedAmount = Number(booking.totalAmount);
-    const paidAmount     = Number(invoice?.total_amount ?? 0);
-    if (Math.abs(paidAmount - expectedAmount) > 1) {
-      this.logger.warn(
-        `PayDunya montant incohérent : attendu ${expectedAmount}, recu ${paidAmount} pour booking ${bookingId}`,
-      );
-      throw new BadRequestException('Inconsistent payment amount');
+    const confirm = await this.softpay.confirmInvoiceStatus(token);
+    if (!confirm) {
+      throw new BadRequestException('Impossible de confirmer le paiement PayDunya');
     }
 
-    if (status === 'completed') {
+    if (confirm.status === 'completed') {
+      const expectedAmount = Number(booking.totalAmount);
+      if (Math.abs(confirm.totalAmount - expectedAmount) > 1) {
+        this.logger.warn(
+          `PayDunya montant incohérent : attendu ${expectedAmount}, recu ${confirm.totalAmount} pour booking ${bookingId}`,
+        );
+        throw new BadRequestException('Inconsistent payment amount');
+      }
+
       await this.prisma.booking.update({
         where: { id: bookingId },
         data: {
           status:       BookingStatus.CONFIRMED,
           escrowStatus: EscrowStatus.HELD,
-          paymentRef:   `PD-${dto.data}`,
+          paymentRef:   `PD-${token}`,
         },
       });
       const fullBooking = await this.prisma.booking.findUnique({
@@ -263,7 +245,7 @@ export class PaymentsService {
           landlordAmount: Number(fullBooking.landlordAmount ?? 0),
         }).catch(() => {});
       }
-    } else {
+    } else if (confirm.status === 'cancelled' || confirm.status === 'failed') {
       await this.prisma.booking.update({
         where: { id: bookingId },
         data: {
@@ -272,6 +254,8 @@ export class PaymentsService {
         },
       });
     }
+    // status === 'pending' — on ne fait rien, on attend le prochain callback
+    // ou la vérification active côté client.
 
     return { ok: true };
   }

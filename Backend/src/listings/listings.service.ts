@@ -15,7 +15,6 @@ import { ListingStatus, Role, SubscriptionPlan, SubscriptionStatus, User } from 
 import { CreateReportDto } from './dto/create-report.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import axios from 'axios';
-import { PaydunyaWebhookDto } from '../payments/dto/paydunya-webhook.dto';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 
 const BOOST_PRICE_XOF = 5_000;
@@ -594,58 +593,49 @@ export class ListingsService {
     return { boosted: true };
   }
 
-  async handleBoostWebhookPayDunya(dto: PaydunyaWebhookDto) {
-    const masterKey = this.config.get<string>('PAYDUNYA_MASTER_KEY');
-    const privateKey = this.config.get<string>('PAYDUNYA_PRIVATE_KEY');
-    const token = this.config.get<string>('PAYDUNYA_TOKEN');
-    if (!masterKey || !privateKey || !token)
-      throw new BadRequestException('PAYDUNYA_* manquant');
-    const isDev = this.config.get<string>('NODE_ENV') !== 'production';
-    const baseUrl = isDev
-      ? 'https://app.paydunya.com/sandbox-api/v1'
-      : 'https://app.paydunya.com/api/v1';
-    const confirm = await axios
-      .get<{
-        response_code: string;
-        status: string;
-        custom_data: { listing_id: string };
-      }>(baseUrl + '/checkout-invoice/confirm/' + dto.data, {
-        headers: {
-          'PAYDUNYA-MASTER-KEY': masterKey,
-          'PAYDUNYA-PRIVATE-KEY': privateKey,
-          'PAYDUNYA-TOKEN': token,
-        },
-      })
-      .catch(() => {
-        throw new BadRequestException(
-          'Impossible de confirmer le paiement PayDunya',
-        );
-      });
-    const { status, custom_data } = confirm.data;
-    const listingId = custom_data?.listing_id;
-    if (!listingId) return { ok: true };
+  /**
+   * Webhook IPN PayDunya pour le boost d'annonce. Comme pour les
+   * réservations : le payload entrant n'est jamais une source de vérité —
+   * `verifyAndParseCallback` vérifie le hash, puis on rappelle
+   * `confirmInvoiceStatus` nous-mêmes auprès de PayDunya pour connaître le
+   * statut réel.
+   */
+  async handleBoostWebhookPayDunya(rawBody: Record<string, unknown>) {
+    const { token, customData } = this.softpay.verifyAndParseCallback(rawBody);
+
+    const listingId = customData['listing_id'];
+    if (typeof listingId !== 'string' || !listingId) return { ok: true };
+
     const bp = await this.prisma.boostPayment.findFirst({
       where: { listingId, status: 'PENDING' },
       orderBy: { createdAt: 'desc' },
     });
-    if (!bp) return { ok: true };
-    if (status === 'completed') {
+    if (!bp) return { ok: true }; // déjà traité (idempotence) ou inconnu
+
+    const confirm = await this.softpay.confirmInvoiceStatus(token);
+    if (!confirm) {
+      throw new BadRequestException('Impossible de confirmer le paiement PayDunya');
+    }
+
+    if (confirm.status === 'completed') {
       const listing = await this.prisma.listing.findUniqueOrThrow({
         where: { id: listingId },
       });
       await Promise.all([
         this.prisma.boostPayment.update({
           where: { id: bp.id },
-          data: { status: 'CONFIRMED', paymentRef: 'PD-' + dto.data },
+          data: { status: 'CONFIRMED', paymentRef: 'PD-' + token },
         }),
         this.applyBoost(listingId, listing.boostScore),
       ]);
-    } else {
+    } else if (confirm.status === 'cancelled' || confirm.status === 'failed') {
       await this.prisma.boostPayment.update({
         where: { id: bp.id },
         data: { status: 'FAILED' },
       });
     }
+    // status === 'pending' — on attend le prochain callback ou la vérification active.
+
     return { ok: true };
   }
 
