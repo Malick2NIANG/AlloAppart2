@@ -1,0 +1,31 @@
+# Reverse-proxy de production AlloAppart — HTTPS automatique (Let's Encrypt).
+# Caddy est le SEUL service à publier des ports sur l'hôte (80/443) ;
+# tous les autres conteneurs ne sont joignables que sur le réseau interne Docker.
+
+{
+	email admin@alloappart.sn
+}
+
+# ─── Frontend (Next.js) ──────────────────────────────────────────────────────
+alloappart.sn, www.alloappart.sn {
+	encode zstd gzip
+	reverse_proxy frontend:3000
+}
+
+# ─── Backend API + temps réel (Soketi) ───────────────────────────────────────
+api.alloappart.sn {
+	encode zstd gzip
+
+	# Le client Pusher-js se connecte en WSS sur /app/{key} — doit être routé
+	# vers Soketi (le serveur temps réel), pas vers le backend NestJS.
+	@websocket path /app/*
+	reverse_proxy @websocket soketi:6001
+
+	# Espace de nom HTTP réservé de Soketi (utilisé si un appel HTTP direct à
+	# l'API Soketi est un jour nécessaire depuis l'extérieur — sinon inutilisé
+	# car le backend parle à Soketi en interne via SOKETI_HOST=soketi).
+	@soketi_http path /apps/*
+	reverse_proxy @soketi_http soketi:6001
+
+	reverse_proxy backend:4000
+}

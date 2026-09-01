@@ -1,0 +1,131 @@
+# Stack de production AlloAppart — VPS Hetzner CPX21.
+# Usage : docker compose -f docker-compose.prod.yml up -d --build
+# Prérequis : fichier .env.prod à la racine (voir .env.prod.example),
+# DNS de alloappart.sn et api.alloappart.sn déjà pointés vers l'IP du VPS.
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: allo_postgres
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-allo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-allo_appart}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-allo} -d ${POSTGRES_DB:-allo_appart}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    container_name: allo_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.8
+    container_name: allo_meili
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      MEILI_ENV: production
+    volumes:
+      - meili_data:/meili_data
+    networks: [internal]
+
+  soketi:
+    image: quay.io/soketi/soketi:latest-16-alpine
+    container_name: allo_soketi
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      SOKETI_DEFAULT_APP_ID: ${SOKETI_APP_ID}
+      SOKETI_DEFAULT_APP_KEY: ${SOKETI_APP_KEY}
+      SOKETI_DEFAULT_APP_SECRET: ${SOKETI_APP_SECRET}
+      SOKETI_DEBUG: "0"
+    networks: [internal]
+
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: allo_backend
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-allo}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-allo_appart}
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_MASTER_KEY: ${MEILI_MASTER_KEY}
+      SOKETI_HOST: soketi
+      SOKETI_PORT: "6001"
+      SOKETI_APP_ID: ${SOKETI_APP_ID}
+      SOKETI_APP_KEY: ${SOKETI_APP_KEY}
+      SOKETI_APP_SECRET: ${SOKETI_APP_SECRET}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      meilisearch: { condition: service_started }
+    networks: [internal]
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_API_URL: https://api.alloappart.sn/api/v1
+        NEXT_PUBLIC_APP_URL: https://alloappart.sn
+        NEXT_PUBLIC_SOKETI_APP_KEY: ${SOKETI_APP_KEY}
+        NEXT_PUBLIC_SOKETI_HOST: api.alloappart.sn
+        NEXT_PUBLIC_SOKETI_PORT: "443"
+    container_name: allo_frontend
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - backend
+    networks: [internal]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: allo_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+    networks: [internal]
+
+networks:
+  internal:
+
+volumes:
+  postgres_data:
+  redis_data:
+  meili_data:
+  caddy_data:
+  caddy_config:

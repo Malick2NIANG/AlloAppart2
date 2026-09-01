@@ -5,6 +5,9 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  // Build autonome (server.js minimal + deps nécessaires uniquement) —
+  // requis pour une image Docker de prod légère, voir Frontend/Dockerfile.
+  output: 'standalone',
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },

@@ -75,9 +75,12 @@ export default function NotificationBell({ userId }: { userId: string }) {
     const port = Number(process.env.NEXT_PUBLIC_SOKETI_PORT ?? '6001');
     if (!key) return;
 
+    // En prod, Soketi est servi en HTTPS/WSS via Caddy (port 443) — le
+    // navigateur bloque un ws:// non chiffré depuis une page https://.
+    const useTLS = port === 443;
     const client = new Pusher(key, {
-      cluster: 'mt1', wsHost: host, wsPort: port,
-      forceTLS: false, enabledTransports: ['ws'], disableStats: true,
+      cluster: 'mt1', wsHost: host, wsPort: port, wssPort: port,
+      forceTLS: useTLS, enabledTransports: useTLS ? ['wss'] : ['ws'], disableStats: true,
     });
     const ch = client.subscribe(`user-${userId}`);
     ch.bind('notification', (notif: Notif) => {

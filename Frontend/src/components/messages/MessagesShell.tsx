@@ -265,9 +265,12 @@ export default function MessagesShell({ emptyHint, space }: Props) {
     const pusherPort = Number(process.env.NEXT_PUBLIC_SOKETI_PORT ?? '6001');
     if (!pusherKey) return;
 
+    // En prod, Soketi est servi en HTTPS/WSS via Caddy (port 443) — le
+    // navigateur bloque un ws:// non chiffré depuis une page https://.
+    const useTLS = pusherPort === 443;
     const client = new Pusher(pusherKey, {
-      cluster: 'mt1', wsHost: pusherHost, wsPort: pusherPort,
-      forceTLS: false, enabledTransports: ['ws'], disableStats: true,
+      cluster: 'mt1', wsHost: pusherHost, wsPort: pusherPort, wssPort: pusherPort,
+      forceTLS: useTLS, enabledTransports: useTLS ? ['wss'] : ['ws'], disableStats: true,
     });
     const ch = client.subscribe(`room-${activeRoomId}`);
     ch.bind('new-message', (msg: Message) => {

@@ -65,12 +65,16 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
 
     if (!pusherKey) return;
 
+    // En prod, Soketi est servi en HTTPS/WSS via Caddy (port 443) — le
+    // navigateur bloque un ws:// non chiffré depuis une page https://.
+    const useTLS = pusherPort === 443;
     const pusherClient = new Pusher(pusherKey, {
       cluster:            'mt1',
       wsHost:             pusherHost,
       wsPort:             pusherPort,
-      forceTLS:           false,
-      enabledTransports:  ['ws'],
+      wssPort:            pusherPort,
+      forceTLS:           useTLS,
+      enabledTransports:  useTLS ? ['wss'] : ['ws'],
       disableStats:       true,
     });
 

@@ -79,8 +79,6 @@ async function bootstrap() {
       'PAYDUNYA_MASTER_KEY',
       'PAYDUNYA_PRIVATE_KEY',
       'PAYDUNYA_TOKEN',
-      'CINETPAY_API_KEY',
-      'CINETPAY_SECRET_KEY',
       'CLOUDINARY_API_SECRET',
     ];
     for (const key of required) {
