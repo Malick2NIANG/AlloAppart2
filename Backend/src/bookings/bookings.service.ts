@@ -9,13 +9,19 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { ReportDisputeDto } from './dto/report-dispute.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
-import { type User, BookingStatus, EscrowStatus, Role } from '@prisma/client';
+import {
+  type User,
+  BookingStatus,
+  EscrowStatus,
+  ListingStatus,
+  Role,
+} from '@prisma/client';
 
 // Fenêtre de signalement de non-conformité — Article 9 des CGU
 const DISPUTE_WINDOW_HOURS = 24;
 
-const DAYS_PER_MONTH = 30;      // base du prorata pour les jours résiduels
-const MONTHLY_THRESHOLD = 25;   // au-delà, on facture au mois plutôt qu'à la nuit
+const DAYS_PER_MONTH = 30; // base du prorata pour les jours résiduels
+const MONTHLY_THRESHOLD = 25; // au-delà, on facture au mois plutôt qu'à la nuit
 
 /**
  * Ajoute n mois en bornant au dernier jour du mois d'arrivée.
@@ -28,7 +34,11 @@ function addMonthsClamped(date: Date, n: number): Date {
   const r = new Date(date);
   r.setDate(1);
   r.setMonth(r.getMonth() + n);
-  const lastDayOfTargetMonth = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
+  const lastDayOfTargetMonth = new Date(
+    r.getFullYear(),
+    r.getMonth() + 1,
+    0,
+  ).getDate();
   r.setDate(Math.min(day, lastDayOfTargetMonth));
   return r;
 }
@@ -75,15 +85,30 @@ export class BookingsService {
   async create(tenantId: string, dto: CreateBookingDto) {
     const listing = await this.prisma.listing.findUniqueOrThrow({
       where: { id: dto.listingId },
-      select: { price: true, pricePerNight: true, minimumNights: true, title: true, city: true, owner: true },
+      select: {
+        price: true,
+        pricePerNight: true,
+        minimumNights: true,
+        title: true,
+        city: true,
+        owner: true,
+        status: true,
+      },
     });
     if (listing.owner.id === tenantId) {
       throw new ForbiddenException(
         'Vous ne pouvez pas réserver votre propre annonce',
       );
     }
+    // Un bien actuellement loué au mois (bail actif, mode hybride) n'est pas
+    // disponible pour une réservation nuitée, quelles que soient les dates.
+    if (listing.status === ListingStatus.RENTED) {
+      throw new BadRequestException(
+        "Ce logement est actuellement loué au mois et n'est pas disponible à la réservation.",
+      );
+    }
     const startDate = new Date(dto.startDate);
-    const endDate   = dto.endDate ? new Date(dto.endDate) : null;
+    const endDate = dto.endDate ? new Date(dto.endDate) : null;
     const farFuture = new Date('9999-12-31');
 
     const overlap = await this.prisma.booking.findFirst({
@@ -102,7 +127,9 @@ export class BookingsService {
 
     // ── Nombre de jours de séjour ────────────────────────────────────────────
     const days = endDate
-      ? Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+      ? Math.round(
+          (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+        )
       : 1;
 
     // Vérification séjour minimum
@@ -140,7 +167,7 @@ export class BookingsService {
     }
     // ────────────────────────────────────────────────────────────────────────
     const commissionRate = Number(process.env.COMMISSION_RATE ?? '0.10');
-    const platformFee    = Math.round(totalAmount * commissionRate);
+    const platformFee = Math.round(totalAmount * commissionRate);
     const landlordAmount = totalAmount - platformFee;
     const booking = await this.prisma.booking.create({
       data: {
@@ -219,8 +246,7 @@ export class BookingsService {
     if (!booking) throw new NotFoundException('Booking not found');
     const isOwner = booking.listing.ownerId === userId;
     const isTenant = booking.tenantId === userId;
-    if (!isOwner && !isTenant)
-      throw new ForbiddenException('Access denied');
+    if (!isOwner && !isTenant) throw new ForbiddenException('Access denied');
     return booking;
   }
 
@@ -232,8 +258,7 @@ export class BookingsService {
     if (!booking) throw new NotFoundException('Booking not found');
     const isOwner = booking.listing.ownerId === userId;
     const isTenant = booking.tenantId === userId;
-    if (!isOwner && !isTenant)
-      throw new ForbiddenException('Access denied');
+    if (!isOwner && !isTenant) throw new ForbiddenException('Access denied');
     return booking;
   }
 
@@ -291,13 +316,14 @@ export class BookingsService {
     // ── Politique d'annulation pour les réservations confirmées ─────────────
     // Séjour déjà commencé → annulation impossible
     if (booking.status === BookingStatus.CONFIRMED) {
-      const now              = new Date();
-      const startDate        = new Date(booking.startDate);
-      const hoursUntilStart  = (startDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const now = new Date();
+      const startDate = new Date(booking.startDate);
+      const hoursUntilStart =
+        (startDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
       if (hoursUntilStart < 0) {
         throw new BadRequestException(
-          'Impossible d\'annuler : le séjour a déjà commencé.',
+          "Impossible d'annuler : le séjour a déjà commencé.",
         );
       }
     }
@@ -319,15 +345,15 @@ export class BookingsService {
         (new Date(booking.startDate).getTime() - Date.now()) / (1000 * 60 * 60);
       newEscrowStatus =
         isTenantCancelling && hoursUntilStart <= 7 * 24
-          ? EscrowStatus.RELEASED   // pénalité d'annulation tardive par le locataire
-          : EscrowStatus.REFUNDED;  // remboursement intégral
+          ? EscrowStatus.RELEASED // pénalité d'annulation tardive par le locataire
+          : EscrowStatus.REFUNDED; // remboursement intégral
     }
     // ────────────────────────────────────────────────────────────────────────
 
     const updated = await this.prisma.booking.update({
       where: { id },
       data: {
-        status:       BookingStatus.CANCELLED,
+        status: BookingStatus.CANCELLED,
         escrowStatus: newEscrowStatus,
       },
       include: { listing: { include: { owner: true } }, tenant: true },
@@ -358,7 +384,9 @@ export class BookingsService {
         where,
         include: {
           listing: { select: { id: true, title: true, city: true } },
-          tenant: { select: { id: true, firstName: true, lastName: true, email: true } },
+          tenant: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -426,12 +454,12 @@ export class BookingsService {
     }
     if (booking.status !== BookingStatus.CONFIRMED) {
       throw new BadRequestException(
-        'Seule une réservation confirmée peut faire l\'objet d\'un signalement.',
+        "Seule une réservation confirmée peut faire l'objet d'un signalement.",
       );
     }
     if (booking.escrowStatus !== EscrowStatus.HELD) {
       throw new BadRequestException(
-        'Cette réservation ne peut plus faire l\'objet d\'un signalement (statut : ' +
+        "Cette réservation ne peut plus faire l'objet d'un signalement (statut : " +
           booking.escrowStatus +
           ').',
       );
@@ -440,7 +468,7 @@ export class BookingsService {
     const hoursSinceStart =
       (Date.now() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60);
     if (hoursSinceStart < 0) {
-      throw new BadRequestException('Le séjour n\'a pas encore commencé.');
+      throw new BadRequestException("Le séjour n'a pas encore commencé.");
     }
     if (hoursSinceStart > DISPUTE_WINDOW_HOURS) {
       throw new BadRequestException(
@@ -484,7 +512,7 @@ export class BookingsService {
       include: { listing: { include: { owner: true } }, tenant: true },
     });
     if (booking.escrowStatus !== EscrowStatus.DISPUTED) {
-      throw new BadRequestException('Cette réservation n\'est pas en litige.');
+      throw new BadRequestException("Cette réservation n'est pas en litige.");
     }
 
     const releasing = dto.decision === 'RELEASE';

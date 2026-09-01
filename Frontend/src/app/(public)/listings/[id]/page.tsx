@@ -322,6 +322,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             {/* Demande de réservation */}
             <ListingBookingCard
               listingId={listing.id}
+              listingStatus={listing.status}
               pricePerMonth={priceToNumber(listing.price)}
               pricePerNight={listing.pricePerNight != null ? priceToNumber(listing.pricePerNight) : null}
               minimumNights={listing.minimumNights ?? null}

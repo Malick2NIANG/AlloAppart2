@@ -208,6 +208,25 @@ describe('BookingsService', () => {
         }),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('leve BadRequestException si le logement est actuellement loue au mois (RENTED)', async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        price: 200000,
+        title: 'Appart',
+        city: 'Dakar',
+        owner,
+        status: 'RENTED',
+      });
+
+      await expect(
+        service.create('tenant1', {
+          listingId: 'listing1',
+          startDate: '2026-07-01',
+          endDate: '2026-08-01',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.booking.create).not.toHaveBeenCalled();
+    });
   });
 
   // --- findOne ---

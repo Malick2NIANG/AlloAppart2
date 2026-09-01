@@ -308,6 +308,8 @@
     "bookingPayNow": "Réserver et payer",
     "bookingRedirecting": "Redirection vers PayDunya…",
     "bookingPayError": "Impossible d'initier le paiement. Réessayez depuis vos réservations.",
+    "bookingRentedTitle": "Actuellement loué au mois",
+    "bookingRentedDesc": "Ce logement fait l'objet d'un bail mensuel actif et n'est pas disponible à la réservation pour le moment.",
     "tour3D": "Visite 3D",
     "auditFull": "AlloVérifié — Audit Complet",
     "auditBasic": "AlloVérifié — Audit Basique",

@@ -12,6 +12,7 @@ const MONTHLY_THRESHOLD = 25; // jours — au-delà, tarif mensuel appliqué
 
 interface Props {
   listingId:     string;
+  listingStatus?: string;
   pricePerMonth: number;
   pricePerNight?: number | null;
   minimumNights?: number | null;
@@ -92,6 +93,7 @@ function computePrice(
 
 export default function ListingBookingCard({
   listingId,
+  listingStatus,
   pricePerMonth,
   pricePerNight,
   minimumNights,
@@ -248,6 +250,19 @@ export default function ListingBookingCard({
     );
     return res.status === 'CONFIRMED';
   };
+
+  /* ── Bien actuellement loué au mois (bail actif) ─────────────── */
+  if (listingStatus === 'RENTED') {
+    return (
+      <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
+        <div className="flex flex-col items-center text-center gap-3 py-4">
+          <i className="fa-solid fa-lock text-3xl text-sub/50" />
+          <p className="font-semibold text-text">{t('bookingRentedTitle')}</p>
+          <p className="text-sm text-sub">{t('bookingRentedDesc')}</p>
+        </div>
+      </div>
+    );
+  }
 
   /* ── Redirection PayDunya ───────────────────────────────────── */
   if (redirecting) {

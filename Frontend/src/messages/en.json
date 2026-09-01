@@ -308,6 +308,8 @@
     "bookingPayNow": "Book and pay",
     "bookingRedirecting": "Redirecting to PayDunya…",
     "bookingPayError": "Unable to initiate payment. Retry from your bookings.",
+    "bookingRentedTitle": "Currently rented monthly",
+    "bookingRentedDesc": "This property is under an active monthly lease and isn't available to book right now.",
     "tour3D": "3D Tour",
     "auditFull": "AlloVerified — Full Audit",
     "auditBasic": "AlloVerified — Basic Audit",
