@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import PaydunyaPaymentModal from '@/components/ui/PaydunyaPaymentModal';
+import AvailabilityCalendar, { isBooked, type BookedRange } from '@/components/listings/AvailabilityCalendar';
 
 const MONTHLY_THRESHOLD = 25; // jours — au-delà, tarif mensuel appliqué
 
@@ -109,8 +110,65 @@ export default function ListingBookingCard({
   const [paymentModal, setPaymentModal] = useState<{
     bookingId: string; paymentToken: string; cardUrl: string; amount: number;
   } | null>(null);
+  const [ranges,        setRanges]        = useState<BookedRange[]>([]);
+  const [rangesLoading, setRangesLoading] = useState(true);
 
-  const today = new Date().toISOString().split('T')[0];
+  // Disponibilité de l'annonce — alimente le calendrier cliquable ci-dessous
+  useEffect(() => {
+    let cancelled = false;
+    api.get<BookedRange[]>(`/bookings/listing/${listingId}/availability`)
+      .then((data) => { if (!cancelled) setRanges(Array.isArray(data) ? data : []); })
+      .catch(() => { if (!cancelled) setRanges([]); })
+      .finally(() => { if (!cancelled) setRangesLoading(false); });
+    return () => { cancelled = true; };
+  }, [listingId]);
+
+  /**
+   * Sélection de dates par clic sur le calendrier (remplace les champs de
+   * date natifs) : 1er clic = entrée, 2e clic = sortie. Un clic avant la
+   * date d'entrée redémarre la sélection. Si la plage cliquée traverse une
+   * réservation existante, la sélection redémarre aussi (on ne peut pas se
+   * fier uniquement aux jours grisés du calendrier pour ça, une plage peut
+   * enjamber une réservation sans que ses bornes soient elles-mêmes réservées).
+   */
+  const handleSelectDate = (iso: string) => {
+    if (!isSignedIn) {
+      router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
+      return;
+    }
+    const clicked = new Date(`${iso}T00:00:00`);
+
+    if (!startDate || (startDate && endDate)) {
+      setStartDate(iso);
+      setEndDate('');
+      setError(null);
+      return;
+    }
+
+    const start = new Date(`${startDate}T00:00:00`);
+    if (clicked <= start) {
+      setStartDate(iso);
+      setEndDate('');
+      setError(null);
+      return;
+    }
+
+    const cursor = new Date(start);
+    cursor.setDate(cursor.getDate() + 1);
+    let blocked = false;
+    while (cursor < clicked) {
+      if (isBooked(cursor, ranges)) { blocked = true; break; }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    if (blocked) {
+      setStartDate(iso);
+      setEndDate('');
+      setError(t('bookingRangeBlocked'));
+      return;
+    }
+    setEndDate(iso);
+    setError(null);
+  };
 
   // Calcul du nombre de jours
   const days = startDate && endDate
@@ -135,7 +193,7 @@ export default function ListingBookingCard({
       router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
       return;
     }
-    if (!startDate) return;
+    if (!startDate || !endDate) return;
 
     setLoading(true);
     setError(null);
@@ -143,10 +201,13 @@ export default function ListingBookingCard({
       const token = await getToken();
 
       // Étape 1 : créer la réservation — totalAmount calculé côté serveur
+      // (la date de fin est obligatoire : sans elle, le calcul de prix
+      // retombe sur un forfait d'un seul jour côté backend, ce qui sous-
+      // facturerait un séjour sans durée définie)
       const booking = await api.post<{ id: string; totalAmount: string }>('/bookings', {
         listingId,
         startDate,
-        ...(endDate ? { endDate } : {}),
+        endDate,
       }, token ?? undefined);
 
       // Étape 2 : initier le paiement PayDunya
@@ -214,10 +275,18 @@ export default function ListingBookingCard({
         <p className="text-sm text-sub mb-4">{t('bookingSignInDesc')}</p>
         <a
           href={`/sign-in?redirect_url=${encodeURIComponent(pathname)}`}
-          className="btn-gold w-full py-2.5 rounded-full font-semibold text-center block text-sm"
+          className="btn-gold w-full py-2.5 rounded-full font-semibold text-center block text-sm mb-4"
         >
           {t('bookingSignIn')}
         </a>
+        {/* Calendrier consultable avant connexion — un clic redirige vers le sign-in */}
+        <AvailabilityCalendar
+          ranges={ranges}
+          loading={rangesLoading}
+          selectedStart={null}
+          selectedEnd={null}
+          onSelectDate={handleSelectDate}
+        />
       </div>
     );
   }
@@ -234,31 +303,49 @@ export default function ListingBookingCard({
       </div>
 
       <div className="space-y-3">
-        {/* Date d'entrée */}
-        <div>
-          <label className="block text-xs font-medium text-sub mb-1">
-            {t('bookingStart')} <span className="text-red-400">*</span>
-          </label>
-          <input
-            type="date"
-            min={today}
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-full border border-line rounded-xl px-3 py-2 text-sm text-text bg-bg outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition"
-          />
+        {/* Résumé des dates sélectionnées */}
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-bg px-3 py-2.5">
+          <div>
+            <p className="text-[11px] font-medium text-sub mb-0.5">
+              {t('bookingStart')} <span className="text-red-400">*</span>
+            </p>
+            <p className="text-sm font-semibold text-text">
+              {startDate
+                ? new Date(`${startDate}T00:00:00`).toLocaleDateString(numLocale, { day: '2-digit', month: 'short', year: 'numeric' })
+                : <span className="text-sub font-normal">{t('bookingSelectStart')}</span>}
+            </p>
+          </div>
+          <i className="fa-solid fa-arrow-right-long text-sub text-xs shrink-0" />
+          <div className="text-right">
+            <p className="text-[11px] font-medium text-sub mb-0.5">
+              {t('bookingEnd')} <span className="text-red-400">*</span>
+            </p>
+            <p className="text-sm font-semibold text-text">
+              {endDate
+                ? new Date(`${endDate}T00:00:00`).toLocaleDateString(numLocale, { day: '2-digit', month: 'short', year: 'numeric' })
+                : <span className="text-sub font-normal">{t('bookingSelectEnd')}</span>}
+            </p>
+          </div>
         </div>
 
-        {/* Date de fin */}
-        <div>
-          <label className="block text-xs font-medium text-sub mb-1">{t('bookingEnd')}</label>
-          <input
-            type="date"
-            min={startDate || today}
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="w-full border border-line rounded-xl px-3 py-2 text-sm text-text bg-bg outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition"
-          />
-        </div>
+        {(startDate || endDate) && (
+          <button
+            type="button"
+            onClick={() => { setStartDate(''); setEndDate(''); setError(null); }}
+            className="text-xs text-gold-dark hover:underline"
+          >
+            {t('bookingClearDates')}
+          </button>
+        )}
+
+        {/* Calendrier cliquable — sélection des dates directement dessus */}
+        <AvailabilityCalendar
+          ranges={ranges}
+          loading={rangesLoading}
+          selectedStart={startDate || null}
+          selectedEnd={endDate || null}
+          onSelectDate={handleSelectDate}
+        />
       </div>
 
       {/* Séjour minimum non respecté */}
@@ -306,7 +393,7 @@ export default function ListingBookingCard({
 
       <button
         onClick={handleSubmit}
-        disabled={!startDate || loading || !!belowMinimum}
+        disabled={!startDate || !endDate || loading || !!belowMinimum}
         className="mt-4 w-full btn-gold py-2.5 rounded-full font-semibold text-sm hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? (

@@ -1,18 +1,23 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 
-interface BookedRange {
+export interface BookedRange {
   startDate: string;
   endDate: string | null;
   status: string;
 }
 
 interface Props {
-  listingId: string;
+  ranges: BookedRange[];
+  loading: boolean;
+  /** Date sélectionnée (YYYY-MM-DD) — null si aucune. */
+  selectedStart: string | null;
+  selectedEnd: string | null;
+  /** Appelé avec une date au format YYYY-MM-DD quand un jour disponible est cliqué. */
+  onSelectDate: (iso: string) => void;
 }
-
 
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() &&
@@ -20,7 +25,7 @@ function isSameDay(a: Date, b: Date) {
     a.getDate() === b.getDate();
 }
 
-function isBooked(day: Date, ranges: BookedRange[]): boolean {
+export function isBooked(day: Date, ranges: BookedRange[]): boolean {
   const d = day.getTime();
   for (const r of ranges) {
     const start = new Date(r.startDate).setHours(0, 0, 0, 0);
@@ -32,11 +37,17 @@ function isBooked(day: Date, ranges: BookedRange[]): boolean {
   return false;
 }
 
-export default function AvailabilityCalendar({ listingId }: Props) {
-  const [ranges, setRanges]   = useState<BookedRange[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [year, setYear]       = useState(() => new Date().getFullYear());
-  const [month, setMonth]     = useState(() => new Date().getMonth());
+/** Formate une Date en YYYY-MM-DD en heure locale (évite le décalage UTC de toISOString). */
+function toLocalISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export default function AvailabilityCalendar({ ranges, loading, selectedStart, selectedEnd, onSelectDate }: Props) {
+  const [year, setYear]   = useState(() => new Date().getFullYear());
+  const [month, setMonth] = useState(() => new Date().getMonth());
 
   const t         = useTranslations('detail');
   const locale    = useLocale();
@@ -53,22 +64,6 @@ export default function AvailabilityCalendar({ listingId }: Props) {
       new Intl.DateTimeFormat(numLocale, { weekday: 'narrow' }).format(new Date(2024, 0, 1 + i))),
     [numLocale],
   );
-
-  const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
-
-  const fetchAvailability = useCallback(async () => {
-    try {
-      const res  = await fetch(`${API}/bookings/listing/${listingId}/availability`);
-      const data = await res.json() as BookedRange[];
-      setRanges(Array.isArray(data) ? data : []);
-    } catch {
-      setRanges([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [listingId, API]);
-
-  useEffect(() => { void fetchAvailability(); }, [fetchAvailability]);
 
   const prev = () => {
     if (month === 0) { setMonth(11); setYear((y) => y - 1); }
@@ -87,6 +82,9 @@ export default function AvailabilityCalendar({ listingId }: Props) {
   const rows        = Math.ceil(totalCells / 7);
   const today       = new Date();
 
+  const startObj = selectedStart ? new Date(`${selectedStart}T00:00:00`) : null;
+  const endObj   = selectedEnd   ? new Date(`${selectedEnd}T00:00:00`)   : null;
+
   const cells: (Date | null)[] = [];
   for (let i = 0; i < rows * 7; i++) {
     const dayNum = i - startOffset + 1;
@@ -102,13 +100,13 @@ export default function AvailabilityCalendar({ listingId }: Props) {
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-text text-sm">{t('availabilityTitle')}</h3>
         <div className="flex items-center gap-2">
-          <button onClick={prev} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-bg transition">
+          <button type="button" onClick={prev} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-bg transition">
             <i className="fa-solid fa-chevron-left text-xs text-sub" />
           </button>
           <span className="text-sm font-medium text-text min-w-[140px] text-center">
             {MONTHS[month]} {year}
           </span>
-          <button onClick={next} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-bg transition">
+          <button type="button" onClick={next} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-bg transition">
             <i className="fa-solid fa-chevron-right text-xs text-sub" />
           </button>
         </div>
@@ -128,24 +126,36 @@ export default function AvailabilityCalendar({ listingId }: Props) {
           <div className="grid grid-cols-7 gap-px">
             {cells.map((day, i) => {
               if (!day) return <div key={i} />;
-              const booked  = isBooked(day, ranges);
-              const past    = day < today && !isSameDay(day, today);
-              const isToday = isSameDay(day, today);
+              const booked   = isBooked(day, ranges);
+              const past     = day < today && !isSameDay(day, today);
+              const isToday  = isSameDay(day, today);
+              const disabled = booked || past;
+              const isStart  = startObj && isSameDay(day, startObj);
+              const isEnd    = endObj && isSameDay(day, endObj);
+              const inRange  = !!startObj && !!endObj && day > startObj && day < endObj;
+
               return (
-                <div
+                <button
                   key={i}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onSelectDate(toLocalISODate(day))}
                   className={`flex items-center justify-center h-9 rounded-lg text-xs font-medium transition ${
                     booked
                       ? 'bg-red-100 text-red-500 line-through cursor-not-allowed'
                       : past
                         ? 'text-sub/40 cursor-not-allowed'
-                        : isToday
-                          ? 'bg-gold text-gray-900 font-bold'
-                          : 'bg-green-50 text-green-700 hover:bg-green-100'
+                        : isStart || isEnd
+                          ? 'bg-gold text-gray-900 font-bold ring-2 ring-gold-dark'
+                          : inRange
+                            ? 'bg-gold-pale text-gold-dark'
+                            : isToday
+                              ? 'border border-gold text-gold-dark font-bold'
+                              : 'bg-green-50 text-green-700 hover:bg-green-100'
                   }`}
                 >
                   {day.getDate()}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -153,11 +163,11 @@ export default function AvailabilityCalendar({ listingId }: Props) {
           <div className="mt-3 flex items-center gap-4 text-xs text-sub">
             <span className="flex items-center gap-1.5">
               <span className="h-3 w-3 rounded-sm bg-green-50 border border-green-200" />
-              Disponible
+              {t('availabilityLegendAvailable')}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-3 w-3 rounded-sm bg-red-100 border border-red-200" />
-              Réservé
+              {t('availabilityLegendBooked')}
             </span>
           </div>
         </>

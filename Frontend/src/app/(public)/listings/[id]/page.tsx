@@ -10,7 +10,6 @@ import ListingBookingCard from './ListingBookingCard';
 import ListingReviewForm from './ListingReviewForm';
 import ReportButton from './ReportButton';
 import MapView from '@/components/map/MapView';
-import AvailabilityCalendar from '@/components/listings/AvailabilityCalendar';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import { type Listing, priceToNumber, ownerFullName } from '@/types/listing';
 
@@ -328,9 +327,6 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               minimumNights={listing.minimumNights ?? null}
               numLocale={numLocale}
             />
-
-            {/* Calendrier disponibilité */}
-            <AvailabilityCalendar listingId={listing.id} />
 
             {/* Guarantees */}
             <div className="bg-card backdrop-blur-xl border border-line rounded-3xl p-5 shadow">

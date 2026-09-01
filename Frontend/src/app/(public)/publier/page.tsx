@@ -67,6 +67,8 @@ function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
     lat:         z.number(),
     lng:         z.number(),
     price:       z.number().positive(t('zPricePositive')),
+    pricePerNight: z.number().positive(t('zPriceNightPositive')).optional(),
+    minimumNights: z.number().int().min(1, t('zMinNights')).optional(),
     images:      z.array(z.string()).min(1, t('zPhotoRequired')),
   });
 }
@@ -78,7 +80,7 @@ const STEP_FIELDS: (keyof FormValues)[][] = [
   ['type', 'title', 'description'],
   ['surface', 'rooms', 'beds', 'baths', 'amenities'],
   ['region', 'city', 'address', 'lat', 'lng'],
-  ['price'],
+  ['price', 'pricePerNight', 'minimumNights'],
   ['images'],
 ];
 
@@ -575,6 +577,31 @@ export default function PublierPage() {
                     </p>
                   </div>
                 )}
+
+                <div className="rounded-xl border border-line bg-bg/60 p-4 space-y-3">
+                  <p className="text-xs font-semibold text-sub uppercase tracking-wide">
+                    <i className="fa-solid fa-moon mr-1.5 text-gold-dark" />
+                    {t('shortStayTitle')}
+                  </p>
+                  <p className="text-xs text-sub">{t('shortStayDesc')}</p>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label={t('fieldPriceNight')} error={errors.pricePerNight?.message}>
+                      <div className="relative">
+                        <input type="number" min={0} {...register('pricePerNight', {
+                          setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+                        })} placeholder={t('fieldPriceNightPh')} className="input-field pr-20" />
+                        <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-sub">
+                          {t('fcfaPerNight')}
+                        </span>
+                      </div>
+                    </Field>
+                    <Field label={t('fieldMinNights')} error={errors.minimumNights?.message}>
+                      <input type="number" min={1} {...register('minimumNights', {
+                        setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+                      })} placeholder={t('fieldMinNightsPh')} className="input-field" />
+                    </Field>
+                  </div>
+                </div>
               </>
             )}
 
@@ -737,9 +764,16 @@ function RecapCard({
         <span className="inline-flex items-center gap-2 rounded-full border border-line bg-bg px-3 py-1.5 text-sm font-semibold text-text">
           <i className={`fa-solid ${meta.icon} text-gold-dark`} /> {meta.label}
         </span>
-        <span className="text-xl font-extrabold text-gold-dark">
-          {Number(values.price).toLocaleString(numLocale)}
-          <span className="ml-1 text-sm font-semibold text-sub"> {t('fieldRentUnit')}</span>
+        <span className="text-right">
+          <span className="block text-xl font-extrabold text-gold-dark">
+            {Number(values.price).toLocaleString(numLocale)}
+            <span className="ml-1 text-sm font-semibold text-sub"> {t('fieldRentUnit')}</span>
+          </span>
+          {Number(values.pricePerNight) > 0 && (
+            <span className="block text-xs font-semibold text-sub">
+              {t('recapPriceNight')} : {Number(values.pricePerNight).toLocaleString(numLocale)} {t('fcfaPerNight')}
+            </span>
+          )}
         </span>
       </div>
 
