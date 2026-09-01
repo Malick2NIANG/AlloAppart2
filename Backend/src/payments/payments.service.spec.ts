@@ -10,7 +10,13 @@ import { BookingStatus, EscrowStatus } from '@prisma/client';
 describe('PaymentsService', () => {
   let service: PaymentsService;
   let prismaMock: {
-    booking: { findFirst: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
+    booking: {
+      findFirst: jest.Mock;
+      findUnique: jest.Mock;
+      findUniqueOrThrow: jest.Mock;
+      update: jest.Mock;
+    };
+    listing: { update: jest.Mock };
   };
   let softpayMock: {
     verifyAndParseCallback: jest.Mock;
@@ -23,6 +29,10 @@ describe('PaymentsService', () => {
       booking: {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn(),
+        update: jest.fn(),
+      },
+      listing: {
         update: jest.fn(),
       },
     };
@@ -103,29 +113,34 @@ describe('PaymentsService', () => {
         token: 'tok1',
         customData: { booking_id: 'b1' },
       });
-      prismaMock.booking.findUnique
-        .mockResolvedValueOnce({
-          id: 'b1',
-          status: BookingStatus.PENDING,
-          totalAmount: 10000,
-        })
-        .mockResolvedValueOnce({
-          id: 'b1',
-          tenant: { email: 't@x.com', firstName: 'T', lastName: 'T' },
-          listing: {
-            owner: {
-              email: 'o@x.com',
-              firstName: 'O',
-              lastName: 'O',
-              id: 'o1',
-            },
-            title: 'X',
-            city: 'Dakar',
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'b1',
+        status: BookingStatus.PENDING,
+        totalAmount: 10000,
+      });
+      // Appel interne de markBookingPaid : lit le bookingType pour bifurquer.
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b1',
+        bookingType: 'NIGHTLY',
+      });
+      prismaMock.booking.update.mockResolvedValueOnce({
+        id: 'b1',
+        listingId: 'l1',
+        tenant: { email: 't@x.com', firstName: 'T', lastName: 'T' },
+        listing: {
+          owner: {
+            email: 'o@x.com',
+            firstName: 'O',
+            lastName: 'O',
+            id: 'o1',
           },
-          totalAmount: 10000,
-          platformFee: 0,
-          landlordAmount: 10000,
-        });
+          title: 'X',
+          city: 'Dakar',
+        },
+        totalAmount: 10000,
+        platformFee: 0,
+        landlordAmount: 10000,
+      });
       softpayMock.confirmInvoiceStatus.mockResolvedValueOnce({
         status: 'completed',
         totalAmount: 10000,
@@ -144,6 +159,59 @@ describe('PaymentsService', () => {
           escrowStatus: EscrowStatus.HELD,
           paymentRef: 'PD-tok1',
         },
+        include: { listing: { include: { owner: true } }, tenant: true },
+      });
+      // Réservation nuitée : l'annonce ne bascule pas en RENTED.
+      expect(prismaMock.listing.update).not.toHaveBeenCalled();
+    });
+
+    it("MONTHLY : active le bail et bascule l'annonce en RENTED", async () => {
+      softpayMock.verifyAndParseCallback.mockReturnValue({
+        token: 'tok2',
+        customData: { booking_id: 'b2' },
+      });
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'b2',
+        status: BookingStatus.APPROVED,
+        totalAmount: 250000,
+      });
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b2',
+        bookingType: 'MONTHLY',
+      });
+      prismaMock.booking.update.mockResolvedValueOnce({
+        id: 'b2',
+        listingId: 'l2',
+        tenant: { email: 't@x.com', firstName: 'T', lastName: 'T' },
+        listing: {
+          owner: { email: 'o@x.com', firstName: 'O', lastName: 'O', id: 'o1' },
+          title: 'X',
+          city: 'Dakar',
+        },
+        totalAmount: 250000,
+        platformFee: 0,
+        landlordAmount: 250000,
+      });
+      softpayMock.confirmInvoiceStatus.mockResolvedValueOnce({
+        status: 'completed',
+        totalAmount: 250000,
+        customData: {},
+      });
+
+      await service.handlePaydunyaWebhook({});
+
+      expect(prismaMock.booking.update).toHaveBeenCalledWith({
+        where: { id: 'b2' },
+        data: {
+          status: BookingStatus.ACTIVE,
+          escrowStatus: EscrowStatus.HELD,
+          paymentRef: 'PD-tok2',
+        },
+        include: { listing: { include: { owner: true } }, tenant: true },
+      });
+      expect(prismaMock.listing.update).toHaveBeenCalledWith({
+        where: { id: 'l2' },
+        data: { status: 'RENTED' },
       });
     });
 

@@ -357,7 +357,20 @@
     "removeFavorite": "Retirer des favoris",
     "availabilityTitle": "Disponibilités",
     "pricingMonthsOnly": "{months, plural, one {# mois} other {# mois}}",
-    "pricingMonthsPlusDays": "{months, plural, one {# mois} other {# mois}} + {days, plural, one {# jour} other {# jours}}"
+    "pricingMonthsPlusDays": "{months, plural, one {# mois} other {# mois}} + {days, plural, one {# jour} other {# jours}}",
+    "monthlyRequestTitle": "Demande de location au mois",
+    "monthlyMinLeaseNote": "Durée minimale du bail : {count, plural, one {# mois} other {# mois}}.",
+    "moveInDateLabel": "Date d'emménagement souhaitée",
+    "monthlyFirstMonthLabel": "1er loyer",
+    "monthlyDepositLabel": "Caution ({count, plural, one {# mois} other {# mois}})",
+    "monthlyTotalDueLabel": "Total à l'entrée",
+    "monthlyDocumentsTitle": "Dossier locataire (optionnel)",
+    "monthlyDocumentsDesc": "Accélérez l'approbation en joignant vos documents dès maintenant. Vous pourrez aussi les ajouter plus tard.",
+    "docTypeIdCard": "Pièce d'identité",
+    "docTypeProofOfIncome": "Justificatif de revenus",
+    "docTypeGuarantor": "Garant (optionnel)",
+    "docUploadBtn": "Ajouter",
+    "docUploadError": "Échec de l'envoi — réessayez."
   },
   "region": {
     "title": "Annonces à",
@@ -1343,7 +1356,18 @@
     "kpiRefunded": "Remboursé",
     "transactionsCount": "{count, plural, one {# transaction} other {# transactions}}",
     "noTransactions": "Aucune transaction",
-    "noTransactionsHint": "Vos paiements apparaîtront ici après votre première réservation."
+    "noTransactionsHint": "Vos paiements apparaîtront ici après votre première réservation.",
+    "statusRequested": "Demande envoyée",
+    "statusApproved": "Approuvée",
+    "statusRejected": "Refusée",
+    "statusActive": "Bail actif",
+    "statusTerminated": "Bail résilié",
+    "withdrawRequestBtn": "Retirer la demande",
+    "payDepositBtn": "Payer le ticket d’entrée",
+    "actionTerminateLease": "Résilier le bail",
+    "actionTerminateLeaseConfirm": "Confirmer la résiliation",
+    "actionCancelTerminate": "Annuler",
+    "confirmTerminateLease": "Résilier ce bail ?"
   },
   "messagesShell": {
     "userFallback": "Utilisateur",
@@ -1880,7 +1904,16 @@
     "minNightsLabel": "{count, plural, one {min. # nuit} other {min. # nuits}}",
     "boostPriceLabel": "Prix unique",
     "boostDurationLabel": "Durée",
-    "boostDurationDays": "jours"
+    "boostDurationDays": "jours",
+    "actionApprove": "Approuver",
+    "actionReject": "Refuser",
+    "actionApproveSuccess": "Demande approuvée",
+    "actionRejectSuccess": "Demande refusée",
+    "actionTerminateLease": "Résilier le bail",
+    "actionTerminateLeaseSuccess": "Bail résilié",
+    "actionTerminateLeaseConfirm": "Confirmer la résiliation",
+    "actionCancelTerminate": "Annuler",
+    "confirmTerminateLease": "Résilier ce bail ?"
   },
   "agent": {
     "greetingMorning": "Bonjour",

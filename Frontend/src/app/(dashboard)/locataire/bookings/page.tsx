@@ -60,9 +60,11 @@ export default function LocataireBookingsPage() {
 
   const reviewedBookingIds = new Set(myReviews.map((r) => r.bookingId));
 
-  const pending   = bookings.filter((b) => b.status === 'PENDING');
-  const confirmed = bookings.filter((b) => b.status === 'CONFIRMED');
-  const archived  = bookings.filter((b) => b.status === 'CANCELLED' || b.status === 'COMPLETED');
+  // Nuitée : PENDING/CONFIRMED/CANCELLED/COMPLETED — Mensuel : REQUESTED/APPROVED/ACTIVE/REJECTED/TERMINATED
+  const pending   = bookings.filter((b) => b.status === 'PENDING' || b.status === 'REQUESTED');
+  const confirmed = bookings.filter((b) => b.status === 'CONFIRMED' || b.status === 'APPROVED' || b.status === 'ACTIVE');
+  const archived  = bookings.filter((b) =>
+    b.status === 'CANCELLED' || b.status === 'COMPLETED' || b.status === 'REJECTED' || b.status === 'TERMINATED');
 
   if (loading) {
     return (
@@ -272,9 +274,11 @@ function LocataireBookingActions({
   const { getToken } = useAuth();
   const t = useTranslations('locataire');
   const { id: bookingId, status } = booking;
-  const [payLoading,    setPayLoading]    = useState(false);
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [pdfLoading,    setPdfLoading]    = useState(false);
+  const [payLoading,       setPayLoading]       = useState(false);
+  const [cancelLoading,    setCancelLoading]    = useState(false);
+  const [pdfLoading,       setPdfLoading]       = useState(false);
+  const [terminateLoading, setTerminateLoading] = useState(false);
+  const [confirmTerminate, setConfirmTerminate] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -333,6 +337,20 @@ function LocataireBookingActions({
     }
   };
 
+  const handleTerminate = async () => {
+    const token = await getToken();
+    if (!token) return;
+    setTerminateLoading(true);
+    setError(null);
+    try {
+      await api.patch(`/bookings/${bookingId}/terminate-lease`, {}, token);
+      onRefresh();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : t('actionError'));
+      setTerminateLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col items-end gap-1.5 shrink-0">
       <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -359,6 +377,78 @@ function LocataireBookingActions({
 
         {(status === 'CONFIRMED' || status === 'CANCELLED' || status === 'COMPLETED') && (
           <StatusChip status={status as BookingStatus} />
+        )}
+
+        {/* Demande de location au mois — en attente de réponse du bailleur */}
+        {status === 'REQUESTED' && (
+          <>
+            <StatusChip status={status} />
+            <button
+              onClick={handleCancel}
+              disabled={cancelLoading}
+              className="text-xs font-medium text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+            >
+              {cancelLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('withdrawRequestBtn')}
+            </button>
+          </>
+        )}
+
+        {/* Approuvée — le locataire doit payer le ticket d'entrée pour activer le bail */}
+        {status === 'APPROVED' && (
+          <>
+            <button
+              onClick={handlePay}
+              disabled={payLoading}
+              className="btn-gold text-xs py-1.5 px-3 disabled:opacity-50"
+            >
+              {payLoading
+                ? <i className="fa-solid fa-spinner fa-spin" />
+                : <><i className="fa-solid fa-credit-card text-xs" /> {t('payDepositBtn')}</>}
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={cancelLoading}
+              className="text-xs font-medium text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+            >
+              {cancelLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('cancelBtn')}
+            </button>
+          </>
+        )}
+
+        {/* Bail actif — le locataire peut le résilier à tout moment */}
+        {status === 'ACTIVE' && (
+          confirmTerminate ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-sub">{t('confirmTerminateLease')}</span>
+              <button
+                onClick={() => void handleTerminate()}
+                disabled={terminateLoading}
+                className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 text-red-700 hover:bg-red-200 transition disabled:opacity-50"
+              >
+                {terminateLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('actionTerminateLeaseConfirm')}
+              </button>
+              <button
+                onClick={() => setConfirmTerminate(false)}
+                className="text-xs px-3 py-1.5 rounded-full font-medium bg-bg text-sub border border-line hover:bg-line/30 transition"
+              >
+                {t('actionCancelTerminate')}
+              </button>
+            </div>
+          ) : (
+            <>
+              <StatusChip status={status} />
+              <button
+                onClick={() => setConfirmTerminate(true)}
+                className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 text-red-700 hover:bg-red-200 transition"
+              >
+                {t('actionTerminateLease')}
+              </button>
+            </>
+          )
+        )}
+
+        {(status === 'REJECTED' || status === 'TERMINATED') && (
+          <StatusChip status={status} />
         )}
 
         {/* Litige en cours — les fonds sont gelés en attente d'arbitrage admin */}

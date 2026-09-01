@@ -7,13 +7,16 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CreateMonthlyBookingDto } from './dto/create-monthly-booking.dto';
 import { ReportDisputeDto } from './dto/report-dispute.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import {
   type User,
   BookingStatus,
+  BookingType,
   EscrowStatus,
   ListingStatus,
+  RentalMode,
   Role,
 } from '@prisma/client';
 
@@ -198,6 +201,271 @@ export class BookingsService {
     return booking;
   }
 
+  /**
+   * Demande de location au mois (système hybride) — statut REQUESTED,
+   * pas de date de fin (bail ouvert), caution + 1er mois calculés à la
+   * réservation. Nécessite l'approbation du bailleur avant paiement.
+   */
+  async createMonthlyRequest(tenantId: string, dto: CreateMonthlyBookingDto) {
+    const listing = await this.prisma.listing.findUniqueOrThrow({
+      where: { id: dto.listingId },
+      select: {
+        price: true,
+        depositMonths: true,
+        title: true,
+        city: true,
+        owner: true,
+        status: true,
+        rentalMode: true,
+      },
+    });
+
+    if (listing.owner.id === tenantId) {
+      throw new ForbiddenException(
+        'Vous ne pouvez pas réserver votre propre annonce',
+      );
+    }
+    if (
+      listing.rentalMode !== RentalMode.MONTHLY &&
+      listing.rentalMode !== RentalMode.MIXED
+    ) {
+      throw new BadRequestException(
+        "Cette annonce n'accepte pas la location au mois.",
+      );
+    }
+    if (listing.status !== ListingStatus.ACTIVE) {
+      throw new BadRequestException(
+        "Ce logement n'est pas disponible actuellement.",
+      );
+    }
+
+    // Une seule demande/bail mensuel à la fois par annonce.
+    const existingMonthly = await this.prisma.booking.findFirst({
+      where: {
+        listingId: dto.listingId,
+        bookingType: BookingType.MONTHLY,
+        status: {
+          in: [
+            BookingStatus.REQUESTED,
+            BookingStatus.APPROVED,
+            BookingStatus.ACTIVE,
+          ],
+        },
+      },
+    });
+    if (existingMonthly) {
+      throw new BadRequestException(
+        'Une demande de location au mois est déjà en cours pour ce logement.',
+      );
+    }
+
+    // La date d'entrée souhaitée ne doit pas tomber dans une nuitée déjà réservée.
+    const moveInDate = new Date(dto.moveInDate);
+    const nightlyOverlap = await this.prisma.booking.findFirst({
+      where: {
+        listingId: dto.listingId,
+        bookingType: BookingType.NIGHTLY,
+        status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+        startDate: { lte: moveInDate },
+        endDate: { gte: moveInDate },
+      },
+    });
+    if (nightlyOverlap) {
+      throw new BadRequestException(
+        "Cette date d'entrée chevauche un séjour nuitée déjà réservé.",
+      );
+    }
+
+    const monthlyPrice = Number(listing.price);
+    const depositAmount = Math.round(
+      monthlyPrice * (listing.depositMonths ?? 0),
+    );
+    const totalAmount = Math.round(monthlyPrice + depositAmount);
+    const commissionRate = Number(process.env.COMMISSION_RATE ?? '0.10');
+    const platformFee = Math.round(totalAmount * commissionRate);
+    const landlordAmount = totalAmount - platformFee;
+
+    const booking = await this.prisma.booking.create({
+      data: {
+        listingId: dto.listingId,
+        tenantId,
+        bookingType: BookingType.MONTHLY,
+        status: BookingStatus.REQUESTED,
+        startDate: moveInDate,
+        totalAmount,
+        platformFee,
+        landlordAmount,
+        depositAmount,
+        ...(dto.documents?.length
+          ? {
+              documents: {
+                create: dto.documents.map((d) => ({
+                  type: d.type,
+                  fileUrl: d.fileUrl,
+                })),
+              },
+            }
+          : {}),
+      },
+      include: { listing: { include: { owner: true } }, tenant: true },
+    });
+
+    this.notifications
+      .notifyMonthlyRequestCreated({
+        tenantEmail: booking.tenant.email,
+        tenantName: booking.tenant.firstName + ' ' + booking.tenant.lastName,
+        tenantId: booking.tenantId,
+        landlordEmail: listing.owner.email,
+        landlordName: listing.owner.firstName + ' ' + listing.owner.lastName,
+        landlordId: listing.owner.id,
+        listingTitle: listing.title,
+        listingCity: listing.city,
+        bookingId: booking.id,
+        totalAmount,
+      })
+      .catch(() => {});
+
+    return booking;
+  }
+
+  /** Le bailleur/agence approuve une demande de location au mois. */
+  async approveMonthlyRequest(id: string, ownerId: string) {
+    const booking = await this.prisma.booking.findUniqueOrThrow({
+      where: { id },
+      include: { listing: { include: { owner: true } }, tenant: true },
+    });
+    if (booking.listing.ownerId !== ownerId) {
+      throw new ForbiddenException('Not authorized');
+    }
+    if (
+      booking.bookingType !== BookingType.MONTHLY ||
+      booking.status !== BookingStatus.REQUESTED
+    ) {
+      throw new BadRequestException(
+        "Impossible d'approuver, statut: " + booking.status,
+      );
+    }
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: { status: BookingStatus.APPROVED },
+    });
+    this.notifications
+      .notifyMonthlyRequestApproved({
+        tenantEmail: booking.tenant.email,
+        tenantName: booking.tenant.firstName + ' ' + booking.tenant.lastName,
+        tenantId: booking.tenantId,
+        landlordEmail: booking.listing.owner.email,
+        landlordName:
+          booking.listing.owner.firstName +
+          ' ' +
+          booking.listing.owner.lastName,
+        landlordId: booking.listing.ownerId,
+        listingTitle: booking.listing.title,
+        listingCity: booking.listing.city,
+        bookingId: booking.id,
+        totalAmount: Number(booking.totalAmount),
+      })
+      .catch(() => {});
+    return updated;
+  }
+
+  /** Le bailleur/agence refuse une demande de location au mois. */
+  async rejectMonthlyRequest(id: string, ownerId: string) {
+    const booking = await this.prisma.booking.findUniqueOrThrow({
+      where: { id },
+      include: { listing: { include: { owner: true } }, tenant: true },
+    });
+    if (booking.listing.ownerId !== ownerId) {
+      throw new ForbiddenException('Not authorized');
+    }
+    if (
+      booking.bookingType !== BookingType.MONTHLY ||
+      booking.status !== BookingStatus.REQUESTED
+    ) {
+      throw new BadRequestException(
+        'Impossible de refuser, statut: ' + booking.status,
+      );
+    }
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: { status: BookingStatus.REJECTED },
+    });
+    this.notifications
+      .notifyMonthlyRequestRejected({
+        tenantEmail: booking.tenant.email,
+        tenantName: booking.tenant.firstName + ' ' + booking.tenant.lastName,
+        tenantId: booking.tenantId,
+        landlordEmail: booking.listing.owner.email,
+        landlordName:
+          booking.listing.owner.firstName +
+          ' ' +
+          booking.listing.owner.lastName,
+        landlordId: booking.listing.ownerId,
+        listingTitle: booking.listing.title,
+        listingCity: booking.listing.city,
+        bookingId: booking.id,
+        totalAmount: Number(booking.totalAmount),
+      })
+      .catch(() => {});
+    return updated;
+  }
+
+  /**
+   * Résilie un bail mensuel actif (à l'initiative du bailleur ou du
+   * locataire) — repasse l'annonce en ACTIVE, à nouveau bookable.
+   */
+  async terminateLease(id: string, user: User) {
+    const booking = await this.prisma.booking.findUniqueOrThrow({
+      where: { id },
+      include: { listing: { include: { owner: true } }, tenant: true },
+    });
+    const isOwner = booking.listing.ownerId === user.id;
+    const isTenant = booking.tenantId === user.id;
+    if (!isOwner && !isTenant && !user.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Not authorized');
+    }
+    if (
+      booking.bookingType !== BookingType.MONTHLY ||
+      booking.status !== BookingStatus.ACTIVE
+    ) {
+      throw new BadRequestException(
+        'Impossible de résilier, statut: ' + booking.status,
+      );
+    }
+
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.booking.update({
+        where: { id },
+        data: { status: BookingStatus.TERMINATED, terminatedAt: new Date() },
+      }),
+      this.prisma.listing.update({
+        where: { id: booking.listingId },
+        data: { status: ListingStatus.ACTIVE },
+      }),
+    ]);
+
+    this.notifications
+      .notifyLeaseTerminated({
+        tenantEmail: booking.tenant.email,
+        tenantName: booking.tenant.firstName + ' ' + booking.tenant.lastName,
+        tenantId: booking.tenantId,
+        landlordEmail: booking.listing.owner.email,
+        landlordName:
+          booking.listing.owner.firstName +
+          ' ' +
+          booking.listing.owner.lastName,
+        landlordId: booking.listing.ownerId,
+        listingTitle: booking.listing.title,
+        listingCity: booking.listing.city,
+        bookingId: booking.id,
+        totalAmount: Number(booking.totalAmount),
+        terminatedByTenant: isTenant,
+      })
+      .catch(() => {});
+
+    return updated;
+  }
+
   async getAvailability(listingId: string) {
     return this.prisma.booking.findMany({
       where: {
@@ -216,6 +484,7 @@ export class BookingsService {
       include: {
         listing: true,
         tenant: { select: { id: true, firstName: true, lastName: true } },
+        documents: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -228,6 +497,7 @@ export class BookingsService {
         include: {
           listing: true,
           tenant: { select: { id: true, firstName: true, lastName: true } },
+          documents: true,
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -253,7 +523,7 @@ export class BookingsService {
   async findOne(id: string, userId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id },
-      include: { listing: true, tenant: true },
+      include: { listing: true, tenant: true, documents: true },
     });
     if (!booking) throw new NotFoundException('Booking not found');
     const isOwner = booking.listing.ownerId === userId;

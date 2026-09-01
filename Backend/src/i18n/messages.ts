@@ -73,10 +73,12 @@ const fr = {
     'Les fonds sont sécurisés. Vous les recevrez à la fin du séjour.',
 
   /* Email — demande de réservation */
-  mailBookingRequestTenantSubject: 'Votre demande de réservation — {listingTitle}',
+  mailBookingRequestTenantSubject:
+    'Votre demande de réservation — {listingTitle}',
   mailBookingRequestTenantBody:
     'Votre demande pour <strong>{listingTitle}</strong> à <strong>{city}</strong> a été reçue.',
-  mailBookingRequestLandlordSubject: 'Nouvelle demande de réservation — {listingTitle}',
+  mailBookingRequestLandlordSubject:
+    'Nouvelle demande de réservation — {listingTitle}',
   mailBookingRequestLandlordBody:
     '<strong>{tenantName}</strong> a fait une demande pour <strong>{listingTitle}</strong>.',
   mailBookingRequestLandlordAction:
@@ -93,6 +95,21 @@ const fr = {
   mailBookingCancelledBody:
     'Votre réservation pour <strong>{listingTitle}</strong> a été <strong>annulée</strong>.',
   mailContactLabel: 'Contact : {email}',
+
+  /* Email — location au mois (système hybride) */
+  mailMonthlyRequestSubject:
+    'Nouvelle demande de location au mois — {listingTitle}',
+  mailMonthlyRequestBody:
+    '<strong>{tenantName}</strong> a envoyé une demande de location au mois pour <strong>{listingTitle}</strong>.',
+  mailMonthlyApprovedSubject: 'Demande approuvée — {listingTitle}',
+  mailMonthlyApprovedBody:
+    'Votre demande de location au mois pour <strong>{listingTitle}</strong> a été <strong>approuvée</strong>. Réglez le montant ci-dessous pour confirmer votre bail.',
+  mailMonthlyRejectedSubject: 'Demande refusée — {listingTitle}',
+  mailMonthlyRejectedBody:
+    'Votre demande de location au mois pour <strong>{listingTitle}</strong> a été refusée par le bailleur.',
+  mailLeaseTerminatedSubject: 'Bail résilié — {listingTitle}',
+  mailLeaseTerminatedBody:
+    'Le bail mensuel pour <strong>{listingTitle}</strong> a été résilié.',
 
   /* SMS */
   smsCredentials:
@@ -131,20 +148,30 @@ const fr = {
   pushDisputeResolvedReleaseTenantTitle: 'Litige tranché',
   pushDisputeResolvedRefundTenantTitle: 'Litige tranché — remboursement',
   pushDisputeResolvedReleaseLandlordTitle: 'Litige tranché en votre faveur',
-  pushDisputeResolvedRefundLandlordTitle: 'Litige tranché — remboursement du locataire',
+  pushDisputeResolvedRefundLandlordTitle:
+    'Litige tranché — remboursement du locataire',
+  pushMonthlyRequestTitle: 'Nouvelle demande de location au mois',
+  pushMonthlyApprovedTitle: 'Demande approuvée !',
+  pushMonthlyRejectedTitle: 'Demande refusée',
+  pushLeaseTerminatedTitle: 'Bail résilié',
 
   /* Notifications in-app — corps */
-  pushPaymentConfirmedBody: 'Votre réservation pour « {listingTitle} » est confirmée.',
+  pushPaymentConfirmedBody:
+    'Votre réservation pour « {listingTitle} » est confirmée.',
   pushPaymentReceivedBody: '{tenantName} a payé pour « {listingTitle} ».',
   pushNewBookingBody: '{tenantName} a demandé « {listingTitle} ».',
-  pushBookingConfirmedBody: 'Votre réservation pour « {listingTitle} » est confirmée.',
-  pushBookingCancelledBody: 'Votre réservation pour « {listingTitle} » a été annulée.',
+  pushBookingConfirmedBody:
+    'Votre réservation pour « {listingTitle} » est confirmée.',
+  pushBookingCancelledBody:
+    'Votre réservation pour « {listingTitle} » a été annulée.',
   pushBookingCancelledByTenantBody:
     '{tenantName} a annulé sa réservation pour « {listingTitle} ».',
-  pushReviewReceivedBody: '{tenantName} a laissé {stars} sur « {listingTitle} ».',
+  pushReviewReceivedBody:
+    '{tenantName} a laissé {stars} sur « {listingTitle} ».',
   pushVerifAssignedBody:
     'Vous avez été assigné à la vérification de « {listingTitle} ».',
-  pushVerifScheduledBody: '{agentName} a été assigné pour vérifier « {listingTitle} ».',
+  pushVerifScheduledBody:
+    '{agentName} a été assigné pour vérifier « {listingTitle} ».',
   pushVerifInProgressBody: 'La vérification de « {listingTitle} » a démarré.',
   pushVerifDoneBody:
     'La visite de « {listingTitle} » est terminée. En attente de validation admin.',
@@ -170,6 +197,12 @@ const fr = {
     'Le litige concernant « {listingTitle} » a été tranché en votre faveur. Les fonds vous ont été libérés.',
   pushDisputeResolvedRefundLandlordBody:
     'Le litige concernant « {listingTitle} » a été tranché en faveur du locataire, qui a été remboursé.',
+  pushMonthlyRequestBody: '{tenantName} a demandé « {listingTitle} » au mois.',
+  pushMonthlyApprovedBody:
+    'Votre demande pour « {listingTitle} » est approuvée — réglez le montant pour confirmer.',
+  pushMonthlyRejectedBody:
+    'Votre demande pour « {listingTitle} » a été refusée.',
+  pushLeaseTerminatedBody: 'Le bail pour « {listingTitle} » a été résilié.',
 
   /* Motifs de signalement (utilisés dans les notifications admin) */
   reasonFRAUD: 'Arnaque / fraude',
@@ -201,7 +234,8 @@ const en: Record<MessageKey, string> = {
   mailCredentialsEmailLabel: 'Email:',
   mailCredentialsPasswordLabel: 'Password:',
   mailCredentialsAdvice: 'Sign in and change your password on first login.',
-  mailCredentialsIgnore: 'If this does not concern you, please ignore this email.',
+  mailCredentialsIgnore:
+    'If this does not concern you, please ignore this email.',
 
   /* Email — account suspension / reactivation */
   mailSuspendedSubject: 'Your AlloAppart account has been suspended',
@@ -250,6 +284,20 @@ const en: Record<MessageKey, string> = {
     'Your booking for <strong>{listingTitle}</strong> has been <strong>cancelled</strong>.',
   mailContactLabel: 'Contact: {email}',
 
+  /* Email — monthly rental (hybrid system) */
+  mailMonthlyRequestSubject: 'New monthly rental request — {listingTitle}',
+  mailMonthlyRequestBody:
+    '<strong>{tenantName}</strong> sent a monthly rental request for <strong>{listingTitle}</strong>.',
+  mailMonthlyApprovedSubject: 'Request approved — {listingTitle}',
+  mailMonthlyApprovedBody:
+    'Your monthly rental request for <strong>{listingTitle}</strong> has been <strong>approved</strong>. Pay the amount below to confirm your lease.',
+  mailMonthlyRejectedSubject: 'Request declined — {listingTitle}',
+  mailMonthlyRejectedBody:
+    'Your monthly rental request for <strong>{listingTitle}</strong> was declined by the landlord.',
+  mailLeaseTerminatedSubject: 'Lease ended — {listingTitle}',
+  mailLeaseTerminatedBody:
+    'The monthly lease for <strong>{listingTitle}</strong> has ended.',
+
   /* SMS */
   smsCredentials:
     'AlloAppart — Hello {firstName}!\nYour {roleLabel} account has been created.\nEmail: {email}\nPassword: {password}\nSign in: {url}/sign-in',
@@ -288,18 +336,24 @@ const en: Record<MessageKey, string> = {
   pushDisputeResolvedRefundTenantTitle: 'Dispute resolved — refund',
   pushDisputeResolvedReleaseLandlordTitle: 'Dispute resolved in your favour',
   pushDisputeResolvedRefundLandlordTitle: 'Dispute resolved — tenant refunded',
+  pushMonthlyRequestTitle: 'New monthly rental request',
+  pushMonthlyApprovedTitle: 'Request approved!',
+  pushMonthlyRejectedTitle: 'Request declined',
+  pushLeaseTerminatedTitle: 'Lease ended',
 
   /* In-app notifications — bodies */
   pushPaymentConfirmedBody: 'Your booking for “{listingTitle}” is confirmed.',
   pushPaymentReceivedBody: '{tenantName} has paid for “{listingTitle}”.',
   pushNewBookingBody: '{tenantName} requested “{listingTitle}”.',
   pushBookingConfirmedBody: 'Your booking for “{listingTitle}” is confirmed.',
-  pushBookingCancelledBody: 'Your booking for “{listingTitle}” has been cancelled.',
+  pushBookingCancelledBody:
+    'Your booking for “{listingTitle}” has been cancelled.',
   pushBookingCancelledByTenantBody:
     '{tenantName} cancelled their booking for “{listingTitle}”.',
   pushReviewReceivedBody: '{tenantName} left {stars} on “{listingTitle}”.',
   pushVerifAssignedBody: 'You have been assigned to verify “{listingTitle}”.',
-  pushVerifScheduledBody: '{agentName} has been assigned to verify “{listingTitle}”.',
+  pushVerifScheduledBody:
+    '{agentName} has been assigned to verify “{listingTitle}”.',
   pushVerifInProgressBody: 'The verification of “{listingTitle}” has started.',
   pushVerifDoneBody:
     'The visit for “{listingTitle}” is complete. Awaiting admin approval.',
@@ -325,6 +379,12 @@ const en: Record<MessageKey, string> = {
     'The dispute regarding “{listingTitle}” was resolved in your favour. The funds have been released to you.',
   pushDisputeResolvedRefundLandlordBody:
     'The dispute regarding “{listingTitle}” was resolved in favour of the tenant, who has been refunded.',
+  pushMonthlyRequestBody:
+    '{tenantName} requested “{listingTitle}” for monthly rental.',
+  pushMonthlyApprovedBody:
+    'Your request for “{listingTitle}” is approved — pay to confirm.',
+  pushMonthlyRejectedBody: 'Your request for “{listingTitle}” was declined.',
+  pushLeaseTerminatedBody: 'The lease for “{listingTitle}” has ended.',
 
   /* Report reasons (used in admin notifications) */
   reasonFRAUD: 'Scam / fraud',

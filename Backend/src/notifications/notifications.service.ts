@@ -74,7 +74,10 @@ export class NotificationsService {
    * n'a besoin de connaître la langue, et on évite d'oublier de la propager.
    * Coût : une requête légère par destinataire, négligeable pour ce volume.
    */
-  private async localeOf(opts: { userId?: string; email?: string }): Promise<Locale> {
+  private async localeOf(opts: {
+    userId?: string;
+    email?: string;
+  }): Promise<Locale> {
     try {
       const where = opts.userId
         ? { id: opts.userId }
@@ -116,12 +119,15 @@ export class NotificationsService {
   /* ── Emails transactionnels ─────────────────────────────────────────────── */
 
   async notifyPaymentConfirmed(
-    data: BookingNotificationData & { platformFee: number; landlordAmount: number },
+    data: BookingNotificationData & {
+      platformFee: number;
+      landlordAmount: number;
+    },
   ): Promise<void> {
-    const title    = escapeHtml(data.listingTitle);
-    const tenant   = escapeHtml(data.tenantName);
+    const title = escapeHtml(data.listingTitle);
+    const tenant = escapeHtml(data.tenantName);
     const landlord = escapeHtml(data.landlordName);
-    const ref      = escapeHtml(data.bookingId);
+    const ref = escapeHtml(data.bookingId);
 
     const [tenantLoc, landlordLoc] = await Promise.all([
       this.localeOf({ userId: data.tenantId, email: data.tenantEmail }),
@@ -131,47 +137,60 @@ export class NotificationsService {
     /* Locataire */
     await this.send(
       data.tenantEmail,
-      t(tenantLoc, 'mailPaymentTenantSubject', { listingTitle: data.listingTitle }),
+      t(tenantLoc, 'mailPaymentTenantSubject', {
+        listingTitle: data.listingTitle,
+      }),
       `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
-      `<p>${t(tenantLoc, 'mailPaymentTenantAmount', { total: formatNumber(tenantLoc, data.totalAmount) })}</p>` +
-      `<p>${t(tenantLoc, 'mailPaymentTenantConfirmed', { listingTitle: title })}</p>` +
-      `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
-      this.signature(tenantLoc),
+        `<p>${t(tenantLoc, 'mailPaymentTenantAmount', { total: formatNumber(tenantLoc, data.totalAmount) })}</p>` +
+        `<p>${t(tenantLoc, 'mailPaymentTenantConfirmed', { listingTitle: title })}</p>` +
+        `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
+        this.signature(tenantLoc),
     );
 
     /* Bailleur */
     await this.send(
       data.landlordEmail,
-      t(landlordLoc, 'mailPaymentLandlordSubject', { listingTitle: data.listingTitle }),
+      t(landlordLoc, 'mailPaymentLandlordSubject', {
+        listingTitle: data.listingTitle,
+      }),
       `<h2>${t(landlordLoc, 'commonHello', { firstName: landlord })},</h2>` +
-      `<p>${t(landlordLoc, 'mailPaymentLandlordBody', { tenantName: tenant, listingTitle: title })}</p>` +
-      `<p>${t(landlordLoc, 'mailPaymentTotalLabel', { total: formatNumber(landlordLoc, data.totalAmount) })}</p>` +
-      `<p>${t(landlordLoc, 'mailPaymentFeeLabel', { fee: formatNumber(landlordLoc, data.platformFee) })}</p>` +
-      `<p>${t(landlordLoc, 'mailPaymentNetLabel', { net: formatNumber(landlordLoc, data.landlordAmount) })}</p>` +
-      `<p>${t(landlordLoc, 'mailPaymentEscrowNote')}</p>` +
-      this.signature(landlordLoc),
+        `<p>${t(landlordLoc, 'mailPaymentLandlordBody', { tenantName: tenant, listingTitle: title })}</p>` +
+        `<p>${t(landlordLoc, 'mailPaymentTotalLabel', { total: formatNumber(landlordLoc, data.totalAmount) })}</p>` +
+        `<p>${t(landlordLoc, 'mailPaymentFeeLabel', { fee: formatNumber(landlordLoc, data.platformFee) })}</p>` +
+        `<p>${t(landlordLoc, 'mailPaymentNetLabel', { net: formatNumber(landlordLoc, data.landlordAmount) })}</p>` +
+        `<p>${t(landlordLoc, 'mailPaymentEscrowNote')}</p>` +
+        this.signature(landlordLoc),
     );
 
     if (data.tenantId) {
-      void this.pushInApp(data.tenantId, 'PAYMENT_CONFIRMED',
-        'pushPaymentConfirmedTitle', 'pushPaymentConfirmedBody',
-        { listingTitle: data.listingTitle }, { bookingId: data.bookingId });
+      void this.pushInApp(
+        data.tenantId,
+        'PAYMENT_CONFIRMED',
+        'pushPaymentConfirmedTitle',
+        'pushPaymentConfirmedBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId },
+      );
     }
 
     if (data.landlordId) {
-      void this.pushInApp(data.landlordId, 'PAYMENT_RECEIVED',
-        'pushPaymentReceivedTitle', 'pushPaymentReceivedBody',
+      void this.pushInApp(
+        data.landlordId,
+        'PAYMENT_RECEIVED',
+        'pushPaymentReceivedTitle',
+        'pushPaymentReceivedBody',
         { tenantName: data.tenantName, listingTitle: data.listingTitle },
-        { bookingId: data.bookingId });
+        { bookingId: data.bookingId },
+      );
     }
   }
 
   async notifyBookingCreated(data: BookingNotificationData): Promise<void> {
-    const title    = escapeHtml(data.listingTitle);
-    const city     = escapeHtml(data.listingCity);
-    const tenant   = escapeHtml(data.tenantName);
+    const title = escapeHtml(data.listingTitle);
+    const city = escapeHtml(data.listingCity);
+    const tenant = escapeHtml(data.tenantName);
     const landlord = escapeHtml(data.landlordName);
-    const ref      = escapeHtml(data.bookingId);
+    const ref = escapeHtml(data.bookingId);
 
     const [tenantLoc, landlordLoc] = await Promise.all([
       this.localeOf({ userId: data.tenantId, email: data.tenantEmail }),
@@ -180,22 +199,26 @@ export class NotificationsService {
 
     await this.send(
       data.tenantEmail,
-      t(tenantLoc, 'mailBookingRequestTenantSubject', { listingTitle: data.listingTitle }),
+      t(tenantLoc, 'mailBookingRequestTenantSubject', {
+        listingTitle: data.listingTitle,
+      }),
       `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
-      `<p>${t(tenantLoc, 'mailBookingRequestTenantBody', { listingTitle: title, city })}</p>` +
-      `<p>${t(tenantLoc, 'mailAmountLabel', { amount: formatNumber(tenantLoc, data.totalAmount) })}</p>` +
-      `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
-      this.signature(tenantLoc),
+        `<p>${t(tenantLoc, 'mailBookingRequestTenantBody', { listingTitle: title, city })}</p>` +
+        `<p>${t(tenantLoc, 'mailAmountLabel', { amount: formatNumber(tenantLoc, data.totalAmount) })}</p>` +
+        `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
+        this.signature(tenantLoc),
     );
 
     await this.send(
       data.landlordEmail,
-      t(landlordLoc, 'mailBookingRequestLandlordSubject', { listingTitle: data.listingTitle }),
+      t(landlordLoc, 'mailBookingRequestLandlordSubject', {
+        listingTitle: data.listingTitle,
+      }),
       `<h2>${t(landlordLoc, 'commonHello', { firstName: landlord })},</h2>` +
-      `<p>${t(landlordLoc, 'mailBookingRequestLandlordBody', { tenantName: tenant, listingTitle: title })}</p>` +
-      `<p>${t(landlordLoc, 'mailAmountLabel', { amount: formatNumber(landlordLoc, data.totalAmount) })}</p>` +
-      `<p>${t(landlordLoc, 'mailBookingRequestLandlordAction')}</p>` +
-      this.signature(landlordLoc),
+        `<p>${t(landlordLoc, 'mailBookingRequestLandlordBody', { tenantName: tenant, listingTitle: title })}</p>` +
+        `<p>${t(landlordLoc, 'mailAmountLabel', { amount: formatNumber(landlordLoc, data.totalAmount) })}</p>` +
+        `<p>${t(landlordLoc, 'mailBookingRequestLandlordAction')}</p>` +
+        this.signature(landlordLoc),
     );
 
     /* Push OneSignal : un seul texte pour le lot, dans la langue du bailleur
@@ -214,18 +237,22 @@ export class NotificationsService {
     }
 
     if (data.landlordId) {
-      void this.pushInApp(data.landlordId, 'NEW_BOOKING',
-        'pushNewBookingTitle', 'pushNewBookingBody',
+      void this.pushInApp(
+        data.landlordId,
+        'NEW_BOOKING',
+        'pushNewBookingTitle',
+        'pushNewBookingBody',
         { tenantName: data.tenantName, listingTitle: data.listingTitle },
-        { bookingId: data.bookingId, listingTitle: data.listingTitle });
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
     }
   }
 
   async notifyBookingConfirmed(data: BookingNotificationData): Promise<void> {
-    const title  = escapeHtml(data.listingTitle);
-    const city   = escapeHtml(data.listingCity);
+    const title = escapeHtml(data.listingTitle);
+    const city = escapeHtml(data.listingCity);
     const tenant = escapeHtml(data.tenantName);
-    const ref    = escapeHtml(data.bookingId);
+    const ref = escapeHtml(data.bookingId);
 
     const tenantLoc = await this.localeOf({
       userId: data.tenantId,
@@ -234,32 +261,40 @@ export class NotificationsService {
 
     await this.send(
       data.tenantEmail,
-      t(tenantLoc, 'mailBookingConfirmedSubject', { listingTitle: data.listingTitle }),
+      t(tenantLoc, 'mailBookingConfirmedSubject', {
+        listingTitle: data.listingTitle,
+      }),
       `<h2>${t(tenantLoc, 'mailBookingConfirmedTitle', { firstName: tenant })}</h2>` +
-      `<p>${t(tenantLoc, 'mailBookingConfirmedBody', { listingTitle: title, city })}</p>` +
-      `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
-      this.signature(tenantLoc),
+        `<p>${t(tenantLoc, 'mailBookingConfirmedBody', { listingTitle: title, city })}</p>` +
+        `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
+        this.signature(tenantLoc),
     );
 
     if (data.tenantId) {
       void this.onesignal.sendToExternalIds(
         [data.tenantId],
         t(tenantLoc, 'pushBookingConfirmedTitle'),
-        t(tenantLoc, 'pushBookingConfirmedBody', { listingTitle: data.listingTitle }),
+        t(tenantLoc, 'pushBookingConfirmedBody', {
+          listingTitle: data.listingTitle,
+        }),
         { bookingId: data.bookingId },
       );
 
-      void this.pushInApp(data.tenantId, 'BOOKING_CONFIRMED',
-        'pushBookingConfirmedTitle', 'pushBookingConfirmedBody',
+      void this.pushInApp(
+        data.tenantId,
+        'BOOKING_CONFIRMED',
+        'pushBookingConfirmedTitle',
+        'pushBookingConfirmedBody',
         { listingTitle: data.listingTitle },
-        { bookingId: data.bookingId, listingTitle: data.listingTitle });
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
     }
   }
 
   async notifyBookingCancelled(data: BookingNotificationData): Promise<void> {
-    const title  = escapeHtml(data.listingTitle);
+    const title = escapeHtml(data.listingTitle);
     const tenant = escapeHtml(data.tenantName);
-    const ref    = escapeHtml(data.bookingId);
+    const ref = escapeHtml(data.bookingId);
 
     const tenantLoc = await this.localeOf({
       userId: data.tenantId,
@@ -268,34 +303,227 @@ export class NotificationsService {
 
     await this.send(
       data.tenantEmail,
-      t(tenantLoc, 'mailBookingCancelledSubject', { listingTitle: data.listingTitle }),
+      t(tenantLoc, 'mailBookingCancelledSubject', {
+        listingTitle: data.listingTitle,
+      }),
       `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
-      `<p>${t(tenantLoc, 'mailBookingCancelledBody', { listingTitle: title })}</p>` +
-      `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
-      `<p>${t(tenantLoc, 'mailContactLabel', { email: SUPPORT_EMAIL })}</p>` +
-      this.signature(tenantLoc),
+        `<p>${t(tenantLoc, 'mailBookingCancelledBody', { listingTitle: title })}</p>` +
+        `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
+        `<p>${t(tenantLoc, 'mailContactLabel', { email: SUPPORT_EMAIL })}</p>` +
+        this.signature(tenantLoc),
     );
 
     if (data.tenantId) {
       void this.onesignal.sendToExternalIds(
         [data.tenantId],
         t(tenantLoc, 'pushBookingCancelledTitle'),
-        t(tenantLoc, 'pushBookingCancelledBody', { listingTitle: data.listingTitle }),
+        t(tenantLoc, 'pushBookingCancelledBody', {
+          listingTitle: data.listingTitle,
+        }),
         { bookingId: data.bookingId },
       );
 
-      void this.pushInApp(data.tenantId, 'BOOKING_CANCELLED',
-        'pushBookingCancelledTitle', 'pushBookingCancelledBody',
+      void this.pushInApp(
+        data.tenantId,
+        'BOOKING_CANCELLED',
+        'pushBookingCancelledTitle',
+        'pushBookingCancelledBody',
         { listingTitle: data.listingTitle },
-        { bookingId: data.bookingId, listingTitle: data.listingTitle });
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
     }
 
     /* Bailleur notifié si c'est le locataire qui annule */
     if (data.landlordId && data.tenantId) {
-      void this.pushInApp(data.landlordId, 'BOOKING_CANCELLED',
-        'pushBookingCancelledByTenantTitle', 'pushBookingCancelledByTenantBody',
+      void this.pushInApp(
+        data.landlordId,
+        'BOOKING_CANCELLED',
+        'pushBookingCancelledByTenantTitle',
+        'pushBookingCancelledByTenantBody',
         { tenantName: data.tenantName, listingTitle: data.listingTitle },
-        { bookingId: data.bookingId, listingTitle: data.listingTitle });
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+  }
+
+  /* ── Location mensuelle (système hybride) ──────────────────────────────── */
+
+  // Bailleur/agence : nouvelle demande de location au mois
+  async notifyMonthlyRequestCreated(
+    data: BookingNotificationData,
+  ): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const tenant = escapeHtml(data.tenantName);
+    const landlord = escapeHtml(data.landlordName);
+    const ref = escapeHtml(data.bookingId);
+
+    const landlordLoc = await this.localeOf({
+      userId: data.landlordId,
+      email: data.landlordEmail,
+    });
+
+    await this.send(
+      data.landlordEmail,
+      t(landlordLoc, 'mailMonthlyRequestSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(landlordLoc, 'commonHello', { firstName: landlord })},</h2>` +
+        `<p>${t(landlordLoc, 'mailMonthlyRequestBody', { tenantName: tenant, listingTitle: title })}</p>` +
+        `<p>${t(landlordLoc, 'mailRefLabel', { ref })}</p>` +
+        this.signature(landlordLoc),
+    );
+
+    if (data.landlordId) {
+      void this.onesignal.sendToExternalIds(
+        [data.landlordId],
+        t(landlordLoc, 'pushMonthlyRequestTitle'),
+        t(landlordLoc, 'pushMonthlyRequestBody', {
+          tenantName: data.tenantName,
+          listingTitle: data.listingTitle,
+        }),
+        { bookingId: data.bookingId },
+      );
+      void this.pushInApp(
+        data.landlordId,
+        'MONTHLY_REQUEST_CREATED',
+        'pushMonthlyRequestTitle',
+        'pushMonthlyRequestBody',
+        { tenantName: data.tenantName, listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+  }
+
+  // Locataire : le bailleur/agence a approuvé la demande — à payer
+  async notifyMonthlyRequestApproved(
+    data: BookingNotificationData,
+  ): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const tenant = escapeHtml(data.tenantName);
+    const ref = escapeHtml(data.bookingId);
+
+    const tenantLoc = await this.localeOf({
+      userId: data.tenantId,
+      email: data.tenantEmail,
+    });
+
+    await this.send(
+      data.tenantEmail,
+      t(tenantLoc, 'mailMonthlyApprovedSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
+        `<p>${t(tenantLoc, 'mailMonthlyApprovedBody', { listingTitle: title })}</p>` +
+        `<p>${t(tenantLoc, 'mailAmountLabel', { amount: formatNumber(tenantLoc, data.totalAmount) })}</p>` +
+        `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
+        this.signature(tenantLoc),
+    );
+
+    if (data.tenantId) {
+      void this.onesignal.sendToExternalIds(
+        [data.tenantId],
+        t(tenantLoc, 'pushMonthlyApprovedTitle'),
+        t(tenantLoc, 'pushMonthlyApprovedBody', {
+          listingTitle: data.listingTitle,
+        }),
+        { bookingId: data.bookingId },
+      );
+      void this.pushInApp(
+        data.tenantId,
+        'MONTHLY_REQUEST_APPROVED',
+        'pushMonthlyApprovedTitle',
+        'pushMonthlyApprovedBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+  }
+
+  // Locataire : le bailleur/agence a refusé la demande
+  async notifyMonthlyRequestRejected(
+    data: BookingNotificationData,
+  ): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const tenant = escapeHtml(data.tenantName);
+
+    const tenantLoc = await this.localeOf({
+      userId: data.tenantId,
+      email: data.tenantEmail,
+    });
+
+    await this.send(
+      data.tenantEmail,
+      t(tenantLoc, 'mailMonthlyRejectedSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
+        `<p>${t(tenantLoc, 'mailMonthlyRejectedBody', { listingTitle: title })}</p>` +
+        this.signature(tenantLoc),
+    );
+
+    if (data.tenantId) {
+      void this.pushInApp(
+        data.tenantId,
+        'MONTHLY_REQUEST_REJECTED',
+        'pushMonthlyRejectedTitle',
+        'pushMonthlyRejectedBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+  }
+
+  // Les deux parties : le bail mensuel vient d'être résilié
+  async notifyLeaseTerminated(
+    data: BookingNotificationData & { terminatedByTenant: boolean },
+  ): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const tenant = escapeHtml(data.tenantName);
+    const landlord = escapeHtml(data.landlordName);
+
+    const [tenantLoc, landlordLoc] = await Promise.all([
+      this.localeOf({ userId: data.tenantId, email: data.tenantEmail }),
+      this.localeOf({ userId: data.landlordId, email: data.landlordEmail }),
+    ]);
+
+    await this.send(
+      data.tenantEmail,
+      t(tenantLoc, 'mailLeaseTerminatedSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
+        `<p>${t(tenantLoc, 'mailLeaseTerminatedBody', { listingTitle: title })}</p>` +
+        this.signature(tenantLoc),
+    );
+    await this.send(
+      data.landlordEmail,
+      t(landlordLoc, 'mailLeaseTerminatedSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(landlordLoc, 'commonHello', { firstName: landlord })},</h2>` +
+        `<p>${t(landlordLoc, 'mailLeaseTerminatedBody', { listingTitle: title })}</p>` +
+        this.signature(landlordLoc),
+    );
+
+    if (data.tenantId) {
+      void this.pushInApp(
+        data.tenantId,
+        'LEASE_TERMINATED',
+        'pushLeaseTerminatedTitle',
+        'pushLeaseTerminatedBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+    if (data.landlordId) {
+      void this.pushInApp(
+        data.landlordId,
+        'LEASE_TERMINATED',
+        'pushLeaseTerminatedTitle',
+        'pushLeaseTerminatedBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
     }
   }
 
@@ -308,10 +536,14 @@ export class NotificationsService {
     listingId: string,
   ) {
     const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
-    await this.pushInApp(landlordId, 'REVIEW_RECEIVED',
-      'pushReviewReceivedTitle', 'pushReviewReceivedBody',
+    await this.pushInApp(
+      landlordId,
+      'REVIEW_RECEIVED',
+      'pushReviewReceivedTitle',
+      'pushReviewReceivedBody',
       { tenantName, stars, listingTitle },
-      { listingId, listingTitle, rating });
+      { listingId, listingTitle, rating },
+    );
   }
 
   notifyNewMessage(
@@ -366,9 +598,14 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(agentId, 'VERIF_ASSIGNED',
-      'pushVerifAssignedTitle', 'pushVerifAssignedBody',
-      { listingTitle }, { verificationId, listingTitle, listingId });
+    await this.pushInApp(
+      agentId,
+      'VERIF_ASSIGNED',
+      'pushVerifAssignedTitle',
+      'pushVerifAssignedBody',
+      { listingTitle },
+      { verificationId, listingTitle, listingId },
+    );
   }
 
   // Bailleur : agent assigné (SCHEDULED)
@@ -379,9 +616,14 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(bailleurId, 'VERIF_SCHEDULED',
-      'pushVerifScheduledTitle', 'pushVerifScheduledBody',
-      { agentName, listingTitle }, { verificationId, listingTitle, listingId });
+    await this.pushInApp(
+      bailleurId,
+      'VERIF_SCHEDULED',
+      'pushVerifScheduledTitle',
+      'pushVerifScheduledBody',
+      { agentName, listingTitle },
+      { verificationId, listingTitle, listingId },
+    );
   }
 
   // Bailleur : visite en cours (IN_PROGRESS)
@@ -391,9 +633,14 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(bailleurId, 'VERIF_IN_PROGRESS',
-      'pushVerifInProgressTitle', 'pushVerifInProgressBody',
-      { listingTitle }, { verificationId, listingTitle, listingId });
+    await this.pushInApp(
+      bailleurId,
+      'VERIF_IN_PROGRESS',
+      'pushVerifInProgressTitle',
+      'pushVerifInProgressBody',
+      { listingTitle },
+      { verificationId, listingTitle, listingId },
+    );
   }
 
   // Bailleur : mission terminée (DONE)
@@ -403,9 +650,14 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(bailleurId, 'VERIF_DONE',
-      'pushVerifDoneTitle', 'pushVerifDoneBody',
-      { listingTitle }, { verificationId, listingTitle, listingId });
+    await this.pushInApp(
+      bailleurId,
+      'VERIF_DONE',
+      'pushVerifDoneTitle',
+      'pushVerifDoneBody',
+      { listingTitle },
+      { verificationId, listingTitle, listingId },
+    );
   }
 
   // Agent : mission déclinée par lui-même (remise en REQUESTED)
@@ -415,9 +667,14 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(bailleurId, 'VERIF_DECLINED',
-      'pushVerifDeclinedTitle', 'pushVerifDeclinedBody',
-      { listingTitle }, { verificationId, listingTitle, listingId });
+    await this.pushInApp(
+      bailleurId,
+      'VERIF_DECLINED',
+      'pushVerifDeclinedTitle',
+      'pushVerifDeclinedBody',
+      { listingTitle },
+      { verificationId, listingTitle, listingId },
+    );
   }
 
   // Admin : nouveau signalement d'annonce
@@ -434,29 +691,34 @@ export class NotificationsService {
     });
     const urgent = reportCount >= 3;
 
-    await Promise.all(admins.map((admin) => {
-      const loc = toLocale(admin.locale);
-      return this.prisma.notification
-        .create({
-          data: {
-            userId: admin.id,
-            type: 'LISTING_REPORTED',
-            title: t(loc, urgent
-              ? 'pushListingReportedUrgentTitle'
-              : 'pushListingReportedTitle'),
-            body: t(loc, 'pushListingReportedBody', {
-              listingTitle,
-              reporterName,
-              reason: reasonLabel(loc, reason),
-              count: reportCount,
-            }),
-            metadata: { listingId, listingTitle, reportCount },
-          },
-        })
-        .then((notif) => {
-          void this.pusher.trigger(`user-${admin.id}`, 'notification', notif);
-        });
-    }));
+    await Promise.all(
+      admins.map((admin) => {
+        const loc = toLocale(admin.locale);
+        return this.prisma.notification
+          .create({
+            data: {
+              userId: admin.id,
+              type: 'LISTING_REPORTED',
+              title: t(
+                loc,
+                urgent
+                  ? 'pushListingReportedUrgentTitle'
+                  : 'pushListingReportedTitle',
+              ),
+              body: t(loc, 'pushListingReportedBody', {
+                listingTitle,
+                reporterName,
+                reason: reasonLabel(loc, reason),
+                count: reportCount,
+              }),
+              metadata: { listingId, listingTitle, reportCount },
+            },
+          })
+          .then((notif) => {
+            void this.pusher.trigger(`user-${admin.id}`, 'notification', notif);
+          });
+      }),
+    );
   }
 
   // Admin : l'agent demande à décliner une mission (en attente approbation)
@@ -469,11 +731,18 @@ export class NotificationsService {
       where: { roles: { has: Role.ADMIN } },
       select: { id: true },
     });
-    await Promise.all(admins.map((admin) =>
-      this.pushInApp(admin.id, 'VERIF_DECLINE_REQUEST',
-        'pushDeclineRequestTitle', 'pushDeclineRequestBody',
-        { listingTitle }, { verificationId, listingTitle, listingId }),
-    ));
+    await Promise.all(
+      admins.map((admin) =>
+        this.pushInApp(
+          admin.id,
+          'VERIF_DECLINE_REQUEST',
+          'pushDeclineRequestTitle',
+          'pushDeclineRequestBody',
+          { listingTitle },
+          { verificationId, listingTitle, listingId },
+        ),
+      ),
+    );
   }
 
   // Signalement de non-conformité (Article 9 des CGU) — notifie le bailleur
@@ -489,13 +758,23 @@ export class NotificationsService {
       select: { id: true },
     });
     await Promise.all([
-      this.pushInApp(landlordId, 'BOOKING_DISPUTED',
-        'pushDisputeReportedLandlordTitle', 'pushDisputeReportedLandlordBody',
-        { listingTitle }, { bookingId, listingTitle, listingId }),
+      this.pushInApp(
+        landlordId,
+        'BOOKING_DISPUTED',
+        'pushDisputeReportedLandlordTitle',
+        'pushDisputeReportedLandlordBody',
+        { listingTitle },
+        { bookingId, listingTitle, listingId },
+      ),
       ...admins.map((admin) =>
-        this.pushInApp(admin.id, 'BOOKING_DISPUTED',
-          'pushDisputeReportedAdminTitle', 'pushDisputeReportedAdminBody',
-          { listingTitle }, { bookingId, listingTitle, listingId }),
+        this.pushInApp(
+          admin.id,
+          'BOOKING_DISPUTED',
+          'pushDisputeReportedAdminTitle',
+          'pushDisputeReportedAdminBody',
+          { listingTitle },
+          { bookingId, listingTitle, listingId },
+        ),
       ),
     ]);
   }
@@ -511,14 +790,30 @@ export class NotificationsService {
   ) {
     const released = decision === 'RELEASE';
     await Promise.all([
-      this.pushInApp(tenantId, 'DISPUTE_RESOLVED',
-        released ? 'pushDisputeResolvedReleaseTenantTitle' : 'pushDisputeResolvedRefundTenantTitle',
-        released ? 'pushDisputeResolvedReleaseTenantBody' : 'pushDisputeResolvedRefundTenantBody',
-        { listingTitle }, { bookingId, listingTitle, listingId }),
-      this.pushInApp(landlordId, 'DISPUTE_RESOLVED',
-        released ? 'pushDisputeResolvedReleaseLandlordTitle' : 'pushDisputeResolvedRefundLandlordTitle',
-        released ? 'pushDisputeResolvedReleaseLandlordBody' : 'pushDisputeResolvedRefundLandlordBody',
-        { listingTitle }, { bookingId, listingTitle, listingId }),
+      this.pushInApp(
+        tenantId,
+        'DISPUTE_RESOLVED',
+        released
+          ? 'pushDisputeResolvedReleaseTenantTitle'
+          : 'pushDisputeResolvedRefundTenantTitle',
+        released
+          ? 'pushDisputeResolvedReleaseTenantBody'
+          : 'pushDisputeResolvedRefundTenantBody',
+        { listingTitle },
+        { bookingId, listingTitle, listingId },
+      ),
+      this.pushInApp(
+        landlordId,
+        'DISPUTE_RESOLVED',
+        released
+          ? 'pushDisputeResolvedReleaseLandlordTitle'
+          : 'pushDisputeResolvedRefundLandlordTitle',
+        released
+          ? 'pushDisputeResolvedReleaseLandlordBody'
+          : 'pushDisputeResolvedRefundLandlordBody',
+        { listingTitle },
+        { bookingId, listingTitle, listingId },
+      ),
     ]);
   }
 
@@ -529,9 +824,14 @@ export class NotificationsService {
     verificationId: string,
     listingId: string,
   ) {
-    await this.pushInApp(bailleurId, 'VERIF_VALIDATED',
-      'pushVerifValidatedTitle', 'pushVerifValidatedBody',
-      { listingTitle }, { verificationId, listingTitle, listingId });
+    await this.pushInApp(
+      bailleurId,
+      'VERIF_VALIDATED',
+      'pushVerifValidatedTitle',
+      'pushVerifValidatedBody',
+      { listingTitle },
+      { verificationId, listingTitle, listingId },
+    );
   }
 
   /* ── In-app API (endpoints) ───────────────────────────────────────── */
@@ -573,8 +873,8 @@ export class NotificationsService {
     segment: BroadcastSegment,
   ): Promise<{ sent: boolean; recipients: number }> {
     const roleMap: Record<string, Role> = {
-      BAILLEURS:   Role.BAILLEUR,
-      LOCATAIRES:  Role.LOCATAIRE,
+      BAILLEURS: Role.BAILLEUR,
+      LOCATAIRES: Role.LOCATAIRE,
       PRO_AGENCES: Role.PRO_AGENCE,
     };
 
@@ -594,7 +894,9 @@ export class NotificationsService {
     }
 
     await this.onesignal.sendBroadcast(title, message, externalIds);
-    this.logger.log(`broadcastPush segment=${segment} recipients=${recipients}`);
+    this.logger.log(
+      `broadcastPush segment=${segment} recipients=${recipients}`,
+    );
     return { sent: true, recipients };
   }
 }

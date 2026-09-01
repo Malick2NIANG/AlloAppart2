@@ -15,6 +15,8 @@ export type EscrowStatus = 'AWAITING_PAYMENT' | 'HELD' | 'DISPUTED' | 'RELEASED'
 export type VerifStatus = 'REQUESTED' | 'SCHEDULED' | 'IN_PROGRESS' | 'DONE' | 'REJECTED' | 'DECLINE_PENDING';
 export type AuditType = 'BASIC' | 'FULL';
 
+export type DocumentType = 'ID_CARD' | 'PROOF_OF_INCOME' | 'GUARANTOR';
+
 export interface User {
   id: string;
   clerkId: string;
@@ -85,20 +87,32 @@ export function ownerFullName(owner?: Pick<User, 'firstName' | 'lastName'> | nul
   return `${owner.firstName} ${owner.lastName}`.trim();
 }
 
+export interface BookingDocument {
+  id: string;
+  bookingId: string;
+  type: DocumentType;
+  fileUrl: string;
+  createdAt: string;
+}
+
 export interface Booking {
   id: string;
   listingId: string;
   listing?: Listing;
   tenantId: string;
   tenant?: Pick<User, 'id' | 'firstName' | 'lastName'>;
-  startDate: string;
-  endDate?: string;
+  bookingType?: BookingType;      // NIGHTLY (défaut) ou MONTHLY
+  startDate: string;              // nuitée : date d'entrée · mensuel : date d'emménagement
+  endDate?: string;               // absent pour le mensuel (bail à durée ouverte)
+  depositAmount?: string | null;  // caution — mensuel uniquement
+  terminatedAt?: string | null;   // date de résiliation du bail — mensuel uniquement
   totalAmount: string;    // Decimal → string via JSON
   platformFee?: string;   // commission AlloAppart (10%)
   landlordAmount?: string; // montant net bailleur
   status: BookingStatus;
   escrowStatus: EscrowStatus;
   paymentRef?: string;
+  documents?: BookingDocument[];  // dossier locataire — mensuel uniquement
   disputeReason?: string | null;
   disputeEvidence?: string[];
   disputedAt?: string | null;

@@ -44,9 +44,11 @@ export default function BailleurBookingsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const pending  = bookings.filter((b) => b.status === 'PENDING');
-  const active   = bookings.filter((b) => b.status === 'CONFIRMED');
-  const archived = bookings.filter((b) => b.status === 'CANCELLED' || b.status === 'COMPLETED');
+  // Nuitée : PENDING/CONFIRMED/CANCELLED/COMPLETED — Mensuel : REQUESTED/APPROVED/ACTIVE/REJECTED/TERMINATED
+  const pending  = bookings.filter((b) => b.status === 'PENDING' || b.status === 'REQUESTED');
+  const active   = bookings.filter((b) => b.status === 'CONFIRMED' || b.status === 'APPROVED' || b.status === 'ACTIVE');
+  const archived = bookings.filter((b) =>
+    b.status === 'CANCELLED' || b.status === 'COMPLETED' || b.status === 'REJECTED' || b.status === 'TERMINATED');
 
   return (
     <div>

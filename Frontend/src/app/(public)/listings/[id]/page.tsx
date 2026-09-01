@@ -323,9 +323,12 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             <ListingBookingCard
               listingId={listing.id}
               listingStatus={listing.status}
+              rentalMode={listing.rentalMode}
               pricePerMonth={priceToNumber(listing.price)}
               pricePerNight={listing.pricePerNight != null ? priceToNumber(listing.pricePerNight) : null}
               minimumNights={listing.minimumNights ?? null}
+              depositMonths={listing.depositMonths ?? null}
+              minLeaseMonths={listing.minLeaseMonths ?? null}
               numLocale={numLocale}
             />
 

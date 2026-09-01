@@ -7,15 +7,20 @@ import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import PaydunyaPaymentModal from '@/components/ui/PaydunyaPaymentModal';
 import AvailabilityCalendar, { isBooked, type BookedRange } from '@/components/listings/AvailabilityCalendar';
+import MonthlyBookingRequestForm from './MonthlyBookingRequestForm';
+import type { RentalMode } from '@/types';
 
 const MONTHLY_THRESHOLD = 25; // jours — au-delà, tarif mensuel appliqué
 
 interface Props {
   listingId:     string;
   listingStatus?: string;
+  rentalMode?: RentalMode;
   pricePerMonth: number;
   pricePerNight?: number | null;
   minimumNights?: number | null;
+  depositMonths?: number | null;
+  minLeaseMonths?: number | null;
   numLocale:     string;
 }
 
@@ -94,9 +99,12 @@ function computePrice(
 export default function ListingBookingCard({
   listingId,
   listingStatus,
+  rentalMode,
   pricePerMonth,
   pricePerNight,
   minimumNights,
+  depositMonths,
+  minLeaseMonths,
   numLocale,
 }: Props) {
   const { isSignedIn, getToken } = useAuth();
@@ -261,6 +269,37 @@ export default function ListingBookingCard({
           <p className="text-sm text-sub">{t('bookingRentedDesc')}</p>
         </div>
       </div>
+    );
+  }
+
+  /* ── Location au mois (formulaire de demande, pas de calendrier) ─ */
+  if (rentalMode === 'MONTHLY') {
+    if (!isSignedIn) {
+      return (
+        <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
+          <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
+          <div className="flex items-center gap-2 mb-2 mt-4">
+            <i className="fa-solid fa-key text-gold-dark" />
+            <h3 className="font-semibold text-text">{t('monthlyRequestTitle')}</h3>
+          </div>
+          <p className="text-sm text-sub mb-4">{t('bookingSignInDesc')}</p>
+          <a
+            href={`/sign-in?redirect_url=${encodeURIComponent(pathname)}`}
+            className="btn-gold w-full py-2.5 rounded-full font-semibold text-center block text-sm"
+          >
+            {t('bookingSignIn')}
+          </a>
+        </div>
+      );
+    }
+    return (
+      <MonthlyBookingRequestForm
+        listingId={listingId}
+        pricePerMonth={pricePerMonth}
+        depositMonths={depositMonths}
+        minLeaseMonths={minLeaseMonths}
+        numLocale={numLocale}
+      />
     );
   }
 

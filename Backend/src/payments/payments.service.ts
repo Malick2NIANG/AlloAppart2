@@ -4,7 +4,9 @@ import { ConfigService } from '@nestjs/config';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   BookingStatus,
+  BookingType,
   EscrowStatus,
+  ListingStatus,
   Booking,
   Listing,
   User,
@@ -13,6 +15,10 @@ import axios from 'axios';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 
 type BookingWithDetails = Booking & { listing: Listing; tenant: User };
+type BookingWithOwnerDetails = Booking & {
+  listing: Listing & { owner: User };
+  tenant: User;
+};
 
 @Injectable()
 export class PaymentsService {
@@ -25,6 +31,42 @@ export class PaymentsService {
     private readonly softpay: PaydunyaSoftpayService,
   ) {}
 
+  /**
+   * Marque une réservation comme payée — bifurque selon le type :
+   *   - NIGHTLY : PENDING → CONFIRMED (comportement historique).
+   *   - MONTHLY : APPROVED → ACTIVE, et l'annonce bascule en RENTED (le
+   *     bail démarre, plus disponible pour la nuitée tant qu'il est actif).
+   * Centralisé ici pour que les 3 points d'entrée de paiement (bypass dev,
+   * webhook IPN, vérification active) restent cohérents.
+   */
+  private async markBookingPaid(
+    bookingId: string,
+    paymentRef?: string,
+  ): Promise<BookingWithOwnerDetails> {
+    const current = await this.prisma.booking.findUniqueOrThrow({
+      where: { id: bookingId },
+    });
+    const isMonthly = current.bookingType === BookingType.MONTHLY;
+
+    const updated = await this.prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: isMonthly ? BookingStatus.ACTIVE : BookingStatus.CONFIRMED,
+        escrowStatus: EscrowStatus.HELD,
+        ...(paymentRef ? { paymentRef } : {}),
+      },
+      include: { listing: { include: { owner: true } }, tenant: true },
+    });
+
+    if (isMonthly) {
+      await this.prisma.listing.update({
+        where: { id: updated.listingId },
+        data: { status: ListingStatus.RENTED },
+      });
+    }
+    return updated;
+  }
+
   async initiate(bookingId: string, tenantId: string) {
     const booking = await this.prisma.booking.findUniqueOrThrow({
       where: { id: bookingId },
@@ -35,13 +77,30 @@ export class PaymentsService {
       throw new BadRequestException('Not authorized');
     }
 
-    // ── Réutiliser l'URL PayDunya si un checkout a déjà été créé ────────────
+    // Une demande de location au mois doit d'abord être approuvée par le
+    // bailleur/agence avant que le locataire puisse payer le ticket d'entrée.
     if (
-      booking.status === BookingStatus.PENDING &&
+      booking.bookingType === BookingType.MONTHLY &&
+      booking.status !== BookingStatus.APPROVED
+    ) {
+      throw new BadRequestException(
+        booking.status === BookingStatus.ACTIVE
+          ? 'Ce bail est déjà actif.'
+          : "Cette demande de location doit d'abord être approuvée par le bailleur avant paiement.",
+      );
+    }
+
+    // ── Réutiliser l'URL PayDunya si un checkout a déjà été créé ────────────
+    const reusableStatus =
+      booking.bookingType === BookingType.MONTHLY
+        ? BookingStatus.APPROVED
+        : BookingStatus.PENDING;
+    if (
+      booking.status === reusableStatus &&
       booking.paymentRef?.startsWith('PD-')
     ) {
-      const token   = booking.paymentRef.replace('PD-', '');
-      const isDev   = this.config.get<string>('NODE_ENV') !== 'production';
+      const token = booking.paymentRef.replace('PD-', '');
+      const isDev = this.config.get<string>('NODE_ENV') !== 'production';
       const baseUrl = isDev
         ? 'https://paydunya.com/sandbox-checkout/invoice'
         : 'https://paydunya.com/checkout/invoice';
@@ -59,46 +118,45 @@ export class PaymentsService {
     booking: BookingWithDetails,
     bookingId: string,
   ) {
-    const isDev       = this.config.get<string>('NODE_ENV') !== 'production';
-    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+    const isDev = this.config.get<string>('NODE_ENV') !== 'production';
+    const frontendUrl =
+      this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
 
     // ── Mode bypass dev : simule le paiement sans appeler PayDunya ──────────
     if (isDev && this.config.get<string>('PAYDUNYA_DEV_BYPASS') === 'true') {
-      this.logger.warn(`[DEV BYPASS] Réservation ${bookingId} confirmée directement (${Number(booking.totalAmount)} FCFA)`);
-      await this.prisma.booking.update({
-        where: { id: bookingId },
-        data:  {
-          status:       BookingStatus.CONFIRMED,
-          escrowStatus: EscrowStatus.HELD,
-          paymentRef:   `DEV-BYPASS-${bookingId.slice(0, 8)}`,
-        },
-      });
-      const fullBooking = await this.prisma.booking.findUnique({
-        where: { id: bookingId },
-        include: { listing: { include: { owner: true } }, tenant: true },
-      });
+      this.logger.warn(
+        `[DEV BYPASS] Réservation ${bookingId} confirmée directement (${Number(booking.totalAmount)} FCFA)`,
+      );
+      const fullBooking = await this.markBookingPaid(
+        bookingId,
+        `DEV-BYPASS-${bookingId.slice(0, 8)}`,
+      );
       if (fullBooking) {
-        void this.notifications.notifyPaymentConfirmed({
-          tenantEmail:    fullBooking.tenant.email,
-          tenantName:     `${fullBooking.tenant.firstName} ${fullBooking.tenant.lastName}`,
-          tenantId:       fullBooking.tenantId,
-          landlordEmail:  fullBooking.listing.owner.email,
-          landlordName:   `${fullBooking.listing.owner.firstName} ${fullBooking.listing.owner.lastName}`,
-          landlordId:     fullBooking.listing.ownerId,
-          listingTitle:   fullBooking.listing.title,
-          listingCity:    fullBooking.listing.city,
-          bookingId:      fullBooking.id,
-          totalAmount:    Number(fullBooking.totalAmount),
-          platformFee:    Number(fullBooking.platformFee ?? 0),
-          landlordAmount: Number(fullBooking.landlordAmount ?? 0),
-        }).catch(() => {});
+        void this.notifications
+          .notifyPaymentConfirmed({
+            tenantEmail: fullBooking.tenant.email,
+            tenantName: `${fullBooking.tenant.firstName} ${fullBooking.tenant.lastName}`,
+            tenantId: fullBooking.tenantId,
+            landlordEmail: fullBooking.listing.owner.email,
+            landlordName: `${fullBooking.listing.owner.firstName} ${fullBooking.listing.owner.lastName}`,
+            landlordId: fullBooking.listing.ownerId,
+            listingTitle: fullBooking.listing.title,
+            listingCity: fullBooking.listing.city,
+            bookingId: fullBooking.id,
+            totalAmount: Number(fullBooking.totalAmount),
+            platformFee: Number(fullBooking.platformFee ?? 0),
+            landlordAmount: Number(fullBooking.landlordAmount ?? 0),
+          })
+          .catch(() => {});
       }
-      return { payment_url: `${frontendUrl}/paiement/confirmation?booking_id=${bookingId}` };
+      return {
+        payment_url: `${frontendUrl}/paiement/confirmation?booking_id=${bookingId}`,
+      };
     }
 
-    const masterKey  = this.config.get<string>('PAYDUNYA_MASTER_KEY');
+    const masterKey = this.config.get<string>('PAYDUNYA_MASTER_KEY');
     const privateKey = this.config.get<string>('PAYDUNYA_PRIVATE_KEY');
-    const token      = this.config.get<string>('PAYDUNYA_TOKEN');
+    const token = this.config.get<string>('PAYDUNYA_TOKEN');
 
     if (!masterKey || !privateKey || !token) {
       throw new BadRequestException(
@@ -115,11 +173,11 @@ export class PaymentsService {
         `${baseUrl}/checkout-invoice/create`,
         {
           invoice: {
-            total_amount:  Number(booking.totalAmount),
-            description:   `Reservation -- ${booking.listing.title}`,
-            return_url:    `${frontendUrl}/paiement/confirmation?booking_id=${bookingId}`,
-            cancel_url:    `${frontendUrl}/locataire/bookings/${bookingId}?status=cancel`,
-            callback_url:  `${this.config.get<string>('BACKEND_URL')}/api/v1/payments/webhook/paydunya`,
+            total_amount: Number(booking.totalAmount),
+            description: `Reservation -- ${booking.listing.title}`,
+            return_url: `${frontendUrl}/paiement/confirmation?booking_id=${bookingId}`,
+            cancel_url: `${frontendUrl}/locataire/bookings/${bookingId}?status=cancel`,
+            callback_url: `${this.config.get<string>('BACKEND_URL')}/api/v1/payments/webhook/paydunya`,
           },
           store: {
             name: 'AlloAppart',
@@ -131,15 +189,18 @@ export class PaymentsService {
         },
         {
           headers: {
-            'PAYDUNYA-MASTER-KEY':  masterKey,
+            'PAYDUNYA-MASTER-KEY': masterKey,
             'PAYDUNYA-PRIVATE-KEY': privateKey,
-            'PAYDUNYA-TOKEN':       token,
-            'Content-Type':         'application/json',
+            'PAYDUNYA-TOKEN': token,
+            'Content-Type': 'application/json',
           },
         },
       )
       .catch((err: unknown) => {
-        const axiosErr = err as { response?: { status: number; data: unknown }; message?: string };
+        const axiosErr = err as {
+          response?: { status: number; data: unknown };
+          message?: string;
+        };
         this.logger.error(
           `PayDunya create-invoice ERREUR — status: ${axiosErr.response?.status ?? 'N/A'} — body: ${JSON.stringify(axiosErr.response?.data ?? axiosErr.message)}`,
         );
@@ -171,10 +232,14 @@ export class PaymentsService {
     const paymentRef = `PD-${response.data.token}`;
     await this.prisma.booking.update({
       where: { id: bookingId },
-      data:  { paymentRef },
+      data: { paymentRef },
     });
 
-    return { payment_url: invoiceUrl, transId: paymentRef, paymentToken: response.data.token };
+    return {
+      payment_url: invoiceUrl,
+      transId: paymentRef,
+      paymentToken: response.data.token,
+    };
   }
 
   /**
@@ -196,16 +261,21 @@ export class PaymentsService {
     if (!booking) return { ok: true };
 
     // Idempotence : déjà traité (par le webhook ou par la vérification active)
-    if (
-      booking.status === BookingStatus.CONFIRMED ||
-      booking.status === BookingStatus.COMPLETED
-    ) {
+    const alreadyPaidStatuses: BookingStatus[] = [
+      BookingStatus.CONFIRMED,
+      BookingStatus.COMPLETED,
+      BookingStatus.ACTIVE,
+      BookingStatus.TERMINATED,
+    ];
+    if (alreadyPaidStatuses.includes(booking.status)) {
       return { ok: true };
     }
 
     const confirm = await this.softpay.confirmInvoiceStatus(token);
     if (!confirm) {
-      throw new BadRequestException('Impossible de confirmer le paiement PayDunya');
+      throw new BadRequestException(
+        'Impossible de confirmer le paiement PayDunya',
+      );
     }
 
     if (confirm.status === 'completed') {
@@ -217,39 +287,30 @@ export class PaymentsService {
         throw new BadRequestException('Inconsistent payment amount');
       }
 
-      await this.prisma.booking.update({
-        where: { id: bookingId },
-        data: {
-          status:       BookingStatus.CONFIRMED,
-          escrowStatus: EscrowStatus.HELD,
-          paymentRef:   `PD-${token}`,
-        },
-      });
-      const fullBooking = await this.prisma.booking.findUnique({
-        where: { id: bookingId },
-        include: { listing: { include: { owner: true } }, tenant: true },
-      });
+      const fullBooking = await this.markBookingPaid(bookingId, `PD-${token}`);
       if (fullBooking) {
-        void this.notifications.notifyPaymentConfirmed({
-          tenantEmail:    fullBooking.tenant.email,
-          tenantName:     `${fullBooking.tenant.firstName} ${fullBooking.tenant.lastName}`,
-          tenantId:       fullBooking.tenantId,
-          landlordEmail:  fullBooking.listing.owner.email,
-          landlordName:   `${fullBooking.listing.owner.firstName} ${fullBooking.listing.owner.lastName}`,
-          landlordId:     fullBooking.listing.ownerId,
-          listingTitle:   fullBooking.listing.title,
-          listingCity:    fullBooking.listing.city,
-          bookingId:      fullBooking.id,
-          totalAmount:    Number(fullBooking.totalAmount),
-          platformFee:    Number(fullBooking.platformFee ?? 0),
-          landlordAmount: Number(fullBooking.landlordAmount ?? 0),
-        }).catch(() => {});
+        void this.notifications
+          .notifyPaymentConfirmed({
+            tenantEmail: fullBooking.tenant.email,
+            tenantName: `${fullBooking.tenant.firstName} ${fullBooking.tenant.lastName}`,
+            tenantId: fullBooking.tenantId,
+            landlordEmail: fullBooking.listing.owner.email,
+            landlordName: `${fullBooking.listing.owner.firstName} ${fullBooking.listing.owner.lastName}`,
+            landlordId: fullBooking.listing.ownerId,
+            listingTitle: fullBooking.listing.title,
+            listingCity: fullBooking.listing.city,
+            bookingId: fullBooking.id,
+            totalAmount: Number(fullBooking.totalAmount),
+            platformFee: Number(fullBooking.platformFee ?? 0),
+            landlordAmount: Number(fullBooking.landlordAmount ?? 0),
+          })
+          .catch(() => {});
       }
     } else if (confirm.status === 'cancelled' || confirm.status === 'failed') {
       await this.prisma.booking.update({
         where: { id: bookingId },
         data: {
-          status:       BookingStatus.CANCELLED,
+          status: BookingStatus.CANCELLED,
           escrowStatus: EscrowStatus.REFUNDED,
         },
       });
@@ -276,7 +337,10 @@ export class PaymentsService {
     }
 
     // Déjà confirmé — rien à faire
-    if (booking.status === BookingStatus.CONFIRMED) {
+    if (
+      booking.status === BookingStatus.CONFIRMED ||
+      booking.status === BookingStatus.ACTIVE
+    ) {
       return booking;
     }
 
@@ -285,14 +349,14 @@ export class PaymentsService {
       return booking;
     }
 
-    const pdToken    = booking.paymentRef.replace('PD-', '');
-    const masterKey  = this.config.get<string>('PAYDUNYA_MASTER_KEY');
+    const pdToken = booking.paymentRef.replace('PD-', '');
+    const masterKey = this.config.get<string>('PAYDUNYA_MASTER_KEY');
     const privateKey = this.config.get<string>('PAYDUNYA_PRIVATE_KEY');
-    const token      = this.config.get<string>('PAYDUNYA_TOKEN');
+    const token = this.config.get<string>('PAYDUNYA_TOKEN');
 
     if (!masterKey || !privateKey || !token) return booking;
 
-    const isDev   = this.config.get<string>('NODE_ENV') !== 'production';
+    const isDev = this.config.get<string>('NODE_ENV') !== 'production';
     const baseUrl = isDev
       ? 'https://app.paydunya.com/sandbox-api/v1'
       : 'https://app.paydunya.com/api/v1';
@@ -300,14 +364,14 @@ export class PaymentsService {
     const confirm = await axios
       .get<{
         response_code: string;
-        status:        string;
-        custom_data:   { booking_id: string };
-        invoice:       { total_amount: number };
+        status: string;
+        custom_data: { booking_id: string };
+        invoice: { total_amount: number };
       }>(`${baseUrl}/checkout-invoice/confirm/${pdToken}`, {
         headers: {
-          'PAYDUNYA-MASTER-KEY':  masterKey,
+          'PAYDUNYA-MASTER-KEY': masterKey,
           'PAYDUNYA-PRIVATE-KEY': privateKey,
-          'PAYDUNYA-TOKEN':       token,
+          'PAYDUNYA-TOKEN': token,
         },
       })
       .catch(() => null);
@@ -318,7 +382,7 @@ export class PaymentsService {
 
     // Vérification du montant
     const expectedAmount = Number(booking.totalAmount);
-    const paidAmount     = Number(confirm.data.invoice?.total_amount ?? 0);
+    const paidAmount = Number(confirm.data.invoice?.total_amount ?? 0);
     if (Math.abs(paidAmount - expectedAmount) > 1) {
       this.logger.warn(
         `verifyBooking — montant incohérent : attendu ${expectedAmount}, reçu ${paidAmount}`,
@@ -327,29 +391,24 @@ export class PaymentsService {
     }
 
     // Confirmer la réservation
-    const updated = await this.prisma.booking.update({
-      where: { id: bookingId },
-      data:  {
-        status:       BookingStatus.CONFIRMED,
-        escrowStatus: EscrowStatus.HELD,
-      },
-      include: { listing: { include: { owner: true } }, tenant: true },
-    });
+    const updated = await this.markBookingPaid(bookingId);
 
-    void this.notifications.notifyPaymentConfirmed({
-      tenantEmail:    updated.tenant.email,
-      tenantName:     `${updated.tenant.firstName} ${updated.tenant.lastName}`,
-      tenantId:       updated.tenantId,
-      landlordEmail:  updated.listing.owner.email,
-      landlordName:   `${updated.listing.owner.firstName} ${updated.listing.owner.lastName}`,
-      landlordId:     updated.listing.ownerId,
-      listingTitle:   updated.listing.title,
-      listingCity:    updated.listing.city,
-      bookingId:      updated.id,
-      totalAmount:    Number(updated.totalAmount),
-      platformFee:    Number(updated.platformFee  ?? 0),
-      landlordAmount: Number(updated.landlordAmount ?? 0),
-    }).catch(() => {});
+    void this.notifications
+      .notifyPaymentConfirmed({
+        tenantEmail: updated.tenant.email,
+        tenantName: `${updated.tenant.firstName} ${updated.tenant.lastName}`,
+        tenantId: updated.tenantId,
+        landlordEmail: updated.listing.owner.email,
+        landlordName: `${updated.listing.owner.firstName} ${updated.listing.owner.lastName}`,
+        landlordId: updated.listing.ownerId,
+        listingTitle: updated.listing.title,
+        listingCity: updated.listing.city,
+        bookingId: updated.id,
+        totalAmount: Number(updated.totalAmount),
+        platformFee: Number(updated.platformFee ?? 0),
+        landlordAmount: Number(updated.landlordAmount ?? 0),
+      })
+      .catch(() => {});
 
     this.logger.log(
       `[verifyBooking] Booking ${bookingId} confirmé via vérification active`,
@@ -368,7 +427,7 @@ export class PaymentsService {
     }
     return this.prisma.booking.update({
       where: { id: bookingId },
-      data:  { escrowStatus: EscrowStatus.RELEASED },
+      data: { escrowStatus: EscrowStatus.RELEASED },
     });
   }
 
@@ -383,7 +442,7 @@ export class PaymentsService {
     }
     return this.prisma.booking.update({
       where: { id: bookingId },
-      data:  { escrowStatus: EscrowStatus.REFUNDED },
+      data: { escrowStatus: EscrowStatus.REFUNDED },
     });
   }
 }

@@ -357,7 +357,20 @@
     "removeFavorite": "Remove from saved",
     "availabilityTitle": "Availability",
     "pricingMonthsOnly": "{months, plural, one {# month} other {# months}}",
-    "pricingMonthsPlusDays": "{months, plural, one {# month} other {# months}} + {days, plural, one {# day} other {# days}}"
+    "pricingMonthsPlusDays": "{months, plural, one {# month} other {# months}} + {days, plural, one {# day} other {# days}}",
+    "monthlyRequestTitle": "Monthly rental request",
+    "monthlyMinLeaseNote": "Minimum lease term: {count, plural, one {# month} other {# months}}.",
+    "moveInDateLabel": "Desired move-in date",
+    "monthlyFirstMonthLabel": "First month rent",
+    "monthlyDepositLabel": "Deposit ({count, plural, one {# month} other {# months}})",
+    "monthlyTotalDueLabel": "Total due at move-in",
+    "monthlyDocumentsTitle": "Tenant file (optional)",
+    "monthlyDocumentsDesc": "Speed up approval by attaching your documents now. You can also add them later.",
+    "docTypeIdCard": "ID card",
+    "docTypeProofOfIncome": "Proof of income",
+    "docTypeGuarantor": "Guarantor (optional)",
+    "docUploadBtn": "Add",
+    "docUploadError": "Upload failed — try again."
   },
   "region": {
     "title": "Listings in",
@@ -1348,7 +1361,13 @@
     "kpiRefunded": "Refunded",
     "transactionsCount": "{count, plural, one {# transaction} other {# transactions}}",
     "noTransactions": "No transactions",
-    "noTransactionsHint": "Your payments will appear here after your first booking."
+    "noTransactionsHint": "Your payments will appear here after your first booking.",
+    "withdrawRequestBtn": "Withdraw request",
+    "payDepositBtn": "Pay move-in deposit",
+    "actionTerminateLease": "End lease",
+    "actionTerminateLeaseConfirm": "Confirm termination",
+    "actionCancelTerminate": "Cancel",
+    "confirmTerminateLease": "End this lease?"
   },
   "messagesShell": {
     "userFallback": "User",
@@ -1885,7 +1904,16 @@
     "minNightsLabel": "{count, plural, one {min. # night} other {min. # nights}}",
     "boostPriceLabel": "One-off price",
     "boostDurationLabel": "Duration",
-    "boostDurationDays": "days"
+    "boostDurationDays": "days",
+    "actionApprove": "Approve",
+    "actionReject": "Decline",
+    "actionApproveSuccess": "Request approved",
+    "actionRejectSuccess": "Request declined",
+    "actionTerminateLease": "End lease",
+    "actionTerminateLeaseSuccess": "Lease ended",
+    "actionTerminateLeaseConfirm": "Confirm termination",
+    "actionCancelTerminate": "Cancel",
+    "confirmTerminateLease": "End this lease?"
   },
   "agent": {
     "greetingMorning": "Good morning",

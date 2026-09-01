@@ -14,6 +14,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { BookingsService } from './bookings.service';
 import { PdfService } from '../pdf/pdf.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CreateMonthlyBookingDto } from './dto/create-monthly-booking.dto';
 import { ReportDisputeDto } from './dto/report-dispute.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -34,7 +35,9 @@ export class BookingsController {
     @Query('limit') limit?: string,
     @Query('status') status?: string,
   ) {
-    const bookingStatus = Object.values(BookingStatus).includes(status as BookingStatus)
+    const bookingStatus = Object.values(BookingStatus).includes(
+      status as BookingStatus,
+    )
       ? (status as BookingStatus)
       : undefined;
     return this.bookingsService.findAll(
@@ -49,6 +52,33 @@ export class BookingsController {
   @Post()
   create(@CurrentUser() user: User, @Body() dto: CreateBookingDto) {
     return this.bookingsService.create(user.id, dto);
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Roles(Role.LOCATAIRE)
+  @Post('monthly')
+  createMonthly(
+    @CurrentUser() user: User,
+    @Body() dto: CreateMonthlyBookingDto,
+  ) {
+    return this.bookingsService.createMonthlyRequest(user.id, dto);
+  }
+
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
+  @Patch(':id/approve')
+  approveMonthly(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.bookingsService.approveMonthlyRequest(id, user.id);
+  }
+
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
+  @Patch(':id/reject')
+  rejectMonthly(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.bookingsService.rejectMonthlyRequest(id, user.id);
+  }
+
+  @Patch(':id/terminate-lease')
+  terminateLease(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.bookingsService.terminateLease(id, user);
   }
 
   @Get('mine')

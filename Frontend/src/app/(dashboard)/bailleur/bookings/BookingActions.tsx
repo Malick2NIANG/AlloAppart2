@@ -14,23 +14,30 @@ interface Props {
   toast: ReturnType<typeof useToast>['toast'];
 }
 
-type Action = 'confirm' | 'cancel' | 'complete';
+type Action = 'confirm' | 'cancel' | 'complete' | 'approve' | 'reject' | 'terminate-lease';
 
 export default function BookingActions({ bookingId, status, onActionDone, toast }: Props) {
   const { getToken } = useAuth();
   const t = useTranslations('bailleur');
   const [loading, setLoading] = useState<Action | null>(null);
+  const [confirmTerminate, setConfirmTerminate] = useState(false);
 
   const ACTION_LABELS: Record<Action, string> = {
     confirm:  t('actionConfirm'),
     cancel:   t('actionCancelBooking'),
     complete: t('actionComplete'),
+    approve:  t('actionApprove'),
+    reject:   t('actionReject'),
+    'terminate-lease': t('actionTerminateLease'),
   };
 
   const ACTION_SUCCESS: Record<Action, string> = {
     confirm:  t('actionConfirmSuccess'),
     cancel:   t('actionCancelSuccess'),
     complete: t('actionCompleteSuccess'),
+    approve:  t('actionApproveSuccess'),
+    reject:   t('actionRejectSuccess'),
+    'terminate-lease': t('actionTerminateLeaseSuccess'),
   };
 
   const act = async (action: Action, successMessage?: string) => {
@@ -80,6 +87,47 @@ export default function BookingActions({ bookingId, status, onActionDone, toast 
         </>
       )}
       {(status === 'CANCELLED' || status === 'COMPLETED') && (
+        <StatusChip status={status} />
+      )}
+
+      {/* Demande de location au mois — à approuver ou refuser */}
+      {status === 'REQUESTED' && (
+        <>
+          {btn('approve', 'bg-green-100 text-green-700 hover:bg-green-200')}
+          {btn('reject',  'bg-red-100 text-red-700 hover:bg-red-200')}
+        </>
+      )}
+
+      {/* Approuvée — en attente du paiement du ticket d'entrée par le locataire */}
+      {status === 'APPROVED' && <StatusChip status={status} />}
+
+      {/* Bail actif — le bailleur peut le résilier à tout moment */}
+      {status === 'ACTIVE' && (
+        confirmTerminate ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-sub">{t('confirmTerminateLease')}</span>
+            {btn('terminate-lease', 'bg-red-100 text-red-700 hover:bg-red-200', t('actionTerminateLeaseConfirm'))}
+            <button
+              onClick={() => setConfirmTerminate(false)}
+              className="text-xs px-3 py-1.5 rounded-full font-medium bg-bg text-sub border border-line hover:bg-line/30 transition"
+            >
+              {t('actionCancelTerminate')}
+            </button>
+          </div>
+        ) : (
+          <>
+            <StatusChip status={status} />
+            <button
+              onClick={() => setConfirmTerminate(true)}
+              className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 text-red-700 hover:bg-red-200 transition"
+            >
+              {t('actionTerminateLease')}
+            </button>
+          </>
+        )
+      )}
+
+      {(status === 'REJECTED' || status === 'TERMINATED') && (
         <StatusChip status={status} />
       )}
     </div>
