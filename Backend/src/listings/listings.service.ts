@@ -35,6 +35,39 @@ export class ListingsService {
     private readonly softpay: PaydunyaSoftpayService,
   ) {}
 
+  /**
+   * Statistiques publiques affichées sur la page d'accueil (section "hero").
+   * Calculées en direct depuis la base — jamais de chiffres inventés/codés
+   * en dur, pour éviter d'afficher des données trompeuses aux visiteurs.
+   */
+  async getPublicStats(): Promise<{
+    activeListings: number;
+    regionsCount: number;
+    verifiedPercent: number;
+  }> {
+    const [activeListings, verifiedListings, regionGroups] = await Promise.all([
+      this.prisma.listing.count({ where: { status: ListingStatus.ACTIVE } }),
+      this.prisma.listing.count({
+        where: { status: ListingStatus.ACTIVE, isVerified: true },
+      }),
+      this.prisma.listing.groupBy({
+        by: ['region'],
+        where: { status: ListingStatus.ACTIVE },
+      }),
+    ]);
+
+    const verifiedPercent =
+      activeListings > 0
+        ? Math.round((verifiedListings / activeListings) * 100)
+        : 0;
+
+    return {
+      activeListings,
+      regionsCount: regionGroups.length,
+      verifiedPercent,
+    };
+  }
+
   async findAll(filters: FilterListingsDto) {
     const {
       q,

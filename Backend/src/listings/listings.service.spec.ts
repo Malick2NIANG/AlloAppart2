@@ -24,6 +24,7 @@ describe('ListingsService', () => {
       update: jest.Mock;
       findUnique: jest.Mock;
       findUniqueOrThrow: jest.Mock;
+      groupBy: jest.Mock;
     };
     boostPayment: { findFirst: jest.Mock; update: jest.Mock };
   };
@@ -45,6 +46,7 @@ describe('ListingsService', () => {
         update: jest.fn(),
         findUnique: jest.fn(),
         findUniqueOrThrow: jest.fn(),
+        groupBy: jest.fn(),
       },
       boostPayment: { findFirst: jest.fn(), update: jest.fn() },
     };
@@ -404,6 +406,51 @@ describe('ListingsService', () => {
         data: { status: 'FAILED' },
       });
       expect(prismaMock.listing.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // Ces stats alimentent la page d'accueil publique — elles remplacent des
+  // chiffres codés en dur ("2 400+", "14", "98%") qui n'avaient jamais reflété
+  // les vraies données. Doivent toujours venir de la base, jamais inventées.
+  describe('getPublicStats', () => {
+    it("calcule le nombre d'annonces actives, de régions et le % vérifié", async () => {
+      prismaMock.listing.count
+        .mockResolvedValueOnce(50) // activeListings
+        .mockResolvedValueOnce(10); // verifiedListings
+      prismaMock.listing.groupBy.mockResolvedValueOnce([
+        { region: 'Dakar' },
+        { region: 'Thiès' },
+        { region: 'Saint-Louis' },
+      ]);
+
+      const result = await service.getPublicStats();
+
+      expect(result).toEqual({
+        activeListings: 50,
+        regionsCount: 3,
+        verifiedPercent: 20,
+      });
+      expect(prismaMock.listing.count).toHaveBeenNthCalledWith(1, {
+        where: { status: ListingStatus.ACTIVE },
+      });
+      expect(prismaMock.listing.count).toHaveBeenNthCalledWith(2, {
+        where: { status: ListingStatus.ACTIVE, isVerified: true },
+      });
+    });
+
+    it("retourne 0% vérifié sans planter quand il n'y a aucune annonce active", async () => {
+      prismaMock.listing.count
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0);
+      prismaMock.listing.groupBy.mockResolvedValueOnce([]);
+
+      const result = await service.getPublicStats();
+
+      expect(result).toEqual({
+        activeListings: 0,
+        regionsCount: 0,
+        verifiedPercent: 0,
+      });
     });
   });
 });

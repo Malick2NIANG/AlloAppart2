@@ -51,23 +51,46 @@ function isNewListing(createdAt: string): boolean {
   return Date.now() - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000;
 }
 
-const STATS_DATA = [
-  { value: '2 400+', key: 'listings' as const, icon: 'fa-solid fa-city'             },
-  { value: '14',     key: 'regions'  as const, icon: 'fa-solid fa-map-location-dot' },
-  { value: '98%',    key: 'verified' as const, icon: 'fa-solid fa-shield-halved'    },
-];
+interface PublicStats {
+  activeListings: number;
+  regionsCount: number;
+  verifiedPercent: number;
+}
+
+// Chiffres réels calculés côté backend (jamais de valeurs inventées/codées
+// en dur — cf. Backend ListingsService.getPublicStats).
+async function fetchPublicStats(): Promise<PublicStats> {
+  try {
+    const res = await fetch(`${API_URL}/listings/stats/public`, {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return { activeListings: 0, regionsCount: 0, verifiedPercent: 0 };
+    return (await res.json()) as PublicStats;
+  } catch {
+    return { activeListings: 0, regionsCount: 0, verifiedPercent: 0 };
+  }
+}
 
 /* ── Page ───────────────────────────────────────────────────────────── */
 export default async function HomePage() {
-  const [t, locale, listings, agencies] = await Promise.all([
+  const [t, locale, listings, agencies, stats] = await Promise.all([
     getTranslations('home'),
     getLocale(),
     fetchRecentListings(),
     fetchAgencies(),
+    fetchPublicStats(),
   ]);
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
   const formatPrice = (n: number | string) =>
     priceToNumber(n).toLocaleString(numLocale) + ' FCFA/' + t('perMonth');
+
+  // Chiffres réels (voir fetchPublicStats) — pas de "+" ni d'arrondi marketing :
+  // on affiche le compte exact pour ne jamais induire les visiteurs en erreur.
+  const STATS_DATA = [
+    { value: stats.activeListings.toLocaleString(numLocale), key: 'listings' as const, icon: 'fa-solid fa-city'             },
+    { value: stats.regionsCount.toLocaleString(numLocale),   key: 'regions'  as const, icon: 'fa-solid fa-map-location-dot' },
+    { value: `${stats.verifiedPercent}%`,                    key: 'verified' as const, icon: 'fa-solid fa-shield-halved'    },
+  ];
 
   const { getToken } = await auth();
   const token = await getToken();

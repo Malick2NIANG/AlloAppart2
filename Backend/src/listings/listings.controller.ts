@@ -84,6 +84,12 @@ export class ListingsController {
   }
 
   @Public()
+  @Get('stats/public')
+  getPublicStats() {
+    return this.listingsService.getPublicStats();
+  }
+
+  @Public()
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.listingsService.findOne(id);
