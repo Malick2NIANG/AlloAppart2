@@ -49,9 +49,15 @@ model Listing {
   id           String        @id @default(uuid())
   title        String
   description  String
-  price         Decimal       @db.Decimal(12, 2)   // Tarif mensuel (référence principale)
-  pricePerNight Decimal?      @db.Decimal(12, 2)   // Tarif par nuit (optionnel)
+  price         Decimal       @db.Decimal(12, 2)   // Tarif mensuel (référence principale, affichage/tri)
+  pricePerNight Decimal?      @db.Decimal(12, 2)   // Tarif par nuit (mode NIGHTLY ou MIXED)
   minimumNights Int?                                // Durée minimum de séjour en nuits
+  // --- Système de location hybride (mensuel / nuitée / mixte) ---
+  rentalMode     RentalMode @default(NIGHTLY) // Mode de location proposé par le bailleur
+  cleaningFee    Decimal?   @db.Decimal(12, 2) // Frais de ménage fixes (mode NIGHTLY ou MIXED)
+  depositMonths  Int?                          // Caution exprimée en nombre de mois de loyer (mode MONTHLY ou MIXED)
+  chargesIncluded Boolean?                     // Charges (eau/électricité) incluses dans le loyer mensuel ou non
+  minLeaseMonths Int?                          // Durée minimale de bail en mois (mode MONTHLY ou MIXED)
   type         ListingType
   status       ListingStatus @default(DRAFT)
   isVerified   Boolean       @default(false)
@@ -91,13 +97,18 @@ model Booking {
   listingId    String
   tenantId     String
   status       BookingStatus @default(PENDING)
-  startDate    DateTime
-  endDate      DateTime?
+  bookingType  BookingType   @default(NIGHTLY)
+  startDate    DateTime      // Nuitée: date d'arrivée. Mensuel: date d'entrée souhaitée.
+  endDate      DateTime?     // Nuitée: obligatoire (validé au niveau DTO). Mensuel: toujours null (bail ouvert).
   totalAmount    Decimal       @db.Decimal(12, 2)
   platformFee    Decimal?      @db.Decimal(12, 2)
   landlordAmount Decimal?      @db.Decimal(12, 2)
   escrowStatus   EscrowStatus  @default(AWAITING_PAYMENT)
   paymentRef   String?
+  // Mode MONTHLY : caution encaissée à la réservation, snapshotée au moment de la
+  // demande (indépendante d'un changement ultérieur de listing.depositMonths/price).
+  depositAmount  Decimal?      @db.Decimal(12, 2)
+  terminatedAt   DateTime?     // Date de résiliation du bail (mode MONTHLY)
   // Signalement de non-conformité AlloVérifié (Article 9 des CGU) — fenêtre de
   // 24h après l'entrée dans les lieux pour contester l'état du bien.
   disputeReason      String?
@@ -109,11 +120,43 @@ model Booking {
   listing      Listing       @relation(fields: [listingId], references: [id])
   tenant       User          @relation("TenantBookings", fields: [tenantId], references: [id])
   review       Review?
+  documents    BookingDocument[]
+  contract     Contract?
 
   @@index([tenantId])
   @@index([listingId])
   @@index([paymentRef])
   @@map("bookings")
+}
+
+model BookingDocument {
+  id         String       @id @default(uuid())
+  bookingId  String
+  type       DocumentType
+  fileUrl    String
+  uploadedAt DateTime     @default(now())
+  booking    Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("booking_documents")
+}
+
+model Contract {
+  id                  String         @id @default(uuid())
+  bookingId           String         @unique
+  type                ContractType
+  status              ContractStatus @default(DRAFT)
+  pdfUrl               String?        // PDF généré non signé
+  firstSignedPdfUrl    String?        // PDF re-téléversé après signature de la 1ère partie
+  finalPdfUrl          String?        // PDF final, les deux parties ont signé
+  firstSignedById      String?        // userId de la 1ère partie à avoir signé
+  firstSignedAt        DateTime?
+  secondSignedAt       DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  booking              Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("contracts")
 }
 
 model Verification {
@@ -237,11 +280,47 @@ enum ListingStatus {
   SUSPENDED
 }
 
+enum RentalMode {
+  NIGHTLY
+  MONTHLY
+  MIXED
+}
+
+enum BookingType {
+  NIGHTLY
+  MONTHLY
+}
+
 enum BookingStatus {
+  // Commun / nuitée
   PENDING
   CONFIRMED
   CANCELLED
   COMPLETED
+  // Mensuel (bail)
+  REQUESTED
+  APPROVED
+  REJECTED
+  ACTIVE
+  TERMINATED
+}
+
+enum DocumentType {
+  ID_CARD
+  PROOF_OF_INCOME
+  GUARANTOR
+}
+
+enum ContractType {
+  SEASONAL
+  HABITATION
+}
+
+enum ContractStatus {
+  DRAFT
+  AWAITING_FIRST_SIGNATURE
+  AWAITING_SECOND_SIGNATURE
+  FULLY_SIGNED
 }
 
 enum EscrowStatus {
