@@ -145,10 +145,10 @@ export default function PaydunyaPaymentModal({
     }
   };
 
-  const methods: { key: Method; label: string; icon: string; color: string }[] = [
-    { key: 'orange-money', label: t('methodOrangeMoney'), icon: 'fa-mobile-screen', color: 'border-orange-300 bg-orange-50 text-orange-700' },
-    { key: 'wave',         label: t('methodWave'),         icon: 'fa-wave-square',  color: 'border-blue-300 bg-blue-50 text-blue-700' },
-    { key: 'free-money',   label: t('methodFreeMoney'),    icon: 'fa-mobile-screen',color: 'border-purple-300 bg-purple-50 text-purple-700' },
+  const methods: { key: Method; label: string; logo?: string; icon?: string; color: string }[] = [
+    { key: 'orange-money', label: t('methodOrangeMoney'), logo: '/payment-logos/orange-money.svg', color: 'border-orange-300 bg-orange-50 text-orange-700' },
+    { key: 'wave',         label: t('methodWave'),         logo: '/payment-logos/wave.png',         color: 'border-blue-300 bg-blue-50 text-blue-700' },
+    { key: 'free-money',   label: t('methodFreeMoney'),    logo: '/payment-logos/mixx-by-yas.svg',  color: 'border-[#003881]/20 bg-[#003881]/5 text-[#003881]' },
     { key: 'card',         label: t('methodCard'),         icon: 'fa-credit-card',  color: 'border-line bg-bg text-text' },
   ];
 
@@ -179,7 +179,12 @@ export default function PaydunyaPaymentModal({
                   disabled={!paymentToken && m.key !== 'card'}
                   className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors hover:brightness-95 disabled:opacity-50 ${m.color}`}
                 >
-                  <i className={`fa-solid ${m.icon} w-5 text-center`} />
+                  {m.logo ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- petit logo statique, taille fixe connue
+                    <img src={m.logo} alt="" className="h-6 w-10 shrink-0 object-contain" />
+                  ) : (
+                    <i className={`fa-solid ${m.icon} w-5 text-center`} />
+                  )}
                   {m.label}
                 </button>
               ))}
