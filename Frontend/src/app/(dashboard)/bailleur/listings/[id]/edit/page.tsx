@@ -13,6 +13,7 @@ import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import LocationPicker from '@/components/map/LocationPicker';
 
 const LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
+const RENTAL_MODES = ['NIGHTLY', 'MONTHLY', 'MIXED'] as const;
 
 const SENEGAL_REGIONS = [
   'Dakar', 'Thiès', 'Saint-Louis', 'Ziguinchor', 'Kaolack',
@@ -55,9 +56,14 @@ export default function EditListingPage() {
     title:         z.string().min(5, t('zTitleTooShort')),
     description:   z.string().min(20, t('zDescTooShort')),
     type:          z.enum(LISTING_TYPES),
-    price:         z.number().positive(t('zPricePositive')),
-    pricePerNight: z.number().positive(t('zPriceNightPositive')).optional(),
-    minimumNights: z.number().int().min(1, t('zMinNights')).optional(),
+    rentalMode:      z.enum(RENTAL_MODES),
+    price:           z.number().positive(t('zPricePositive')).optional(),
+    pricePerNight:   z.number().positive(t('zPriceNightPositive')).optional(),
+    minimumNights:   z.number().int().min(1, t('zMinNights')).optional(),
+    cleaningFee:     z.number().min(0).optional(),
+    depositMonths:   z.number().int().min(0, t('zDepositRequired')).optional(),
+    chargesIncluded: z.boolean().optional(),
+    minLeaseMonths:  z.number().int().min(1).optional(),
     lat:           z.number(),
     lng:           z.number(),
     address:       z.string().min(5, t('zAddressShort')),
@@ -69,6 +75,18 @@ export default function EditListingPage() {
     baths:         z.number().int(t('zBathsInt')).min(0, t('zBathsMin')).optional(),
     amenities:     z.array(z.string()).default([]),
     images:        z.array(z.string()).min(1, t('zImageRequired')),
+  }).superRefine((data, ctx) => {
+    const needsNightly = data.rentalMode === 'NIGHTLY' || data.rentalMode === 'MIXED';
+    const needsMonthly = data.rentalMode === 'MONTHLY' || data.rentalMode === 'MIXED';
+    if (needsNightly && !(data.pricePerNight && data.pricePerNight > 0)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['pricePerNight'], message: t('zPriceNightPositive') });
+    }
+    if (needsMonthly && !(data.price && data.price > 0)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price'], message: t('zPricePositive') });
+    }
+    if (needsMonthly && (data.depositMonths === undefined || data.depositMonths === null)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['depositMonths'], message: t('zDepositRequired') });
+    }
   }), [t]);
 
   type FormValues = z.infer<typeof schema>;
@@ -77,9 +95,14 @@ export default function EditListingPage() {
     title:         t('fieldTitle'),
     description:   t('fieldDescription'),
     type:          t('fieldType'),
-    price:         t('fieldPrice'),
-    pricePerNight: t('fieldPriceNight'),
-    minimumNights: t('fieldMinNights'),
+    rentalMode:      t('rentalModeLabel'),
+    price:           t('fieldPrice'),
+    pricePerNight:   t('fieldPriceNight'),
+    minimumNights:   t('fieldMinNights'),
+    cleaningFee:     t('fieldCleaningFee'),
+    depositMonths:   t('fieldDepositMonths'),
+    chargesIncluded: t('fieldChargesIncluded'),
+    minLeaseMonths:  t('fieldMinLeaseMonths'),
     lat:           'Latitude',
     lng:           'Longitude',
     address:       t('fieldAddress'),
@@ -94,7 +117,7 @@ export default function EditListingPage() {
   }), [t]);
 
   const STEPS = useMemo(() => [
-    { label: t('stepBasicInfo'),       fields: ['title', 'description', 'type', 'price', 'pricePerNight', 'minimumNights'] },
+    { label: t('stepBasicInfo'),       fields: ['title', 'description', 'type', 'rentalMode', 'price', 'pricePerNight', 'minimumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'] },
     { label: t('stepLocation'),         fields: ['address', 'city', 'region', 'lat', 'lng'] },
     { label: t('stepDetails'),          fields: ['surface', 'rooms', 'beds', 'baths'] },
     { label: t('stepAmenitiesPhotos'),  fields: ['amenities', 'images'] },
@@ -119,6 +142,13 @@ export default function EditListingPage() {
   const amenities   = watch('amenities') ?? [];
   const images      = watch('images') ?? [];
   const description = watch('description') ?? '';
+  const rentalMode  = watch('rentalMode');
+
+  const RENTAL_MODE_META = useMemo(() => ({
+    NIGHTLY: { icon: 'fa-moon',          label: t('rentalModeNightly'), desc: t('rentalModeNightlyDesc') },
+    MONTHLY: { icon: 'fa-calendar-days', label: t('rentalModeMonthly'), desc: t('rentalModeMonthlyDesc') },
+    MIXED:   { icon: 'fa-shuffle',       label: t('rentalModeMixed'),   desc: t('rentalModeMixedDesc')  },
+  }), [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,11 +165,18 @@ export default function EditListingPage() {
           title:         listing.title,
           description:   listing.description,
           type:          listing.type,
+          rentalMode:      listing.rentalMode ?? 'MONTHLY',
           price:         typeof listing.price === 'string' ? parseFloat(listing.price) : listing.price,
           pricePerNight: listing.pricePerNight != null
             ? (typeof listing.pricePerNight === 'string' ? parseFloat(listing.pricePerNight) : listing.pricePerNight)
             : undefined,
           minimumNights: listing.minimumNights ?? undefined,
+          cleaningFee: listing.cleaningFee != null
+            ? (typeof listing.cleaningFee === 'string' ? parseFloat(listing.cleaningFee) : listing.cleaningFee)
+            : undefined,
+          depositMonths:   listing.depositMonths ?? undefined,
+          chargesIncluded: listing.chargesIncluded ?? undefined,
+          minLeaseMonths:  listing.minLeaseMonths ?? undefined,
           lat:           listing.lat,
           lng:           listing.lng,
           address:       listing.address ?? '',
@@ -249,54 +286,106 @@ export default function EditListingPage() {
               <p className="mt-1 text-right text-xs text-sub">{t('fieldCharCount', { count: description.length })}</p>
             </Field>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label={t('fieldType')} error={errors.type?.message}>
-                <select {...register('type')} className={inputCls(!!errors.type)}>
-                  {LISTING_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
-                </select>
-              </Field>
-              <Field label={t('fieldPrice')} error={errors.price?.message}>
-                <div className="relative">
-                  <input
-                    type="number"
-                    {...register('price', { setValueAs: asNumberOrUndefined })}
-                    placeholder="350000"
-                    className={`${inputCls(!!errors.price)} pr-24`}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">{t('fcfaPerMonth')}</span>
-                </div>
-              </Field>
+            <Field label={t('fieldType')} error={errors.type?.message}>
+              <select {...register('type')} className={inputCls(!!errors.type)}>
+                {LISTING_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
+              </select>
+            </Field>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-text">{t('rentalModeLabel')}</label>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                {RENTAL_MODES.map((mode) => {
+                  const active = rentalMode === mode;
+                  const meta = RENTAL_MODE_META[mode];
+                  return (
+                    <button key={mode} type="button" onClick={() => setValue('rentalMode', mode)}
+                      className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all ${
+                        active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
+                      }`}>
+                      <span className="flex items-center gap-2">
+                        <i className={`fa-solid ${meta.icon} ${active ? 'text-gold-dark' : 'text-sub'}`} />
+                        <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>{meta.label}</span>
+                      </span>
+                      <span className="text-[11px] text-sub">{meta.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="rounded-xl border border-line bg-bg/60 p-4 space-y-3">
-              <p className="text-xs font-semibold text-sub uppercase tracking-wide">
-                <i className="fa-solid fa-moon mr-1.5 text-gold-dark" />
-                {t('shortStayTitle')}
-              </p>
-              <p className="text-xs text-sub">{t('shortStayDesc')}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label={t('fieldPriceNight')} error={errors.pricePerNight?.message}>
+            {(rentalMode === 'MONTHLY' || rentalMode === 'MIXED') && (
+              <div className="rounded-xl border border-line bg-bg/60 p-4 space-y-4">
+                <p className="text-xs font-semibold text-sub uppercase tracking-wide">
+                  <i className="fa-solid fa-calendar-days mr-1.5 text-gold-dark" />
+                  {t('monthlyTitle')}
+                </p>
+                <Field label={t('fieldPrice')} error={errors.price?.message}>
                   <div className="relative">
                     <input
                       type="number"
-                      {...register('pricePerNight', { setValueAs: asNumberOrUndefined })}
-                      placeholder="15000"
-                      className={`${inputCls(!!errors.pricePerNight)} pr-24`}
+                      {...register('price', { setValueAs: asNumberOrUndefined })}
+                      placeholder="350000"
+                      className={`${inputCls(!!errors.price)} pr-24`}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">{t('fcfaPerNight')}</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">{t('fcfaPerMonth')}</span>
                   </div>
                 </Field>
-                <Field label={t('fieldMinNights')} error={errors.minimumNights?.message}>
-                  <input
-                    type="number"
-                    min={1}
-                    {...register('minimumNights', { setValueAs: asNumberOrUndefined })}
-                    placeholder="2"
-                    className={inputCls(!!errors.minimumNights)}
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label={t('fieldDepositMonths')} error={errors.depositMonths?.message}>
+                    <input type="number" min={0} {...register('depositMonths', { setValueAs: asNumberOrUndefined })}
+                      placeholder="2" className={inputCls(!!errors.depositMonths)} />
+                  </Field>
+                  <Field label={t('fieldMinLeaseMonths')} error={errors.minLeaseMonths?.message}>
+                    <input type="number" min={1} {...register('minLeaseMonths', { setValueAs: asNumberOrUndefined })}
+                      placeholder="12" className={inputCls(!!errors.minLeaseMonths)} />
+                  </Field>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-text">
+                  <input type="checkbox" {...register('chargesIncluded')} className="h-4 w-4 rounded border-line accent-gold" />
+                  {t('fieldChargesIncluded')}
+                </label>
+              </div>
+            )}
+
+            {(rentalMode === 'NIGHTLY' || rentalMode === 'MIXED') && (
+              <div className="rounded-xl border border-line bg-bg/60 p-4 space-y-3">
+                <p className="text-xs font-semibold text-sub uppercase tracking-wide">
+                  <i className="fa-solid fa-moon mr-1.5 text-gold-dark" />
+                  {t('shortStayTitle')}
+                </p>
+                <p className="text-xs text-sub">{t('shortStayDesc')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label={t('fieldPriceNight')} error={errors.pricePerNight?.message}>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        {...register('pricePerNight', { setValueAs: asNumberOrUndefined })}
+                        placeholder="15000"
+                        className={`${inputCls(!!errors.pricePerNight)} pr-24`}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">{t('fcfaPerNight')}</span>
+                    </div>
+                  </Field>
+                  <Field label={t('fieldMinNights')} error={errors.minimumNights?.message}>
+                    <input
+                      type="number"
+                      min={1}
+                      {...register('minimumNights', { setValueAs: asNumberOrUndefined })}
+                      placeholder="2"
+                      className={inputCls(!!errors.minimumNights)}
+                    />
+                  </Field>
+                </div>
+                <Field label={t('fieldCleaningFee')} error={errors.cleaningFee?.message}>
+                  <div className="relative">
+                    <input type="number" min={0} {...register('cleaningFee', { setValueAs: asNumberOrUndefined })}
+                      placeholder="5000" className={`${inputCls(!!errors.cleaningFee)} pr-16`} />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">FCFA</span>
+                  </div>
                 </Field>
               </div>
-            </div>
+            )}
           </>
         )}
 

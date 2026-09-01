@@ -11,7 +11,7 @@ import { SearchService } from '../search/search.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { FilterListingsDto } from './dto/filter-listings.dto';
-import { ListingStatus, Role, SubscriptionPlan, SubscriptionStatus, User } from '@prisma/client';
+import { ListingStatus, RentalMode, Role, SubscriptionPlan, SubscriptionStatus, User } from '@prisma/client';
 import { CreateReportDto } from './dto/create-report.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import axios from 'axios';
@@ -290,13 +290,32 @@ export class ListingsService {
     }
   }
 
+  /**
+   * `price` (tarif mensuel) est la seule référence de tri/affichage historique
+   * et reste NOT NULL en base. En mode NIGHTLY seul, ce champ n'a aucun sens à
+   * faire remplir par le bailleur : on l'estime automatiquement à partir du
+   * tarif nuit (× 30) pour satisfaire la contrainte sans polluer le formulaire.
+   */
+  private resolveMonthlyPrice(
+    rentalMode: RentalMode,
+    price: number | undefined,
+    pricePerNight: number | undefined,
+  ): number | undefined {
+    if (rentalMode === RentalMode.NIGHTLY && price === undefined && pricePerNight !== undefined) {
+      return pricePerNight * 30;
+    }
+    return price;
+  }
+
   async create(ownerId: string, dto: CreateListingDto) {
     const wantsToPublish = dto.status === ListingStatus.ACTIVE;
     if (wantsToPublish) await this.assertCanPublish(ownerId);
 
+    const price = this.resolveMonthlyPrice(dto.rentalMode, dto.price, dto.pricePerNight);
     const listing = await this.prisma.listing.create({
       data: {
         ...dto,
+        ...(price !== undefined ? { price } : {}),
         ownerId,
         status: wantsToPublish ? ListingStatus.ACTIVE : ListingStatus.DRAFT,
       },
@@ -316,9 +335,14 @@ export class ListingsService {
     if (rawDto['status'] === ListingStatus.ACTIVE && listing.status !== ListingStatus.ACTIVE) {
       await this.assertCanPublish(listing.ownerId);
     }
+    const price = this.resolveMonthlyPrice(
+      dto.rentalMode ?? listing.rentalMode,
+      dto.price,
+      dto.pricePerNight ?? (listing.pricePerNight ? Number(listing.pricePerNight) : undefined),
+    );
     const updated = await this.prisma.listing.update({
       where: { id },
-      data: dto,
+      data: { ...dto, ...(price !== undefined ? { price } : {}) },
     });
     this.syncSearchIndex(updated);
     return updated;

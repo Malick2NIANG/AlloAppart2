@@ -4,8 +4,12 @@ export type Role = 'LOCATAIRE' | 'BAILLEUR' | 'AGENT_TERRAIN' | 'PRO_AGENCE' | '
 
 export type ListingType = 'APPARTEMENT' | 'VILLA' | 'STUDIO' | 'CHAMBRE' | 'BUREAU';
 export type ListingStatus = 'DRAFT' | 'ACTIVE' | 'RENTED' | 'SUSPENDED';
+export type RentalMode = 'NIGHTLY' | 'MONTHLY' | 'MIXED';
+export type BookingType = 'NIGHTLY' | 'MONTHLY';
 
-export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+export type BookingStatus =
+  | 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED'
+  | 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'TERMINATED';
 export type EscrowStatus = 'AWAITING_PAYMENT' | 'HELD' | 'DISPUTED' | 'RELEASED' | 'REFUNDED';
 
 export type VerifStatus = 'REQUESTED' | 'SCHEDULED' | 'IN_PROGRESS' | 'DONE' | 'REJECTED' | 'DECLINE_PENDING';
@@ -35,8 +39,13 @@ export interface Listing {
   title: string;
   description: string;
   price: string | number;          // Tarif mensuel — Decimal → string via JSON
-  pricePerNight?: string | number | null; // Tarif par nuit (optionnel)
+  pricePerNight?: string | number | null; // Tarif par nuit (mode NIGHTLY/MIXED)
   minimumNights?: number | null;          // Durée minimum de séjour en nuits
+  rentalMode: RentalMode;                 // Mode de location : nuitée / mensuel / mixte
+  cleaningFee?: string | number | null;   // Frais de ménage fixes (mode NIGHTLY/MIXED)
+  depositMonths?: number | null;          // Caution en nombre de mois (mode MONTHLY/MIXED)
+  chargesIncluded?: boolean | null;       // Charges incluses dans le loyer mensuel
+  minLeaseMonths?: number | null;         // Durée minimale de bail en mois
   type: ListingType;
   status: ListingStatus;
   isVerified: boolean;

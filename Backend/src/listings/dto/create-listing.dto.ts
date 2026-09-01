@@ -1,5 +1,7 @@
 ﻿import {
+  IsBoolean,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -10,8 +12,9 @@
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
-import { ListingStatus, ListingType } from '@prisma/client';
+import { ListingStatus, ListingType, RentalMode } from '@prisma/client';
 import { Type } from 'class-transformer';
 
 export class CreateListingDto {
@@ -25,6 +28,13 @@ export class CreateListingDto {
   @MaxLength(5000)
   description!: string;
 
+  /**
+   * Tarif mensuel (référence principale). Requis pour MONTHLY/MIXED — pour
+   * NIGHTLY seul, le service le calcule automatiquement (pricePerNight × 30)
+   * si absent, car le champ n'a pas de sens à faire remplir par le bailleur.
+   */
+  @ValidateIf((o: CreateListingDto) => o.rentalMode !== RentalMode.NIGHTLY)
+  @IsNotEmpty()
   @IsNumber()
   @Min(0)
   @Type(() => Number)
@@ -32,6 +42,10 @@ export class CreateListingDto {
 
   @IsEnum(ListingType)
   type!: ListingType;
+
+  /** Mode de location proposé par le bailleur : nuitée, mensuel, ou les deux */
+  @IsEnum(RentalMode)
+  rentalMode!: RentalMode;
 
   @IsNumber()
   @Min(-90)
@@ -86,19 +100,47 @@ export class CreateListingDto {
   })
   images?: string[];
 
-  /** Tarif par nuit (optionnel — pour les séjours courts < 25 jours) */
-  @IsOptional()
+  /** Tarif par nuit — requis en mode NIGHTLY ou MIXED */
+  @ValidateIf((o: CreateListingDto) => o.rentalMode === RentalMode.NIGHTLY || o.rentalMode === RentalMode.MIXED)
+  @IsNotEmpty()
   @IsNumber()
   @Min(0)
   @Type(() => Number)
   pricePerNight?: number;
 
-  /** Durée minimum de séjour en nuits */
+  /** Durée minimum de séjour en nuits (mode NIGHTLY ou MIXED) */
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Type(() => Number)
   minimumNights?: number;
+
+  /** Frais de ménage fixes (mode NIGHTLY ou MIXED) */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  cleaningFee?: number;
+
+  /** Caution exprimée en nombre de mois de loyer — requis en mode MONTHLY ou MIXED */
+  @ValidateIf((o: CreateListingDto) => o.rentalMode === RentalMode.MONTHLY || o.rentalMode === RentalMode.MIXED)
+  @IsNotEmpty()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  depositMonths?: number;
+
+  /** Charges (eau/électricité) incluses dans le loyer mensuel ou non */
+  @IsOptional()
+  @IsBoolean()
+  chargesIncluded?: boolean;
+
+  /** Durée minimale de bail en mois (mode MONTHLY ou MIXED) */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  minLeaseMonths?: number;
 
   @IsOptional()
   @IsArray()

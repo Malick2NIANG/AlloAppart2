@@ -15,6 +15,7 @@ import LocationPicker from '@/components/map/LocationPicker';
 /* ── Constants (no translations needed) ───────────────────────────────── */
 
 const LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
+const RENTAL_MODES = ['NIGHTLY', 'MONTHLY', 'MIXED'] as const;
 
 const SENEGAL_REGIONS = [
   'Dakar', 'Thiès', 'Saint-Louis', 'Ziguinchor', 'Kaolack',
@@ -66,10 +67,27 @@ function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
     address:     z.string().min(5, t('zAddressRequired')),
     lat:         z.number(),
     lng:         z.number(),
-    price:       z.number().positive(t('zPricePositive')),
+    rentalMode:    z.enum(RENTAL_MODES),
+    price:         z.number().positive(t('zPricePositive')).optional(),
     pricePerNight: z.number().positive(t('zPriceNightPositive')).optional(),
     minimumNights: z.number().int().min(1, t('zMinNights')).optional(),
+    cleaningFee:   z.number().min(0).optional(),
+    depositMonths: z.number().int().min(0, t('zDepositRequired')).optional(),
+    chargesIncluded: z.boolean().optional(),
+    minLeaseMonths:  z.number().int().min(1).optional(),
     images:      z.array(z.string()).min(1, t('zPhotoRequired')),
+  }).superRefine((data, ctx) => {
+    const needsNightly = data.rentalMode === 'NIGHTLY' || data.rentalMode === 'MIXED';
+    const needsMonthly = data.rentalMode === 'MONTHLY' || data.rentalMode === 'MIXED';
+    if (needsNightly && !(data.pricePerNight && data.pricePerNight > 0)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['pricePerNight'], message: t('zPriceNightPositive') });
+    }
+    if (needsMonthly && !(data.price && data.price > 0)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price'], message: t('zPricePositive') });
+    }
+    if (needsMonthly && (data.depositMonths === undefined || data.depositMonths === null)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['depositMonths'], message: t('zDepositRequired') });
+    }
   });
 }
 
@@ -80,7 +98,7 @@ const STEP_FIELDS: (keyof FormValues)[][] = [
   ['type', 'title', 'description'],
   ['surface', 'rooms', 'beds', 'baths', 'amenities'],
   ['region', 'city', 'address', 'lat', 'lng'],
-  ['price', 'pricePerNight', 'minimumNights'],
+  ['rentalMode', 'price', 'pricePerNight', 'minimumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'],
   ['images'],
 ];
 
@@ -114,6 +132,12 @@ export default function PublierPage() {
     BUREAU:      { icon: 'fa-briefcase',     label: t('typeBureau')      },
   }), [t]);
 
+  const RENTAL_MODE_META = useMemo(() => ({
+    NIGHTLY: { icon: 'fa-moon',        label: t('rentalModeNightly'), desc: t('rentalModeNightlyDesc') },
+    MONTHLY: { icon: 'fa-calendar-days', label: t('rentalModeMonthly'), desc: t('rentalModeMonthlyDesc') },
+    MIXED:   { icon: 'fa-shuffle',      label: t('rentalModeMixed'),  desc: t('rentalModeMixedDesc')  },
+  }), [t]);
+
   const AMENITIES = useMemo(() => [
     { key: 'wifi',       icon: AMENITY_ICONS.wifi,       label: t('amenityWifi')           },
     { key: 'clim',       icon: AMENITY_ICONS.clim,       label: t('amenityClimatisation')  },
@@ -143,6 +167,7 @@ export default function PublierPage() {
     resolver: zodResolver(schema) as Resolver<FormValues>,
     defaultValues: {
       type: 'APPARTEMENT',
+      rentalMode: 'MONTHLY',
       amenities: [],
       images: [],
       lat: 14.6937,
@@ -552,56 +577,117 @@ export default function PublierPage() {
               </>
             )}
 
-            {/* ── Étape 3 : Prix ── */}
+            {/* ── Étape 3 : Mode de location & Prix ── */}
             {step === 3 && (
               <>
                 <StepHeader title={STEP_HEADERS[3].title} sub={STEP_HEADERS[3].sub} />
 
-                <Field label={t('fieldRent')} error={errors.price?.message} required>
-                  <div className="relative">
-                    <input type="number" min={0} {...register('price', { valueAsNumber: true })}
-                      placeholder={t('fieldRentPh')}
-                      className="input-field pr-16" />
-                    <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-sub">
-                      FCFA
-                    </span>
+                <div>
+                  <FieldLabel label={t('rentalModeLabel')} required />
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                    {RENTAL_MODES.map((mode) => {
+                      const active = values.rentalMode === mode;
+                      const meta = RENTAL_MODE_META[mode];
+                      return (
+                        <button key={mode} type="button" onClick={() => setValue('rentalMode', mode)}
+                          className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all ${
+                            active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
+                          }`}>
+                          <span className="flex items-center gap-2">
+                            <i className={`fa-solid ${meta.icon} ${active ? 'text-gold-dark' : 'text-sub'}`} />
+                            <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>{meta.label}</span>
+                          </span>
+                          <span className="text-[11px] text-sub">{meta.desc}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                </Field>
+                </div>
 
-                {Number(values.price) > 0 && (
-                  <div className="rounded-2xl border border-gold/30 bg-gold-pale px-5 py-4">
-                    <p className="text-xs text-sub mb-1">{t('pricePreviewLabel')}</p>
-                    <p className="text-3xl font-extrabold text-gold-dark">
-                      {Number(values.price).toLocaleString(numLocale)}
-                      <span className="ml-2 text-base font-semibold text-sub">{t('fieldRentUnit')}</span>
+                {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && (
+                  <div className="rounded-xl border border-line bg-bg/60 p-4 space-y-4">
+                    <p className="text-xs font-semibold text-sub uppercase tracking-wide">
+                      <i className="fa-solid fa-calendar-days mr-1.5 text-gold-dark" />
+                      {t('monthlyTitle')}
                     </p>
-                  </div>
-                )}
 
-                <div className="rounded-xl border border-line bg-bg/60 p-4 space-y-3">
-                  <p className="text-xs font-semibold text-sub uppercase tracking-wide">
-                    <i className="fa-solid fa-moon mr-1.5 text-gold-dark" />
-                    {t('shortStayTitle')}
-                  </p>
-                  <p className="text-xs text-sub">{t('shortStayDesc')}</p>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field label={t('fieldPriceNight')} error={errors.pricePerNight?.message}>
+                    <Field label={t('fieldRent')} error={errors.price?.message} required>
                       <div className="relative">
-                        <input type="number" min={0} {...register('pricePerNight', {
+                        <input type="number" min={0} {...register('price', {
                           setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
-                        })} placeholder={t('fieldPriceNightPh')} className="input-field pr-20" />
+                        })} placeholder={t('fieldRentPh')} className="input-field pr-16" />
                         <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-sub">
-                          {t('fcfaPerNight')}
+                          FCFA
                         </span>
                       </div>
                     </Field>
-                    <Field label={t('fieldMinNights')} error={errors.minimumNights?.message}>
-                      <input type="number" min={1} {...register('minimumNights', {
-                        setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
-                      })} placeholder={t('fieldMinNightsPh')} className="input-field" />
+
+                    {Number(values.price) > 0 && (
+                      <div className="rounded-2xl border border-gold/30 bg-gold-pale px-5 py-4">
+                        <p className="text-xs text-sub mb-1">{t('pricePreviewLabel')}</p>
+                        <p className="text-3xl font-extrabold text-gold-dark">
+                          {Number(values.price).toLocaleString(numLocale)}
+                          <span className="ml-2 text-base font-semibold text-sub">{t('fieldRentUnit')}</span>
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Field label={t('fieldDepositMonths')} error={errors.depositMonths?.message} required>
+                        <input type="number" min={0} {...register('depositMonths', {
+                          setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+                        })} placeholder={t('fieldDepositMonthsPh')} className="input-field" />
+                      </Field>
+                      <Field label={t('fieldMinLeaseMonths')} error={errors.minLeaseMonths?.message}>
+                        <input type="number" min={1} {...register('minLeaseMonths', {
+                          setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+                        })} placeholder={t('fieldMinLeaseMonthsPh')} className="input-field" />
+                      </Field>
+                    </div>
+
+                    <label className="flex items-center gap-2 text-sm text-text">
+                      <input type="checkbox" {...register('chargesIncluded')} className="h-4 w-4 rounded border-line accent-gold" />
+                      {t('fieldChargesIncluded')}
+                    </label>
+                  </div>
+                )}
+
+                {(values.rentalMode === 'NIGHTLY' || values.rentalMode === 'MIXED') && (
+                  <div className="rounded-xl border border-line bg-bg/60 p-4 space-y-3">
+                    <p className="text-xs font-semibold text-sub uppercase tracking-wide">
+                      <i className="fa-solid fa-moon mr-1.5 text-gold-dark" />
+                      {t('shortStayTitle')}
+                    </p>
+                    <p className="text-xs text-sub">{t('shortStayDesc')}</p>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Field label={t('fieldPriceNight')} error={errors.pricePerNight?.message} required>
+                        <div className="relative">
+                          <input type="number" min={0} {...register('pricePerNight', {
+                            setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+                          })} placeholder={t('fieldPriceNightPh')} className="input-field pr-20" />
+                          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-sub">
+                            {t('fcfaPerNight')}
+                          </span>
+                        </div>
+                      </Field>
+                      <Field label={t('fieldMinNights')} error={errors.minimumNights?.message}>
+                        <input type="number" min={1} {...register('minimumNights', {
+                          setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+                        })} placeholder={t('fieldMinNightsPh')} className="input-field" />
+                      </Field>
+                    </div>
+                    <Field label={t('fieldCleaningFee')} error={errors.cleaningFee?.message}>
+                      <div className="relative">
+                        <input type="number" min={0} {...register('cleaningFee', {
+                          setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+                        })} placeholder={t('fieldCleaningFeePh')} className="input-field pr-16" />
+                        <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-sub">
+                          FCFA
+                        </span>
+                      </div>
                     </Field>
                   </div>
-                </div>
+                )}
               </>
             )}
 
@@ -765,13 +851,20 @@ function RecapCard({
           <i className={`fa-solid ${meta.icon} text-gold-dark`} /> {meta.label}
         </span>
         <span className="text-right">
-          <span className="block text-xl font-extrabold text-gold-dark">
-            {Number(values.price).toLocaleString(numLocale)}
-            <span className="ml-1 text-sm font-semibold text-sub"> {t('fieldRentUnit')}</span>
-          </span>
-          {Number(values.pricePerNight) > 0 && (
+          {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && Number(values.price) > 0 && (
+            <span className="block text-xl font-extrabold text-gold-dark">
+              {Number(values.price).toLocaleString(numLocale)}
+              <span className="ml-1 text-sm font-semibold text-sub"> {t('fieldRentUnit')}</span>
+            </span>
+          )}
+          {(values.rentalMode === 'NIGHTLY' || values.rentalMode === 'MIXED') && Number(values.pricePerNight) > 0 && (
             <span className="block text-xs font-semibold text-sub">
               {t('recapPriceNight')} : {Number(values.pricePerNight).toLocaleString(numLocale)} {t('fcfaPerNight')}
+            </span>
+          )}
+          {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && values.depositMonths !== undefined && (
+            <span className="block text-xs font-semibold text-sub">
+              {t('recapDeposit')} : {values.depositMonths} {t('recapDepositUnit')}
             </span>
           )}
         </span>

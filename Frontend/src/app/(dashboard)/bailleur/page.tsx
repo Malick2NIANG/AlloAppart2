@@ -81,10 +81,16 @@ interface DashboardData {
 }
 
 const BOOKING_STATUS_BADGE: Record<BookingStatus, string> = {
-  PENDING:   'bg-gold-pale text-gold-dark',
-  CONFIRMED: 'bg-green-100 text-green-700',
-  CANCELLED: 'bg-red-100 text-red-700',
-  COMPLETED: 'bg-blue-100 text-blue-700',
+  PENDING:    'bg-gold-pale text-gold-dark',
+  CONFIRMED:  'bg-green-100 text-green-700',
+  CANCELLED:  'bg-red-100 text-red-700',
+  COMPLETED:  'bg-blue-100 text-blue-700',
+  // Cycle de vie du bail mensuel (location hybride)
+  REQUESTED:  'bg-gold-pale text-gold-dark',
+  APPROVED:   'bg-green-100 text-green-700',
+  REJECTED:   'bg-red-100 text-red-700',
+  ACTIVE:     'bg-emerald-100 text-emerald-700',
+  TERMINATED: 'bg-gray-100 text-gray-600',
 };
 
 export default function BailleurDashboardPage() {
@@ -104,10 +110,15 @@ export default function BailleurDashboardPage() {
   const [downloadingReport, setDownloading] = useState(false);
 
   const BOOKING_STATUS_LABELS = useMemo<Record<BookingStatus, string>>(() => ({
-    PENDING:   t('bookingStatusPending'),
-    CONFIRMED: t('bookingStatusConfirmed'),
-    CANCELLED: t('bookingStatusCancelled'),
-    COMPLETED: t('bookingStatusCompleted'),
+    PENDING:    t('bookingStatusPending'),
+    CONFIRMED:  t('bookingStatusConfirmed'),
+    CANCELLED:  t('bookingStatusCancelled'),
+    COMPLETED:  t('bookingStatusCompleted'),
+    REQUESTED:  t('chipRequested'),
+    APPROVED:   t('chipApproved'),
+    REJECTED:   t('chipRejected'),
+    ACTIVE:     t('chipActive'),
+    TERMINATED: t('chipTerminated'),
   }), [t]);
 
   const LOCATAIRE_STATUS = useMemo<Record<string, { label: string; color: string }>>(() => ({
