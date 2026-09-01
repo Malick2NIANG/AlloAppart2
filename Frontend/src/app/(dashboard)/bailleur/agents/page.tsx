@@ -25,7 +25,7 @@ function AgentCard({ agent }: { agent: Agent }) {
   const initials = [agent.firstName?.[0], agent.lastName?.[0]].filter(Boolean).join('').toUpperCase();
 
   return (
-    <div className="bg-white rounded-2xl border border-line shadow-sm p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
+    <div className="bg-card rounded-2xl border border-line shadow-sm p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
       {/* Avatar + name */}
       <div className="flex items-center gap-3">
         {agent.avatar ? (
@@ -163,7 +163,7 @@ export default function BailleurAgentsPage() {
           placeholder={t('agentSearchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 text-sm border border-line rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-gold/30 text-text placeholder:text-sub"
+          className="w-full pl-9 pr-4 py-2.5 text-sm border border-line rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-gold/30 text-text placeholder:text-sub"
         />
       </div>
 
@@ -177,7 +177,7 @@ export default function BailleurAgentsPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-2xl border border-line p-5 animate-pulse space-y-4">
+            <div key={i} className="bg-card rounded-2xl border border-line p-5 animate-pulse space-y-4">
               <div className="flex gap-3 items-center">
                 <div className="h-14 w-14 rounded-full bg-line" />
                 <div className="space-y-2 flex-1">

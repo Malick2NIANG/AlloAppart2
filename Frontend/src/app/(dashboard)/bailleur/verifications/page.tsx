@@ -1025,7 +1025,7 @@ function VerificationsPageContent() {
           <button key={key} onClick={() => setTab(key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeTab === key
-                ? 'bg-white shadow-sm text-text border border-line'
+                ? 'bg-card shadow-sm text-text border border-line'
                 : 'text-sub hover:text-text'
             }`}>
             <i className={`fa-solid ${icon} text-xs ${activeTab === key ? 'text-gold-dark' : ''}`} />

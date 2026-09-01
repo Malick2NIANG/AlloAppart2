@@ -40,7 +40,7 @@ export default function LocationPickerInner({
   return (
     <div className="relative w-full h-full">
       <div className="pointer-events-none absolute top-2 left-1/2 z-[1000] -translate-x-1/2">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white/90 px-3 py-1 text-xs text-text shadow backdrop-blur-sm">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white/90 px-3 py-1 text-xs text-gray-800 shadow backdrop-blur-sm">
           <i className="fa-solid fa-location-crosshairs text-gold-dark text-[10px]" />
           Cliquez pour placer votre bien
         </span>

@@ -303,7 +303,7 @@ function AbonnementContent() {
                         ? 'bg-green-100 text-green-700 cursor-default'
                         : plan.highlighted
                           ? 'btn-gold'
-                          : 'border border-line bg-white text-text hover:bg-gold-pale hover:text-gold-dark'
+                          : 'border border-line bg-card text-text hover:bg-gold-pale hover:text-gold-dark'
                     }`}
                   >
                     {isActive ? (

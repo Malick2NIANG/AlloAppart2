@@ -99,7 +99,7 @@ export default function ListingContactCard({
   return (
     <>
       {/* ── Price + contact card ────────────────────────────────── */}
-      <div className="bg-white/80 backdrop-blur-xl border border-line rounded-3xl p-6 shadow-lg">
+      <div className="bg-card/80 backdrop-blur-xl border border-line rounded-3xl p-6 shadow-lg">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-2xl font-extrabold text-text">
@@ -235,7 +235,7 @@ export default function ListingContactCard({
 
       {/* ── Mobile CTA ─── masqué si propriétaire ──────────────── */}
       {!isOwner && <div className="fixed bottom-3 inset-x-0 z-40 px-4 md:hidden">
-        <div className="mx-auto max-w-md rounded-2xl shadow-lg border border-line bg-white/90 backdrop-blur-xl p-3 flex items-center justify-between">
+        <div className="mx-auto max-w-md rounded-2xl shadow-lg border border-line bg-card/90 backdrop-blur-xl p-3 flex items-center justify-between">
           <div>
             <p className="text-base font-extrabold text-text">{priceRaw.toLocaleString(numLocale)} FCFA</p>
             <p className="text-[11px] text-sub -mt-0.5">{perMonth}</p>

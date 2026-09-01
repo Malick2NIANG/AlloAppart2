@@ -101,7 +101,7 @@ export default function ListingReviewForm({ listingId }: Props) {
   const canReview = isSignedIn && eligibleBooking !== null;
 
   return (
-    <div className="bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-6 md:p-8 shadow-lg">
+    <div className="bg-card backdrop-blur-xl border border-line rounded-3xl p-6 md:p-8 shadow-lg">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl font-semibold text-text">{t('reviews')}</h2>
@@ -120,7 +120,7 @@ export default function ListingReviewForm({ listingId }: Props) {
       ) : (
         <div className="grid md:grid-cols-2 gap-5">
           {reviews.map((r) => (
-            <div key={r.id} className="p-4 rounded-2xl border border-line bg-white/60 hover:shadow-md transition">
+            <div key={r.id} className="p-4 rounded-2xl border border-line bg-card/60 hover:shadow-md transition">
               <div className="flex items-center justify-between mb-1">
                 <p className="font-medium text-text text-sm">{r.author.firstName} {r.author.lastName}</p>
                 <p className="text-xs text-sub">{formatRelative(r.createdAt, t)}</p>

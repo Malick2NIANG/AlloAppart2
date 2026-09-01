@@ -94,7 +94,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   const now = Date.now();
   const isNew = (now - new Date(listing.createdAt).getTime()) < 10 * 24 * 60 * 60 * 1000;
 
-  const CARD = 'bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-6 md:p-8 shadow-lg';
+  const CARD = 'bg-card backdrop-blur-xl border border-line rounded-3xl p-6 md:p-8 shadow-lg';
 
   return (
     <main className="pb-24 md:pb-10">
@@ -281,7 +281,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {similar.map((s) => (
                   <Link key={s.id} href={`/listings/${s.id}`}
-                    className="group rounded-2xl overflow-hidden border border-line hover:shadow-lg transition bg-white/70">
+                    className="group rounded-2xl overflow-hidden border border-line hover:shadow-lg transition bg-card">
                     <div className="relative h-40 overflow-hidden">
                       <Image src={s.images[0]} alt={s.title} fill
                         className="object-cover group-hover:scale-105 transition duration-500" />
@@ -333,7 +333,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             <AvailabilityCalendar listingId={listing.id} />
 
             {/* Guarantees */}
-            <div className="bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-5 shadow">
+            <div className="bg-card backdrop-blur-xl border border-line rounded-3xl p-5 shadow">
               <h3 className="text-sm font-semibold text-text mb-3">{t('guarantees')}</h3>
               <ul className="space-y-2.5 text-sm text-sub">
                 {[
@@ -356,7 +356,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
       {/* ── Back button ────────────────────────────────────────────── */}
       <div className="aa-container mt-16 mb-10 text-center">
         <Link href="/listings"
-          className="group inline-flex items-center gap-2 rounded-full border border-gold/40 bg-white/80 backdrop-blur-md text-text font-medium text-sm px-5 py-2.5 shadow-md hover:shadow-lg hover:bg-gold-pale hover:text-gold-dark transition-all duration-300">
+          className="group inline-flex items-center gap-2 rounded-full border border-gold/40 bg-card/80 backdrop-blur-md text-text font-medium text-sm px-5 py-2.5 shadow-md hover:shadow-lg hover:bg-gold-pale hover:text-gold-dark transition-all duration-300">
           <i className="fa-solid fa-arrow-left text-gold-dark group-hover:-translate-x-1 transition-transform duration-300" />
           {t('seeOtherListings')}
         </Link>

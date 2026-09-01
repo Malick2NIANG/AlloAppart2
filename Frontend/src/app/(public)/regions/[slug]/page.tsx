@@ -200,7 +200,7 @@ export default async function RegionPage({
 
                 {currentPage > 1 ? (
                   <Link href={pageUrl(currentPage - 1)}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-white/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
                     <i className="fa-solid fa-chevron-left text-xs" />
                   </Link>
                 ) : (
@@ -211,7 +211,7 @@ export default async function RegionPage({
 
                 {start > 1 && (
                   <>
-                    <Link href={pageUrl(1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-white/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">1</Link>
+                    <Link href={pageUrl(1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">1</Link>
                     {start > 2 && <span className="text-sub px-1">…</span>}
                   </>
                 )}
@@ -221,7 +221,7 @@ export default async function RegionPage({
                     className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-medium transition ${
                       p === currentPage
                         ? 'border-gold bg-gold text-gray-900 shadow-sm'
-                        : 'border-line bg-white/80 text-text hover:bg-gold-pale hover:text-gold-dark'
+                        : 'border-line bg-card/80 text-text hover:bg-gold-pale hover:text-gold-dark'
                     }`}>
                     {p}
                   </Link>
@@ -230,13 +230,13 @@ export default async function RegionPage({
                 {end < totalPages && (
                   <>
                     {end < totalPages - 1 && <span className="text-sub px-1">...</span>}
-                    <Link href={pageUrl(totalPages)} className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-white/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">{totalPages}</Link>
+                    <Link href={pageUrl(totalPages)} className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">{totalPages}</Link>
                   </>
                 )}
 
                 {currentPage < totalPages ? (
                   <Link href={pageUrl(currentPage + 1)}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-white/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
                     <i className="fa-solid fa-chevron-right text-xs" />
                   </Link>
                 ) : (

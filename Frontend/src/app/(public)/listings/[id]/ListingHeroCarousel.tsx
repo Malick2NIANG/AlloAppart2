@@ -135,7 +135,7 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
               <i className="fa-solid fa-share-nodes text-sm" />
             </button>
             {shareOpen && (
-              <div className="absolute right-0 mt-2 w-52 bg-white border border-line rounded-xl shadow-lg p-2 z-20">
+              <div className="absolute right-0 mt-2 w-52 bg-card border border-line rounded-xl shadow-lg p-2 z-20">
                 {[
                   { icon: 'fa-brands fa-whatsapp', color: 'text-green-600', label: t('shareWhatsapp'), action: shareWhatsapp },
                   { icon: 'fa-brands fa-facebook', color: 'text-blue-600',  label: t('shareFacebook'), action: shareFacebook },
