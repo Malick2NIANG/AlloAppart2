@@ -60,6 +60,7 @@ export default function EditListingPage() {
     price:           z.number().positive(t('zPricePositive')).optional(),
     pricePerNight:   z.number().positive(t('zPriceNightPositive')).optional(),
     minimumNights:   z.number().int().min(1, t('zMinNights')).optional(),
+    maximumNights:   z.number().int().min(1, t('zMaxNights')).optional(),
     cleaningFee:     z.number().min(0).optional(),
     depositMonths:   z.number().int().min(0, t('zDepositRequired')).optional(),
     chargesIncluded: z.boolean().optional(),
@@ -87,6 +88,18 @@ export default function EditListingPage() {
     if (needsMonthly && (data.depositMonths === undefined || data.depositMonths === null)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['depositMonths'], message: t('zDepositRequired') });
     }
+    // En mode MIXTE, la durée minimale du bail définit le seuil nuitée/mensuel.
+    if (data.rentalMode === 'MIXED' && (data.minLeaseMonths === undefined || data.minLeaseMonths === null)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['minLeaseMonths'], message: t('zMinLeaseRequired') });
+    }
+    // Séjour maximum (optionnel, mode NUITÉE) ne peut pas être < séjour minimum.
+    if (
+      data.maximumNights !== undefined && data.maximumNights !== null &&
+      data.minimumNights !== undefined && data.minimumNights !== null &&
+      data.maximumNights < data.minimumNights
+    ) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['maximumNights'], message: t('zMaxLessThanMin') });
+    }
   }), [t]);
 
   type FormValues = z.infer<typeof schema>;
@@ -99,6 +112,7 @@ export default function EditListingPage() {
     price:           t('fieldPrice'),
     pricePerNight:   t('fieldPriceNight'),
     minimumNights:   t('fieldMinNights'),
+    maximumNights:   t('fieldMaxNights'),
     cleaningFee:     t('fieldCleaningFee'),
     depositMonths:   t('fieldDepositMonths'),
     chargesIncluded: t('fieldChargesIncluded'),
@@ -117,7 +131,7 @@ export default function EditListingPage() {
   }), [t]);
 
   const STEPS = useMemo(() => [
-    { label: t('stepBasicInfo'),       fields: ['title', 'description', 'type', 'rentalMode', 'price', 'pricePerNight', 'minimumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'] },
+    { label: t('stepBasicInfo'),       fields: ['title', 'description', 'type', 'rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'] },
     { label: t('stepLocation'),         fields: ['address', 'city', 'region', 'lat', 'lng'] },
     { label: t('stepDetails'),          fields: ['surface', 'rooms', 'beds', 'baths'] },
     { label: t('stepAmenitiesPhotos'),  fields: ['amenities', 'images'] },
@@ -143,6 +157,9 @@ export default function EditListingPage() {
   const images      = watch('images') ?? [];
   const description = watch('description') ?? '';
   const rentalMode  = watch('rentalMode');
+  const priceWatch  = watch('price');
+  const depositMonthsWatch = watch('depositMonths');
+  const minLeaseMonthsWatch = watch('minLeaseMonths');
 
   const RENTAL_MODE_META = useMemo(() => ({
     NIGHTLY: { icon: 'fa-moon',          label: t('rentalModeNightly'), desc: t('rentalModeNightlyDesc') },
@@ -171,6 +188,7 @@ export default function EditListingPage() {
             ? (typeof listing.pricePerNight === 'string' ? parseFloat(listing.pricePerNight) : listing.pricePerNight)
             : undefined,
           minimumNights: listing.minimumNights ?? undefined,
+          maximumNights: listing.maximumNights ?? undefined,
           cleaningFee: listing.cleaningFee != null
             ? (typeof listing.cleaningFee === 'string' ? parseFloat(listing.cleaningFee) : listing.cleaningFee)
             : undefined,
@@ -320,6 +338,13 @@ export default function EditListingPage() {
                   <i className="fa-solid fa-calendar-days mr-1.5 text-gold-dark" />
                   {t('monthlyTitle')}
                 </p>
+                {rentalMode === 'MIXED' && (
+                  <p className="text-xs text-sub">
+                    {Number(minLeaseMonthsWatch) > 0
+                      ? t('monthlyThresholdNote', { months: Number(minLeaseMonthsWatch) })
+                      : t('monthlyThresholdNoteGeneric')}
+                  </p>
+                )}
                 <Field label={t('fieldPrice')} error={errors.price?.message}>
                   <div className="relative">
                     <input
@@ -336,11 +361,29 @@ export default function EditListingPage() {
                     <input type="number" min={0} {...register('depositMonths', { setValueAs: asNumberOrUndefined })}
                       placeholder="2" className={inputCls(!!errors.depositMonths)} />
                   </Field>
-                  <Field label={t('fieldMinLeaseMonths')} error={errors.minLeaseMonths?.message}>
+                  <Field label={t('fieldMinLeaseMonths')} error={errors.minLeaseMonths?.message} required={rentalMode === 'MIXED'}>
                     <input type="number" min={1} {...register('minLeaseMonths', { setValueAs: asNumberOrUndefined })}
                       placeholder="12" className={inputCls(!!errors.minLeaseMonths)} />
                   </Field>
                 </div>
+
+                {Number(priceWatch) > 0 && Number(depositMonthsWatch) > 0 && (() => {
+                  const rent = Number(priceWatch);
+                  const brokerFee = Math.round(rent);
+                  const landlordDeposit = Math.max(0, Math.round(rent * Number(depositMonthsWatch)) - brokerFee);
+                  return (
+                    <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-xs text-blue-800">
+                      <i className="fa-solid fa-circle-info mt-0.5 shrink-0" />
+                      <span>
+                        {t('depositCommissionNote', {
+                          fee: brokerFee.toLocaleString('fr-FR'),
+                          net: landlordDeposit.toLocaleString('fr-FR'),
+                        })}
+                      </span>
+                    </div>
+                  );
+                })()}
+
                 <label className="flex items-center gap-2 text-sm text-text">
                   <input type="checkbox" {...register('chargesIncluded')} className="h-4 w-4 rounded border-line accent-gold" />
                   {t('fieldChargesIncluded')}
@@ -377,6 +420,22 @@ export default function EditListingPage() {
                     />
                   </Field>
                 </div>
+
+                {rentalMode === 'NIGHTLY' && (
+                  <div>
+                    <Field label={t('fieldMaxNights')} error={errors.maximumNights?.message}>
+                      <input
+                        type="number"
+                        min={1}
+                        {...register('maximumNights', { setValueAs: asNumberOrUndefined })}
+                        placeholder="30"
+                        className={inputCls(!!errors.maximumNights)}
+                      />
+                    </Field>
+                    <p className="mt-1.5 text-xs text-sub">{t('fieldMaxNightsDesc')}</p>
+                  </div>
+                )}
+
                 <Field label={t('fieldCleaningFee')} error={errors.cleaningFee?.message}>
                   <div className="relative">
                     <input type="number" min={0} {...register('cleaningFee', { setValueAs: asNumberOrUndefined })}
@@ -561,10 +620,12 @@ function StepIndicator({ current, steps }: { current: number; steps: { label: st
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, error, required, children }: { label: string; error?: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-medium text-text">{label}</label>
+      <label className="mb-1.5 block text-sm font-medium text-text">
+        {label}{required && <span className="ml-1 text-red-400">*</span>}
+      </label>
       {children}
       {error && (
         <p className="mt-1 flex items-center gap-1 text-xs text-red-500">

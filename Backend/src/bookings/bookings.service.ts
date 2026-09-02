@@ -23,60 +23,10 @@ import {
 // Fenêtre de signalement de non-conformité — Article 9 des CGU
 const DISPUTE_WINDOW_HOURS = 24;
 
-const DAYS_PER_MONTH = 30; // base du prorata pour les jours résiduels
-const MONTHLY_THRESHOLD = 25; // au-delà, on facture au mois plutôt qu'à la nuit
-
-/**
- * Ajoute n mois en bornant au dernier jour du mois d'arrivée.
- *
- * `setMonth` seul déborde : 31 janvier + 1 mois donnerait le 3 mars. Ici on
- * obtient le 28 (ou 29) février, ce qui correspond à l'intuition d'un bail.
- */
-function addMonthsClamped(date: Date, n: number): Date {
-  const day = date.getDate();
-  const r = new Date(date);
-  r.setDate(1);
-  r.setMonth(r.getMonth() + n);
-  const lastDayOfTargetMonth = new Date(
-    r.getFullYear(),
-    r.getMonth() + 1,
-    0,
-  ).getDate();
-  r.setDate(Math.min(day, lastDayOfTargetMonth));
-  return r;
-}
-
-/**
- * Découpe un séjour en mois calendaires complets + jours résiduels.
- *
- * Un mois calendaire vaut un loyer mensuel, quel que soit son nombre de jours :
- * le locataire paie donc exactement le prix affiché « /mois ». Les jours qui
- * dépassent sont facturés au prorata (loyer ÷ 30).
- *
- *   1er juil → 1er août  = 1 mois,  0 jour
- *   1er juil → 1er oct   = 3 mois,  0 jour
- *   1er juil → 16 août   = 1 mois, 15 jours
- */
-export function splitCalendarMonths(
-  start: Date,
-  end: Date,
-): { months: number; remainderDays: number } {
-  let months = 0;
-  let cursor = start;
-
-  for (;;) {
-    const next = addMonthsClamped(start, months + 1);
-    if (next.getTime() > end.getTime()) break;
-    months += 1;
-    cursor = next;
-  }
-
-  const remainderDays = Math.max(
-    0,
-    Math.round((end.getTime() - cursor.getTime()) / 86_400_000),
-  );
-  return { months, remainderDays };
-}
+const DAYS_PER_MONTH = 30; // base du prorata nuitée quand aucun tarif/nuit n'est défini
+// Repli si une annonce MIXTE plus ancienne n'a pas (encore) de minLeaseMonths
+// renseigné — ne devrait plus arriver, ce champ est requis en mode MIXTE.
+const DEFAULT_MIN_LEASE_MONTHS = 1;
 
 @Injectable()
 export class BookingsService {
@@ -92,6 +42,9 @@ export class BookingsService {
         price: true,
         pricePerNight: true,
         minimumNights: true,
+        maximumNights: true,
+        rentalMode: true,
+        minLeaseMonths: true,
         title: true,
         city: true,
         owner: true,
@@ -108,6 +61,13 @@ export class BookingsService {
     if (listing.status === ListingStatus.RENTED) {
       throw new BadRequestException(
         "Ce logement est actuellement loué au mois et n'est pas disponible à la réservation.",
+      );
+    }
+    // Une annonce exclusivement mensuelle ne propose pas de réservation
+    // nuitée — passe par createMonthlyRequest() (demande + caution).
+    if (listing.rentalMode === RentalMode.MONTHLY) {
+      throw new BadRequestException(
+        "Cette annonce n'est disponible qu'en location au mois. Faites une demande de location au mois.",
       );
     }
     const startDate = new Date(dto.startDate);
@@ -142,32 +102,43 @@ export class BookingsService {
       );
     }
 
+    // Séjour maximum (optionnel, mode NIGHTLY uniquement — le mode MIXTE a
+    // déjà son propre seuil via minLeaseMonths ci-dessous).
+    if (
+      listing.rentalMode === RentalMode.NIGHTLY &&
+      listing.maximumNights &&
+      days > listing.maximumNights
+    ) {
+      throw new BadRequestException(
+        `Cette annonce accepte un séjour maximum de ${listing.maximumNights} nuit(s).`,
+      );
+    }
+
+    // Annonce MIXTE + séjour atteignant la durée minimale du bail : on ne
+    // facture plus au tarif nuitée en le basculant automatiquement au tarif
+    // mensuel — on redirige vers le vrai produit "location au mois" (caution
+    // + validation). Le seuil est la durée minimale de bail fixée par le
+    // bailleur (minLeaseMonths), convertie en jours — pas une valeur fixe.
+    if (listing.rentalMode === RentalMode.MIXED) {
+      const minLeaseDays =
+        (listing.minLeaseMonths ?? DEFAULT_MIN_LEASE_MONTHS) * DAYS_PER_MONTH;
+      if (days >= minLeaseDays) {
+        throw new BadRequestException(
+          `Cette annonce passe en location au mois à partir de ${listing.minLeaseMonths ?? DEFAULT_MIN_LEASE_MONTHS} mois de séjour — faites une demande de location au mois (caution + validation du bailleur) plutôt qu'une réservation nuitée.`,
+        );
+      }
+    }
+
     // ── Calcul du montant total ──────────────────────────────────────────────
-    // Règle :
-    //   < 25 jours → tarif nuit préféré (loyer mensuel ÷ 30 × jours en fallback)
-    //   ≥ 25 jours → mois calendaires × loyer mensuel + jours résiduels au prorata
-    //                (tarif nuit × jours en fallback si pas de loyer mensuel)
-    //
-    // Un mois calendaire = un loyer mensuel, quel que soit son nombre de jours.
-    // Le montant facturé coïncide donc avec le prix affiché « /mois » sur
-    // l'annonce — un séjour du 1er juillet au 1er août coûte un loyer, pas
-    // 31/30 de loyer.
+    // Tarif/nuit × nombre de nuits — pas de bascule vers le tarif mensuel ici,
+    // voir createMonthlyRequest() pour la location au mois.
     const monthlyPrice = Number(listing.price);
     const nightlyPrice = Number(listing.pricePerNight ?? 0);
-    const hasMonthly = monthlyPrice > 0;
     const hasNightly = nightlyPrice > 0;
 
-    let totalAmount: number;
-    if (days >= MONTHLY_THRESHOLD && hasMonthly && endDate) {
-      const { months, remainderDays } = splitCalendarMonths(startDate, endDate);
-      totalAmount = Math.round(
-        months * monthlyPrice + remainderDays * (monthlyPrice / DAYS_PER_MONTH),
-      );
-    } else if (hasNightly) {
-      totalAmount = Math.round(nightlyPrice * days);
-    } else {
-      totalAmount = Math.round((monthlyPrice / DAYS_PER_MONTH) * days);
-    }
+    const totalAmount = hasNightly
+      ? Math.round(nightlyPrice * days)
+      : Math.round((monthlyPrice / DAYS_PER_MONTH) * days);
     // ────────────────────────────────────────────────────────────────────────
     const commissionRate = Number(process.env.COMMISSION_RATE ?? '0.10');
     const platformFee = Math.round(totalAmount * commissionRate);
@@ -281,9 +252,12 @@ export class BookingsService {
       monthlyPrice * (listing.depositMonths ?? 0),
     );
     const totalAmount = Math.round(monthlyPrice + depositAmount);
-    const commissionRate = Number(process.env.COMMISSION_RATE ?? '0.10');
-    const platformFee = Math.round(totalAmount * commissionRate);
-    const landlordAmount = totalAmount - platformFee;
+    // Commission courtier (location au mois) : pratique standard au Sénégal —
+    // sur la caution encaissée, AlloAppart prélève l'équivalent d'1 mois de
+    // loyer ; le bailleur perçoit le 1er loyer + le reste de la caution.
+    // (Différent du taux COMMISSION_RATE appliqué aux réservations nuitée.)
+    const platformFee = Math.round(monthlyPrice);
+    const landlordAmount = Math.max(0, totalAmount - platformFee);
 
     const booking = await this.prisma.booking.create({
       data: {

@@ -11,7 +11,14 @@ import { SearchService } from '../search/search.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { FilterListingsDto } from './dto/filter-listings.dto';
-import { ListingStatus, RentalMode, Role, SubscriptionPlan, SubscriptionStatus, User } from '@prisma/client';
+import {
+  ListingStatus,
+  RentalMode,
+  Role,
+  SubscriptionPlan,
+  SubscriptionStatus,
+  User,
+} from '@prisma/client';
 import { CreateReportDto } from './dto/create-report.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import axios from 'axios';
@@ -143,8 +150,13 @@ export class ListingsService {
       include: {
         owner: {
           select: {
-            id: true, firstName: true, lastName: true,
-            agencyName: true, agencySlug: true, avatar: true, roles: true,
+            id: true,
+            firstName: true,
+            lastName: true,
+            agencyName: true,
+            agencySlug: true,
+            avatar: true,
+            roles: true,
             subscription: { select: { plan: true, status: true } },
           },
         },
@@ -165,9 +177,17 @@ export class ListingsService {
       const sub = listing.owner?.subscription;
       const isProAgence = ownerRoles.includes(Role.PRO_AGENCE);
 
-      if (isProAgence && sub?.plan === SubscriptionPlan.PRO && sub.status === SubscriptionStatus.ACTIVE) {
+      if (
+        isProAgence &&
+        sub?.plan === SubscriptionPlan.PRO &&
+        sub.status === SubscriptionStatus.ACTIVE
+      ) {
         priority += 200;
-      } else if (isProAgence && sub?.plan === SubscriptionPlan.STARTER && sub.status === SubscriptionStatus.ACTIVE) {
+      } else if (
+        isProAgence &&
+        sub?.plan === SubscriptionPlan.STARTER &&
+        sub.status === SubscriptionStatus.ACTIVE
+      ) {
         priority += 100;
       } else if (listing.boostUntil && listing.boostUntil > now) {
         priority += 50;
@@ -177,7 +197,11 @@ export class ListingsService {
     });
 
     // Tri par score décroissant, puis par date de création décroissante
-    scored.sort((a, b) => b.priority - a.priority || b.listing.createdAt.getTime() - a.listing.createdAt.getTime());
+    scored.sort(
+      (a, b) =>
+        b.priority - a.priority ||
+        b.listing.createdAt.getTime() - a.listing.createdAt.getTime(),
+    );
 
     const total = scored.length;
     const page_ = page;
@@ -205,8 +229,13 @@ export class ListingsService {
       include: {
         owner: {
           select: {
-            id: true, firstName: true, lastName: true,
-            agencyName: true, agencySlug: true, avatar: true, roles: true,
+            id: true,
+            firstName: true,
+            lastName: true,
+            agencyName: true,
+            agencySlug: true,
+            avatar: true,
+            roles: true,
           },
         },
         _count: { select: { reviews: true } },
@@ -252,11 +281,16 @@ export class ListingsService {
    * fait un upsert inconditionnel sans champ `status`, donc l'appelant doit
    * décider lui-même d'indexer ou de retirer.
    */
-  private syncSearchIndex(listing: { id: string; status: ListingStatus }): void {
+  private syncSearchIndex(listing: {
+    id: string;
+    status: ListingStatus;
+  }): void {
     if (listing.status === ListingStatus.ACTIVE) {
       void this.search.indexListing(listing as never).catch(() => undefined);
     } else {
-      void this.search.deleteListingFromIndex(listing.id).catch(() => undefined);
+      void this.search
+        .deleteListingFromIndex(listing.id)
+        .catch(() => undefined);
     }
   }
 
@@ -301,17 +335,42 @@ export class ListingsService {
     price: number | undefined,
     pricePerNight: number | undefined,
   ): number | undefined {
-    if (rentalMode === RentalMode.NIGHTLY && price === undefined && pricePerNight !== undefined) {
+    if (
+      rentalMode === RentalMode.NIGHTLY &&
+      price === undefined &&
+      pricePerNight !== undefined
+    ) {
       return pricePerNight * 30;
     }
     return price;
+  }
+
+  /** Séjour maximum (optionnel, NIGHTLY) ne peut pas être inférieur au séjour minimum. */
+  private assertValidNightsRange(
+    minimumNights: number | undefined,
+    maximumNights: number | undefined,
+  ): void {
+    if (
+      minimumNights !== undefined &&
+      maximumNights !== undefined &&
+      maximumNights < minimumNights
+    ) {
+      throw new BadRequestException(
+        'Le séjour maximum ne peut pas être inférieur au séjour minimum.',
+      );
+    }
   }
 
   async create(ownerId: string, dto: CreateListingDto) {
     const wantsToPublish = dto.status === ListingStatus.ACTIVE;
     if (wantsToPublish) await this.assertCanPublish(ownerId);
 
-    const price = this.resolveMonthlyPrice(dto.rentalMode, dto.price, dto.pricePerNight);
+    this.assertValidNightsRange(dto.minimumNights, dto.maximumNights);
+    const price = this.resolveMonthlyPrice(
+      dto.rentalMode,
+      dto.price,
+      dto.pricePerNight,
+    );
     const listing = await this.prisma.listing.create({
       data: {
         ...dto,
@@ -332,13 +391,21 @@ export class ListingsService {
     // Defense-in-depth : un appelant interne pourrait passer status=ACTIVE via
     // un cast (le DTO l'exclut, mais on vérifie quand même au runtime).
     const rawDto = dto as Record<string, unknown>;
-    if (rawDto['status'] === ListingStatus.ACTIVE && listing.status !== ListingStatus.ACTIVE) {
+    if (
+      rawDto['status'] === ListingStatus.ACTIVE &&
+      listing.status !== ListingStatus.ACTIVE
+    ) {
       await this.assertCanPublish(listing.ownerId);
     }
+    this.assertValidNightsRange(
+      dto.minimumNights ?? listing.minimumNights ?? undefined,
+      dto.maximumNights ?? listing.maximumNights ?? undefined,
+    );
     const price = this.resolveMonthlyPrice(
       dto.rentalMode ?? listing.rentalMode,
       dto.price,
-      dto.pricePerNight ?? (listing.pricePerNight ? Number(listing.pricePerNight) : undefined),
+      dto.pricePerNight ??
+        (listing.pricePerNight ? Number(listing.pricePerNight) : undefined),
     );
     const updated = await this.prisma.listing.update({
       where: { id },
@@ -350,7 +417,9 @@ export class ListingsService {
 
   /** Archive (corbeille) : DRAFT ou ACTIVE → SUSPENDED, accessible par le bailleur propriétaire */
   async archiveListing(id: string, userId: string) {
-    const listing = await this.prisma.listing.findUniqueOrThrow({ where: { id } });
+    const listing = await this.prisma.listing.findUniqueOrThrow({
+      where: { id },
+    });
     if (listing.ownerId !== userId)
       throw new ForbiddenException('Not authorized');
     if (listing.status === ListingStatus.SUSPENDED)
@@ -366,22 +435,35 @@ export class ListingsService {
   }
 
   /** Restaure une annonce archivée (SUSPENDED) → DRAFT ou ACTIVE */
-  async restoreListing(id: string, userId: string, targetStatus: 'DRAFT' | 'ACTIVE') {
-    const listing = await this.prisma.listing.findUniqueOrThrow({ where: { id } });
+  async restoreListing(
+    id: string,
+    userId: string,
+    targetStatus: 'DRAFT' | 'ACTIVE',
+  ) {
+    const listing = await this.prisma.listing.findUniqueOrThrow({
+      where: { id },
+    });
     if (listing.ownerId !== userId)
       throw new ForbiddenException('Not authorized');
     if (listing.status !== ListingStatus.SUSPENDED)
       throw new BadRequestException('Only archived listings can be restored');
     const updated = await this.prisma.listing.update({
       where: { id },
-      data: { status: targetStatus === 'ACTIVE' ? ListingStatus.ACTIVE : ListingStatus.DRAFT },
+      data: {
+        status:
+          targetStatus === 'ACTIVE'
+            ? ListingStatus.ACTIVE
+            : ListingStatus.DRAFT,
+      },
     });
     this.syncSearchIndex(updated);
     return updated;
   }
 
   async unpublishListing(id: string, userId: string) {
-    const listing = await this.prisma.listing.findUniqueOrThrow({ where: { id } });
+    const listing = await this.prisma.listing.findUniqueOrThrow({
+      where: { id },
+    });
     if (listing.ownerId !== userId) {
       throw new ForbiddenException('Not authorized');
     }
@@ -397,7 +479,9 @@ export class ListingsService {
   }
 
   async publishListing(id: string, userId: string) {
-    const listing = await this.prisma.listing.findUniqueOrThrow({ where: { id } });
+    const listing = await this.prisma.listing.findUniqueOrThrow({
+      where: { id },
+    });
     if (listing.ownerId !== userId) {
       throw new ForbiddenException('Not authorized');
     }
@@ -503,12 +587,19 @@ export class ListingsService {
 
     // ── Mode bypass dev : simule le paiement sans appeler PayDunya ──────────
     if (isDev && this.config.get<string>('PAYDUNYA_DEV_BYPASS') === 'true') {
-      this.logger.warn(`[DEV BYPASS] Boost direct de l'annonce ${listingId} (${BOOST_PRICE_XOF} FCFA — ${BOOST_DAYS}j)`);
+      this.logger.warn(
+        `[DEV BYPASS] Boost direct de l'annonce ${listingId} (${BOOST_PRICE_XOF} FCFA — ${BOOST_DAYS}j)`,
+      );
       const boostUntil = new Date();
       boostUntil.setDate(boostUntil.getDate() + BOOST_DAYS);
       const paymentRef = `DEV-BOOST-${Date.now()}`;
       await this.prisma.boostPayment.create({
-        data: { listingId, paymentRef, status: 'PAID', durationDays: BOOST_DAYS },
+        data: {
+          listingId,
+          paymentRef,
+          status: 'PAID',
+          durationDays: BOOST_DAYS,
+        },
       });
       await this.prisma.listing.update({
         where: { id: listingId },
@@ -517,7 +608,8 @@ export class ListingsService {
           boostScore: { increment: BOOST_SCORE_GAIN },
         },
       });
-      const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+      const frontendUrl =
+        this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
       return {
         payment_url: `${frontendUrl}/bailleur/listings?status=boost_success`,
         transId: paymentRef,
@@ -569,7 +661,10 @@ export class ListingsService {
         },
       )
       .catch((err: unknown) => {
-        const axiosErr = err as { response?: { status: number; data: unknown }; message?: string };
+        const axiosErr = err as {
+          response?: { status: number; data: unknown };
+          message?: string;
+        };
         this.logger.error(
           `PayDunya boost ERREUR — status: ${axiosErr.response?.status ?? 'N/A'} — body: ${JSON.stringify(axiosErr.response?.data ?? axiosErr.message)}`,
         );
@@ -577,13 +672,17 @@ export class ListingsService {
       });
 
     if (response.data.response_code !== '00') {
-      this.logger.error(`PayDunya boost response_code inattendu : ${JSON.stringify(response.data)}`);
+      this.logger.error(
+        `PayDunya boost response_code inattendu : ${JSON.stringify(response.data)}`,
+      );
       throw new BadRequestException('Payment service unavailable');
     }
     // PayDunya retourne l'URL dans response_text (pas invoice_url)
     const invoiceUrl = response.data.response_text;
     if (!invoiceUrl) {
-      this.logger.error(`PayDunya boost response_text absent — réponse : ${JSON.stringify(response.data)}`);
+      this.logger.error(
+        `PayDunya boost response_text absent — réponse : ${JSON.stringify(response.data)}`,
+      );
       throw new BadRequestException('Payment service unavailable');
     }
     const paymentRef = 'PD-' + response.data.token;
@@ -595,7 +694,11 @@ export class ListingsService {
         durationDays: BOOST_DAYS,
       },
     });
-    return { payment_url: invoiceUrl, transId: paymentRef, paymentToken: response.data.token };
+    return {
+      payment_url: invoiceUrl,
+      transId: paymentRef,
+      paymentToken: response.data.token,
+    };
   }
 
   private applyBoost(listingId: string, boostScore: number) {
@@ -671,7 +774,9 @@ export class ListingsService {
 
     const confirm = await this.softpay.confirmInvoiceStatus(token);
     if (!confirm) {
-      throw new BadRequestException('Impossible de confirmer le paiement PayDunya');
+      throw new BadRequestException(
+        'Impossible de confirmer le paiement PayDunya',
+      );
     }
 
     if (confirm.status === 'completed') {
@@ -696,7 +801,12 @@ export class ListingsService {
     return { ok: true };
   }
 
-  async findAll_admin(page = 1, limit = 20, status?: ListingStatus, city?: string) {
+  async findAll_admin(
+    page = 1,
+    limit = 20,
+    status?: ListingStatus,
+    city?: string,
+  ) {
     const where = {
       ...(status && { status }),
       ...(city && { city: { contains: city, mode: 'insensitive' as const } }),
@@ -768,8 +878,14 @@ export class ListingsService {
     return count > 0;
   }
 
-  async reportListing(listingId: string, reporterId: string, dto: CreateReportDto) {
-    const listing = await this.prisma.listing.findUnique({ where: { id: listingId } });
+  async reportListing(
+    listingId: string,
+    reporterId: string,
+    dto: CreateReportDto,
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+    });
     if (!listing) throw new NotFoundException('Listing not found');
     if (listing.ownerId === reporterId) {
       throw new BadRequestException('You cannot report your own listing');
@@ -778,7 +894,12 @@ export class ListingsService {
     // Upsert — un seul signalement par utilisateur par annonce
     const report = await this.prisma.report.upsert({
       where: { listingId_reporterId: { listingId, reporterId } },
-      create: { listingId, reporterId, reason: dto.reason, description: dto.description },
+      create: {
+        listingId,
+        reporterId,
+        reason: dto.reason,
+        description: dto.description,
+      },
       update: { reason: dto.reason, description: dto.description },
     });
 
@@ -788,10 +909,13 @@ export class ListingsService {
         where: { id: reporterId },
         select: { firstName: true, lastName: true, email: true },
       });
-      const reportCount = await this.prisma.report.count({ where: { listingId } });
-      const reporterName = [reporter?.firstName, reporter?.lastName].filter(Boolean).join(' ')
-        || reporter?.email
-        || 'Utilisateur';
+      const reportCount = await this.prisma.report.count({
+        where: { listingId },
+      });
+      const reporterName =
+        [reporter?.firstName, reporter?.lastName].filter(Boolean).join(' ') ||
+        reporter?.email ||
+        'Utilisateur';
       void this.notifications.notifyAdminReport(
         listingId,
         listing.title,
@@ -799,7 +923,9 @@ export class ListingsService {
         dto.reason,
         reportCount,
       );
-    } catch { /* non bloquant */ }
+    } catch {
+      /* non bloquant */
+    }
 
     return report;
   }
@@ -810,32 +936,46 @@ export class ListingsService {
       include: {
         reports: {
           include: {
-            reporter: { select: { id: true, firstName: true, lastName: true, email: true } },
+            reporter: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
           },
           orderBy: { createdAt: 'desc' },
         },
-        owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+        owner: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
       },
       orderBy: { reports: { _count: 'desc' } },
     });
 
     return listings.map((l) => ({
       listingId: l.id,
-      title:     l.title,
-      city:      l.city,
-      status:    l.status,
-      ownerName: [l.owner.firstName, l.owner.lastName].filter(Boolean).join(' ') || l.owner.email,
+      title: l.title,
+      city: l.city,
+      status: l.status,
+      ownerName:
+        [l.owner.firstName, l.owner.lastName].filter(Boolean).join(' ') ||
+        l.owner.email,
       reportCount: l.reports.length,
-      reasons:     [...new Set(l.reports.map((r) => r.reason))],
+      reasons: [...new Set(l.reports.map((r) => r.reason))],
       lastReportAt: l.reports[0]?.createdAt ?? null,
       reports: l.reports.map((r) => ({
-        id:          r.id,
-        reason:      r.reason,
+        id: r.id,
+        reason: r.reason,
         description: r.description,
-        createdAt:   r.createdAt,
+        createdAt: r.createdAt,
         reporter: {
-          id:    r.reporter.id,
-          name:  [r.reporter.firstName, r.reporter.lastName].filter(Boolean).join(' ') || r.reporter.email,
+          id: r.reporter.id,
+          name:
+            [r.reporter.firstName, r.reporter.lastName]
+              .filter(Boolean)
+              .join(' ') || r.reporter.email,
           email: r.reporter.email,
         },
       })),

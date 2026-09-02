@@ -327,6 +327,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               pricePerMonth={priceToNumber(listing.price)}
               pricePerNight={listing.pricePerNight != null ? priceToNumber(listing.pricePerNight) : null}
               minimumNights={listing.minimumNights ?? null}
+              maximumNights={listing.maximumNights ?? null}
               depositMonths={listing.depositMonths ?? null}
               minLeaseMonths={listing.minLeaseMonths ?? null}
               numLocale={numLocale}

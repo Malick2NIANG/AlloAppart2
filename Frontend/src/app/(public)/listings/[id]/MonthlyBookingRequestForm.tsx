@@ -177,6 +177,13 @@ export default function MonthlyBookingRequestForm({
         </div>
       )}
 
+      {!!depositMonths && (
+        <p className="text-[11px] text-sub mb-4 flex items-start gap-1.5">
+          <i className="fa-solid fa-circle-info mt-0.5 shrink-0" />
+          {t('tenantDepositCommissionNote')}
+        </p>
+      )}
+
       {/* Dossier locataire (optionnel) */}
       <div className="mb-4">
         <p className="text-xs font-semibold text-text mb-0.5">{t('monthlyDocumentsTitle')}</p>

@@ -7,7 +7,13 @@ import {
 import { BookingsService } from './bookings.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { BookingStatus, EscrowStatus, Role, type User } from '@prisma/client';
+import {
+  BookingStatus,
+  EscrowStatus,
+  RentalMode,
+  Role,
+  type User,
+} from '@prisma/client';
 
 const owner: User = {
   id: 'owner1',
@@ -139,7 +145,11 @@ describe('BookingsService', () => {
 
   // --- create ---
   describe('create', () => {
-    it('calcule totalAmount cote serveur (1 mois)', async () => {
+    // Depuis le retrait de la bascule automatique vers le tarif mensuel
+    // (les séjours longs passent désormais par createMonthlyRequest), une
+    // annonce sans rentalMode ni pricePerNight retombe sur le prorata
+    // loyer mensuel ÷ 30 × nuits, sans plus jamais "arrondir au mois".
+    it('calcule totalAmount au prorata (pas de tarif/nuit defini, 31 nuits)', async () => {
       prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
         price: 200000,
         title: 'Appart Plateau',
@@ -148,7 +158,7 @@ describe('BookingsService', () => {
       });
       prismaMock.booking.create.mockResolvedValueOnce({
         ...pendingBooking,
-        totalAmount: 200000,
+        totalAmount: 206667,
       });
 
       await service.create('tenant1', {
@@ -160,21 +170,22 @@ describe('BookingsService', () => {
       expect(prismaMock.booking.create).toHaveBeenCalledWith(
         expect.objectContaining({
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          data: expect.objectContaining({ totalAmount: 200000 }),
+          data: expect.objectContaining({ totalAmount: 206667 }),
         }),
       );
     });
 
-    it('calcule totalAmount sur plusieurs mois', async () => {
+    it('utilise le tarif/nuit quand il est defini, meme pour un long sejour sur une annonce NIGHTLY', async () => {
       prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
         price: 100000,
+        pricePerNight: 5000,
         title: 'Studio',
         city: 'Thies',
         owner,
       });
       prismaMock.booking.create.mockResolvedValueOnce({
         ...pendingBooking,
-        totalAmount: 300000,
+        totalAmount: 460000,
       });
 
       await service.create('tenant1', {
@@ -183,12 +194,159 @@ describe('BookingsService', () => {
         endDate: '2026-10-01',
       });
 
+      // 92 nuits (juil+aout+sept) x 5000 = 460000 — pas de bascule mensuelle,
+      // pas de cap non plus (annonce NIGHTLY pure, aucune alternative mensuelle).
       expect(prismaMock.booking.create).toHaveBeenCalledWith(
         expect.objectContaining({
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          data: expect.objectContaining({ totalAmount: 300000 }),
+          data: expect.objectContaining({ totalAmount: 460000 }),
         }),
       );
+    });
+
+    // Champ optionnel maximumNights (mode NIGHTLY uniquement) — le bailleur
+    // peut plafonner la durée d'un séjour en nuitée.
+    it('leve BadRequestException si le sejour depasse maximumNights sur une annonce NIGHTLY', async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        price: 100000,
+        pricePerNight: 5000,
+        title: 'Studio',
+        city: 'Thies',
+        owner,
+        rentalMode: RentalMode.NIGHTLY,
+        maximumNights: 10,
+      });
+
+      await expect(
+        service.create('tenant1', {
+          listingId: 'listing1',
+          startDate: '2026-07-01',
+          endDate: '2026-07-12', // 11 nuits > 10
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.booking.create).not.toHaveBeenCalled();
+    });
+
+    it('accepte un sejour egal a maximumNights sur une annonce NIGHTLY', async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        price: 100000,
+        pricePerNight: 5000,
+        title: 'Studio',
+        city: 'Thies',
+        owner,
+        rentalMode: RentalMode.NIGHTLY,
+        maximumNights: 10,
+      });
+      prismaMock.booking.create.mockResolvedValueOnce({
+        ...pendingBooking,
+        totalAmount: 50000,
+      });
+
+      await service.create('tenant1', {
+        listingId: 'listing1',
+        startDate: '2026-07-01',
+        endDate: '2026-07-11', // 10 nuits = maximumNights, accepte
+      });
+
+      expect(prismaMock.booking.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: expect.objectContaining({ totalAmount: 50000 }),
+        }),
+      );
+    });
+
+    it("leve BadRequestException si l'annonce est exclusivement MONTHLY", async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        price: 200000,
+        title: 'Appart',
+        city: 'Dakar',
+        owner,
+        rentalMode: RentalMode.MONTHLY,
+      });
+
+      await expect(
+        service.create('tenant1', {
+          listingId: 'listing1',
+          startDate: '2026-07-01',
+          endDate: '2026-08-01',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.booking.create).not.toHaveBeenCalled();
+    });
+
+    // Le seuil nuitée/mensuel d'une annonce MIXTE est la durée minimale du
+    // bail (minLeaseMonths) fixée par le bailleur, convertie en jours — pas
+    // une valeur fixe de 25 nuits.
+    it('leve BadRequestException et suggere la location au mois si sejour >= minLeaseMonths sur une annonce MIXTE', async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        price: 200000,
+        pricePerNight: 8000,
+        title: 'Appart',
+        city: 'Dakar',
+        owner,
+        rentalMode: RentalMode.MIXED,
+        minLeaseMonths: 1, // seuil = 30 nuits
+      });
+
+      await expect(
+        service.create('tenant1', {
+          listingId: 'listing1',
+          startDate: '2026-07-01',
+          endDate: '2026-07-31', // 30 nuits
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.booking.create).not.toHaveBeenCalled();
+    });
+
+    it('accepte une reservation nuitee sous le seuil minLeaseMonths sur une annonce MIXTE', async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        price: 200000,
+        pricePerNight: 8000,
+        title: 'Appart',
+        city: 'Dakar',
+        owner,
+        rentalMode: RentalMode.MIXED,
+        minLeaseMonths: 2, // seuil = 60 nuits
+      });
+      prismaMock.booking.create.mockResolvedValueOnce({
+        ...pendingBooking,
+        totalAmount: 80000,
+      });
+
+      await service.create('tenant1', {
+        listingId: 'listing1',
+        startDate: '2026-07-01',
+        endDate: '2026-07-11', // 10 nuits
+      });
+
+      expect(prismaMock.booking.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: expect.objectContaining({ totalAmount: 80000 }),
+        }),
+      );
+    });
+
+    it("utilise le repli 1 mois si une annonce MIXTE (legacy) n'a pas de minLeaseMonths", async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        price: 200000,
+        pricePerNight: 8000,
+        title: 'Appart',
+        city: 'Dakar',
+        owner,
+        rentalMode: RentalMode.MIXED,
+        // minLeaseMonths absent — repli à 1 mois (30 nuits)
+      });
+
+      await expect(
+        service.create('tenant1', {
+          listingId: 'listing1',
+          startDate: '2026-07-01',
+          endDate: '2026-07-31', // 30 nuits
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.booking.create).not.toHaveBeenCalled();
     });
 
     it('leve BadRequestException si dates chevauchement', async () => {
@@ -261,13 +419,17 @@ describe('BookingsService', () => {
   // --- confirm ---
   describe('confirm', () => {
     it('confirme la reservation si owner et statut PENDING', async () => {
-      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(pendingBooking);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        pendingBooking,
+      );
       const result = await service.confirm('booking1', 'owner1');
       expect(result.status).toBe(BookingStatus.CONFIRMED);
     });
 
     it("leve ForbiddenException si l'utilisateur n'est pas l'owner", async () => {
-      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(pendingBooking);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        pendingBooking,
+      );
       await expect(service.confirm('booking1', 'autre-user')).rejects.toThrow(
         ForbiddenException,
       );
@@ -430,7 +592,10 @@ describe('BookingsService', () => {
       expect(result.status).toBe(BookingStatus.COMPLETED);
       expect(prismaMock.booking.update).toHaveBeenCalledWith({
         where: { id: 'booking1' },
-        data: { status: BookingStatus.COMPLETED, escrowStatus: EscrowStatus.RELEASED },
+        data: {
+          status: BookingStatus.COMPLETED,
+          escrowStatus: EscrowStatus.RELEASED,
+        },
       });
     });
 
@@ -483,7 +648,7 @@ describe('BookingsService', () => {
       escrowStatus: EscrowStatus.HELD,
     };
 
-    it('signale une non-conformité dans la fenêtre de 24h et gèle l\'escrow', async () => {
+    it("signale une non-conformité dans la fenêtre de 24h et gèle l'escrow", async () => {
       const startedRecently = new Date(Date.now() - 2 * 60 * 60 * 1000); // il y a 2h
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
         ...confirmedHeld,
@@ -581,7 +746,7 @@ describe('BookingsService', () => {
     };
     const admin: User = { ...owner, id: 'admin1', roles: [Role.ADMIN] };
 
-    it('lève ForbiddenException si le caller n\'est pas ADMIN', async () => {
+    it("lève ForbiddenException si le caller n'est pas ADMIN", async () => {
       await expect(
         service.resolveDispute('booking1', tenant, { decision: 'RELEASE' }),
       ).rejects.toThrow(ForbiddenException);
@@ -589,14 +754,18 @@ describe('BookingsService', () => {
     });
 
     it('RELEASE : passe la réservation en COMPLETED / escrow RELEASED', async () => {
-      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(disputedBooking);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        disputedBooking,
+      );
       prismaMock.booking.update.mockResolvedValueOnce({
         ...disputedBooking,
         status: BookingStatus.COMPLETED,
         escrowStatus: EscrowStatus.RELEASED,
       });
 
-      const result = await service.resolveDispute('booking1', admin, { decision: 'RELEASE' });
+      const result = await service.resolveDispute('booking1', admin, {
+        decision: 'RELEASE',
+      });
 
       expect(result.status).toBe(BookingStatus.COMPLETED);
       expect(result.escrowStatus).toBe(EscrowStatus.RELEASED);
@@ -604,14 +773,18 @@ describe('BookingsService', () => {
     });
 
     it('REFUND : passe la réservation en CANCELLED / escrow REFUNDED', async () => {
-      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(disputedBooking);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        disputedBooking,
+      );
       prismaMock.booking.update.mockResolvedValueOnce({
         ...disputedBooking,
         status: BookingStatus.CANCELLED,
         escrowStatus: EscrowStatus.REFUNDED,
       });
 
-      const result = await service.resolveDispute('booking1', admin, { decision: 'REFUND' });
+      const result = await service.resolveDispute('booking1', admin, {
+        decision: 'REFUND',
+      });
 
       expect(result.status).toBe(BookingStatus.CANCELLED);
       expect(result.escrowStatus).toBe(EscrowStatus.REFUNDED);

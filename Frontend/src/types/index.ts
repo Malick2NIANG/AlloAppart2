@@ -43,6 +43,7 @@ export interface Listing {
   price: string | number;          // Tarif mensuel — Decimal → string via JSON
   pricePerNight?: string | number | null; // Tarif par nuit (mode NIGHTLY/MIXED)
   minimumNights?: number | null;          // Durée minimum de séjour en nuits
+  maximumNights?: number | null;          // Durée maximum de séjour en nuits (mode NIGHTLY uniquement)
   rentalMode: RentalMode;                 // Mode de location : nuitée / mensuel / mixte
   cleaningFee?: string | number | null;   // Frais de ménage fixes (mode NIGHTLY/MIXED)
   depositMonths?: number | null;          // Caution en nombre de mois (mode MONTHLY/MIXED)

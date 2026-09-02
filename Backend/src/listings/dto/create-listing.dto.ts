@@ -101,7 +101,10 @@ export class CreateListingDto {
   images?: string[];
 
   /** Tarif par nuit — requis en mode NIGHTLY ou MIXED */
-  @ValidateIf((o: CreateListingDto) => o.rentalMode === RentalMode.NIGHTLY || o.rentalMode === RentalMode.MIXED)
+  @ValidateIf(
+    (o: CreateListingDto) =>
+      o.rentalMode === RentalMode.NIGHTLY || o.rentalMode === RentalMode.MIXED,
+  )
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
@@ -115,6 +118,17 @@ export class CreateListingDto {
   @Type(() => Number)
   minimumNights?: number;
 
+  /**
+   * Séjour maximum en nuits — optionnel, mode NIGHTLY uniquement. Passé ce
+   * nombre de nuits, la réservation nuitée est refusée (pas d'alternative
+   * mensuelle sur une annonce NIGHTLY pure, contrairement au mode MIXTE).
+   */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  maximumNights?: number;
+
   /** Frais de ménage fixes (mode NIGHTLY ou MIXED) */
   @IsOptional()
   @IsNumber()
@@ -123,7 +137,10 @@ export class CreateListingDto {
   cleaningFee?: number;
 
   /** Caution exprimée en nombre de mois de loyer — requis en mode MONTHLY ou MIXED */
-  @ValidateIf((o: CreateListingDto) => o.rentalMode === RentalMode.MONTHLY || o.rentalMode === RentalMode.MIXED)
+  @ValidateIf(
+    (o: CreateListingDto) =>
+      o.rentalMode === RentalMode.MONTHLY || o.rentalMode === RentalMode.MIXED,
+  )
   @IsNotEmpty()
   @IsInt()
   @Min(0)
@@ -135,8 +152,15 @@ export class CreateListingDto {
   @IsBoolean()
   chargesIncluded?: boolean;
 
-  /** Durée minimale de bail en mois (mode MONTHLY ou MIXED) */
-  @IsOptional()
+  /**
+   * Durée minimale de bail en mois. Optionnelle en mode MONTHLY (information
+   * pour le locataire), mais requise en mode MIXED : c'est ce nombre de mois
+   * (converti en jours) qui délimite le seuil nuitée/mensuel — en dessous, le
+   * séjour reste facturé au tarif nuitée, au-delà il bascule vers la demande
+   * de location au mois (caution). Voir bookings.service.ts#create.
+   */
+  @ValidateIf((o: CreateListingDto) => o.rentalMode === RentalMode.MIXED)
+  @IsNotEmpty()
   @IsInt()
   @Min(1)
   @Type(() => Number)

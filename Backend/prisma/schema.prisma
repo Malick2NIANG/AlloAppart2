@@ -52,6 +52,7 @@ model Listing {
   price         Decimal       @db.Decimal(12, 2)   // Tarif mensuel (référence principale, affichage/tri)
   pricePerNight Decimal?      @db.Decimal(12, 2)   // Tarif par nuit (mode NIGHTLY ou MIXED)
   minimumNights Int?                                // Durée minimum de séjour en nuits
+  maximumNights Int?                                // Séjour maximum en nuits — optionnel, mode NIGHTLY uniquement
   // --- Système de location hybride (mensuel / nuitée / mixte) ---
   rentalMode     RentalMode @default(NIGHTLY) // Mode de location proposé par le bailleur
   cleaningFee    Decimal?   @db.Decimal(12, 2) // Frais de ménage fixes (mode NIGHTLY ou MIXED)

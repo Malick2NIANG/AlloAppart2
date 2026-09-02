@@ -10,7 +10,10 @@ import AvailabilityCalendar, { isBooked, type BookedRange } from '@/components/l
 import MonthlyBookingRequestForm from './MonthlyBookingRequestForm';
 import type { RentalMode } from '@/types';
 
-const MONTHLY_THRESHOLD = 25; // jours — au-delà, tarif mensuel appliqué
+const DAYS_PER_MONTH = 30;
+// Repli si une annonce MIXTE (legacy) n'a pas de minLeaseMonths — ce champ
+// est désormais requis en mode MIXTE, ne devrait plus arriver en pratique.
+const DEFAULT_MIN_LEASE_MONTHS = 1;
 
 interface Props {
   listingId:     string;
@@ -19,40 +22,10 @@ interface Props {
   pricePerMonth: number;
   pricePerNight?: number | null;
   minimumNights?: number | null;
+  maximumNights?: number | null;
   depositMonths?: number | null;
   minLeaseMonths?: number | null;
   numLocale:     string;
-}
-
-/**
- * Ajoute n mois en bornant au dernier jour du mois d'arrivée.
- * Doit rester identique à addMonthsClamped du backend
- * (Backend/src/bookings/bookings.service.ts).
- */
-function addMonthsClamped(date: Date, n: number): Date {
-  const day = date.getDate();
-  const r = new Date(date);
-  r.setDate(1);
-  r.setMonth(r.getMonth() + n);
-  const lastDayOfTargetMonth = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate();
-  r.setDate(Math.min(day, lastDayOfTargetMonth));
-  return r;
-}
-
-/** Découpe un séjour en mois calendaires complets + jours résiduels. */
-function splitCalendarMonths(start: Date, end: Date): { months: number; remainderDays: number } {
-  let months = 0;
-  let cursor = start;
-  for (;;) {
-    const next = addMonthsClamped(start, months + 1);
-    if (next.getTime() > end.getTime()) break;
-    months += 1;
-    cursor = next;
-  }
-  return {
-    months,
-    remainderDays: Math.max(0, Math.round((end.getTime() - cursor.getTime()) / 86_400_000)),
-  };
 }
 
 /**
@@ -62,37 +35,18 @@ function splitCalendarMonths(start: Date, end: Date): { months: number; remainde
  * Backend/src/bookings/bookings.service.ts (méthode create). Tout écart
  * afficherait au locataire un montant différent de celui qui lui est facturé.
  *
- * Règle : au-delà de 25 jours, un mois calendaire = un loyer mensuel, et les
- * jours résiduels sont au prorata (loyer ÷ 30).
+ * Tarif/nuit × nombre de nuits — pas de bascule vers le tarif mensuel ici.
  */
 function computePrice(
   days: number,
   pricePerMonth: number,
   pricePerNight: number | null | undefined,
-  start: Date | null,
-  end: Date | null,
-): { amount: number; isMonthlyRate: boolean; months: number; remainderDays: number } {
-  const hasMonthly = pricePerMonth > 0;
+): { amount: number } {
   const hasNightly = !!pricePerNight && pricePerNight > 0;
-
-  if (days >= MONTHLY_THRESHOLD && hasMonthly && start && end) {
-    const { months, remainderDays } = splitCalendarMonths(start, end);
-    return {
-      amount: Math.round(months * pricePerMonth + remainderDays * (pricePerMonth / 30)),
-      isMonthlyRate: true,
-      months,
-      remainderDays,
-    };
-  }
-  if (hasNightly) {
-    return {
-      amount: Math.round((pricePerNight ?? 0) * days),
-      isMonthlyRate: false, months: 0, remainderDays: days,
-    };
-  }
   return {
-    amount: Math.round((pricePerMonth / 30) * days),
-    isMonthlyRate: false, months: 0, remainderDays: days,
+    amount: hasNightly
+      ? Math.round((pricePerNight ?? 0) * days)
+      : Math.round((pricePerMonth / 30) * days),
   };
 }
 
@@ -103,6 +57,7 @@ export default function ListingBookingCard({
   pricePerMonth,
   pricePerNight,
   minimumNights,
+  maximumNights,
   depositMonths,
   minLeaseMonths,
   numLocale,
@@ -122,6 +77,7 @@ export default function ListingBookingCard({
   } | null>(null);
   const [ranges,        setRanges]        = useState<BookedRange[]>([]);
   const [rangesLoading, setRangesLoading] = useState(true);
+  const [showMonthlyForm, setShowMonthlyForm] = useState(false);
 
   // Disponibilité de l'annonce — alimente le calendrier cliquable ci-dessous
   useEffect(() => {
@@ -186,17 +142,24 @@ export default function ListingBookingCard({
     : null;
 
   const pricing = days !== null && days > 0
-    ? computePrice(
-        days,
-        pricePerMonth,
-        pricePerNight,
-        startDate ? new Date(startDate) : null,
-        endDate ? new Date(endDate) : null,
-      )
+    ? computePrice(days, pricePerMonth, pricePerNight)
     : null;
 
   // Vérification séjour minimum côté client
   const belowMinimum = minimumNights && days !== null && days > 0 && days < minimumNights;
+
+  // Vérification séjour maximum côté client (mode NIGHTLY uniquement — doit
+  // rester synchronisé avec la vérification serveur de bookings.service.ts)
+  const aboveMaximum =
+    rentalMode === 'NIGHTLY' && !!maximumNights && days !== null && days > 0 && days > maximumNights;
+
+  // Annonce MIXTE + séjour atteignant la durée minimale du bail : on ne
+  // bascule plus automatiquement vers le tarif mensuel — on suggère la
+  // vraie location au mois (caution). Seuil = minLeaseMonths du bailleur,
+  // pas une valeur fixe (doit rester synchronisé avec bookings.service.ts).
+  const minLeaseDays = (minLeaseMonths ?? DEFAULT_MIN_LEASE_MONTHS) * DAYS_PER_MONTH;
+  const suggestMonthlyInstead =
+    rentalMode === 'MIXED' && days !== null && days >= minLeaseDays;
 
   const handleSubmit = async () => {
     if (!isSignedIn) {
@@ -303,6 +266,47 @@ export default function ListingBookingCard({
     );
   }
 
+  /* ── Annonce MIXTE : bascule volontaire vers la demande mensuelle ─ */
+  if (rentalMode === 'MIXED' && showMonthlyForm) {
+    if (!isSignedIn) {
+      return (
+        <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
+          <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
+          <div className="flex items-center gap-2 mb-2 mt-4">
+            <i className="fa-solid fa-key text-gold-dark" />
+            <h3 className="font-semibold text-text">{t('monthlyRequestTitle')}</h3>
+          </div>
+          <p className="text-sm text-sub mb-4">{t('bookingSignInDesc')}</p>
+          <a
+            href={`/sign-in?redirect_url=${encodeURIComponent(pathname)}`}
+            className="btn-gold w-full py-2.5 rounded-full font-semibold text-center block text-sm"
+          >
+            {t('bookingSignIn')}
+          </a>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setShowMonthlyForm(false)}
+          className="text-xs text-gold-dark hover:underline flex items-center gap-1"
+        >
+          <i className="fa-solid fa-arrow-left text-[10px]" />
+          {t('backToNightlyBtn')}
+        </button>
+        <MonthlyBookingRequestForm
+          listingId={listingId}
+          pricePerMonth={pricePerMonth}
+          depositMonths={depositMonths}
+          minLeaseMonths={minLeaseMonths}
+          numLocale={numLocale}
+        />
+      </div>
+    );
+  }
+
   /* ── Redirection PayDunya ───────────────────────────────────── */
   if (redirecting) {
     return (
@@ -351,10 +355,22 @@ export default function ListingBookingCard({
       {/* Tarifs */}
       <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
 
-      <div className="flex items-center gap-2 mb-4 mt-4">
+      <div className="flex items-center gap-2 mb-1 mt-4">
         <i className="fa-solid fa-calendar-check text-gold-dark" />
         <h3 className="font-semibold text-text">{t('bookingTitle')}</h3>
       </div>
+
+      {/* Annonce MIXTE — le locataire choisit son option dès le départ */}
+      {rentalMode === 'MIXED' && (
+        <button
+          type="button"
+          onClick={() => setShowMonthlyForm(true)}
+          className="text-xs text-gold-dark hover:underline mb-3 flex items-center gap-1"
+        >
+          <i className="fa-solid fa-key text-[10px]" />
+          {t('preferMonthlyLink')}
+        </button>
+      )}
 
       <div className="space-y-3">
         {/* Résumé des dates sélectionnées */}
@@ -410,58 +426,70 @@ export default function ListingBookingCard({
         </div>
       )}
 
-      {/* Notification basculement vers tarif mensuel */}
-      {pricing?.isMonthlyRate && days !== null && days > 0 && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-800">
-          <i className="fa-solid fa-circle-info mt-0.5 shrink-0" />
-          <span>{t('bookingMonthlyRateNote')}</span>
+      {/* Séjour maximum dépassé (mode NIGHTLY) */}
+      {aboveMaximum && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+          <i className="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" />
+          <span>{t('bookingMaxNightsWarning', { count: maximumNights ?? 0 })}</span>
         </div>
       )}
 
-      {/* Récap montant */}
-      {pricing && days !== null && days > 0 && (
-        <div className="mt-4 rounded-xl bg-gold-pale px-4 py-3 space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-sub">
-              {pricing.isMonthlyRate
-                ? pricing.remainderDays > 0
-                  ? t('pricingMonthsPlusDays', { months: pricing.months, days: pricing.remainderDays })
-                  : t('pricingMonthsOnly', { months: pricing.months })
-                : t('pricingNights', { count: days })
-              }
-            </span>
-            <span className="font-bold text-gold-dark">
-              {pricing.amount.toLocaleString(numLocale)} FCFA
-            </span>
+      {/* Séjour long sur annonce MIXTE — on suggère la location au mois */}
+      {suggestMonthlyInstead ? (
+        <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-xs text-blue-800 space-y-2">
+          <div className="flex items-start gap-2">
+            <i className="fa-solid fa-circle-info mt-0.5 shrink-0" />
+            <span>{t('suggestMonthlyNote', { months: minLeaseMonths ?? DEFAULT_MIN_LEASE_MONTHS })}</span>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowMonthlyForm(true)}
+            className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs py-2 transition-colors"
+          >
+            {t('switchToMonthlyBtn')}
+          </button>
         </div>
-      )}
+      ) : (
+        <>
+          {/* Récap montant */}
+          {pricing && days !== null && days > 0 && (
+            <div className="mt-4 rounded-xl bg-gold-pale px-4 py-3 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-sub">{t('pricingNights', { count: days })}</span>
+                <span className="font-bold text-gold-dark">
+                  {pricing.amount.toLocaleString(numLocale)} FCFA
+                </span>
+              </div>
+            </div>
+          )}
 
-      {/* Erreur */}
-      {error && (
-        <p className="mt-3 flex items-center gap-1.5 text-sm text-red-600">
-          <i className="fa-solid fa-circle-exclamation text-xs" />
-          {error}
-        </p>
-      )}
+          {/* Erreur */}
+          {error && (
+            <p className="mt-3 flex items-center gap-1.5 text-sm text-red-600">
+              <i className="fa-solid fa-circle-exclamation text-xs" />
+              {error}
+            </p>
+          )}
 
-      <button
-        onClick={handleSubmit}
-        disabled={!startDate || !endDate || loading || !!belowMinimum}
-        className="mt-4 w-full btn-gold py-2.5 rounded-full font-semibold text-sm hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <i className="fa-solid fa-spinner fa-spin text-xs" />
-            {t('bookingSubmitting')}
-          </span>
-        ) : (
-          <span className="flex items-center justify-center gap-2">
-            <i className="fa-solid fa-credit-card text-xs" />
-            {t('bookingPayNow')}
-          </span>
-        )}
-      </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!startDate || !endDate || loading || !!belowMinimum || !!aboveMaximum}
+            className="mt-4 w-full btn-gold py-2.5 rounded-full font-semibold text-sm hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <i className="fa-solid fa-spinner fa-spin text-xs" />
+                {t('bookingSubmitting')}
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <i className="fa-solid fa-credit-card text-xs" />
+                {t('bookingPayNow')}
+              </span>
+            )}
+          </button>
+        </>
+      )}
 
       {/* Modal paiement réservation (SOFTPAY custom) */}
       <PaydunyaPaymentModal

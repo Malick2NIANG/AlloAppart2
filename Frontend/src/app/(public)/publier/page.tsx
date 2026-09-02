@@ -71,6 +71,7 @@ function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
     price:         z.number().positive(t('zPricePositive')).optional(),
     pricePerNight: z.number().positive(t('zPriceNightPositive')).optional(),
     minimumNights: z.number().int().min(1, t('zMinNights')).optional(),
+    maximumNights: z.number().int().min(1, t('zMaxNights')).optional(),
     cleaningFee:   z.number().min(0).optional(),
     depositMonths: z.number().int().min(0, t('zDepositRequired')).optional(),
     chargesIncluded: z.boolean().optional(),
@@ -88,6 +89,19 @@ function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
     if (needsMonthly && (data.depositMonths === undefined || data.depositMonths === null)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['depositMonths'], message: t('zDepositRequired') });
     }
+    // En mode MIXTE, la durée minimale du bail définit le seuil nuitée/mensuel
+    // (voir bookings.service.ts#create) — elle doit donc être renseignée.
+    if (data.rentalMode === 'MIXED' && (data.minLeaseMonths === undefined || data.minLeaseMonths === null)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['minLeaseMonths'], message: t('zMinLeaseRequired') });
+    }
+    // Séjour maximum (optionnel, mode NUITÉE) ne peut pas être < séjour minimum.
+    if (
+      data.maximumNights !== undefined && data.maximumNights !== null &&
+      data.minimumNights !== undefined && data.minimumNights !== null &&
+      data.maximumNights < data.minimumNights
+    ) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['maximumNights'], message: t('zMaxLessThanMin') });
+    }
   });
 }
 
@@ -98,7 +112,7 @@ const STEP_FIELDS: (keyof FormValues)[][] = [
   ['type', 'title', 'description'],
   ['surface', 'rooms', 'beds', 'baths', 'amenities'],
   ['region', 'city', 'address', 'lat', 'lng'],
-  ['rentalMode', 'price', 'pricePerNight', 'minimumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'],
+  ['rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'],
   ['images'],
 ];
 
@@ -610,6 +624,13 @@ export default function PublierPage() {
                       <i className="fa-solid fa-calendar-days mr-1.5 text-gold-dark" />
                       {t('monthlyTitle')}
                     </p>
+                    {values.rentalMode === 'MIXED' && (
+                      <p className="text-xs text-sub">
+                        {Number(values.minLeaseMonths) > 0
+                          ? t('monthlyThresholdNote', { months: Number(values.minLeaseMonths) })
+                          : t('monthlyThresholdNoteGeneric')}
+                      </p>
+                    )}
 
                     <Field label={t('fieldRent')} error={errors.price?.message} required>
                       <div className="relative">
@@ -638,12 +659,29 @@ export default function PublierPage() {
                           setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
                         })} placeholder={t('fieldDepositMonthsPh')} className="input-field" />
                       </Field>
-                      <Field label={t('fieldMinLeaseMonths')} error={errors.minLeaseMonths?.message}>
+                      <Field label={t('fieldMinLeaseMonths')} error={errors.minLeaseMonths?.message} required={values.rentalMode === 'MIXED'}>
                         <input type="number" min={1} {...register('minLeaseMonths', {
                           setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
                         })} placeholder={t('fieldMinLeaseMonthsPh')} className="input-field" />
                       </Field>
                     </div>
+
+                    {Number(values.price) > 0 && Number(values.depositMonths) > 0 && (() => {
+                      const rent = Number(values.price);
+                      const brokerFee = Math.round(rent);
+                      const landlordDeposit = Math.max(0, Math.round(rent * Number(values.depositMonths)) - brokerFee);
+                      return (
+                        <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-xs text-blue-800">
+                          <i className="fa-solid fa-circle-info mt-0.5 shrink-0" />
+                          <span>
+                            {t('depositCommissionNote', {
+                              fee: brokerFee.toLocaleString(numLocale),
+                              net: landlordDeposit.toLocaleString(numLocale),
+                            })}
+                          </span>
+                        </div>
+                      );
+                    })()}
 
                     <label className="flex items-center gap-2 text-sm text-text">
                       <input type="checkbox" {...register('chargesIncluded')} className="h-4 w-4 rounded border-line accent-gold" />
@@ -676,6 +714,18 @@ export default function PublierPage() {
                         })} placeholder={t('fieldMinNightsPh')} className="input-field" />
                       </Field>
                     </div>
+
+                    {values.rentalMode === 'NIGHTLY' && (
+                      <div>
+                        <Field label={t('fieldMaxNights')} error={errors.maximumNights?.message}>
+                          <input type="number" min={1} {...register('maximumNights', {
+                            setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+                          })} placeholder={t('fieldMaxNightsPh')} className="input-field" />
+                        </Field>
+                        <p className="mt-1.5 text-[11px] text-sub">{t('fieldMaxNightsDesc')}</p>
+                      </div>
+                    )}
+
                     <Field label={t('fieldCleaningFee')} error={errors.cleaningFee?.message}>
                       <div className="relative">
                         <input type="number" min={0} {...register('cleaningFee', {
