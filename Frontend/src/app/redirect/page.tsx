@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 interface MeResponse {
   roles: string[];
   mustChangePassword: boolean;
+  termsAcceptedAt: string | null;
 }
 
 async function getClerkToken(): Promise<string | null> {
@@ -60,6 +61,7 @@ export default function RedirectPage() {
       }
 
       if (me.mustChangePassword) { router.replace('/change-password'); return; }
+      if (!me.termsAcceptedAt)   { router.replace('/accept-terms');    return; }
 
       const roles = me.roles ?? [];
       if (roles.includes('ADMIN'))         { router.replace('/espace');              return; }

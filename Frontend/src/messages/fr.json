@@ -221,7 +221,13 @@
       "noCode": "Pas reçu ?",
       "resend": "Renvoyer le code",
       "errorFallback": "Une erreur est survenue.",
-      "invalidCode": "Code invalide ou expiré."
+      "invalidCode": "Code invalide ou expiré.",
+      "acceptTermsRequired": "Vous devez accepter les CGU pour créer un compte.",
+      "acceptTermsLabel": "J'accepte les",
+      "acceptTermsLink": "conditions générales d'utilisation",
+      "acceptTermsAnd": "et la",
+      "acceptPrivacyLink": "politique de confidentialité",
+      "acceptTermsSuffix": "d'AlloAppart."
     },
     "carousel": {
       "slides": [
@@ -296,7 +302,6 @@
     "bookingTitle": "Demander une réservation",
     "bookingStart": "Date d'entrée",
     "bookingEnd": "Date de fin",
-    "bookingMonthsEst": "1 mois estimé",
     "bookingSubmit": "Envoyer la demande",
     "bookingSubmitting": "Envoi…",
     "bookingError": "Une erreur est survenue. Réessayez.",
@@ -322,7 +327,6 @@
     "pricingNightPlural": "nuits",
     "pricePerMonthUnit": "FCFA/mois",
     "pricePerNightUnit": "FCFA/nuit",
-    "bookingMonthlyRateNote": "Pour les séjours de 25 jours et plus, le tarif mensuel s’applique : un mois calendaire = un loyer, les jours supplémentaires sont au prorata.",
     "bookingSelectStart": "Choisir sur le calendrier",
     "bookingSelectEnd": "Choisir sur le calendrier",
     "bookingRangeBlocked": "Une réservation existante se trouve dans cette période — nouvelle sélection à partir de cette date.",
@@ -357,8 +361,6 @@
     "addFavorite": "Ajouter aux favoris",
     "removeFavorite": "Retirer des favoris",
     "availabilityTitle": "Disponibilités",
-    "pricingMonthsOnly": "{months, plural, one {# mois} other {# mois}}",
-    "pricingMonthsPlusDays": "{months, plural, one {# mois} other {# mois}} + {days, plural, one {# jour} other {# jours}}",
     "monthlyRequestTitle": "Demande de location au mois",
     "monthlyMinLeaseNote": "Durée minimale du bail : {count, plural, one {# mois} other {# mois}}.",
     "moveInDateLabel": "Date d'emménagement souhaitée",
@@ -376,7 +378,33 @@
     "suggestMonthlyNote": "Ce séjour atteint la durée minimale du bail ({months, plural, one {# mois} other {# mois}}). Faites une demande de location au mois : caution à payer (dont 1 mois pour AlloAppart), durée minimum du bail respectée.",
     "switchToMonthlyBtn": "Faire une demande de location au mois",
     "preferMonthlyLink": "Vous cherchez une location longue durée ? Demandez la location au mois",
-    "backToNightlyBtn": "Retour à la réservation par nuit"
+    "backToNightlyBtn": "Retour à la réservation par nuit",
+    "rentalTermsTitle": "Conditions de location",
+    "modeLabel": "Mode de location",
+    "modeNightly": "Nuitée",
+    "modeNightlyDesc": "Ce logement se réserve par nuit, pour des séjours courts.",
+    "modeMonthly": "Mensuel",
+    "modeMonthlyDesc": "Ce logement se loue au mois, avec un bail classique (loyer + caution).",
+    "modeMixed": "Mixte",
+    "modeMixedDesc": "Ce logement accepte les deux : réservation par nuit pour les courts séjours, location au mois au-delà du seuil fixé par le bailleur.",
+    "landlordRulesTitle": "Règles fixées par le bailleur",
+    "ruleMinNights": "Séjour minimum",
+    "ruleMinNightsValue": "{count, plural, one {# nuit} other {# nuits}}",
+    "ruleMaxNights": "Séjour maximum",
+    "ruleMaxNightsValue": "{count, plural, one {# nuit} other {# nuits}}",
+    "ruleMinLease": "Durée minimale du bail",
+    "ruleMinLeaseValue": "{count, plural, one {# mois} other {# mois}}",
+    "ruleDeposit": "Caution",
+    "ruleDepositValue": "{count, plural, one {# mois de loyer} other {# mois de loyer}}",
+    "ruleChargesIncludedYes": "Charges (eau, électricité) incluses dans le loyer",
+    "ruleChargesIncludedNo": "Charges (eau, électricité) non incluses",
+    "ruleCleaningFee": "Frais de ménage",
+    "mixedThresholdNote": "En dessous de {months, plural, one {# mois} other {# mois}} de séjour : tarif à la nuitée. Au-delà : location au mois, avec caution à payer.",
+    "generalRulesTitle": "Règles générales AlloAppart",
+    "generalRuleCommissionMonthly": "Location au mois : sur la caution encaissée, l'équivalent d'1 mois de loyer constitue la commission de courtage AlloAppart ; le reste est reversé au bailleur.",
+    "generalRuleCancellation": "Annulation par le locataire : remboursement intégral si plus de 7 jours avant la date d'arrivée ; passé ce délai, les fonds séquestrés sont libérés au bailleur.",
+    "generalRuleDisputeWindow": "Après votre entrée dans les lieux, vous disposez de 24h pour signaler une non-conformité par rapport au rapport AlloVérifié de ce logement.",
+    "viewFullTermsLink": "Voir les conditions générales complètes"
   },
   "region": {
     "title": "Annonces à",
@@ -1239,6 +1267,17 @@
     "mismatch": "Les mots de passe ne correspondent pas.",
     "showPassword": "Afficher",
     "hidePassword": "Masquer"
+  },
+  "acceptTerms": {
+    "title": "Conditions d'utilisation",
+    "subtitle": "Pour continuer, veuillez accepter les conditions générales d'utilisation d'AlloAppart.",
+    "acceptLabel": "J'ai lu et j'accepte les",
+    "acceptTermsLink": "conditions générales d'utilisation",
+    "acceptSuffix": "d'AlloAppart.",
+    "continue": "Continuer",
+    "saving": "Enregistrement…",
+    "sessionExpired": "Session expirée. Reconnectez-vous.",
+    "errorFallback": "Une erreur est survenue. Réessayez."
   },
   "locataire": {
     "spaceLabel": "Mon espace locataire",
@@ -2485,7 +2524,7 @@
       },
       "tarifs": {
         "title": "7. Réservation, séquestre et commissions",
-        "body": "• Publication d'annonces : gratuite pour les bailleurs particuliers ; soumise à abonnement pour les agences (PRO_AGENCE).\n• Toute réservation confirmée donne lieu au paiement intégral du montant par le locataire. Les fonds sont conservés en séquestre par AlloAppart et ne sont reversés au bailleur (déduction faite de la commission de la Plateforme) qu'à l'issue de la période de signalement décrite à l'Article 9.\n• Commission : 10 % du montant de la réservation, prélevée sur les fonds séquestrés avant reversement au bailleur.\n• Les tarifs peuvent être modifiés avec un préavis de 30 jours communiqué par e-mail aux utilisateurs enregistrés."
+        "body": "• Publication d'annonces : gratuite pour les bailleurs particuliers ; soumise à abonnement pour les agences (PRO_AGENCE).\n• Toute réservation confirmée donne lieu au paiement intégral du montant par le locataire. Les fonds sont conservés en séquestre par AlloAppart et ne sont reversés au bailleur (déduction faite de la commission de la Plateforme) qu'à l'issue de la période de signalement décrite à l'Article 9.\n• Commission — réservation à la nuitée : 10 % du montant de la réservation, prélevée sur les fonds séquestrés avant reversement au bailleur.\n• Commission — location au mois : l'équivalent d'un (1) mois de loyer, prélevé sur la caution encaissée à l'entrée du locataire. Le bailleur perçoit le loyer du premier mois ainsi que le solde de la caution.\n• Les tarifs peuvent être modifiés avec un préavis de 30 jours communiqué par e-mail aux utilisateurs enregistrés."
       },
       "annulation": {
         "title": "8. Politique d'annulation",
@@ -2578,6 +2617,11 @@
         "body": "Si vous estimez que vos droits ne sont pas respectés, vous avez le droit d'introduire une réclamation auprès de la Commission de Protection des Données Personnelles (CDP), autorité de contrôle compétente au Sénégal.\n\nCommission de Protection des Données Personnelles (CDP)\nDakar, Sénégal — www.cdp.sn"
       }
     }
+  },
+  "cookieBanner": {
+    "message": "Nous utilisons des cookies nécessaires au fonctionnement du site (connexion, préférences de thème et de langue).",
+    "learnMore": "En savoir plus",
+    "accept": "J'ai compris"
   },
   "cookies": {
     "breadcrumbHome": "Accueil",

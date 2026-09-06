@@ -73,7 +73,10 @@ describe('AuthService', () => {
             },
           },
         },
-        { provide: MailService, useValue: { sendWelcome: jest.fn(), sendPasswordChanged: jest.fn() } },
+        {
+          provide: MailService,
+          useValue: { sendWelcome: jest.fn(), sendPasswordChanged: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -128,7 +131,7 @@ describe('AuthService', () => {
 
   // --- changePassword ---
   describe('changePassword', () => {
-    it("lève ForbiddenException si mustChangePassword est false (pas un changement forcé)", async () => {
+    it('lève ForbiddenException si mustChangePassword est false (pas un changement forcé)', async () => {
       prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
         ...baseUser,
         mustChangePassword: false,
@@ -153,9 +156,13 @@ describe('AuthService', () => {
         mustChangePassword: false,
       });
 
-      const result = await service.changePassword('user1', { newPassword: 'NouveauMdp123!' });
+      const result = await service.changePassword('user1', {
+        newPassword: 'NouveauMdp123!',
+      });
 
-      expect(updateUser).toHaveBeenCalledWith('clerk_abc', { password: 'NouveauMdp123!' });
+      expect(updateUser).toHaveBeenCalledWith('clerk_abc', {
+        password: 'NouveauMdp123!',
+      });
       expect(prismaMock.user.update).toHaveBeenCalledWith({
         where: { id: 'user1' },
         data: { mustChangePassword: false },
@@ -197,6 +204,37 @@ describe('AuthService', () => {
     });
   });
 
+  // --- acceptTerms ---
+  describe('acceptTerms', () => {
+    it("retourne le user tel quel s'il a déjà accepté les CGU (idempotent)", async () => {
+      const accepted = { ...baseUser, termsAcceptedAt: new Date('2026-01-01') };
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce(accepted);
+      const result = await service.acceptTerms('user1');
+      expect(result).toEqual(accepted);
+      expect(prismaMock.user.update).not.toHaveBeenCalled();
+    });
+
+    it("enregistre la date d'acceptation si jamais accepté", async () => {
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        ...baseUser,
+        termsAcceptedAt: null,
+      });
+      prismaMock.user.update.mockResolvedValueOnce({
+        ...baseUser,
+        termsAcceptedAt: new Date(),
+      });
+      const result = await service.acceptTerms('user1');
+      expect(prismaMock.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'user1' },
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: expect.objectContaining({ termsAcceptedAt: expect.any(Date) }),
+        }),
+      );
+      expect(result.termsAcceptedAt).toBeTruthy();
+    });
+  });
+
   // --- handleWebhook ---
   describe('handleWebhook — fail-closed', () => {
     it('lève UnauthorizedException si CLERK_WEBHOOK_SECRET absent', async () => {
@@ -212,7 +250,13 @@ describe('AuthService', () => {
                 key === 'CLERK_SECRET_KEY' ? 'sk_test_clerk' : undefined,
             },
           },
-          { provide: MailService, useValue: { sendWelcome: jest.fn(), sendPasswordChanged: jest.fn() } },
+          {
+            provide: MailService,
+            useValue: {
+              sendWelcome: jest.fn(),
+              sendPasswordChanged: jest.fn(),
+            },
+          },
         ],
       }).compile();
       const svc = mod.get<AuthService>(AuthService);

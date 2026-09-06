@@ -68,7 +68,7 @@ export default async function CGUPage() {
           if (!s) return null;
           return (
             <div key={key}>
-              <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-dark flex items-center gap-2">
+              <h2 id={key} className="mt-10 mb-3 text-lg font-semibold text-gold-dark flex items-center gap-2 scroll-mt-24">
                 <i className={`${icon} text-xs`} />
                 {s.title}
               </h2>

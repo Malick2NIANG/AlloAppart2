@@ -22,7 +22,8 @@ model User {
   agencyName               String?        // Renseigné uniquement pour PRO_AGENCE
   agencySlug               String?        @unique @db.VarChar(80) // Slug URL unique ex: immobilier-dakar
   profileViews             Int            @default(0) // Compteur de visites de la vitrine
-  bailleurTermsAcceptedAt  DateTime?      // null = jamais accepté
+  bailleurTermsAcceptedAt  DateTime?      // null = jamais accepté (engagements spécifiques bailleur)
+  termsAcceptedAt          DateTime?      // null = jamais accepté (CGU générales — tous rôles)
   isVerified               Boolean        @default(false)
   isSuspended              Boolean        @default(false)
   mustChangePassword       Boolean        @default(false)

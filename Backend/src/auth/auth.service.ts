@@ -56,7 +56,8 @@ export class AuthService {
   }
 
   private generatePassword(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    const chars =
+      'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
     return Array.from(randomBytes(12))
       .map((b) => chars[b % chars.length])
       .join('');
@@ -89,7 +90,9 @@ export class AuthService {
   }
 
   async getMe(userId: string): Promise<User> {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
     // Auto-heal : si le prénom est un placeholder (créé par le guard avant le webhook Clerk)
     if (!user.firstName || user.firstName === 'Utilisateur') {
       try {
@@ -100,12 +103,16 @@ export class AuthService {
         return await this.prisma.user.update({
           where: { id: userId },
           data: {
-            ...(clerkUser.firstName  && { firstName: clerkUser.firstName }),
-            ...(clerkUser.lastName  !== undefined && { lastName: clerkUser.lastName ?? '' }),
+            ...(clerkUser.firstName && { firstName: clerkUser.firstName }),
+            ...(clerkUser.lastName !== undefined && {
+              lastName: clerkUser.lastName ?? '',
+            }),
             ...(primaryEmail && { email: primaryEmail.emailAddress }),
           },
         });
-      } catch { /* ignore — erreur Clerk API, on renvoie l'utilisateur en l'état */ }
+      } catch {
+        /* ignore — erreur Clerk API, on renvoie l'utilisateur en l'état */
+      }
     }
     return user;
   }
@@ -117,7 +124,9 @@ export class AuthService {
         where: { agencySlug: dto.agencySlug },
       });
       if (existing && existing.id !== userId) {
-        throw new ConflictException('This slug is already used by another agency.');
+        throw new ConflictException(
+          'This slug is already used by another agency.',
+        );
       }
     }
     return this.prisma.user.update({
@@ -127,8 +136,13 @@ export class AuthService {
   }
 
   // Changement de mot de passe obligatoire — agents/agences créés par l'admin avec mdp temporaire
-  async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ success: boolean }> {
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{ success: boolean }> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
 
     // Cette route ne sert qu'au changement forcé du mot de passe temporaire
     // (agents/agences créés par l'admin). Un changement de mot de passe "volontaire"
@@ -178,17 +192,37 @@ export class AuthService {
     });
   }
 
+  // Acceptation des CGU générales — tous rôles. Appelé juste après l'inscription
+  // (LOCATAIRE) ou via l'écran de blocage /accept-terms (comptes existants et
+  // comptes créés par l'admin, après le changement de mot de passe obligatoire).
+  // Idempotent : ne réécrase pas une acceptation déjà enregistrée.
+  async acceptTerms(userId: string): Promise<User> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    if (user.termsAcceptedAt) return user;
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { termsAcceptedAt: new Date() },
+    });
+  }
+
   // Création d'un AGENT_TERRAIN par l'ADMIN — compte Clerk créé automatiquement, credentials envoyés par mail
   async createAgentTerrain(
     adminId: string,
     dto: CreateAgentDto,
   ): Promise<User> {
-    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+    const admin = await this.prisma.user.findUniqueOrThrow({
+      where: { id: adminId },
+    });
     if (!admin.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Admin only');
     }
 
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) throw new ConflictException('Email already in use');
 
     const password = this.generatePassword();
@@ -207,7 +241,9 @@ export class AuthService {
       throw new ConflictException(`Erreur Clerk : ${msg}`);
     }
 
-    this.logger.log(`Création AGENT_TERRAIN → clerkId=${clerkId} email=${dto.email}`);
+    this.logger.log(
+      `Création AGENT_TERRAIN → clerkId=${clerkId} email=${dto.email}`,
+    );
 
     const user = await this.prisma.user.create({
       data: {
@@ -221,7 +257,12 @@ export class AuthService {
       },
     });
 
-    void this.mail.sendCredentials({ to: dto.email, firstName: dto.firstName, role: 'agent', password });
+    void this.mail.sendCredentials({
+      to: dto.email,
+      firstName: dto.firstName,
+      role: 'agent',
+      password,
+    });
 
     return user;
   }
@@ -274,8 +315,12 @@ export class AuthService {
           // Met à jour le nom/email si le guard avait créé l'utilisateur avec des données placeholder
           ...(primaryEmail && { email: primaryEmail.email_address }),
           ...(data.first_name && { firstName: data.first_name }),
-          ...(data.last_name !== undefined && { lastName: data.last_name ?? '' }),
-          ...(data.phone_numbers?.[0]?.phone_number && { phone: data.phone_numbers[0].phone_number }),
+          ...(data.last_name !== undefined && {
+            lastName: data.last_name ?? '',
+          }),
+          ...(data.phone_numbers?.[0]?.phone_number && {
+            phone: data.phone_numbers[0].phone_number,
+          }),
         },
       });
       this.logger.log(`Webhook user.created → ${data.id}`);
@@ -313,8 +358,16 @@ export class AuthService {
     const where = {
       ...(role
         ? { roles: { has: role } }
-        : { roles: { hasSome: [Role.BAILLEUR, Role.PRO_AGENCE, Role.AGENT_TERRAIN, Role.ADMIN] } }
-      ),
+        : {
+            roles: {
+              hasSome: [
+                Role.BAILLEUR,
+                Role.PRO_AGENCE,
+                Role.AGENT_TERRAIN,
+                Role.ADMIN,
+              ],
+            },
+          }),
       ...(q && {
         OR: [
           { firstName: { contains: q, mode: 'insensitive' as const } },
@@ -399,8 +452,14 @@ export class AuthService {
           select: { id: true },
         },
         agentRatings: {
-          select: { id: true, rating: true, comment: true, createdAt: true,
-            rater: { select: { firstName: true, lastName: true, avatar: true } },
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+            rater: {
+              select: { firstName: true, lastName: true, avatar: true },
+            },
           },
           orderBy: { createdAt: 'desc' },
         },
@@ -411,7 +470,9 @@ export class AuthService {
 
     const ratings = agent.agentRatings;
     const avgRating = ratings.length
-      ? Math.round((ratings.reduce((s, r) => s + r.rating, 0) / ratings.length) * 10) / 10
+      ? Math.round(
+          (ratings.reduce((s, r) => s + r.rating, 0) / ratings.length) * 10,
+        ) / 10
       : null;
 
     return {
@@ -459,39 +520,65 @@ export class AuthService {
   async updateUser(
     targetId: string,
     adminId: string,
-    dto: { firstName?: string; lastName?: string; phone?: string | null; agencyName?: string | null },
+    dto: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string | null;
+      agencyName?: string | null;
+    },
   ) {
-    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
-    if (!admin.roles.includes(Role.ADMIN)) throw new ForbiddenException('Admin only');
+    const admin = await this.prisma.user.findUniqueOrThrow({
+      where: { id: adminId },
+    });
+    if (!admin.roles.includes(Role.ADMIN))
+      throw new ForbiddenException('Admin only');
 
-    const target = await this.prisma.user.findUnique({ where: { id: targetId } });
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetId },
+    });
     if (!target) throw new NotFoundException('User not found');
-    if (target.roles.includes(Role.ADMIN)) throw new ForbiddenException('Cannot edit an administrator');
+    if (target.roles.includes(Role.ADMIN))
+      throw new ForbiddenException('Cannot edit an administrator');
 
     return this.prisma.user.update({
       where: { id: targetId },
       data: {
-        ...(dto.firstName  !== undefined ? { firstName:  dto.firstName  } : {}),
-        ...(dto.lastName   !== undefined ? { lastName:   dto.lastName   } : {}),
-        ...(dto.phone      !== undefined ? { phone:      dto.phone      } : {}),
+        ...(dto.firstName !== undefined ? { firstName: dto.firstName } : {}),
+        ...(dto.lastName !== undefined ? { lastName: dto.lastName } : {}),
+        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
         ...(dto.agencyName !== undefined ? { agencyName: dto.agencyName } : {}),
       },
       select: {
-        id: true, clerkId: true, email: true, phone: true,
-        firstName: true, lastName: true, roles: true,
-        isVerified: true, isSuspended: true, agencyName: true,
-        createdAt: true, updatedAt: true,
+        id: true,
+        clerkId: true,
+        email: true,
+        phone: true,
+        firstName: true,
+        lastName: true,
+        roles: true,
+        isVerified: true,
+        isSuspended: true,
+        agencyName: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
   }
 
-  async suspendUser(targetId: string, adminId: string): Promise<{ isSuspended: boolean }> {
-    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+  async suspendUser(
+    targetId: string,
+    adminId: string,
+  ): Promise<{ isSuspended: boolean }> {
+    const admin = await this.prisma.user.findUniqueOrThrow({
+      where: { id: adminId },
+    });
     if (!admin.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Admin only');
     }
 
-    const target = await this.prisma.user.findUnique({ where: { id: targetId } });
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetId },
+    });
     if (!target) throw new NotFoundException('User not found');
     if (target.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Cannot suspend an administrator');
@@ -502,24 +589,41 @@ export class AuthService {
       data: { isSuspended: !target.isSuspended },
       select: { isSuspended: true },
     });
-    this.logger.log(`suspendUser → targetId=${targetId} isSuspended=${String(updated.isSuspended)}`);
+    this.logger.log(
+      `suspendUser → targetId=${targetId} isSuspended=${String(updated.isSuspended)}`,
+    );
 
     if (updated.isSuspended) {
-      void this.mail.sendAccountSuspended({ to: target.email, firstName: target.firstName, locale: target.locale });
+      void this.mail.sendAccountSuspended({
+        to: target.email,
+        firstName: target.firstName,
+        locale: target.locale,
+      });
     } else {
-      void this.mail.sendAccountReactivated({ to: target.email, firstName: target.firstName, locale: target.locale });
+      void this.mail.sendAccountReactivated({
+        to: target.email,
+        firstName: target.firstName,
+        locale: target.locale,
+      });
     }
 
     return updated;
   }
 
-  async deleteUser(targetId: string, adminId: string): Promise<{ deleted: boolean }> {
-    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+  async deleteUser(
+    targetId: string,
+    adminId: string,
+  ): Promise<{ deleted: boolean }> {
+    const admin = await this.prisma.user.findUniqueOrThrow({
+      where: { id: adminId },
+    });
     if (!admin.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Admin only');
     }
 
-    const target = await this.prisma.user.findUnique({ where: { id: targetId } });
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetId },
+    });
     if (!target) throw new NotFoundException('User not found');
     if (target.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Cannot delete an administrator');
@@ -535,12 +639,16 @@ export class AuthService {
     adminId: string,
     dto: CreateProAgenceDto,
   ): Promise<User> {
-    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+    const admin = await this.prisma.user.findUniqueOrThrow({
+      where: { id: adminId },
+    });
     if (!admin.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Admin only');
     }
 
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) throw new ConflictException('Email already in use');
 
     const password = this.generatePassword();
@@ -559,22 +667,30 @@ export class AuthService {
       throw new ConflictException(`Erreur Clerk : ${msg}`);
     }
 
-    this.logger.log(`Création PRO_AGENCE → clerkId=${clerkId} email=${dto.email} agence=${dto.agencyName}`);
+    this.logger.log(
+      `Création PRO_AGENCE → clerkId=${clerkId} email=${dto.email} agence=${dto.agencyName}`,
+    );
 
     const user = await this.prisma.user.create({
       data: {
         clerkId,
-        email:      dto.email,
-        firstName:  dto.firstName,
-        lastName:   dto.lastName,
-        phone:      dto.phone ?? null,
+        email: dto.email,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        phone: dto.phone ?? null,
         agencyName: dto.agencyName,
-        roles:      [Role.PRO_AGENCE],
+        roles: [Role.PRO_AGENCE],
         mustChangePassword: true,
       },
     });
 
-    void this.mail.sendCredentials({ to: dto.email, firstName: dto.firstName, role: 'agence', password, agencyName: dto.agencyName });
+    void this.mail.sendCredentials({
+      to: dto.email,
+      firstName: dto.firstName,
+      role: 'agence',
+      password,
+      agencyName: dto.agencyName,
+    });
 
     return user;
   }

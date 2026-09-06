@@ -7,6 +7,7 @@ import Image from 'next/image';
 import ListingHeroCarousel from './ListingHeroCarousel';
 import ListingContactCard from './ListingContactCard';
 import ListingBookingCard from './ListingBookingCard';
+import RentalTermsCard from './RentalTermsCard';
 import ListingReviewForm from './ListingReviewForm';
 import ReportButton from './ReportButton';
 import MapView from '@/components/map/MapView';
@@ -243,6 +244,17 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               <ReportButton listingId={listing.id} label={t('report')} />
             </div>
           </div>
+
+          {/* Conditions de location : mode, règles du bailleur, règles générales */}
+          <RentalTermsCard
+            rentalMode={listing.rentalMode}
+            minimumNights={listing.minimumNights ?? null}
+            maximumNights={listing.maximumNights ?? null}
+            minLeaseMonths={listing.minLeaseMonths ?? null}
+            depositMonths={listing.depositMonths ?? null}
+            chargesIncluded={listing.chargesIncluded ?? null}
+            cleaningFee={listing.cleaningFee != null ? priceToNumber(listing.cleaningFee) : null}
+          />
 
           {/* Location */}
           <div className={CARD}>

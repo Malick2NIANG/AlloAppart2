@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
+import { api } from '@/lib/api';
 
 type View = 'register' | 'verify';
 interface Flash { type: 'error' | 'success'; message: string; }
@@ -33,6 +34,7 @@ export default function SignUpForm() {
   const [code, setCode]               = useState('');
   const [loading, setLoading]         = useState(false);
   const [flash, setFlash]             = useState<Flash | null>(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   useEffect(() => {
     if (!flash) return;
@@ -45,6 +47,10 @@ export default function SignUpForm() {
     if (!isLoaded) return;
     if (password !== confirm) {
       setFlash({ type: 'error', message: ts('passwordMismatch') });
+      return;
+    }
+    if (!acceptTerms) {
+      setFlash({ type: 'error', message: ts('acceptTermsRequired') });
       return;
     }
     setLoading(true);
@@ -66,6 +72,14 @@ export default function SignUpForm() {
       const res = await signUp.attemptEmailAddressVerification({ code });
       if (res.status === 'complete') {
         await setActive({ session: res.createdSessionId });
+        // Enregistre l'acceptation des CGU cochée à l'étape précédente. Best-
+        // effort ici : le garde /redirect → /accept-terms rattrape le cas où
+        // cet appel échouerait (session pas encore propagée, réseau, etc.).
+        try {
+          const token = await (window as unknown as { Clerk?: { session?: { getToken: () => Promise<string | null> } } })
+            .Clerk?.session?.getToken();
+          if (token) await api.patch('/auth/me/accept-terms', {}, token);
+        } catch { /* rattrapé par le garde /accept-terms */ }
         router.push('/'); router.refresh();
       }
     } catch (err: unknown) {
@@ -125,8 +139,25 @@ export default function SignUpForm() {
               )}
             </Field>
 
+            <label className="flex cursor-pointer items-start gap-2.5 text-sm text-text">
+              <input type="checkbox" checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-(--color-gold)" />
+              <span>
+                {ts('acceptTermsLabel')}{' '}
+                <Link href="/cgu" target="_blank" className="font-semibold text-gold-dark hover:underline">
+                  {ts('acceptTermsLink')}
+                </Link>{' '}
+                {ts('acceptTermsAnd')}{' '}
+                <Link href="/confidentialite" target="_blank" className="font-semibold text-gold-dark hover:underline">
+                  {ts('acceptPrivacyLink')}
+                </Link>{' '}
+                {ts('acceptTermsSuffix')}
+              </span>
+            </label>
+
             <div id="clerk-captcha" />
-            <Btn loading={loading} disabled={!isLoaded || pwdMismatch}
+            <Btn loading={loading} disabled={!isLoaded || pwdMismatch || !acceptTerms}
               icon="fa-solid fa-user-plus" label={ts('submit')} loadingLabel={ts('submitting')} />
           </form>
 

@@ -17,10 +17,8 @@ import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { SyncUserDto } from './dto/sync-user.dto';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { CreateProAgenceDto } from './dto/create-pro-agence.dto';
-import { PaginationDto } from './dto/pagination.dto';
 import { AdminFilterDto } from './dto/admin-filter.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
@@ -86,6 +84,12 @@ export class AuthController {
     return this.authService.activateBailleur(user.id);
   }
 
+  // Acceptation des CGU générales — ouvert à tous les rôles authentifiés
+  @Patch('me/accept-terms')
+  acceptTerms(@CurrentUser() user: User) {
+    return this.authService.acceptTerms(user.id);
+  }
+
   // Création d'un compte AGENT_TERRAIN — réservé à l'ADMIN, compte Clerk créé automatiquement
   @Roles(Role.ADMIN)
   @Post('agents')
@@ -129,7 +133,12 @@ export class AuthController {
   @Roles(Role.ADMIN)
   @Get('users')
   getUsers(@Query() dto: AdminFilterDto) {
-    return this.authService.getUsers(dto.page ?? 1, dto.limit ?? 20, dto.q, dto.role);
+    return this.authService.getUsers(
+      dto.page ?? 1,
+      dto.limit ?? 20,
+      dto.q,
+      dto.role,
+    );
   }
 
   @Roles(Role.ADMIN)
@@ -137,7 +146,13 @@ export class AuthController {
   updateUser(
     @Param('userId') userId: string,
     @CurrentUser() admin: User,
-    @Body() dto: { firstName?: string; lastName?: string; phone?: string | null; agencyName?: string | null },
+    @Body()
+    dto: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string | null;
+      agencyName?: string | null;
+    },
   ) {
     return this.authService.updateUser(userId, admin.id, dto);
   }

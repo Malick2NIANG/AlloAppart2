@@ -221,7 +221,13 @@
       "noCode": "Didn't receive it?",
       "resend": "Resend code",
       "errorFallback": "An error occurred.",
-      "invalidCode": "Invalid or expired code."
+      "invalidCode": "Invalid or expired code.",
+      "acceptTermsRequired": "You must accept the Terms of Service to create an account.",
+      "acceptTermsLabel": "I accept the",
+      "acceptTermsLink": "terms of service",
+      "acceptTermsAnd": "and the",
+      "acceptPrivacyLink": "privacy policy",
+      "acceptTermsSuffix": "of AlloAppart."
     },
     "carousel": {
       "slides": [
@@ -296,7 +302,6 @@
     "bookingTitle": "Request a booking",
     "bookingStart": "Move-in date",
     "bookingEnd": "End date",
-    "bookingMonthsEst": "1 month estimated",
     "bookingSubmit": "Send request",
     "bookingSubmitting": "Sending…",
     "bookingError": "An error occurred. Please try again.",
@@ -322,7 +327,6 @@
     "pricingNightPlural": "nights",
     "pricePerMonthUnit": "FCFA/month",
     "pricePerNightUnit": "FCFA/night",
-    "bookingMonthlyRateNote": "For stays of 25 days or more the monthly rate applies: one calendar month = one month’s rent, extra days are pro-rated.",
     "bookingSelectStart": "Pick on the calendar",
     "bookingSelectEnd": "Pick on the calendar",
     "bookingRangeBlocked": "An existing booking falls within that range — selection restarted from this date.",
@@ -357,8 +361,6 @@
     "addFavorite": "Add to saved",
     "removeFavorite": "Remove from saved",
     "availabilityTitle": "Availability",
-    "pricingMonthsOnly": "{months, plural, one {# month} other {# months}}",
-    "pricingMonthsPlusDays": "{months, plural, one {# month} other {# months}} + {days, plural, one {# day} other {# days}}",
     "monthlyRequestTitle": "Monthly rental request",
     "monthlyMinLeaseNote": "Minimum lease term: {count, plural, one {# month} other {# months}}.",
     "moveInDateLabel": "Desired move-in date",
@@ -376,7 +378,33 @@
     "suggestMonthlyNote": "This stay reaches the lease's minimum term ({months, plural, one {# month} other {# months}}). Request monthly rental instead: a deposit is required (1 month of which goes to AlloAppart), and the lease's minimum term applies.",
     "switchToMonthlyBtn": "Request monthly rental",
     "preferMonthlyLink": "Looking for a long-term stay? Request monthly rental",
-    "backToNightlyBtn": "Back to nightly booking"
+    "backToNightlyBtn": "Back to nightly booking",
+    "rentalTermsTitle": "Rental terms",
+    "modeLabel": "Rental mode",
+    "modeNightly": "Nightly",
+    "modeNightlyDesc": "This property is booked by the night, for short stays.",
+    "modeMonthly": "Monthly",
+    "modeMonthlyDesc": "This property is rented monthly, with a classic lease (rent + deposit).",
+    "modeMixed": "Mixed",
+    "modeMixedDesc": "This property accepts both: nightly booking for short stays, monthly rental beyond the threshold set by the landlord.",
+    "landlordRulesTitle": "Rules set by the landlord",
+    "ruleMinNights": "Minimum stay",
+    "ruleMinNightsValue": "{count, plural, one {# night} other {# nights}}",
+    "ruleMaxNights": "Maximum stay",
+    "ruleMaxNightsValue": "{count, plural, one {# night} other {# nights}}",
+    "ruleMinLease": "Minimum lease term",
+    "ruleMinLeaseValue": "{count, plural, one {# month} other {# months}}",
+    "ruleDeposit": "Deposit",
+    "ruleDepositValue": "{count, plural, one {# month's rent} other {# months' rent}}",
+    "ruleChargesIncludedYes": "Utilities (water, electricity) included in the rent",
+    "ruleChargesIncludedNo": "Utilities (water, electricity) not included",
+    "ruleCleaningFee": "Cleaning fee",
+    "mixedThresholdNote": "Under {months, plural, one {# month} other {# months}} of stay: nightly rate applies. Beyond that: monthly rental, with a deposit required.",
+    "generalRulesTitle": "AlloAppart general rules",
+    "generalRuleCommissionMonthly": "Monthly rental: from the deposit collected, the equivalent of 1 month's rent is AlloAppart's brokerage commission; the rest is passed on to the landlord.",
+    "generalRuleCancellation": "Cancellation by the tenant: full refund if more than 7 days before the arrival date; after that, escrowed funds are released to the landlord.",
+    "generalRuleDisputeWindow": "After you move in, you have 24 hours to report any discrepancy with this property's AlloVerified report.",
+    "viewFullTermsLink": "View the full terms of service"
   },
   "region": {
     "title": "Listings in",
@@ -1239,6 +1267,17 @@
     "mismatch": "Passwords do not match.",
     "showPassword": "Show",
     "hidePassword": "Hide"
+  },
+  "acceptTerms": {
+    "title": "Terms of Service",
+    "subtitle": "To continue, please accept AlloAppart's terms of service.",
+    "acceptLabel": "I have read and accept the",
+    "acceptTermsLink": "terms of service",
+    "acceptSuffix": "of AlloAppart.",
+    "continue": "Continue",
+    "saving": "Saving…",
+    "sessionExpired": "Session expired. Please sign in again.",
+    "errorFallback": "An error occurred. Please try again."
   },
   "locataire": {
     "spaceLabel": "My tenant space",
@@ -2485,7 +2524,7 @@
       },
       "tarifs": {
         "title": "7. Booking, escrow and commissions",
-        "body": "• Publishing listings: free for individual landlords; subject to a subscription for agencies (PRO_AGENCE).\n• Any confirmed booking requires full payment of the amount by the tenant. Funds are held in escrow by AlloAppart and are only released to the landlord (less the Platform's commission) once the reporting period described in Article 9 has elapsed.\n• Commission: 10% of the booking amount, deducted from the escrowed funds before release to the landlord.\n• Fees may be amended with 30 days' notice sent by email to registered users."
+        "body": "• Publishing listings: free for individual landlords; subject to a subscription for agencies (PRO_AGENCE).\n• Any confirmed booking requires full payment of the amount by the tenant. Funds are held in escrow by AlloAppart and are only released to the landlord (less the Platform's commission) once the reporting period described in Article 9 has elapsed.\n• Commission — nightly booking: 10% of the booking amount, deducted from the escrowed funds before release to the landlord.\n• Commission — monthly lease: the equivalent of one (1) month's rent, deducted from the deposit collected when the tenant moves in. The landlord receives the first month's rent plus the remaining deposit balance.\n• Fees may be amended with 30 days' notice sent by email to registered users."
       },
       "annulation": {
         "title": "8. Cancellation policy",
@@ -2578,6 +2617,11 @@
         "body": "If you believe your rights are not being respected, you have the right to lodge a complaint with the Personal Data Protection Commission (CDP), the competent supervisory authority in Senegal.\n\nCommission de Protection des Données Personnelles (CDP)\nDakar, Senegal — www.cdp.sn"
       }
     }
+  },
+  "cookieBanner": {
+    "message": "We use cookies necessary for the site to work (sign-in, theme and language preferences).",
+    "learnMore": "Learn more",
+    "accept": "Got it"
   },
   "cookies": {
     "breadcrumbHome": "Home",
