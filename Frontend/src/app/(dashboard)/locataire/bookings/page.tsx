@@ -9,6 +9,7 @@ import type { Booking, BookingStatus } from '@/types';
 import { formatDate, formatPrice } from '@/lib/utils';
 import { SkeletonListRow } from '@/components/ui/Skeleton';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
+import ContractCard from '@/components/bookings/ContractCard';
 
 const DISPUTE_WINDOW_HOURS = 24;
 
@@ -230,32 +231,42 @@ function BookingCard({
 }) {
   const router = useRouter();
   return (
-    <div
-      className="group rounded-xl border border-line bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:border-gold/40 transition-colors cursor-pointer"
-      onClick={() => router.push(`/locataire/bookings/${booking.id}`)}
-    >
-      <div className="min-w-0">
-        <p className="font-semibold text-text truncate group-hover:text-gold-dark transition-colors">
-          {booking.listing?.title ?? booking.listingId}
-        </p>
-        <p className="text-sm text-sub mt-0.5">
-          <i className="fa-regular fa-calendar text-gold-dark text-xs mr-1" />
-          {formatDate(booking.startDate)}
-          {booking.endDate ? ` → ${formatDate(booking.endDate)}` : ''}
-          <span className="mx-1.5">·</span>
-          <span className="font-medium text-text">{formatPrice(booking.totalAmount)}</span>
-        </p>
+    <div className="flex flex-col gap-3">
+      <div
+        className="group rounded-xl border border-line bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:border-gold/40 transition-colors cursor-pointer"
+        onClick={() => router.push(`/locataire/bookings/${booking.id}`)}
+      >
+        <div className="min-w-0">
+          <p className="font-semibold text-text truncate group-hover:text-gold-dark transition-colors">
+            {booking.listing?.title ?? booking.listingId}
+          </p>
+          <p className="text-sm text-sub mt-0.5">
+            <i className="fa-regular fa-calendar text-gold-dark text-xs mr-1" />
+            {formatDate(booking.startDate)}
+            {booking.endDate ? ` → ${formatDate(booking.endDate)}` : ''}
+            <span className="mx-1.5">·</span>
+            <span className="font-medium text-text">{formatPrice(booking.totalAmount)}</span>
+          </p>
+        </div>
+        <div onClick={(e) => e.stopPropagation()}>
+          <LocataireBookingActions
+            booking={booking}
+            alreadyReviewed={alreadyReviewed}
+            onRefresh={onRefresh}
+            onReview={onReview}
+            onCancel={onCancel}
+            onDispute={onDispute}
+          />
+        </div>
       </div>
-      <div onClick={(e) => e.stopPropagation()}>
-        <LocataireBookingActions
-          booking={booking}
-          alreadyReviewed={alreadyReviewed}
-          onRefresh={onRefresh}
-          onReview={onReview}
-          onCancel={onCancel}
-          onDispute={onDispute}
-        />
-      </div>
+
+      {/* Contrat de bail — uniquement une fois le bail mensuel actif */}
+      {booking.bookingType === 'MONTHLY' &&
+        (booking.status === 'ACTIVE' || booking.status === 'TERMINATED') && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <ContractCard bookingId={booking.id} viewerRole="tenant" />
+          </div>
+        )}
     </div>
   );
 }

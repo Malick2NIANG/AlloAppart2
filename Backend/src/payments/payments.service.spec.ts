@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
+import { ContractsService } from '../contracts/contracts.service';
 import { BookingStatus, EscrowStatus } from '@prisma/client';
 
 describe('PaymentsService', () => {
@@ -23,6 +24,7 @@ describe('PaymentsService', () => {
     confirmInvoiceStatus: jest.Mock;
   };
   let notificationsMock: { notifyPaymentConfirmed: jest.Mock };
+  let contractsMock: { generateForBooking: jest.Mock };
 
   beforeEach(async () => {
     prismaMock = {
@@ -43,6 +45,9 @@ describe('PaymentsService', () => {
     notificationsMock = {
       notifyPaymentConfirmed: jest.fn().mockResolvedValue(undefined),
     };
+    contractsMock = {
+      generateForBooking: jest.fn().mockResolvedValue({ id: 'contract1' }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -51,6 +56,7 @@ describe('PaymentsService', () => {
         { provide: ConfigService, useValue: { get: () => undefined } },
         { provide: NotificationsService, useValue: notificationsMock },
         { provide: PaydunyaSoftpayService, useValue: softpayMock },
+        { provide: ContractsService, useValue: contractsMock },
       ],
     }).compile();
 
@@ -161,8 +167,10 @@ describe('PaymentsService', () => {
         },
         include: { listing: { include: { owner: true } }, tenant: true },
       });
-      // Réservation nuitée : l'annonce ne bascule pas en RENTED.
+      // Réservation nuitée : l'annonce ne bascule pas en RENTED, et aucun
+      // contrat de bail n'est généré (contrats = baux mensuels uniquement).
       expect(prismaMock.listing.update).not.toHaveBeenCalled();
+      expect(contractsMock.generateForBooking).not.toHaveBeenCalled();
     });
 
     it("MONTHLY : active le bail et bascule l'annonce en RENTED", async () => {
@@ -213,6 +221,49 @@ describe('PaymentsService', () => {
         where: { id: 'l2' },
         data: { status: 'RENTED' },
       });
+      // Le contrat de bail est généré (best-effort) dès l'activation du bail.
+      expect(contractsMock.generateForBooking).toHaveBeenCalledWith('b2');
+    });
+
+    it("la génération du contrat qui échoue n'empêche pas la confirmation du paiement", async () => {
+      softpayMock.verifyAndParseCallback.mockReturnValue({
+        token: 'tok3',
+        customData: { booking_id: 'b3' },
+      });
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'b3',
+        status: BookingStatus.APPROVED,
+        totalAmount: 250000,
+      });
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b3',
+        bookingType: 'MONTHLY',
+      });
+      prismaMock.booking.update.mockResolvedValueOnce({
+        id: 'b3',
+        listingId: 'l3',
+        tenant: { email: 't@x.com', firstName: 'T', lastName: 'T' },
+        listing: {
+          owner: { email: 'o@x.com', firstName: 'O', lastName: 'O', id: 'o1' },
+          title: 'X',
+          city: 'Dakar',
+        },
+        totalAmount: 250000,
+        platformFee: 0,
+        landlordAmount: 250000,
+      });
+      softpayMock.confirmInvoiceStatus.mockResolvedValueOnce({
+        status: 'completed',
+        totalAmount: 250000,
+        customData: {},
+      });
+      contractsMock.generateForBooking.mockRejectedValueOnce(
+        new Error('PDF generation failed'),
+      );
+
+      // Ne doit pas rejeter malgré l'échec de generateForBooking (best-effort).
+      const result = await service.handlePaydunyaWebhook({});
+      expect(result).toEqual({ ok: true });
     });
 
     it('rejette si le montant confirmé par PayDunya ne correspond pas au montant attendu', async () => {

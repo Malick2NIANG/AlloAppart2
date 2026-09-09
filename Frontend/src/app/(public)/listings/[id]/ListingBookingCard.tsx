@@ -15,6 +15,8 @@ const DAYS_PER_MONTH = 30;
 // est désormais requis en mode MIXTE, ne devrait plus arriver en pratique.
 const DEFAULT_MIN_LEASE_MONTHS = 1;
 
+type BookingTab = 'nightly' | 'monthly';
+
 interface Props {
   listingId:     string;
   listingStatus?: string;
@@ -77,7 +79,7 @@ export default function ListingBookingCard({
   } | null>(null);
   const [ranges,        setRanges]        = useState<BookedRange[]>([]);
   const [rangesLoading, setRangesLoading] = useState(true);
-  const [showMonthlyForm, setShowMonthlyForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<BookingTab>('nightly');
 
   // Disponibilité de l'annonce — alimente le calendrier cliquable ci-dessous
   useEffect(() => {
@@ -136,6 +138,8 @@ export default function ListingBookingCard({
     setError(null);
   };
 
+  const clearDates = () => { setStartDate(''); setEndDate(''); setError(null); };
+
   // Calcul du nombre de jours
   const days = startDate && endDate
     ? Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))
@@ -146,7 +150,7 @@ export default function ListingBookingCard({
     : null;
 
   // Vérification séjour minimum côté client
-  const belowMinimum = minimumNights && days !== null && days > 0 && days < minimumNights;
+  const belowMinimum = !!(minimumNights && days !== null && days > 0 && days < minimumNights);
 
   // Vérification séjour maximum côté client (mode NIGHTLY uniquement — doit
   // rester synchronisé avec la vérification serveur de bookings.service.ts)
@@ -235,78 +239,6 @@ export default function ListingBookingCard({
     );
   }
 
-  /* ── Location au mois (formulaire de demande, pas de calendrier) ─ */
-  if (rentalMode === 'MONTHLY') {
-    if (!isSignedIn) {
-      return (
-        <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
-          <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
-          <div className="flex items-center gap-2 mb-2 mt-4">
-            <i className="fa-solid fa-key text-gold-dark" />
-            <h3 className="font-semibold text-text">{t('monthlyRequestTitle')}</h3>
-          </div>
-          <p className="text-sm text-sub mb-4">{t('bookingSignInDesc')}</p>
-          <a
-            href={`/sign-in?redirect_url=${encodeURIComponent(pathname)}`}
-            className="btn-gold w-full py-2.5 rounded-full font-semibold text-center block text-sm"
-          >
-            {t('bookingSignIn')}
-          </a>
-        </div>
-      );
-    }
-    return (
-      <MonthlyBookingRequestForm
-        listingId={listingId}
-        pricePerMonth={pricePerMonth}
-        depositMonths={depositMonths}
-        minLeaseMonths={minLeaseMonths}
-        numLocale={numLocale}
-      />
-    );
-  }
-
-  /* ── Annonce MIXTE : bascule volontaire vers la demande mensuelle ─ */
-  if (rentalMode === 'MIXED' && showMonthlyForm) {
-    if (!isSignedIn) {
-      return (
-        <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
-          <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
-          <div className="flex items-center gap-2 mb-2 mt-4">
-            <i className="fa-solid fa-key text-gold-dark" />
-            <h3 className="font-semibold text-text">{t('monthlyRequestTitle')}</h3>
-          </div>
-          <p className="text-sm text-sub mb-4">{t('bookingSignInDesc')}</p>
-          <a
-            href={`/sign-in?redirect_url=${encodeURIComponent(pathname)}`}
-            className="btn-gold w-full py-2.5 rounded-full font-semibold text-center block text-sm"
-          >
-            {t('bookingSignIn')}
-          </a>
-        </div>
-      );
-    }
-    return (
-      <div className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setShowMonthlyForm(false)}
-          className="text-xs text-gold-dark hover:underline flex items-center gap-1"
-        >
-          <i className="fa-solid fa-arrow-left text-[10px]" />
-          {t('backToNightlyBtn')}
-        </button>
-        <MonthlyBookingRequestForm
-          listingId={listingId}
-          pricePerMonth={pricePerMonth}
-          depositMonths={depositMonths}
-          minLeaseMonths={minLeaseMonths}
-          numLocale={numLocale}
-        />
-      </div>
-    );
-  }
-
   /* ── Redirection PayDunya ───────────────────────────────────── */
   if (redirecting) {
     return (
@@ -320,13 +252,253 @@ export default function ListingBookingCard({
     );
   }
 
-  /* ── Visiteur non connecté ──────────────────────────────────── */
+  /* ── Location au mois (formulaire de demande, pas de calendrier) ─ */
+  if (rentalMode === 'MONTHLY') {
+    if (!isSignedIn) {
+      return (
+        <MonthlySignInPrompt
+          pricePerMonth={pricePerMonth}
+          pricePerNight={pricePerNight}
+          numLocale={numLocale}
+          pathname={pathname}
+          showPricingBadges
+        />
+      );
+    }
+    return (
+      <MonthlyBookingRequestForm
+        listingId={listingId}
+        pricePerMonth={pricePerMonth}
+        depositMonths={depositMonths}
+        minLeaseMonths={minLeaseMonths}
+        numLocale={numLocale}
+      />
+    );
+  }
+
+  const isMixed = rentalMode === 'MIXED';
+
+  const nightlySection = (
+    <NightlyBookingSection
+      showPricingBadges={!isMixed}
+      pricePerMonth={pricePerMonth}
+      pricePerNight={pricePerNight}
+      numLocale={numLocale}
+      isSignedIn={isSignedIn}
+      pathname={pathname}
+      ranges={ranges}
+      rangesLoading={rangesLoading}
+      startDate={startDate}
+      endDate={endDate}
+      onSelectDate={handleSelectDate}
+      onClearDates={clearDates}
+      belowMinimum={belowMinimum}
+      minimumNights={minimumNights}
+      aboveMaximum={aboveMaximum}
+      maximumNights={maximumNights}
+      suggestMonthlyInstead={suggestMonthlyInstead}
+      minLeaseMonths={minLeaseMonths}
+      onSwitchToMonthly={() => setActiveTab('monthly')}
+      pricing={pricing}
+      days={days}
+      error={error}
+      loading={loading}
+      onSubmit={handleSubmit}
+    />
+  );
+
+  const monthlySection = isSignedIn ? (
+    <MonthlyBookingRequestForm
+      listingId={listingId}
+      pricePerMonth={pricePerMonth}
+      depositMonths={depositMonths}
+      minLeaseMonths={minLeaseMonths}
+      numLocale={numLocale}
+    />
+  ) : (
+    <MonthlySignInPrompt
+      pricePerMonth={pricePerMonth}
+      pricePerNight={pricePerNight}
+      numLocale={numLocale}
+      pathname={pathname}
+      showPricingBadges={false}
+    />
+  );
+
+  return (
+    <div className={isMixed ? 'space-y-3' : ''}>
+      {/* Annonce MIXTE — le locataire choisit son option via des onglets */}
+      {isMixed && (
+        <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
+          <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
+          <MixedTabs active={activeTab} onChange={setActiveTab} />
+        </div>
+      )}
+
+      {isMixed ? (activeTab === 'monthly' ? monthlySection : nightlySection) : nightlySection}
+
+      {/* Modal paiement réservation (SOFTPAY custom) */}
+      <PaydunyaPaymentModal
+        open={paymentModal !== null}
+        onClose={() => setPaymentModal(null)}
+        amount={paymentModal?.amount ?? 0}
+        paymentToken={paymentModal?.paymentToken ?? null}
+        cardUrl={paymentModal?.cardUrl ?? null}
+        onVerify={verifyBookingPayment}
+        onSuccess={() => {
+          if (paymentModal) {
+            router.push(`/paiement/confirmation?booking_id=${paymentModal.bookingId}`);
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+/** Onglets segmentés Nuitée / Mensuel pour les annonces en mode MIXTE */
+function MixedTabs({
+  active,
+  onChange,
+}: {
+  active: BookingTab;
+  onChange: (tab: BookingTab) => void;
+}) {
+  const t = useTranslations('detail');
+  return (
+    <div
+      role="tablist"
+      className="mt-4 inline-flex w-full rounded-full bg-bg border border-line p-1 gap-1"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={active === 'nightly'}
+        onClick={() => onChange('nightly')}
+        className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-2 text-xs font-semibold transition-colors ${
+          active === 'nightly' ? 'bg-gold-pale text-gold-dark shadow-sm' : 'text-sub hover:text-text'
+        }`}
+      >
+        <i className="fa-solid fa-moon text-[11px]" />
+        {t('tabNightly')}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={active === 'monthly'}
+        onClick={() => onChange('monthly')}
+        className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-2 text-xs font-semibold transition-colors ${
+          active === 'monthly' ? 'bg-gold-pale text-gold-dark shadow-sm' : 'text-sub hover:text-text'
+        }`}
+      >
+        <i className="fa-solid fa-key text-[11px]" />
+        {t('tabMonthly')}
+      </button>
+    </div>
+  );
+}
+
+/** Invite à se connecter pour faire une demande de location au mois */
+function MonthlySignInPrompt({
+  pricePerMonth,
+  pricePerNight,
+  numLocale,
+  pathname,
+  showPricingBadges,
+}: {
+  pricePerMonth: number;
+  pricePerNight?: number | null;
+  numLocale: string;
+  pathname: string;
+  showPricingBadges: boolean;
+}) {
+  const t = useTranslations('detail');
+  return (
+    <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
+      {showPricingBadges && (
+        <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
+      )}
+      <div className={`flex items-center gap-2 mb-2 ${showPricingBadges ? 'mt-4' : 'mt-0'}`}>
+        <i className="fa-solid fa-key text-gold-dark" />
+        <h3 className="font-semibold text-text">{t('monthlyRequestTitle')}</h3>
+      </div>
+      <p className="text-sm text-sub mb-4">{t('bookingSignInDesc')}</p>
+      <a
+        href={`/sign-in?redirect_url=${encodeURIComponent(pathname)}`}
+        className="btn-gold w-full py-2.5 rounded-full font-semibold text-center block text-sm"
+      >
+        {t('bookingSignIn')}
+      </a>
+    </div>
+  );
+}
+
+/**
+ * Bloc de réservation par nuit : calendrier, résumé de dates, avertissements
+ * et paiement (ou invite à se connecter). Partagé entre le mode NIGHTLY pur
+ * et l'onglet "Nuitée" du mode MIXTE — `showPricingBadges` évite de répéter
+ * les tarifs quand ils sont déjà affichés au-dessus (en-tête des onglets MIXTE).
+ */
+function NightlyBookingSection({
+  showPricingBadges,
+  pricePerMonth,
+  pricePerNight,
+  numLocale,
+  isSignedIn,
+  pathname,
+  ranges,
+  rangesLoading,
+  startDate,
+  endDate,
+  onSelectDate,
+  onClearDates,
+  belowMinimum,
+  minimumNights,
+  aboveMaximum,
+  maximumNights,
+  suggestMonthlyInstead,
+  minLeaseMonths,
+  onSwitchToMonthly,
+  pricing,
+  days,
+  error,
+  loading,
+  onSubmit,
+}: {
+  showPricingBadges: boolean;
+  pricePerMonth: number;
+  pricePerNight?: number | null;
+  numLocale: string;
+  isSignedIn: boolean | undefined;
+  pathname: string;
+  ranges: BookedRange[];
+  rangesLoading: boolean;
+  startDate: string;
+  endDate: string;
+  onSelectDate: (iso: string) => void;
+  onClearDates: () => void;
+  belowMinimum: boolean;
+  minimumNights?: number | null;
+  aboveMaximum: boolean;
+  maximumNights?: number | null;
+  suggestMonthlyInstead: boolean;
+  minLeaseMonths?: number | null;
+  onSwitchToMonthly: () => void;
+  pricing: { amount: number } | null;
+  days: number | null;
+  error: string | null;
+  loading: boolean;
+  onSubmit: () => void;
+}) {
+  const t = useTranslations('detail');
+  const topMargin = showPricingBadges ? 'mt-4' : 'mt-0';
+
   if (!isSignedIn) {
     return (
       <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
-        {/* Tarifs affichés même sans connexion */}
-        <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
-        <div className="flex items-center gap-2 mb-2 mt-4">
+        {showPricingBadges && (
+          <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
+        )}
+        <div className={`flex items-center gap-2 mb-2 ${topMargin}`}>
           <i className="fa-solid fa-calendar-check text-gold-dark" />
           <h3 className="font-semibold text-text">{t('bookingTitle')}</h3>
         </div>
@@ -343,34 +515,22 @@ export default function ListingBookingCard({
           loading={rangesLoading}
           selectedStart={null}
           selectedEnd={null}
-          onSelectDate={handleSelectDate}
+          onSelectDate={onSelectDate}
         />
       </div>
     );
   }
 
-  /* ── Formulaire ─────────────────────────────────────────────── */
   return (
     <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
-      {/* Tarifs */}
-      <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
+      {showPricingBadges && (
+        <PricingBadges pricePerMonth={pricePerMonth} pricePerNight={pricePerNight} numLocale={numLocale} />
+      )}
 
-      <div className="flex items-center gap-2 mb-1 mt-4">
+      <div className={`flex items-center gap-2 mb-1 ${topMargin}`}>
         <i className="fa-solid fa-calendar-check text-gold-dark" />
         <h3 className="font-semibold text-text">{t('bookingTitle')}</h3>
       </div>
-
-      {/* Annonce MIXTE — le locataire choisit son option dès le départ */}
-      {rentalMode === 'MIXED' && (
-        <button
-          type="button"
-          onClick={() => setShowMonthlyForm(true)}
-          className="text-xs text-gold-dark hover:underline mb-3 flex items-center gap-1"
-        >
-          <i className="fa-solid fa-key text-[10px]" />
-          {t('preferMonthlyLink')}
-        </button>
-      )}
 
       <div className="space-y-3">
         {/* Résumé des dates sélectionnées */}
@@ -401,7 +561,7 @@ export default function ListingBookingCard({
         {(startDate || endDate) && (
           <button
             type="button"
-            onClick={() => { setStartDate(''); setEndDate(''); setError(null); }}
+            onClick={onClearDates}
             className="text-xs text-gold-dark hover:underline"
           >
             {t('bookingClearDates')}
@@ -414,7 +574,7 @@ export default function ListingBookingCard({
           loading={rangesLoading}
           selectedStart={startDate || null}
           selectedEnd={endDate || null}
-          onSelectDate={handleSelectDate}
+          onSelectDate={onSelectDate}
         />
       </div>
 
@@ -443,7 +603,7 @@ export default function ListingBookingCard({
           </div>
           <button
             type="button"
-            onClick={() => setShowMonthlyForm(true)}
+            onClick={onSwitchToMonthly}
             className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs py-2 transition-colors"
           >
             {t('switchToMonthlyBtn')}
@@ -472,8 +632,8 @@ export default function ListingBookingCard({
           )}
 
           <button
-            onClick={handleSubmit}
-            disabled={!startDate || !endDate || loading || !!belowMinimum || !!aboveMaximum}
+            onClick={onSubmit}
+            disabled={!startDate || !endDate || loading || belowMinimum || aboveMaximum}
             className="mt-4 w-full btn-gold py-2.5 rounded-full font-semibold text-sm hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
@@ -490,21 +650,6 @@ export default function ListingBookingCard({
           </button>
         </>
       )}
-
-      {/* Modal paiement réservation (SOFTPAY custom) */}
-      <PaydunyaPaymentModal
-        open={paymentModal !== null}
-        onClose={() => setPaymentModal(null)}
-        amount={paymentModal?.amount ?? 0}
-        paymentToken={paymentModal?.paymentToken ?? null}
-        cardUrl={paymentModal?.cardUrl ?? null}
-        onVerify={verifyBookingPayment}
-        onSuccess={() => {
-          if (paymentModal) {
-            router.push(`/paiement/confirmation?booking_id=${paymentModal.bookingId}`);
-          }
-        }}
-      />
     </div>
   );
 }

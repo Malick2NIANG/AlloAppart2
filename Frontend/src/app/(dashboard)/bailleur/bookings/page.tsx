@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { SkeletonListRow } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import BookingActions from './BookingActions';
+import ContractCard from '@/components/bookings/ContractCard';
 
 export default function BailleurBookingsPage() {
   const { getToken } = useAuth();
@@ -171,39 +172,46 @@ function Section({
       </h2>
       <div className="flex flex-col gap-3">
         {bookings.map((booking) => (
-          <div
-            key={booking.id}
-            className="rounded-xl border border-line bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-          >
-            <div className="min-w-0">
-              <p className="font-semibold text-text truncate">
-                {booking.listing?.title ?? booking.listingId}
-              </p>
-              <p className="text-sm text-sub mt-0.5">
-                <i className="fa-regular fa-calendar text-gold-dark text-xs mr-1" />
-                {formatDate(booking.startDate)}
-                {booking.endDate ? ` → ${formatDate(booking.endDate)}` : ''}
-                {' · '}
-                <span className="font-medium text-text">{formatPrice(booking.totalAmount)}</span>
-              </p>
-              <p className="text-sm text-sub mt-0.5">
-                <i className="fa-solid fa-user text-xs text-gold-dark mr-1" />
-                {booking.tenant?.firstName} {booking.tenant?.lastName}
-              </p>
-              <button
-                onClick={() => void contactTenant(booking.listingId, booking.tenantId)}
-                className="text-xs font-medium text-gold-dark hover:underline mt-1 inline-flex items-center gap-1"
-              >
-                <i className="fa-solid fa-comment-dots text-xs" />
-                {t('contactTenant')}
-              </button>
+          <div key={booking.id} className="flex flex-col gap-3">
+            <div
+              className="rounded-xl border border-line bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+            >
+              <div className="min-w-0">
+                <p className="font-semibold text-text truncate">
+                  {booking.listing?.title ?? booking.listingId}
+                </p>
+                <p className="text-sm text-sub mt-0.5">
+                  <i className="fa-regular fa-calendar text-gold-dark text-xs mr-1" />
+                  {formatDate(booking.startDate)}
+                  {booking.endDate ? ` → ${formatDate(booking.endDate)}` : ''}
+                  {' · '}
+                  <span className="font-medium text-text">{formatPrice(booking.totalAmount)}</span>
+                </p>
+                <p className="text-sm text-sub mt-0.5">
+                  <i className="fa-solid fa-user text-xs text-gold-dark mr-1" />
+                  {booking.tenant?.firstName} {booking.tenant?.lastName}
+                </p>
+                <button
+                  onClick={() => void contactTenant(booking.listingId, booking.tenantId)}
+                  className="text-xs font-medium text-gold-dark hover:underline mt-1 inline-flex items-center gap-1"
+                >
+                  <i className="fa-solid fa-comment-dots text-xs" />
+                  {t('contactTenant')}
+                </button>
+              </div>
+              <BookingActions
+                bookingId={booking.id}
+                status={booking.status}
+                onActionDone={onActionDone}
+                toast={toast}
+              />
             </div>
-            <BookingActions
-              bookingId={booking.id}
-              status={booking.status}
-              onActionDone={onActionDone}
-              toast={toast}
-            />
+
+            {/* Contrat de bail — uniquement une fois le bail mensuel actif */}
+            {booking.bookingType === 'MONTHLY' &&
+              (booking.status === 'ACTIVE' || booking.status === 'TERMINATED') && (
+                <ContractCard bookingId={booking.id} viewerRole="landlord" />
+              )}
           </div>
         ))}
       </div>

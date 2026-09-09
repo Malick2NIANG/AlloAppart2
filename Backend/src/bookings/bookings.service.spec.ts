@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   BookingStatus,
+  BookingType,
   EscrowStatus,
   RentalMode,
   Role,
@@ -92,7 +93,7 @@ const pendingBooking = {
 describe('BookingsService', () => {
   let service: BookingsService;
   let prismaMock: {
-    listing: { findUniqueOrThrow: jest.Mock };
+    listing: { findUniqueOrThrow: jest.Mock; update: jest.Mock };
     booking: {
       create: jest.Mock;
       findMany: jest.Mock;
@@ -101,6 +102,7 @@ describe('BookingsService', () => {
       findUniqueOrThrow: jest.Mock;
       update: jest.Mock;
     };
+    $transaction: jest.Mock;
   };
   let notifMock: {
     notifyBookingCreated: jest.Mock;
@@ -108,11 +110,15 @@ describe('BookingsService', () => {
     notifyBookingCancelled: jest.Mock;
     notifyDisputeReported: jest.Mock;
     notifyDisputeResolved: jest.Mock;
+    notifyMonthlyRequestCreated: jest.Mock;
+    notifyMonthlyRequestApproved: jest.Mock;
+    notifyMonthlyRequestRejected: jest.Mock;
+    notifyLeaseTerminated: jest.Mock;
   };
 
   beforeEach(async () => {
     prismaMock = {
-      listing: { findUniqueOrThrow: jest.fn() },
+      listing: { findUniqueOrThrow: jest.fn(), update: jest.fn() },
       booking: {
         create: jest.fn(),
         findMany: jest.fn(),
@@ -124,6 +130,7 @@ describe('BookingsService', () => {
           status: BookingStatus.CONFIRMED,
         }),
       },
+      $transaction: jest.fn(),
     };
 
     notifMock = {
@@ -132,6 +139,10 @@ describe('BookingsService', () => {
       notifyBookingCancelled: jest.fn().mockResolvedValue(undefined),
       notifyDisputeReported: jest.fn().mockResolvedValue(undefined),
       notifyDisputeResolved: jest.fn().mockResolvedValue(undefined),
+      notifyMonthlyRequestCreated: jest.fn().mockResolvedValue(undefined),
+      notifyMonthlyRequestApproved: jest.fn().mockResolvedValue(undefined),
+      notifyMonthlyRequestRejected: jest.fn().mockResolvedValue(undefined),
+      notifyLeaseTerminated: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -800,6 +811,287 @@ describe('BookingsService', () => {
 
       await expect(
         service.resolveDispute('booking1', admin, { decision: 'RELEASE' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // --- createMonthlyRequest ---
+  describe('createMonthlyRequest', () => {
+    const monthlyListing = {
+      ...listing,
+      rentalMode: RentalMode.MONTHLY,
+      depositMonths: 2,
+      owner,
+    };
+    const dto = { listingId: 'listing1', moveInDate: '2026-09-01' };
+
+    beforeEach(() => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValue(monthlyListing);
+      prismaMock.booking.create.mockResolvedValue({
+        id: 'booking-monthly-1',
+        listingId: 'listing1',
+        tenantId: 'tenant1',
+        bookingType: BookingType.MONTHLY,
+        status: BookingStatus.REQUESTED,
+        startDate: new Date('2026-09-01'),
+        totalAmount: 600000,
+        platformFee: 200000,
+        landlordAmount: 400000,
+        depositAmount: 400000,
+        listing: monthlyListing,
+        tenant,
+      });
+    });
+
+    it('calcule loyer/caution/commission (1 mois) et crée la demande', async () => {
+      const result = await service.createMonthlyRequest('tenant1', dto);
+
+      expect(prismaMock.booking.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          data: expect.objectContaining({
+            listingId: 'listing1',
+            tenantId: 'tenant1',
+            bookingType: BookingType.MONTHLY,
+            status: BookingStatus.REQUESTED,
+            totalAmount: 600000, // 200000 (loyer) + 200000*2 (caution)
+            platformFee: 200000, // commission = 1 mois de loyer
+            landlordAmount: 400000, // caution - commission
+            depositAmount: 400000,
+          }),
+        }),
+      );
+      expect(result.id).toBe('booking-monthly-1');
+      expect(notifMock.notifyMonthlyRequestCreated).toHaveBeenCalled();
+    });
+
+    it('lève ForbiddenException si le bailleur réserve sa propre annonce', async () => {
+      await expect(service.createMonthlyRequest('owner1', dto)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(prismaMock.booking.create).not.toHaveBeenCalled();
+    });
+
+    it("lève BadRequestException si le rentalMode n'accepte pas le mensuel", async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        ...monthlyListing,
+        rentalMode: RentalMode.NIGHTLY,
+      });
+      await expect(
+        service.createMonthlyRequest('tenant1', dto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("lève BadRequestException si l'annonce n'est pas ACTIVE", async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        ...monthlyListing,
+        status: 'SUSPENDED',
+      });
+      await expect(
+        service.createMonthlyRequest('tenant1', dto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('lève BadRequestException si une demande mensuelle est déjà en cours', async () => {
+      prismaMock.booking.findFirst.mockResolvedValueOnce({ id: 'existing' });
+      await expect(
+        service.createMonthlyRequest('tenant1', dto),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("lève BadRequestException si la date d'entrée chevauche une nuitée réservée", async () => {
+      prismaMock.booking.findFirst
+        .mockResolvedValueOnce(null) // pas de demande mensuelle en cours
+        .mockResolvedValueOnce({ id: 'nightly-overlap' }); // chevauchement nuitée
+      await expect(
+        service.createMonthlyRequest('tenant1', dto),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // --- approveMonthlyRequest / rejectMonthlyRequest ---
+  describe('approveMonthlyRequest', () => {
+    const requestedBooking = {
+      id: 'booking-monthly-1',
+      listingId: 'listing1',
+      tenantId: 'tenant1',
+      bookingType: BookingType.MONTHLY,
+      status: BookingStatus.REQUESTED,
+      totalAmount: 600000,
+      listing: { ...listing, owner, rentalMode: RentalMode.MONTHLY },
+      tenant,
+    };
+
+    it('approuve si owner et statut REQUESTED', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        requestedBooking,
+      );
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...requestedBooking,
+        status: BookingStatus.APPROVED,
+      });
+
+      const result = await service.approveMonthlyRequest(
+        'booking-monthly-1',
+        'owner1',
+      );
+
+      expect(result.status).toBe(BookingStatus.APPROVED);
+      expect(notifMock.notifyMonthlyRequestApproved).toHaveBeenCalled();
+    });
+
+    it("lève ForbiddenException si l'utilisateur n'est pas le propriétaire", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        requestedBooking,
+      );
+      await expect(
+        service.approveMonthlyRequest('booking-monthly-1', 'autre-user'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('lève BadRequestException si le statut n’est pas REQUESTED', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...requestedBooking,
+        status: BookingStatus.APPROVED,
+      });
+      await expect(
+        service.approveMonthlyRequest('booking-monthly-1', 'owner1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('lève BadRequestException si bookingType n’est pas MONTHLY', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...requestedBooking,
+        bookingType: BookingType.NIGHTLY,
+      });
+      await expect(
+        service.approveMonthlyRequest('booking-monthly-1', 'owner1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('rejectMonthlyRequest', () => {
+    const requestedBooking = {
+      id: 'booking-monthly-1',
+      listingId: 'listing1',
+      tenantId: 'tenant1',
+      bookingType: BookingType.MONTHLY,
+      status: BookingStatus.REQUESTED,
+      totalAmount: 600000,
+      listing: { ...listing, owner, rentalMode: RentalMode.MONTHLY },
+      tenant,
+    };
+
+    it('refuse si owner et statut REQUESTED', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        requestedBooking,
+      );
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...requestedBooking,
+        status: BookingStatus.REJECTED,
+      });
+
+      const result = await service.rejectMonthlyRequest(
+        'booking-monthly-1',
+        'owner1',
+      );
+
+      expect(result.status).toBe(BookingStatus.REJECTED);
+      expect(notifMock.notifyMonthlyRequestRejected).toHaveBeenCalled();
+    });
+
+    it("lève ForbiddenException si l'utilisateur n'est pas le propriétaire", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        requestedBooking,
+      );
+      await expect(
+        service.rejectMonthlyRequest('booking-monthly-1', 'autre-user'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('lève BadRequestException si le statut n’est pas REQUESTED', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...requestedBooking,
+        status: BookingStatus.APPROVED,
+      });
+      await expect(
+        service.rejectMonthlyRequest('booking-monthly-1', 'owner1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // --- terminateLease ---
+  describe('terminateLease', () => {
+    const activeBooking = {
+      id: 'booking-monthly-1',
+      listingId: 'listing1',
+      tenantId: 'tenant1',
+      bookingType: BookingType.MONTHLY,
+      status: BookingStatus.ACTIVE,
+      totalAmount: 600000,
+      listing: { ...listing, owner, rentalMode: RentalMode.MONTHLY },
+      tenant,
+    };
+
+    it('résilie le bail si le locataire résilie — repasse l’annonce en ACTIVE', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(activeBooking);
+      prismaMock.$transaction.mockResolvedValueOnce([
+        { ...activeBooking, status: BookingStatus.TERMINATED },
+        { ...listing, status: 'ACTIVE' },
+      ]);
+
+      const result = await service.terminateLease('booking-monthly-1', tenant);
+
+      expect(result.status).toBe(BookingStatus.TERMINATED);
+      expect(notifMock.notifyLeaseTerminated).toHaveBeenCalledWith(
+        expect.objectContaining({ terminatedByTenant: true }),
+      );
+    });
+
+    it('résilie le bail si le bailleur résilie', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(activeBooking);
+      prismaMock.$transaction.mockResolvedValueOnce([
+        { ...activeBooking, status: BookingStatus.TERMINATED },
+        { ...listing, status: 'ACTIVE' },
+      ]);
+
+      const result = await service.terminateLease('booking-monthly-1', owner);
+
+      expect(result.status).toBe(BookingStatus.TERMINATED);
+      expect(notifMock.notifyLeaseTerminated).toHaveBeenCalledWith(
+        expect.objectContaining({ terminatedByTenant: false }),
+      );
+    });
+
+    it("lève ForbiddenException si l'utilisateur n'est ni locataire, ni bailleur, ni admin", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(activeBooking);
+      const stranger: User = {
+        ...tenant,
+        id: 'stranger1',
+        roles: [Role.LOCATAIRE],
+      };
+      await expect(
+        service.terminateLease('booking-monthly-1', stranger),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('lève BadRequestException si le statut n’est pas ACTIVE', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...activeBooking,
+        status: BookingStatus.APPROVED,
+      });
+      await expect(
+        service.terminateLease('booking-monthly-1', tenant),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('lève BadRequestException si bookingType n’est pas MONTHLY', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...activeBooking,
+        bookingType: BookingType.NIGHTLY,
+      });
+      await expect(
+        service.terminateLease('booking-monthly-1', tenant),
       ).rejects.toThrow(BadRequestException);
     });
   });

@@ -38,10 +38,7 @@ export class PaymentsController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Roles(Role.LOCATAIRE)
   @Post('verify/:bookingId')
-  verify(
-    @Param('bookingId') bookingId: string,
-    @CurrentUser() user: User,
-  ) {
+  verify(@Param('bookingId') bookingId: string, @CurrentUser() user: User) {
     return this.paymentsService.verifyBooking(bookingId, user.id);
   }
 
@@ -51,7 +48,10 @@ export class PaymentsController {
 
   @Throttle({ default: { limit: 8, ttl: 60000 } })
   @Post('softpay/orange-money')
-  softpayOrangeMoney(@Body() dto: SoftpayPaymentDto, @CurrentUser() user: User) {
+  softpayOrangeMoney(
+    @Body() dto: SoftpayPaymentDto,
+    @CurrentUser() user: User,
+  ) {
     return this.softpay.payWithOrangeMoney({
       paymentToken: dto.paymentToken,
       phone: dto.phone,

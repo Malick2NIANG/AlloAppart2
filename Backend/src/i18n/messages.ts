@@ -110,6 +110,17 @@ const fr = {
   mailLeaseTerminatedSubject: 'Bail résilié — {listingTitle}',
   mailLeaseTerminatedBody:
     'Le bail mensuel pour <strong>{listingTitle}</strong> a été résilié.',
+  mailContractAwaitingSignatureSubject:
+    'Votre contrat de bail est prêt — {listingTitle}',
+  mailContractAwaitingSignatureBody:
+    "Le contrat de bail pour <strong>{listingTitle}</strong> est disponible. Téléchargez-le, signez-le puis re-téléversez-le depuis votre espace AlloAppart — c'est à votre tour de signer en premier.",
+  mailContractCounterSignatureSubject:
+    'Le locataire a signé — à vous de signer {listingTitle}',
+  mailContractCounterSignatureBody:
+    'Le locataire a signé le contrat de bail pour <strong>{listingTitle}</strong>. Téléchargez le contrat pré-signé, signez-le à votre tour puis re-téléversez-le pour finaliser le bail.',
+  mailContractFullySignedSubject: 'Contrat de bail finalisé — {listingTitle}',
+  mailContractFullySignedBody:
+    'Le contrat de bail pour <strong>{listingTitle}</strong> a été signé par les deux parties. Le document final est disponible dans votre espace AlloAppart.',
 
   /* SMS */
   smsCredentials:
@@ -154,6 +165,9 @@ const fr = {
   pushMonthlyApprovedTitle: 'Demande approuvée !',
   pushMonthlyRejectedTitle: 'Demande refusée',
   pushLeaseTerminatedTitle: 'Bail résilié',
+  pushContractAwaitingSignatureTitle: 'Contrat de bail prêt à signer',
+  pushContractCounterSignatureTitle: 'À votre tour de signer',
+  pushContractFullySignedTitle: 'Contrat de bail finalisé',
 
   /* Notifications in-app — corps */
   pushPaymentConfirmedBody:
@@ -203,6 +217,12 @@ const fr = {
   pushMonthlyRejectedBody:
     'Votre demande pour « {listingTitle} » a été refusée.',
   pushLeaseTerminatedBody: 'Le bail pour « {listingTitle} » a été résilié.',
+  pushContractAwaitingSignatureBody:
+    'Le contrat de bail pour « {listingTitle} » est prêt — signez-le en premier.',
+  pushContractCounterSignatureBody:
+    'Le locataire a signé le contrat pour « {listingTitle} » — à votre tour.',
+  pushContractFullySignedBody:
+    'Le contrat de bail pour « {listingTitle} » est signé par les deux parties.',
 
   /* Motifs de signalement (utilisés dans les notifications admin) */
   reasonFRAUD: 'Arnaque / fraude',
@@ -297,6 +317,17 @@ const en: Record<MessageKey, string> = {
   mailLeaseTerminatedSubject: 'Lease ended — {listingTitle}',
   mailLeaseTerminatedBody:
     'The monthly lease for <strong>{listingTitle}</strong> has ended.',
+  mailContractAwaitingSignatureSubject:
+    'Your lease contract is ready — {listingTitle}',
+  mailContractAwaitingSignatureBody:
+    "The lease contract for <strong>{listingTitle}</strong> is available. Download it, sign it, then re-upload it from your AlloAppart account — it's your turn to sign first.",
+  mailContractCounterSignatureSubject:
+    'The tenant has signed — your turn for {listingTitle}',
+  mailContractCounterSignatureBody:
+    'The tenant has signed the lease contract for <strong>{listingTitle}</strong>. Download the pre-signed contract, sign it in turn, then re-upload it to finalize the lease.',
+  mailContractFullySignedSubject: 'Lease contract finalized — {listingTitle}',
+  mailContractFullySignedBody:
+    'The lease contract for <strong>{listingTitle}</strong> has been signed by both parties. The final document is available in your AlloAppart account.',
 
   /* SMS */
   smsCredentials:
@@ -340,6 +371,9 @@ const en: Record<MessageKey, string> = {
   pushMonthlyApprovedTitle: 'Request approved!',
   pushMonthlyRejectedTitle: 'Request declined',
   pushLeaseTerminatedTitle: 'Lease ended',
+  pushContractAwaitingSignatureTitle: 'Lease contract ready to sign',
+  pushContractCounterSignatureTitle: 'Your turn to sign',
+  pushContractFullySignedTitle: 'Lease contract finalized',
 
   /* In-app notifications — bodies */
   pushPaymentConfirmedBody: 'Your booking for “{listingTitle}” is confirmed.',
@@ -385,6 +419,12 @@ const en: Record<MessageKey, string> = {
     'Your request for “{listingTitle}” is approved — pay to confirm.',
   pushMonthlyRejectedBody: 'Your request for “{listingTitle}” was declined.',
   pushLeaseTerminatedBody: 'The lease for “{listingTitle}” has ended.',
+  pushContractAwaitingSignatureBody:
+    'The lease contract for “{listingTitle}” is ready — sign it first.',
+  pushContractCounterSignatureBody:
+    'The tenant signed the contract for “{listingTitle}” — your turn.',
+  pushContractFullySignedBody:
+    'The lease contract for “{listingTitle}” is signed by both parties.',
 
   /* Report reasons (used in admin notifications) */
   reasonFRAUD: 'Scam / fraud',

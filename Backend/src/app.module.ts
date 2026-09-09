@@ -22,6 +22,7 @@ import { PdfModule } from './pdf/pdf.module';
 import { MailModule } from './mail/mail.module';
 import { SmsModule } from './sms/sms.module';
 import { AgencesModule } from './agences/agences.module';
+import { ContractsModule } from './contracts/contracts.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { AgencesModule } from './agences/agences.module';
     MailModule,
     SmsModule,
     AgencesModule,
+    ContractsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

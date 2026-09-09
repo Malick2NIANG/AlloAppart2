@@ -527,6 +527,128 @@ export class NotificationsService {
     }
   }
 
+  // Locataire : le contrat de bail est généré, à signer en premier
+  async notifyContractAwaitingSignature(
+    data: BookingNotificationData,
+  ): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const tenant = escapeHtml(data.tenantName);
+
+    const tenantLoc = await this.localeOf({
+      userId: data.tenantId,
+      email: data.tenantEmail,
+    });
+
+    await this.send(
+      data.tenantEmail,
+      t(tenantLoc, 'mailContractAwaitingSignatureSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
+        `<p>${t(tenantLoc, 'mailContractAwaitingSignatureBody', { listingTitle: title })}</p>` +
+        this.signature(tenantLoc),
+    );
+
+    if (data.tenantId) {
+      void this.pushInApp(
+        data.tenantId,
+        'CONTRACT_AWAITING_SIGNATURE',
+        'pushContractAwaitingSignatureTitle',
+        'pushContractAwaitingSignatureBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+  }
+
+  // Bailleur : le locataire a signé, à son tour de contresigner
+  async notifyContractCounterSignature(
+    data: BookingNotificationData,
+  ): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const landlord = escapeHtml(data.landlordName);
+
+    const landlordLoc = await this.localeOf({
+      userId: data.landlordId,
+      email: data.landlordEmail,
+    });
+
+    await this.send(
+      data.landlordEmail,
+      t(landlordLoc, 'mailContractCounterSignatureSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(landlordLoc, 'commonHello', { firstName: landlord })},</h2>` +
+        `<p>${t(landlordLoc, 'mailContractCounterSignatureBody', { listingTitle: title })}</p>` +
+        this.signature(landlordLoc),
+    );
+
+    if (data.landlordId) {
+      void this.pushInApp(
+        data.landlordId,
+        'CONTRACT_COUNTER_SIGNATURE',
+        'pushContractCounterSignatureTitle',
+        'pushContractCounterSignatureBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+  }
+
+  // Les deux parties : le contrat est signé par le locataire et le bailleur
+  async notifyContractFullySigned(
+    data: BookingNotificationData,
+  ): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const tenant = escapeHtml(data.tenantName);
+    const landlord = escapeHtml(data.landlordName);
+
+    const [tenantLoc, landlordLoc] = await Promise.all([
+      this.localeOf({ userId: data.tenantId, email: data.tenantEmail }),
+      this.localeOf({ userId: data.landlordId, email: data.landlordEmail }),
+    ]);
+
+    await this.send(
+      data.tenantEmail,
+      t(tenantLoc, 'mailContractFullySignedSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
+        `<p>${t(tenantLoc, 'mailContractFullySignedBody', { listingTitle: title })}</p>` +
+        this.signature(tenantLoc),
+    );
+    await this.send(
+      data.landlordEmail,
+      t(landlordLoc, 'mailContractFullySignedSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(landlordLoc, 'commonHello', { firstName: landlord })},</h2>` +
+        `<p>${t(landlordLoc, 'mailContractFullySignedBody', { listingTitle: title })}</p>` +
+        this.signature(landlordLoc),
+    );
+
+    if (data.tenantId) {
+      void this.pushInApp(
+        data.tenantId,
+        'CONTRACT_FULLY_SIGNED',
+        'pushContractFullySignedTitle',
+        'pushContractFullySignedBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+    if (data.landlordId) {
+      void this.pushInApp(
+        data.landlordId,
+        'CONTRACT_FULLY_SIGNED',
+        'pushContractFullySignedTitle',
+        'pushContractFullySignedBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+  }
+
   // Bailleur : un locataire vient de laisser un avis sur son annonce
   async notifyReviewReceived(
     landlordId: string,

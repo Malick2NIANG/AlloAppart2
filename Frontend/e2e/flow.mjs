@@ -323,6 +323,131 @@ async function createBookingAndPay(page, { startDate, endDate }, label) {
   return { booking: bookingBody, paymentUrl: payBody?.payment_url, currentUrl: page.url() };
 }
 
+/* ─────────────── bail mensuel + contrat (Phase 6/7) ─────────────── */
+
+const SIGNED_PDF_FIXTURE = path.join(__dirname, 'fixtures', 'test-signed-contract.pdf');
+
+// Même assistant que publishListing() pour les étapes 0/1/2 communes, mais l'étape 3
+// ("Mode de location & Prix") sélectionne explicitement le mode MENSUEL (même si c'est
+// déjà la valeur par défaut du formulaire — cliqué pour la robustesse du test face à un
+// futur changement de defaultValues) et remplit loyer + caution + durée minimale au lieu
+// du prix par nuitée.
+async function publishMonthlyListing(page, { title, monthlyRent, depositMonths, minLeaseMonths, city, address }) {
+  await robustGoto(page, `${FRONTEND}/publier`, (p) => p.getByRole('button', { name: 'Appartement' }));
+  await shot(page, 'monthly-listing-01-step0');
+
+  await page.getByRole('button', { name: 'Appartement' }).click();
+  await page.getByPlaceholder('Ex : Appartement 3 pièces meublé au Plateau').fill(title);
+  await page.getByPlaceholder('Décrivez votre bien en détail : luminosité, état, proximité services, transports…')
+    .fill('Bel appartement meublé, bail mensuel, idéal pour un test end-to-end automatisé.');
+  await page.getByRole('button', { name: 'Suivant' }).click();
+
+  // Step 1: caractéristiques (mêmes valeurs que publishListing()).
+  await shot(page, 'monthly-listing-02-step1');
+  const numberInputs = page.locator('main input[type="number"]');
+  await numberInputs.nth(0).fill('85');
+  await numberInputs.nth(1).fill('3');
+  await numberInputs.nth(2).fill('2');
+  await numberInputs.nth(3).fill('1');
+  await page.getByRole('button', { name: 'Suivant' }).click();
+
+  // Step 2: localisation
+  await shot(page, 'monthly-listing-03-step2');
+  await page.locator('main select').first().selectOption('Dakar');
+  await page.getByPlaceholder('Ex : Plateau, Dakar').fill(city);
+  await page.getByPlaceholder('Rue, numéro, résidence…').fill(address);
+  await page.getByRole('button', { name: 'Suivant' }).click();
+
+  // Step 3: mode de location (MENSUEL) + loyer + caution. Le bloc NUITÉE ne se rend
+  // pas en mode MENSUEL pur, donc les placeholders "Ex : 350 000"/"Ex : 2"/"Ex : 12"
+  // sont sans ambiguïté ici.
+  await shot(page, 'monthly-listing-04-step3');
+  await page.getByRole('button', { name: 'Mensuel' }).click();
+  await page.getByPlaceholder('Ex : 350 000').fill(String(monthlyRent));
+  await page.getByPlaceholder('Ex : 2').fill(String(depositMonths));
+  await page.getByPlaceholder('Ex : 12').fill(String(minLeaseMonths));
+  await shot(page, 'monthly-listing-05-step3-filled');
+  await page.getByRole('button', { name: 'Suivant' }).click();
+
+  // Step 4: photos
+  await shot(page, 'monthly-listing-06-step4');
+  const fileInput = page.locator('input[type="file"]');
+  await fileInput.setInputFiles(path.join(__dirname, 'fixtures', 'test-listing.jpg'));
+  await page.waitForTimeout(3000);
+  await page.getByRole('button', { name: 'Suivant' }).click();
+
+  // Step 5: recap + publish
+  await shot(page, 'monthly-listing-07-recap');
+  const [createResp] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/api/v1/listings') && r.request().method() === 'POST', { timeout: 20000 }),
+    page.getByRole('button', { name: 'Publier' }).click(),
+  ]);
+
+  const status = createResp.status();
+  let body = null;
+  try { body = await createResp.json(); } catch {}
+  await shot(page, 'monthly-listing-08-after-submit');
+
+  if (status >= 200 && status < 300) {
+    log('publish-monthly-listing', 'pass', { listingId: body?.id, status: body?.status });
+    return body;
+  } else {
+    log('publish-monthly-listing', 'fail', { status, body });
+    throw new Error(`Monthly listing creation failed: HTTP ${status} — ${JSON.stringify(body)}`);
+  }
+}
+
+// Ouvre l'annonce mensuelle et soumet une demande de location au mois via
+// MonthlyBookingRequestForm (rendu directement, sans onglets, pour rentalMode MONTHLY pur).
+async function requestMonthlyBooking(page, listingTitle, moveInDate) {
+  await searchAndOpenListing(page, listingTitle);
+
+  await page.locator('main input[type="date"]').fill(moveInDate);
+  await shot(page, 'monthly-request-01-form-filled');
+
+  const [reqResp] = await Promise.all([
+    page.waitForResponse((r) => r.url().endsWith('/api/v1/bookings/monthly') && r.request().method() === 'POST', { timeout: 15000 }),
+    page.getByRole('button', { name: 'Envoyer la demande' }).click(),
+  ]);
+
+  const status = reqResp.status();
+  const body = await reqResp.json().catch(() => null);
+  await shot(page, 'monthly-request-02-submitted');
+
+  if (status < 200 || status >= 300) {
+    log('monthly-request', 'fail', { status, body });
+    throw new Error(`Monthly booking request failed: HTTP ${status} — ${JSON.stringify(body)}`);
+  }
+  log('monthly-request', 'pass', { bookingId: body.id, status: body.status });
+  return body;
+}
+
+// Compte tenu du décalage entre le paiement (qui déclenche la génération du contrat en
+// tâche de fond côté serveur — PDF + upload Cloudinary) et son apparition côté client, on
+// attend l'input file du ContractCard (qui n'apparaît que si c'est le tour du visiteur de
+// signer) avec une tolérance plus généreuse que robustGoto par défaut, un seul reload de secours.
+async function waitForContractSignTurn(page, url) {
+  const readyLocator = (p) => p.locator('input[type="file"][accept="application/pdf"]').first();
+  await robustGoto(page, url, readyLocator, { patientTimeout: 30000, reloadTimeout: 20000 });
+}
+
+async function signContract(page, { bookingId, label }) {
+  const [signResp] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes(`/api/v1/contracts/`) && r.url().endsWith('/sign') && r.request().method() === 'POST', { timeout: 20000 }),
+    page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles(SIGNED_PDF_FIXTURE),
+  ]);
+  const status = signResp.status();
+  const body = await signResp.json().catch(() => null);
+  await shot(page, `${label}-signed`);
+
+  if (status < 200 || status >= 300) {
+    log(`contract-sign:${label}`, 'fail', { status, body });
+    throw new Error(`Contract sign upload failed: HTTP ${status} — ${JSON.stringify(body)}`);
+  }
+  log(`contract-sign:${label}`, 'pass', { bookingId, contractStatus: body?.status });
+  return body;
+}
+
 /* ───────────────────────── stages ───────────────────────── */
 
 async function stageSignupBailleur(browser) {
@@ -531,6 +656,144 @@ async function stageRegressionEmptyOptionalFields(browser) {
   }
 }
 
+// ─────────── Phase 6/7 : bail mensuel + contrat signé séquentiellement ───────────
+// Requiert PAYDUNYA_DEV_BYPASS=true côté Backend (même prérequis implicite que
+// book-1/book-2 ci-dessus) pour que payments/initiate confirme le paiement de
+// façon synchrone sans passer par une vraie redirection PayDunya.
+//
+// Chaîne complète : publish-monthly-listing → monthly-request → monthly-approve
+// → monthly-pay → contract-tenant-sign → contract-landlord-sign.
+// Chaque étape sauvegarde son état dans state.json pour que les étapes suivantes
+// (invocations séparées de node flow.mjs) puissent le relire.
+
+async function stagePublishMonthlyListing(browser) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  attachDiagnostics(page, 'monthly-listing');
+  try {
+    await signIn(page, state.bailleur, 'monthly-listing');
+    const title = `Bail Test E2E ${RUN_ID}`;
+    const listing = await publishMonthlyListing(page, {
+      title, monthlyRent: 200000, depositMonths: 2, minLeaseMonths: 3,
+      city: 'Plateau', address: `Rue Bail ${RUN_ID}, Plateau`,
+    });
+    state.monthlyListing = { id: listing.id, title, monthlyRent: 200000, depositMonths: 2, minLeaseMonths: 3 };
+    saveState(state);
+  } finally {
+    await ctx.close();
+  }
+}
+
+async function stageMonthlyRequest(browser) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  attachDiagnostics(page, 'monthly-request');
+  try {
+    await signIn(page, state.locataire, 'monthly-request');
+    const moveInDate = futureDate(30);
+    const booking = await requestMonthlyBooking(page, state.monthlyListing.title, moveInDate);
+    state.monthlyBooking = { id: booking.id, status: booking.status, totalAmount: booking.totalAmount, moveInDate };
+    saveState(state);
+  } finally {
+    await ctx.close();
+  }
+}
+
+async function stageMonthlyApprove(browser) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  attachDiagnostics(page, 'monthly-approve');
+  try {
+    await signIn(page, state.bailleur, 'monthly-approve');
+    // Compte locataire/bailleur fraîchement créés à chaque run (email horodaté par
+    // RUN_ID) : contrairement aux stages nuitée book-1/book-2 (qui accumulent des
+    // réservations d'anciens runs de debug sur le même compte), il n'y a ici qu'une
+    // seule demande REQUESTED — pas besoin de désambiguïser par montant.
+    await robustGoto(page, `${FRONTEND}/bailleur/bookings`, (p) => p.getByRole('button', { name: 'Approuver' }).first());
+    await shot(page, 'monthly-approve-01-list');
+
+    const [approveResp] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes(`/bookings/${state.monthlyBooking.id}/approve`), { timeout: 15000 }),
+      page.getByRole('button', { name: 'Approuver' }).first().click(),
+    ]);
+    const status = approveResp.status();
+    const body = await approveResp.json().catch(() => null);
+    await shot(page, 'monthly-approve-02-approved');
+    log('monthly-approve', status < 300 ? 'pass' : 'fail', { status, body });
+    if (status >= 300) throw new Error(`Monthly approval failed: HTTP ${status} — ${JSON.stringify(body)}`);
+    state.monthlyBooking.status = body.status;
+    saveState(state);
+  } finally {
+    await ctx.close();
+  }
+}
+
+async function stageMonthlyPay(browser) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  attachDiagnostics(page, 'monthly-pay');
+  try {
+    await signIn(page, state.locataire, 'monthly-pay');
+    await robustGoto(page, `${FRONTEND}/locataire/bookings`, (p) => p.getByRole('button', { name: /Payer le ticket d.entrée/ }).first());
+    await shot(page, 'monthly-pay-01-list');
+
+    const [payResp] = await Promise.all([
+      page.waitForResponse((r) => r.url().endsWith('/api/v1/payments/initiate') && r.request().method() === 'POST', { timeout: 20000 }),
+      page.getByRole('button', { name: /Payer le ticket d.entrée/ }).first().click(),
+    ]);
+    const status = payResp.status();
+    const body = await payResp.json().catch(() => null);
+    // Laisse le temps à markBookingPaid (synchrone côté bypass) + à la génération
+    // best-effort du contrat (fire-and-forget côté serveur) de démarrer.
+    await page.waitForTimeout(3000);
+    await shot(page, 'monthly-pay-02-after-initiate');
+    log('monthly-pay', status < 300 ? 'pass' : 'fail', { status, body });
+    if (status >= 300) throw new Error(`Monthly payment initiate failed: HTTP ${status} — ${JSON.stringify(body)}`);
+    state.monthlyBooking.status = 'ACTIVE';
+    saveState(state);
+  } finally {
+    await ctx.close();
+  }
+}
+
+async function stageContractTenantSign(browser) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  attachDiagnostics(page, 'contract-tenant');
+  try {
+    await signIn(page, state.locataire, 'contract-tenant');
+    await waitForContractSignTurn(page, `${FRONTEND}/locataire/bookings`);
+    await shot(page, 'contract-tenant-01-ready');
+    const contract = await signContract(page, { bookingId: state.monthlyBooking.id, label: 'contract-tenant' });
+    if (contract?.status !== 'AWAITING_SECOND_SIGNATURE') {
+      throw new Error(`Expected AWAITING_SECOND_SIGNATURE after tenant signature, got ${contract?.status}`);
+    }
+    state.contract = { status: contract.status };
+    saveState(state);
+  } finally {
+    await ctx.close();
+  }
+}
+
+async function stageContractLandlordSign(browser) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  attachDiagnostics(page, 'contract-landlord');
+  try {
+    await signIn(page, state.bailleur, 'contract-landlord');
+    await waitForContractSignTurn(page, `${FRONTEND}/bailleur/bookings`);
+    await shot(page, 'contract-landlord-01-ready');
+    const contract = await signContract(page, { bookingId: state.monthlyBooking.id, label: 'contract-landlord' });
+    if (contract?.status !== 'FULLY_SIGNED') {
+      throw new Error(`Expected FULLY_SIGNED after landlord signature, got ${contract?.status}`);
+    }
+    state.contract = { status: contract.status };
+    saveState(state);
+  } finally {
+    await ctx.close();
+  }
+}
+
 /* ───────────────────────── main ───────────────────────── */
 
 const STAGE_MAP = {
@@ -548,6 +811,16 @@ const STAGE_MAP = {
   'complete-and-owner-cancel': () => stageCompleteRejectedAndOwnerCancel,
   'tenant-cancel': () => stageCancelTenant,
   'regression-empty-fields': () => stageRegressionEmptyOptionalFields,
+  // Phase 6/7 — bail mensuel + contrat de bail signé séquentiellement (locataire puis
+  // bailleur). Ordre d'exécution attendu : signup-bailleur, publish-monthly-listing,
+  // signup-locataire, monthly-request, monthly-approve, monthly-pay,
+  // contract-tenant-sign, contract-landlord-sign.
+  'publish-monthly-listing': () => stagePublishMonthlyListing,
+  'monthly-request': () => stageMonthlyRequest,
+  'monthly-approve': () => stageMonthlyApprove,
+  'monthly-pay': () => stageMonthlyPay,
+  'contract-tenant-sign': () => stageContractTenantSign,
+  'contract-landlord-sign': () => stageContractLandlordSign,
 };
 
 async function main() {

@@ -28,6 +28,12 @@ export class UpdateProfileDto {
   @MaxLength(500)
   bio?: string;
 
+  /** Nom commercial de l'agence — affiché sur sa vitrine publique (/agences/:slug). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  agencyName?: string;
+
   @IsOptional()
   @IsUrl()
   avatar?: string;

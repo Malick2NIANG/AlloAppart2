@@ -50,6 +50,45 @@ export class UploadService {
     return false;
   }
 
+  /**
+   * Upload d'un buffer PDF déjà en mémoire (contrats de bail) — utilisé à la
+   * fois côté serveur (PDF généré par PdfService, aucun fichier client) et
+   * côté client (PDF signé re-téléversé par le locataire/bailleur, après
+   * validation des magic bytes en amont par l'appelant).
+   * resource_type 'raw' : Cloudinary ne transforme pas un PDF comme une image.
+   */
+  async uploadPdfBuffer(
+    buffer: Buffer,
+    filename: string,
+  ): Promise<{ url: string; publicId: string }> {
+    const cloudName = this.config.get<string>('CLOUDINARY_CLOUD_NAME');
+    if (!cloudName) throw new BadRequestException('Cloudinary not configured');
+
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'allo-appart/contracts',
+          resource_type: 'raw' as const,
+          public_id: filename.replace(/\.pdf$/i, ''),
+          format: 'pdf',
+        },
+        (error, result) => {
+          if (error || !result)
+            return reject(
+              error instanceof Error ? error : new Error('Upload échoué'),
+            );
+          resolve({ url: result.secure_url, publicId: result.public_id });
+        },
+      );
+      stream.end(buffer);
+    });
+  }
+
+  /** Vérifie la signature PDF (%PDF) — utilisé pour valider un re-téléversement client. */
+  isPdf(buf: Buffer): boolean {
+    return buf.length >= 5 && buf.slice(0, 5).toString('ascii') === '%PDF-';
+  }
+
   async uploadFile(
     file: Express.Multer.File,
   ): Promise<{ url: string; publicId: string }> {

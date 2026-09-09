@@ -2,6 +2,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
 
+// Comptes pas encore créés — rendu désactivé plus bas (voir la Col 1) sans
+// supprimer les données, pour réactiver l'affichage en un clin d'œil une
+// fois les vrais liens renseignés.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SOCIALS = [
   { icon: 'fa-brands fa-facebook',  href: '#', label: 'Facebook', color: 'hover:text-blue-600  hover:border-blue-600'  },
   { icon: 'fa-brands fa-instagram', href: '#', label: 'Instagram',color: 'hover:text-pink-500  hover:border-pink-500'  },
@@ -46,7 +50,10 @@ export default async function Footer() {
             <p className="text-sm leading-relaxed text-sub max-w-55">
               {t('tagline')}
             </p>
-            <div className="flex flex-wrap gap-2 pt-1">
+            {/* Réseaux sociaux masqués tant que les comptes ne sont pas créés.
+                Décommenter dès que les vrais liens (href) remplacent les '#'
+                dans le tableau SOCIALS ci-dessus. */}
+            {/* <div className="flex flex-wrap gap-2 pt-1">
               {SOCIALS.map((s) => (
                 <a
                   key={s.label}
@@ -57,7 +64,7 @@ export default async function Footer() {
                   <i className={`${s.icon} text-base`} />
                 </a>
               ))}
-            </div>
+            </div> */}
           </div>
 
           {/* Col 2 — Navigation */}
@@ -102,8 +109,8 @@ export default async function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <i className="fa-solid fa-phone text-gold-dark shrink-0" />
-                <a href="tel:+221338001234" className="hover:text-gold-dark transition-colors">
-                  +221 33 800 12 34
+                <a href="tel:+221338326972" className="hover:text-gold-dark transition-colors">
+                  +221 33 832 69 72
                 </a>
               </li>
               <li className="flex items-center gap-2">

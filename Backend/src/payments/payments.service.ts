@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import axios from 'axios';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
+import { ContractsService } from '../contracts/contracts.service';
 
 type BookingWithDetails = Booking & { listing: Listing; tenant: User };
 type BookingWithOwnerDetails = Booking & {
@@ -29,6 +30,7 @@ export class PaymentsService {
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
     private readonly softpay: PaydunyaSoftpayService,
+    private readonly contracts: ContractsService,
   ) {}
 
   /**
@@ -62,6 +64,14 @@ export class PaymentsService {
       await this.prisma.listing.update({
         where: { id: updated.listingId },
         data: { status: ListingStatus.RENTED },
+      });
+      // Génération du contrat de bail — best-effort, ne doit jamais faire
+      // échouer la confirmation de paiement déjà actée ci-dessus.
+      this.contracts.generateForBooking(updated.id).catch((err: unknown) => {
+        this.logger.error(
+          `Génération du contrat échouée pour booking ${updated.id} : ` +
+            (err instanceof Error ? err.message : String(err)),
+        );
       });
     }
     return updated;
