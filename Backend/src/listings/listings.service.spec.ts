@@ -97,7 +97,7 @@ describe('ListingsService', () => {
         expect(prismaMock.listing.create).not.toHaveBeenCalled();
       });
 
-      it('rejette si plan STARTER déjà au plafond', async () => {
+      it('rejette si plan STARTER déjà au plafond, avec un code structuré pour le frontend', async () => {
         prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
           ...proAgenceOwner,
           subscription: {
@@ -107,9 +107,14 @@ describe('ListingsService', () => {
         });
         prismaMock.listing.count.mockResolvedValueOnce(10);
 
+        // Le code structuré (et non un simple message texte) permet au
+        // frontend d'afficher une invite à l'upgrade plutôt qu'une erreur
+        // générique — voir /publier page.tsx.
         await expect(
           service.create('owner1', { status: ListingStatus.ACTIVE } as never),
-        ).rejects.toThrow(BadRequestException);
+        ).rejects.toMatchObject({
+          response: expect.objectContaining({ code: 'STARTER_LISTING_LIMIT', limit: 10 }),
+        });
         expect(prismaMock.listing.create).not.toHaveBeenCalled();
       });
 

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import { api } from '@/lib/api';
 
 interface MeResponse {
@@ -10,46 +11,25 @@ interface MeResponse {
   termsAcceptedAt: string | null;
 }
 
-async function getClerkToken(): Promise<string | null> {
-  // 1. Via session Clerk en mémoire (navigation client-side)
-  const session = (window as any).Clerk?.session;
-  if (session) {
-    try {
-      const raw = session.lastActiveToken?.getRawString?.() ?? null;
-      if (raw) return raw;
-      const tok = await session.getToken?.();
-      if (tok) return tok;
-    } catch {}
-  }
-
-  // 2. Cookie __session (non-HttpOnly, présent après sign-in)
-  const match = document.cookie.split('; ').find(c => c.startsWith('__session='));
-  if (match) return decodeURIComponent(match.split('=').slice(1).join('='));
-
-  // 3. Attendre que Clerk charge (max 4s) puis réessayer
-  let retries = 0;
-  while (!(window as any).Clerk?.session && retries < 20) {
-    await new Promise(r => setTimeout(r, 200));
-    retries++;
-  }
-  const s2 = (window as any).Clerk?.session;
-  if (s2) {
-    try {
-      const raw2 = s2.lastActiveToken?.getRawString?.() ?? null;
-      if (raw2) return raw2;
-      return await s2.getToken?.() ?? null;
-    } catch {}
-  }
-
-  return null;
-}
-
 export default function RedirectPage() {
   const router = useRouter();
+  // useAuth() expose l'état RÉEL de chargement de Clerk (isLoaded) et la même
+  // méthode getToken() utilisée partout ailleurs dans l'app (ContractCard,
+  // pages bailleur/locataire, etc.) — pas de délai fixe à deviner, pas d'accès
+  // à des propriétés internes de Clerk, pas de lecture du cookie __session
+  // (qui est HttpOnly et donc jamais lisible depuis document.cookie).
+  // Ancienne implémentation : réimplémentait sa propre récupération de token
+  // avec un abandon après 4s fixes — en dev, un premier chargement de page
+  // (compilation Next.js) peut dépasser ce délai, ce qui renvoyait à tort
+  // vers /sign-in un utilisateur pourtant bien connecté.
+  const { isLoaded, isSignedIn, getToken } = useAuth();
 
   useEffect(() => {
+    if (!isLoaded) return; // attend que Clerk ait fini de charger la session, sans délai arbitraire
+    if (!isSignedIn) { router.replace('/sign-in'); return; }
+
     const doRedirect = async () => {
-      const token = await getClerkToken();
+      const token = await getToken();
       if (!token) { router.replace('/sign-in'); return; }
 
       let me: MeResponse;
@@ -72,7 +52,7 @@ export default function RedirectPage() {
     };
 
     void doRedirect();
-  }, [router]);
+  }, [isLoaded, isSignedIn, getToken, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

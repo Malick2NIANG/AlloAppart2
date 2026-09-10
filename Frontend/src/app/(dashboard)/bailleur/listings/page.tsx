@@ -617,6 +617,26 @@ export default function BailleurListingsPage() {
   );
 }
 
+/**
+ * Affiche le tarif réellement choisi par le bailleur pour cette annonce, selon
+ * son mode de location — jamais un simple `listing.price` générique suivi de
+ * "/mois" en dur : pour une annonce NUITÉE, `price` peut être un équivalent
+ * mensuel dérivé (ex: pricePerNight * 30) plutôt que le tarif que le bailleur
+ * a effectivement saisi, ce qui affichait un montant trompeur.
+ */
+function priceLabel(listing: Listing, t: ReturnType<typeof useTranslations<'bailleur'>>): string {
+  const perNight = listing.pricePerNight != null ? formatPrice(listing.pricePerNight) : null;
+  const perMonth = formatPrice(listing.price);
+
+  if (listing.rentalMode === 'NIGHTLY') {
+    return perNight ? `${perNight}${t('priceUnitNight')}` : `${perMonth}${t('priceUnitMonth')}`;
+  }
+  if (listing.rentalMode === 'MIXED' && perNight) {
+    return `${perMonth}${t('priceUnitMonth')} · ${perNight}${t('priceUnitNight')}`;
+  }
+  return `${perMonth}${t('priceUnitMonth')}`;
+}
+
 function ListingCard({
   listing, onUnpublish, onPublish, onArchive, onRestore, onDelete, onVerify, onBoost, boosting,
 }: {
@@ -650,10 +670,12 @@ function ListingCard({
         </span>
       </div>
 
-      {/* Row 2 */}
+      {/* Row 2 — le prix affiché dépend du mode de location : une annonce NUITÉE
+          n'a pas forcément de loyer mensuel défini (listing.price peut être un
+          équivalent mensuel dérivé, pas le tarif réellement choisi par le bailleur) */}
       <p className="text-sm text-sub mt-0.5">
         <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
-        {listing.city} · {formatPrice(listing.price)}/mois
+        {listing.city} · {priceLabel(listing, t)}
       </p>
 
       {/* Badges */}

@@ -317,9 +317,16 @@ export class ListingsService {
     if (owner.subscription.plan === SubscriptionPlan.STARTER) {
       const count = await this.prisma.listing.count({ where: { ownerId } });
       if (count >= STARTER_MAX_LISTINGS) {
-        throw new BadRequestException(
-          `Le plan STARTER est limité à ${STARTER_MAX_LISTINGS} annonces. Passez au plan PRO pour publier davantage.`,
-        );
+        // `code` structuré (plutôt qu'un simple message) pour que le frontend
+        // puisse distinguer cette limite de plan d'une erreur de validation
+        // classique et afficher une invite à l'upgrade plutôt qu'un message
+        // d'erreur générique.
+        throw new BadRequestException({
+          statusCode: 400,
+          code: 'STARTER_LISTING_LIMIT',
+          message: `Le plan STARTER est limité à ${STARTER_MAX_LISTINGS} annonces. Passez au plan PRO pour publier davantage.`,
+          limit: STARTER_MAX_LISTINGS,
+        });
       }
     }
   }

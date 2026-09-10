@@ -4,6 +4,7 @@ import {
   BookingStatus,
   ListingStatus,
   Role,
+  SubscriptionPlan,
   SubscriptionStatus,
   User,
   VerifStatus,
@@ -297,8 +298,28 @@ export class AnalyticsService {
 
     const owner = await this.prisma.user.findUniqueOrThrow({
       where: { id: ownerId },
-      select: { firstName: true, lastName: true, agencyName: true },
+      select: {
+        firstName: true, lastName: true, agencyName: true,
+        roles: true, subscription: { select: { plan: true, status: true } },
+      },
     });
+
+    // Le rapport PDF mensuel est réservé au plan PRO pour les comptes agence
+    // (cf. page de tarifs — "Analytiques avancées"). Un simple BAILLEUR
+    // individuel n'a jamais d'abonnement (module réservé aux PRO_AGENCE) et
+    // garde donc son accès complet, inchangé.
+    if (owner.roles.includes(Role.PRO_AGENCE)) {
+      const isPro =
+        owner.subscription?.plan === SubscriptionPlan.PRO &&
+        owner.subscription?.status === SubscriptionStatus.ACTIVE;
+      if (!isPro) {
+        throw new ForbiddenException({
+          statusCode: 403,
+          code: 'PRO_ONLY',
+          message: 'Le rapport PDF mensuel est réservé au plan PRO.',
+        });
+      }
+    }
 
     const [stats, bookings] = await Promise.all([
       this.getOwnerStats(ownerId),
@@ -407,24 +428,35 @@ export class AnalyticsService {
     );
     // ──────────────────────────────────────────────────────────────────
 
+    // Analytiques avancées (top annonces, courbes, score composite, export PDF)
+    // réservées au plan PRO — cf. page de tarifs. Le plan STARTER garde les
+    // KPIs de base (vues, annonces, note moyenne, revenu total) pour donner un
+    // aperçu de valeur, mais les sections avancées sont vidées ici plutôt que
+    // simplement masquées côté frontend : sinon un appel direct à l'API
+    // laisserait fuiter les données avancées à un compte STARTER.
+    const isPro =
+      owner.subscription?.plan === SubscriptionPlan.PRO &&
+      owner.subscription?.status === SubscriptionStatus.ACTIVE;
+
     return {
       profileViews:  owner.profileViews,
       agencyName:    owner.agencyName,
       agencySlug:    owner.agencySlug,
       subscription:  owner.subscription,
+      isPro,
       totalListings: listings.length,
       activeListings: activeListingsAll.length,
       avgRating:     ratingAgg._avg.rating ? Math.round(ratingAgg._avg.rating * 10) / 10 : null,
       reviewCount:   ratingAgg._count.id,
       totalRevenue:  listingStats.reduce((s, l) => s + l.revenue, 0),
-      topListings,
-      monthly,
-      // KPIs enrichis
-      conversionRate,
-      alloVerifieRate,
-      performanceScore,
-      verifiedActiveCount: verifiedActive,
-      totalActiveCount:    activeListingsAll.length,
+      // ── Réservé PRO ──
+      topListings:          isPro ? topListings : [],
+      monthly:              isPro ? monthly : [],
+      conversionRate:       isPro ? conversionRate : null,
+      alloVerifieRate:      isPro ? alloVerifieRate : null,
+      performanceScore:     isPro ? performanceScore : null,
+      verifiedActiveCount:  isPro ? verifiedActive : null,
+      totalActiveCount:     isPro ? activeListingsAll.length : null,
     };
   }
 }

@@ -38,6 +38,7 @@ interface VitrineStats {
   agencyName: string | null;
   agencySlug: string | null;
   subscription: { plan: string; status: string } | null;
+  isPro: boolean;
   totalListings: number;
   activeListings: number;
   avgRating: number | null;
@@ -45,11 +46,11 @@ interface VitrineStats {
   totalRevenue: number;
   topListings: ListingStat[];
   monthly: MonthlyPoint[];
-  conversionRate: number;
-  alloVerifieRate: number;
-  performanceScore: number;
-  verifiedActiveCount: number;
-  totalActiveCount: number;
+  conversionRate: number | null;
+  alloVerifieRate: number | null;
+  performanceScore: number | null;
+  verifiedActiveCount: number | null;
+  totalActiveCount: number | null;
 }
 
 const TYPE_LABEL_EN: Record<string, string> = {
@@ -146,12 +147,13 @@ export default function VitrineAnalyticsPage() {
     );
   }
 
-  const isPro = stats.subscription?.plan === 'PRO' && stats.subscription?.status === 'ACTIVE';
+  const isPro = stats.isPro;
 
-  const conversionStatus =
-    stats.conversionRate >= 60 ? `🟢 ${t('analyticsConversionExcellent')}`
-    : stats.conversionRate >= 35 ? `🟡 ${t('analyticsConversionMedium')}`
-    : `🔴 ${t('analyticsConversionWeak')}`;
+  const conversionStatus = isPro && stats.conversionRate !== null
+    ? (stats.conversionRate >= 60 ? `🟢 ${t('analyticsConversionExcellent')}`
+      : stats.conversionRate >= 35 ? `🟡 ${t('analyticsConversionMedium')}`
+      : `🔴 ${t('analyticsConversionWeak')}`)
+    : '';
 
   return (
     <div className="flex flex-col gap-8">
@@ -214,103 +216,112 @@ export default function VitrineAnalyticsPage() {
       </div>
 
       {/* KPIs enrichis */}
-      <div className="rounded-2xl border border-line bg-card p-5">
-        <h2 className="text-sm font-semibold text-text mb-5 flex items-center gap-2">
-          <i className="fa-solid fa-chart-pie text-gold-dark text-xs" />
-          {t('analyticsPerformance')}
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      {isPro && stats.performanceScore !== null ? (
+        <div className="rounded-2xl border border-line bg-card p-5">
+          <h2 className="text-sm font-semibold text-text mb-5 flex items-center gap-2">
+            <i className="fa-solid fa-chart-pie text-gold-dark text-xs" />
+            {t('analyticsPerformance')}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
 
-          {/* Score global */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="relative flex h-24 w-24 items-center justify-center">
-              <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="34" fill="none" stroke="var(--color-line,#e5e7eb)" strokeWidth="8" />
-                <circle
-                  cx="40" cy="40" r="34" fill="none"
-                  stroke={stats.performanceScore >= 70 ? '#16a34a' : stats.performanceScore >= 40 ? '#b8972a' : '#ef4444'}
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeDasharray={`${(stats.performanceScore / 100) * 213.6} 213.6`}
+            {/* Score global */}
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative flex h-24 w-24 items-center justify-center">
+                <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
+                  <circle cx="40" cy="40" r="34" fill="none" stroke="var(--color-line,#e5e7eb)" strokeWidth="8" />
+                  <circle
+                    cx="40" cy="40" r="34" fill="none"
+                    stroke={stats.performanceScore >= 70 ? '#16a34a' : stats.performanceScore >= 40 ? '#b8972a' : '#ef4444'}
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(stats.performanceScore / 100) * 213.6} 213.6`}
+                  />
+                </svg>
+                <span className="text-xl font-extrabold text-text">{stats.performanceScore}</span>
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-semibold text-text">{t('analyticsScoreLabel')}</p>
+                <p className="text-[11px] text-sub mt-0.5">{t('analyticsScoreSub')}</p>
+              </div>
+              <div className="w-full rounded-xl border border-line bg-bg/60 px-3 py-2 text-[10px] text-sub space-y-0.5">
+                <div className="flex justify-between"><span>{t('analyticsScoreRating')}</span><span className="font-medium text-text">30 {t('analyticsScoreMax')}</span></div>
+                <div className="flex justify-between"><span>{t('analyticsScoreConversion')}</span><span className="font-medium text-text">25 {t('analyticsScoreMax')}</span></div>
+                <div className="flex justify-between"><span>{t('analyticsScoreVerified')}</span><span className="font-medium text-text">25 {t('analyticsScoreMax')}</span></div>
+                <div className="flex justify-between"><span>{t('analyticsScorePublication')}</span><span className="font-medium text-text">20 {t('analyticsScoreMax')}</span></div>
+              </div>
+            </div>
+
+            {/* Taux de conversion */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50">
+                  <i className="fa-solid fa-arrows-turn-to-dots text-sm text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-text">{t('analyticsConversionTitle')}</p>
+                  <p className="text-[11px] text-sub">{t('analyticsConversionSub')}</p>
+                </div>
+              </div>
+              <div className="flex items-end gap-2">
+                <span className="text-3xl font-extrabold text-text">{stats.conversionRate}%</span>
+                <span className="mb-1 text-xs text-sub">{conversionStatus}</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-bg overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    (stats.conversionRate ?? 0) >= 60 ? 'bg-emerald-500' : (stats.conversionRate ?? 0) >= 35 ? 'bg-gold' : 'bg-red-400'
+                  }`}
+                  style={{ width: `${stats.conversionRate}%` }}
                 />
-              </svg>
-              <span className="text-xl font-extrabold text-text">{stats.performanceScore}</span>
+              </div>
+              <p className="text-[11px] text-sub">{t('analyticsConversionTip')}</p>
             </div>
-            <div className="text-center">
-              <p className="text-xs font-semibold text-text">{t('analyticsScoreLabel')}</p>
-              <p className="text-[11px] text-sub mt-0.5">{t('analyticsScoreSub')}</p>
-            </div>
-            <div className="w-full rounded-xl border border-line bg-bg/60 px-3 py-2 text-[10px] text-sub space-y-0.5">
-              <div className="flex justify-between"><span>{t('analyticsScoreRating')}</span><span className="font-medium text-text">30 {t('analyticsScoreMax')}</span></div>
-              <div className="flex justify-between"><span>{t('analyticsScoreConversion')}</span><span className="font-medium text-text">25 {t('analyticsScoreMax')}</span></div>
-              <div className="flex justify-between"><span>{t('analyticsScoreVerified')}</span><span className="font-medium text-text">25 {t('analyticsScoreMax')}</span></div>
-              <div className="flex justify-between"><span>{t('analyticsScorePublication')}</span><span className="font-medium text-text">20 {t('analyticsScoreMax')}</span></div>
-            </div>
-          </div>
 
-          {/* Taux de conversion */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50">
-                <i className="fa-solid fa-arrows-turn-to-dots text-sm text-purple-600" />
+            {/* Pression AlloVérifié */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50">
+                  <i className="fa-solid fa-shield-halved text-sm text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-text">{t('analyticsVerifiedTitle')}</p>
+                  <p className="text-[11px] text-sub">{t('analyticsVerifiedSub')}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-text">{t('analyticsConversionTitle')}</p>
-                <p className="text-[11px] text-sub">{t('analyticsConversionSub')}</p>
+              <div className="flex items-end gap-2">
+                <span className="text-3xl font-extrabold text-text">{stats.alloVerifieRate}%</span>
+                <span className="mb-1 text-xs text-sub">
+                  {stats.verifiedActiveCount}/{stats.totalActiveCount}
+                </span>
               </div>
+              <div className="h-2 w-full rounded-full bg-bg overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    (stats.alloVerifieRate ?? 0) >= 80 ? 'bg-emerald-500' : (stats.alloVerifieRate ?? 0) >= 40 ? 'bg-gold' : 'bg-red-400'
+                  }`}
+                  style={{ width: `${stats.alloVerifieRate}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-sub">
+                {(stats.alloVerifieRate ?? 0) < 100
+                  ? t('analyticsVerifiedListings', { unverified: (stats.totalActiveCount ?? 0) - (stats.verifiedActiveCount ?? 0) })
+                  : t('analyticsVerifiedAll')}
+              </p>
             </div>
-            <div className="flex items-end gap-2">
-              <span className="text-3xl font-extrabold text-text">{stats.conversionRate}%</span>
-              <span className="mb-1 text-xs text-sub">{conversionStatus}</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-bg overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-700 ${
-                  stats.conversionRate >= 60 ? 'bg-emerald-500' : stats.conversionRate >= 35 ? 'bg-gold' : 'bg-red-400'
-                }`}
-                style={{ width: `${stats.conversionRate}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-sub">{t('analyticsConversionTip')}</p>
-          </div>
 
-          {/* Pression AlloVérifié */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50">
-                <i className="fa-solid fa-shield-halved text-sm text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-text">{t('analyticsVerifiedTitle')}</p>
-                <p className="text-[11px] text-sub">{t('analyticsVerifiedSub')}</p>
-              </div>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="text-3xl font-extrabold text-text">{stats.alloVerifieRate}%</span>
-              <span className="mb-1 text-xs text-sub">
-                {stats.verifiedActiveCount}/{stats.totalActiveCount}
-              </span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-bg overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-700 ${
-                  stats.alloVerifieRate >= 80 ? 'bg-emerald-500' : stats.alloVerifieRate >= 40 ? 'bg-gold' : 'bg-red-400'
-                }`}
-                style={{ width: `${stats.alloVerifieRate}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-sub">
-              {stats.alloVerifieRate < 100
-                ? t('analyticsVerifiedListings', { unverified: stats.totalActiveCount - stats.verifiedActiveCount })
-                : t('analyticsVerifiedAll')}
-            </p>
           </div>
-
         </div>
-      </div>
+      ) : (
+        <LockedFeaturePanel
+          icon="fa-chart-pie"
+          title={t('analyticsLockedPerformanceTitle')}
+          desc={t('analyticsLockedPerformanceDesc')}
+          cta={t('analyticsUpgradeCta')}
+        />
+      )}
 
       {/* Top listings */}
-      {stats.topListings.length > 0 && (
+      {isPro && stats.topListings.length > 0 ? (
         <div className="rounded-2xl border border-line bg-card p-5">
           <h2 className="text-sm font-semibold text-text mb-4 flex items-center gap-2">
             <i className="fa-solid fa-trophy text-gold-dark text-xs" />
@@ -360,10 +371,17 @@ export default function VitrineAnalyticsPage() {
             })}
           </div>
         </div>
+      ) : !isPro && (
+        <LockedFeaturePanel
+          icon="fa-trophy"
+          title={t('analyticsLockedTopListingsTitle')}
+          desc={t('analyticsLockedTopListingsDesc')}
+          cta={t('analyticsUpgradeCta')}
+        />
       )}
 
       {/* Revenue chart */}
-      {stats.monthly.length > 0 && (
+      {isPro && stats.monthly.length > 0 ? (
         <div className="rounded-2xl border border-line bg-card p-5">
           <h2 className="text-sm font-semibold text-text mb-4">
             <i className="fa-solid fa-sack-dollar text-gold-dark mr-2" />
@@ -385,10 +403,17 @@ export default function VitrineAnalyticsPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      ) : !isPro && (
+        <LockedFeaturePanel
+          icon="fa-sack-dollar"
+          title={t('analyticsLockedRevenueTitle')}
+          desc={t('analyticsLockedRevenueDesc')}
+          cta={t('analyticsUpgradeCta')}
+        />
       )}
 
       {/* Bookings chart */}
-      {stats.monthly.length > 0 && (
+      {isPro && stats.monthly.length > 0 ? (
         <div className="rounded-2xl border border-line bg-card p-5">
           <h2 className="text-sm font-semibold text-text mb-4">
             <i className="fa-solid fa-calendar-check text-gold-dark mr-2" />
@@ -407,47 +432,63 @@ export default function VitrineAnalyticsPage() {
             </LineChart>
           </ResponsiveContainer>
         </div>
+      ) : !isPro && (
+        <LockedFeaturePanel
+          icon="fa-calendar-check"
+          title={t('analyticsLockedBookingsTitle')}
+          desc={t('analyticsLockedBookingsDesc')}
+          cta={t('analyticsUpgradeCta')}
+        />
       )}
 
       {/* PDF report */}
-      <div className="rounded-2xl border border-line bg-card p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50">
-            <i className="fa-solid fa-file-pdf text-red-500 text-sm" />
+      {isPro ? (
+        <div className="rounded-2xl border border-line bg-card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50">
+              <i className="fa-solid fa-file-pdf text-red-500 text-sm" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text">{t('analyticsReportTitle')}</p>
+              <p className="text-[11px] text-sub">{t('analyticsReportDesc')}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-text">{t('analyticsReportTitle')}</p>
-            <p className="text-[11px] text-sub">{t('analyticsReportDesc')}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="report-month" className="text-[11px] font-medium text-sub">
+                {t('analyticsReportMonthLabel')}
+              </label>
+              <input
+                id="report-month"
+                type="month"
+                value={reportMonth}
+                onChange={(e) => setReportMonth(e.target.value)}
+                max={defaultMonth}
+                className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold/40"
+              />
+            </div>
+            <div className="flex items-end pb-0.5">
+              <button
+                onClick={() => void downloadReport()}
+                disabled={downloadingReport || !reportMonth}
+                className="flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition disabled:opacity-60"
+              >
+                {downloadingReport
+                  ? <><i className="fa-solid fa-spinner fa-spin" /> {t('analyticsReportGenerating')}</>
+                  : <><i className="fa-solid fa-download text-xs" /> {t('analyticsReportDownload')}</>
+                }
+              </button>
+            </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="report-month" className="text-[11px] font-medium text-sub">
-              {t('analyticsReportMonthLabel')}
-            </label>
-            <input
-              id="report-month"
-              type="month"
-              value={reportMonth}
-              onChange={(e) => setReportMonth(e.target.value)}
-              max={defaultMonth}
-              className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold/40"
-            />
-          </div>
-          <div className="flex items-end pb-0.5">
-            <button
-              onClick={() => void downloadReport()}
-              disabled={downloadingReport || !reportMonth}
-              className="flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition disabled:opacity-60"
-            >
-              {downloadingReport
-                ? <><i className="fa-solid fa-spinner fa-spin" /> {t('analyticsReportGenerating')}</>
-                : <><i className="fa-solid fa-download text-xs" /> {t('analyticsReportDownload')}</>
-              }
-            </button>
-          </div>
-        </div>
-      </div>
+      ) : (
+        <LockedFeaturePanel
+          icon="fa-file-pdf"
+          title={t('analyticsLockedReportTitle')}
+          desc={t('analyticsLockedReportDesc')}
+          cta={t('analyticsUpgradeCta')}
+        />
+      )}
 
       {/* Vitrine link */}
       {stats.agencySlug && (
@@ -469,6 +510,27 @@ export default function VitrineAnalyticsPage() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+function LockedFeaturePanel({
+  icon, title, desc, cta,
+}: {
+  icon: string; title: string; desc: string; cta: string;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-dashed border-gold/40 bg-gold-pale/20 p-6 flex flex-col items-center text-center gap-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-gold to-gold-light">
+        <i className={`fa-solid ${icon} text-white text-sm`} />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-text">{title}</p>
+        <p className="text-xs text-sub mt-1 max-w-sm mx-auto">{desc}</p>
+      </div>
+      <Link href="/bailleur/abonnement" className="btn-gold text-xs mt-1">
+        <i className="fa-solid fa-crown text-[10px] mr-1.5" />{cta}
+      </Link>
     </div>
   );
 }

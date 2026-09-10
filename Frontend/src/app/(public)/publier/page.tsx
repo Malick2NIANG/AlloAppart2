@@ -130,6 +130,10 @@ export default function PublierPage() {
   const [mounted,       setMounted]       = useState(false);
   const [success,       setSuccess]       = useState<'published' | 'draft' | false>(false);
   const [apiError,      setApiError]      = useState<string | null>(null);
+  // Plafond STARTER atteint (10 annonces) — bloque une simple erreur générique
+  // au profit d'une invite claire à passer au plan PRO (limit vient du corps
+  // structuré renvoyé par le backend, ex: { code: 'STARTER_LISTING_LIMIT', limit: 10 }).
+  const [upgradeModal,  setUpgradeModal]  = useState<{ limit: number } | null>(null);
   const [userRoles,     setUserRoles]     = useState<string[]>([]);
   const [rolesLoaded,   setRolesLoaded]   = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
@@ -402,6 +406,7 @@ export default function PublierPage() {
   /* ── Soumission finale ── */
   const onSubmit = async (data: FormValues) => {
     setApiError(null);
+    setUpgradeModal(null);
     if (isDemo) { setSuccess(submitMode === 'draft' ? 'draft' : 'published'); return; }
     try {
       const token = await getToken();
@@ -411,8 +416,16 @@ export default function PublierPage() {
       }, token ?? undefined);
       localStorage.removeItem(DRAFT_KEY);
       setSuccess(submitMode === 'draft' ? 'draft' : 'published');
-    } catch {
-      setApiError(t('apiError'));
+    } catch (err: unknown) {
+      // Le plafond du plan STARTER renvoie un code structuré (pas juste un
+      // message texte) pour qu'on puisse afficher une vraie invite à
+      // l'upgrade plutôt qu'un message d'erreur générique.
+      const errBody = (err as { data?: { code?: string; limit?: number } } | undefined)?.data;
+      if (errBody?.code === 'STARTER_LISTING_LIMIT') {
+        setUpgradeModal({ limit: errBody.limit ?? 10 });
+      } else {
+        setApiError(t('apiError'));
+      }
     }
   };
 
@@ -820,6 +833,58 @@ export default function PublierPage() {
           </div>
         </form>
       </div>
+
+      {/* Plafond STARTER atteint — invite à l'upgrade plutôt qu'une erreur brute */}
+      {upgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-gold to-gold-light px-6 py-5 text-center">
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 mb-3">
+                <i className="fa-solid fa-crown text-white text-2xl" />
+              </div>
+              <h2 className="text-xl font-extrabold text-gray-900">{t('upgradeModalTitle')}</h2>
+              <p className="text-sm text-gray-800/80 mt-1">
+                {t('upgradeModalLimitReached', { limit: upgradeModal.limit })}
+              </p>
+            </div>
+
+            <div className="p-6">
+              <p className="text-sm text-sub mb-4">{t('upgradeModalDesc')}</p>
+              <div className="space-y-2.5 mb-6">
+                {[
+                  { icon: 'fa-infinity',       text: t('upgradeBenefitUnlimited') },
+                  { icon: 'fa-chart-line',     text: t('upgradeBenefitAnalytics') },
+                  { icon: 'fa-shield-halved',  text: t('upgradeBenefitBadge') },
+                  { icon: 'fa-headset',        text: t('upgradeBenefitSupport') },
+                ].map((item) => (
+                  <div key={item.icon} className="flex items-center gap-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line text-gold-dark">
+                      <i className={`fa-solid ${item.icon} text-xs`} />
+                    </span>
+                    <p className="text-sm text-text">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setUpgradeModal(null)}
+                  className="flex-1 rounded-xl border border-line py-3 text-sm font-medium text-sub hover:text-text hover:border-text/30 transition-colors"
+                >
+                  {t('upgradeModalLater')}
+                </button>
+                <Link
+                  href="/bailleur/abonnement"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 text-sm transition-colors"
+                >
+                  <i className="fa-solid fa-crown text-xs" />
+                  {t('upgradeModalCta')}
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
