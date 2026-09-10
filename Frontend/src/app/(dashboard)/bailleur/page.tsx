@@ -82,15 +82,15 @@ interface DashboardData {
 
 const BOOKING_STATUS_BADGE: Record<BookingStatus, string> = {
   PENDING:    'bg-gold-pale text-gold-dark',
-  CONFIRMED:  'bg-green-100 text-green-700',
-  CANCELLED:  'bg-red-100 text-red-700',
-  COMPLETED:  'bg-blue-100 text-blue-700',
+  CONFIRMED:  'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
+  CANCELLED:  'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
+  COMPLETED:  'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
   // Cycle de vie du bail mensuel (location hybride)
   REQUESTED:  'bg-gold-pale text-gold-dark',
-  APPROVED:   'bg-green-100 text-green-700',
-  REJECTED:   'bg-red-100 text-red-700',
-  ACTIVE:     'bg-emerald-100 text-emerald-700',
-  TERMINATED: 'bg-gray-100 text-gray-600',
+  APPROVED:   'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
+  REJECTED:   'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
+  ACTIVE:     'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
+  TERMINATED: 'bg-gray-100 dark:bg-gray-950/40 text-gray-600 dark:text-gray-400',
 };
 
 export default function BailleurDashboardPage() {
@@ -122,10 +122,10 @@ export default function BailleurDashboardPage() {
   }), [t]);
 
   const LOCATAIRE_STATUS = useMemo<Record<string, { label: string; color: string }>>(() => ({
-    PENDING:   { label: t('bookingStatusPending'),   color: 'text-amber-600 bg-amber-50 border-amber-200'       },
-    CONFIRMED: { label: t('bookingStatusConfirmed'), color: 'text-blue-600 bg-blue-50 border-blue-200'          },
-    COMPLETED: { label: t('bookingStatusCompleted'), color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-    CANCELLED: { label: t('bookingStatusCancelled'), color: 'text-red-600 bg-red-50 border-red-200'             },
+    PENDING:   { label: t('bookingStatusPending'),   color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40'       },
+    CONFIRMED: { label: t('bookingStatusConfirmed'), color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/40'          },
+    COMPLETED: { label: t('bookingStatusCompleted'), color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40' },
+    CANCELLED: { label: t('bookingStatusCancelled'), color: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/40'             },
   }), [t]);
 
   const load = useCallback(async () => {
@@ -276,7 +276,7 @@ export default function BailleurDashboardPage() {
         )}
 
         {unverifiedCount > 0 && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 p-4 flex items-center justify-between gap-3 flex-wrap">
             <p className="text-sm font-medium text-amber-800">
               <i className="fa-solid fa-shield-halved mr-2" />
               {t('alertUnverified', { count: unverifiedCount })}
@@ -463,7 +463,7 @@ export default function BailleurDashboardPage() {
         <>
           <div className="flex items-center gap-3">
             <div className="flex-1 border-t border-line" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-blue-600 px-2">
+            <span className="text-xs font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-400 px-2">
               <i className="fa-solid fa-user mr-1.5" />{t('spaceLocataireLabel')}
             </span>
             <div className="flex-1 border-t border-line" />
@@ -483,7 +483,7 @@ export default function BailleurDashboardPage() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-sub">{t('locLastBookings')}</h2>
-              <Link href="/locataire/bookings" className="text-xs font-medium text-blue-600 hover:underline">
+              <Link href="/locataire/bookings" className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">
                 {t('locataireSeeAll')}
               </Link>
             </div>
@@ -491,7 +491,7 @@ export default function BailleurDashboardPage() {
               <div className="rounded-2xl border border-dashed border-line bg-card py-10 text-center">
                 <i className="fa-solid fa-calendar-xmark text-xl text-line mb-2 block" />
                 <p className="text-sm text-sub">{t('locataireNoBookings')}</p>
-                <Link href="/" className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:underline">
+                <Link href="/" className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">
                   <i className="fa-solid fa-magnifying-glass text-xs" /> {t('locataireBrowse')}
                 </Link>
               </div>
@@ -501,9 +501,9 @@ export default function BailleurDashboardPage() {
                   const s = LOCATAIRE_STATUS[b.status] ?? { label: b.status, color: 'text-sub bg-bg border-line' };
                   return (
                     <Link key={b.id} href="/locataire/bookings"
-                      className="flex items-center gap-4 rounded-xl border border-line bg-card p-4 transition hover:border-blue-200">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
-                        <i className="fa-solid fa-house text-blue-600 text-sm" />
+                      className="flex items-center gap-4 rounded-xl border border-line bg-card p-4 transition hover:border-blue-200 dark:hover:border-blue-900/40">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30">
+                        <i className="fa-solid fa-house text-blue-600 dark:text-blue-400 text-sm" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-text">{b.listing.title}</p>
@@ -547,17 +547,17 @@ function LocStatCard({ icon, label, sub, value, href }: {
   return (
     <Link
       href={href}
-      className="group relative flex flex-col justify-between rounded-2xl border border-blue-100 bg-blue-50 p-5 transition hover:border-blue-300 hover:shadow-sm"
+      className="group relative flex flex-col justify-between rounded-2xl border border-blue-100 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 p-5 transition hover:border-blue-300 hover:shadow-sm"
     >
       <div className="flex items-start justify-between">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 shadow-sm">
-          <i className={`fa-solid ${icon} text-sm text-blue-600`} />
+          <i className={`fa-solid ${icon} text-sm text-blue-600 dark:text-blue-400`} />
         </div>
         <i className="fa-solid fa-arrow-right text-[10px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
       </div>
       <div className="mt-3">
-        <p className="text-2xl font-bold text-blue-700">{value}</p>
-        <p className="mt-0.5 text-xs font-semibold text-blue-600">{label}</p>
+        <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{value}</p>
+        <p className="mt-0.5 text-xs font-semibold text-blue-600 dark:text-blue-400">{label}</p>
         <p className="text-[10px] text-blue-400 mt-0.5">{sub}</p>
       </div>
     </Link>

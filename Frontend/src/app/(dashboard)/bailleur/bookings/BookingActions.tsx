@@ -72,18 +72,18 @@ export default function BookingActions({ bookingId, status, onActionDone, toast 
     <div className="flex items-end gap-2 shrink-0 flex-wrap">
       {status === 'PENDING' && (
         <>
-          {btn('confirm',  'bg-green-100 text-green-700 hover:bg-green-200')}
-          {btn('cancel',   'bg-red-100 text-red-700 hover:bg-red-200')}
+          {btn('confirm',  'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400 hover:bg-green-200')}
+          {btn('cancel',   'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200')}
         </>
       )}
       {status === 'CONFIRMED' && (
         <>
           <StatusChip status={status} />
-          {btn('complete', 'bg-blue-100 text-blue-700 hover:bg-blue-200')}
+          {btn('complete', 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200')}
           {/* "cancel" hits the same PATCH /bookings/:id/cancel as the PENDING "Refuser"
               button above, but "Refuser" reads wrong once a booking is already confirmed —
               use distinct "Annuler" wording and success message for this context. */}
-          {btn('cancel',   'bg-red-100 text-red-700 hover:bg-red-200', t('actionCancelConfirmed'), t('actionCancelConfirmedSuccess'))}
+          {btn('cancel',   'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200', t('actionCancelConfirmed'), t('actionCancelConfirmedSuccess'))}
         </>
       )}
       {(status === 'CANCELLED' || status === 'COMPLETED') && (
@@ -93,8 +93,8 @@ export default function BookingActions({ bookingId, status, onActionDone, toast 
       {/* Demande de location au mois — à approuver ou refuser */}
       {status === 'REQUESTED' && (
         <>
-          {btn('approve', 'bg-green-100 text-green-700 hover:bg-green-200')}
-          {btn('reject',  'bg-red-100 text-red-700 hover:bg-red-200')}
+          {btn('approve', 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400 hover:bg-green-200')}
+          {btn('reject',  'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200')}
         </>
       )}
 
@@ -106,7 +106,7 @@ export default function BookingActions({ bookingId, status, onActionDone, toast 
         confirmTerminate ? (
           <div className="flex items-center gap-2">
             <span className="text-xs text-sub">{t('confirmTerminateLease')}</span>
-            {btn('terminate-lease', 'bg-red-100 text-red-700 hover:bg-red-200', t('actionTerminateLeaseConfirm'))}
+            {btn('terminate-lease', 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200', t('actionTerminateLeaseConfirm'))}
             <button
               onClick={() => setConfirmTerminate(false)}
               className="text-xs px-3 py-1.5 rounded-full font-medium bg-bg text-sub border border-line hover:bg-line/30 transition"
@@ -119,7 +119,7 @@ export default function BookingActions({ bookingId, status, onActionDone, toast 
             <StatusChip status={status} />
             <button
               onClick={() => setConfirmTerminate(true)}
-              className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 text-red-700 hover:bg-red-200 transition"
+              className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200 transition"
             >
               {t('actionTerminateLease')}
             </button>
@@ -138,16 +138,16 @@ function StatusChip({ status }: { status: BookingStatus }) {
   const t = useTranslations('bailleur');
 
   const map: Record<BookingStatus, string> = {
-    CONFIRMED:  'bg-green-100 text-green-700',
+    CONFIRMED:  'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
     PENDING:    'bg-gold-pale text-gold-dark',
-    CANCELLED:  'bg-red-100 text-red-700',
-    COMPLETED:  'bg-blue-100 text-blue-700',
+    CANCELLED:  'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
+    COMPLETED:  'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
     // Cycle de vie du bail mensuel (location hybride)
     REQUESTED:  'bg-gold-pale text-gold-dark',
-    APPROVED:   'bg-green-100 text-green-700',
-    REJECTED:   'bg-red-100 text-red-700',
-    ACTIVE:     'bg-emerald-100 text-emerald-700',
-    TERMINATED: 'bg-gray-100 text-gray-600',
+    APPROVED:   'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
+    REJECTED:   'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
+    ACTIVE:     'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
+    TERMINATED: 'bg-gray-100 dark:bg-gray-950/40 text-gray-600 dark:text-gray-400',
   };
 
   const labels: Record<BookingStatus, string> = {

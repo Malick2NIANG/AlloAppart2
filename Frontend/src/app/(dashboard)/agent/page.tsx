@@ -81,22 +81,22 @@ export default function AgentDashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <StatCard
             icon="fa-calendar-check"
-            iconBg="bg-blue-50"
-            iconColor="text-blue-600"
+            iconBg="bg-blue-50 dark:bg-blue-950/30"
+            iconColor="text-blue-600 dark:text-blue-400"
             label={t('statAssigned')}
             value={stats.assigned}
           />
           <StatCard
             icon="fa-person-walking"
-            iconBg="bg-purple-50"
-            iconColor="text-purple-600"
+            iconBg="bg-purple-50 dark:bg-purple-950/30"
+            iconColor="text-purple-600 dark:text-purple-400"
             label={t('statInProgressLabel')}
             value={stats.inProgress}
           />
           <StatCard
             icon="fa-shield-check"
-            iconBg="bg-emerald-50"
-            iconColor="text-emerald-600"
+            iconBg="bg-emerald-50 dark:bg-emerald-950/30"
+            iconColor="text-emerald-600 dark:text-emerald-400"
             label={t('statThisMonth')}
             value={stats.doneThisMonth}
           />
@@ -109,7 +109,7 @@ export default function AgentDashboard() {
           />
           {/* Note moyenne */}
           <div className="rounded-2xl border border-line bg-card p-4 col-span-2 sm:col-span-1 flex flex-col justify-between">
-            <div className="h-9 w-9 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
+            <div className="h-9 w-9 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center mb-3">
               <i className="fa-solid fa-star text-amber-500 text-sm" />
             </div>
             {stats.avgRating !== null ? (
@@ -232,8 +232,8 @@ export default function AgentDashboard() {
             href="/agent/messages"
             className="flex items-center gap-4 rounded-2xl border border-line bg-card p-4 hover:border-gold/40 transition-all group"
           >
-            <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-              <i className="fa-solid fa-comment-dots text-emerald-600" />
+            <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center shrink-0">
+              <i className="fa-solid fa-comment-dots text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
               <p className="font-semibold text-text text-sm group-hover:text-gold-dark transition-colors">{t('quickMessages')}</p>
@@ -246,8 +246,8 @@ export default function AgentDashboard() {
             href="/profil"
             className="flex items-center gap-4 rounded-2xl border border-line bg-card p-4 hover:border-gold/40 transition-all group"
           >
-            <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-              <i className="fa-solid fa-user text-blue-600" />
+            <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center shrink-0">
+              <i className="fa-solid fa-user text-blue-600 dark:text-blue-400" />
             </div>
             <div>
               <p className="font-semibold text-text text-sm group-hover:text-gold-dark transition-colors">{t('quickProfile')}</p>
@@ -280,7 +280,7 @@ function MissionCard({ mission }: { mission: Verification & { listing?: { id: st
   const locale = useLocale();
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
   const time = new Date(mission.scheduledAt).toLocaleTimeString(numLocale, { hour: '2-digit', minute: '2-digit' });
-  const statusColor = mission.status === 'IN_PROGRESS' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600';
+  const statusColor = mission.status === 'IN_PROGRESS' ? 'bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400' : 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400';
   const statusLabel = mission.status === 'IN_PROGRESS' ? t('statusInProgress') : t('statusScheduled');
 
   return (

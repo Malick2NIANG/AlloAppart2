@@ -81,9 +81,9 @@ export default async function AdminAnalyticsPage() {
           title={t('listingsByStatus')}
           icon="fa-solid fa-house"
           items={[
-            { key: 'active',    label: t('listingActive'),    value: extended.listingsByStatus.ACTIVE,    color: 'text-emerald-600' },
-            { key: 'draft',     label: t('listingDraft'),     value: extended.listingsByStatus.DRAFT,     color: 'text-amber-600'   },
-            { key: 'rented',    label: t('listingRented'),    value: extended.listingsByStatus.RENTED,    color: 'text-blue-600'    },
+            { key: 'active',    label: t('listingActive'),    value: extended.listingsByStatus.ACTIVE,    color: 'text-emerald-600 dark:text-emerald-400' },
+            { key: 'draft',     label: t('listingDraft'),     value: extended.listingsByStatus.DRAFT,     color: 'text-amber-600 dark:text-amber-400'   },
+            { key: 'rented',    label: t('listingRented'),    value: extended.listingsByStatus.RENTED,    color: 'text-blue-600 dark:text-blue-400'    },
             { key: 'suspended', label: t('listingSuspended'), value: extended.listingsByStatus.SUSPENDED, color: 'text-red-500'     },
           ]}
         />
@@ -91,9 +91,9 @@ export default async function AdminAnalyticsPage() {
           title={t('bookingsByStatus')}
           icon="fa-solid fa-calendar-check"
           items={[
-            { key: 'pending',   label: t('bookingPending'),   value: extended.bookingsByStatus.PENDING,   color: 'text-amber-600'   },
-            { key: 'confirmed', label: t('bookingConfirmed'), value: extended.bookingsByStatus.CONFIRMED, color: 'text-blue-600'    },
-            { key: 'completed', label: t('bookingCompleted'), value: extended.bookingsByStatus.COMPLETED, color: 'text-emerald-600' },
+            { key: 'pending',   label: t('bookingPending'),   value: extended.bookingsByStatus.PENDING,   color: 'text-amber-600 dark:text-amber-400'   },
+            { key: 'confirmed', label: t('bookingConfirmed'), value: extended.bookingsByStatus.CONFIRMED, color: 'text-blue-600 dark:text-blue-400'    },
+            { key: 'completed', label: t('bookingCompleted'), value: extended.bookingsByStatus.COMPLETED, color: 'text-emerald-600 dark:text-emerald-400' },
             { key: 'cancelled', label: t('bookingCancelled'), value: extended.bookingsByStatus.CANCELLED, color: 'text-red-500'     },
           ]}
         />

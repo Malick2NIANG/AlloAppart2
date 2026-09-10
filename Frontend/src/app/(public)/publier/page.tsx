@@ -365,8 +365,8 @@ export default function PublierPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg px-4">
         <div className="w-full max-w-sm text-center">
-          <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full ${isDraft ? 'bg-blue-100' : 'bg-emerald-100'}`}>
-            <i className={`fa-solid ${isDraft ? 'fa-floppy-disk text-blue-600' : 'fa-circle-check text-emerald-600'} text-2xl`} />
+          <div className={`mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full ${isDraft ? 'bg-blue-100 dark:bg-blue-950/40' : 'bg-emerald-100 dark:bg-emerald-950/40'}`}>
+            <i className={`fa-solid ${isDraft ? 'fa-floppy-disk text-blue-600 dark:text-blue-400' : 'fa-circle-check text-emerald-600 dark:text-emerald-400'} text-2xl`} />
           </div>
           <h1 className="text-xl font-extrabold text-text">
             {isDemo ? t('successDemoTitle') : isDraft ? t('successDraftTitle') : t('successPublishedTitle')}
@@ -455,9 +455,9 @@ export default function PublierPage() {
 
         {/* Bannière brouillon restauré */}
         {draftRestored && (
-          <div className="mb-4 flex items-center justify-between gap-2.5 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          <div className="mb-4 flex items-center justify-between gap-2.5 rounded-xl border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 px-4 py-3 text-sm text-blue-700 dark:text-blue-400">
             <span><i className="fa-solid fa-floppy-disk mr-2" />{t('draftRestoredMsg')}</span>
-            <button onClick={() => setDraftRestored(false)} className="shrink-0 text-blue-400 hover:text-blue-700 transition-colors">
+            <button onClick={() => setDraftRestored(false)} className="shrink-0 text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors">
               <i className="fa-solid fa-xmark" />
             </button>
           </div>
@@ -465,7 +465,7 @@ export default function PublierPage() {
 
         {/* Bannière démo */}
         {isDemo && (
-          <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
             <i className="fa-solid fa-flask shrink-0" />
             {t('demoModeMsg')}
           </div>
@@ -684,7 +684,7 @@ export default function PublierPage() {
                       const brokerFee = Math.round(rent);
                       const landlordDeposit = Math.max(0, Math.round(rent * Number(values.depositMonths)) - brokerFee);
                       return (
-                        <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-xs text-blue-800">
+                        <div className="flex items-start gap-2 rounded-xl border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 px-3.5 py-3 text-xs text-blue-800">
                           <i className="fa-solid fa-circle-info mt-0.5 shrink-0" />
                           <span>
                             {t('depositCommissionNote', {
@@ -777,7 +777,7 @@ export default function PublierPage() {
                 <StepHeader title={STEP_HEADERS[5].title} sub={STEP_HEADERS[5].sub} />
                 <RecapCard values={values} TYPE_META={TYPE_META} AMENITIES={AMENITIES} numLocale={numLocale} />
                 {apiError && (
-                  <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  <div className="flex items-center gap-2 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-600 dark:text-red-400">
                     <i className="fa-solid fa-circle-exclamation shrink-0" /> {apiError}
                   </div>
                 )}

@@ -40,7 +40,7 @@ function BoostStatusBadge({ boostUntil, t, numLocale }: {
   const now = new Date();
   if (until <= now) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-[11px] font-medium text-red-600">
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 px-2.5 py-0.5 text-[11px] font-medium text-red-600 dark:text-red-400">
         <i className="fa-solid fa-circle-xmark text-[9px]" /> {t('boostStatusExpired', { date: until.toLocaleDateString(numLocale) })}
       </span>
     );
@@ -233,7 +233,7 @@ export default function BoostPage() {
               <h2 className="text-xl font-extrabold text-gray-900">{t('boostConfirmTitle')}</h2>
               <p className="text-sm text-gray-800/80 mt-1 truncate">&ldquo;{listing.title}&rdquo;</p>
 
-              <ul className="mt-4 space-y-2 text-sm text-gray-700">
+              <ul className="mt-4 space-y-2 text-sm text-gray-700 dark:text-gray-400">
                 {[
                   { icon: 'fa-eye',        color: 'text-blue-500',   text: t('boostConfirm1') },
                   { icon: 'fa-trophy',     color: 'text-gold-dark',  text: t('boostConfirm2') },
@@ -324,7 +324,7 @@ function ListingBoostCard({
           {priceToNumber(listing.price).toLocaleString(numLocale)} FCFA/mois
         </p>
         {listing.boostScore > 0 && (
-          <p className="mt-0.5 text-[11px] text-purple-600">
+          <p className="mt-0.5 text-[11px] text-purple-600 dark:text-purple-400">
             <i className="fa-solid fa-chart-line text-[9px] mr-1" />
             {t('boostScore', { score: listing.boostScore })}
           </p>

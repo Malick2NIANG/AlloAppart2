@@ -7,7 +7,7 @@ import { getTranslations } from 'next-intl/server';
 // fois les vrais liens renseignés.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SOCIALS = [
-  { icon: 'fa-brands fa-facebook',  href: '#', label: 'Facebook', color: 'hover:text-blue-600  hover:border-blue-600'  },
+  { icon: 'fa-brands fa-facebook',  href: '#', label: 'Facebook', color: 'hover:text-blue-600 dark:hover:text-blue-400  hover:border-blue-600'  },
   { icon: 'fa-brands fa-instagram', href: '#', label: 'Instagram',color: 'hover:text-pink-500  hover:border-pink-500'  },
   { icon: 'fa-brands fa-x-twitter', href: '#', label: 'X',        color: 'hover:text-text      hover:border-text'      },
   { icon: 'fa-brands fa-linkedin',  href: '#', label: 'LinkedIn', color: 'hover:text-blue-500  hover:border-blue-500'  },

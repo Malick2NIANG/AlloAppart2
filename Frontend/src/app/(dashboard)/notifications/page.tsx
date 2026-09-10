@@ -17,18 +17,18 @@ interface Notif {
 
 /* Config visuelle uniquement — les libellés sont traduits dans le composant */
 const TYPE_STYLE: Record<string, { icon: string; color: string; bg: string; labelKey: string }> = {
-  VERIF_ASSIGNED:        { icon: 'fa-shield-halved',  color: 'text-blue-600',    bg: 'bg-blue-50',    labelKey: 'typeVerification' },
-  VERIF_SCHEDULED:       { icon: 'fa-calendar-check', color: 'text-blue-700',    bg: 'bg-blue-50',    labelKey: 'typeVerification' },
-  VERIF_IN_PROGRESS:     { icon: 'fa-person-walking', color: 'text-purple-600',  bg: 'bg-purple-50',  labelKey: 'typeVerification' },
-  VERIF_DONE:            { icon: 'fa-circle-check',   color: 'text-emerald-600', bg: 'bg-emerald-50', labelKey: 'typeVerification' },
-  VERIF_DECLINED:        { icon: 'fa-ban',            color: 'text-amber-600',   bg: 'bg-amber-50',   labelKey: 'typeVerification' },
-  VERIF_VALIDATED:       { icon: 'fa-medal',          color: 'text-yellow-600',  bg: 'bg-yellow-50',  labelKey: 'typeVerification' },
-  NEW_BOOKING:           { icon: 'fa-calendar-plus',  color: 'text-blue-600',    bg: 'bg-blue-50',    labelKey: 'typeBooking'      },
-  BOOKING_CONFIRMED:     { icon: 'fa-circle-check',   color: 'text-emerald-600', bg: 'bg-emerald-50', labelKey: 'typeBooking'      },
-  BOOKING_CANCELLED:     { icon: 'fa-calendar-xmark', color: 'text-red-600',     bg: 'bg-red-50',     labelKey: 'typeBooking'      },
-  REVIEW_RECEIVED:       { icon: 'fa-star',           color: 'text-yellow-500',  bg: 'bg-yellow-50',  labelKey: 'typeReview'       },
-  LISTING_REPORTED:      { icon: 'fa-flag',           color: 'text-red-600',     bg: 'bg-red-50',     labelKey: 'typeReport'       },
-  VERIF_DECLINE_REQUEST: { icon: 'fa-hand',           color: 'text-orange-600',  bg: 'bg-orange-50',  labelKey: 'typeVerification' },
+  VERIF_ASSIGNED:        { icon: 'fa-shield-halved',  color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-950/30',    labelKey: 'typeVerification' },
+  VERIF_SCHEDULED:       { icon: 'fa-calendar-check', color: 'text-blue-700 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-950/30',    labelKey: 'typeVerification' },
+  VERIF_IN_PROGRESS:     { icon: 'fa-person-walking', color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-50 dark:bg-purple-950/30',  labelKey: 'typeVerification' },
+  VERIF_DONE:            { icon: 'fa-circle-check',   color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30', labelKey: 'typeVerification' },
+  VERIF_DECLINED:        { icon: 'fa-ban',            color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-50 dark:bg-amber-950/30',   labelKey: 'typeVerification' },
+  VERIF_VALIDATED:       { icon: 'fa-medal',          color: 'text-yellow-600 dark:text-yellow-400',  bg: 'bg-yellow-50 dark:bg-yellow-950/30',  labelKey: 'typeVerification' },
+  NEW_BOOKING:           { icon: 'fa-calendar-plus',  color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-950/30',    labelKey: 'typeBooking'      },
+  BOOKING_CONFIRMED:     { icon: 'fa-circle-check',   color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30', labelKey: 'typeBooking'      },
+  BOOKING_CANCELLED:     { icon: 'fa-calendar-xmark', color: 'text-red-600 dark:text-red-400',     bg: 'bg-red-50 dark:bg-red-950/30',     labelKey: 'typeBooking'      },
+  REVIEW_RECEIVED:       { icon: 'fa-star',           color: 'text-yellow-500',  bg: 'bg-yellow-50 dark:bg-yellow-950/30',  labelKey: 'typeReview'       },
+  LISTING_REPORTED:      { icon: 'fa-flag',           color: 'text-red-600 dark:text-red-400',     bg: 'bg-red-50 dark:bg-red-950/30',     labelKey: 'typeReport'       },
+  VERIF_DECLINE_REQUEST: { icon: 'fa-hand',           color: 'text-orange-600 dark:text-orange-400',  bg: 'bg-orange-50 dark:bg-orange-950/30',  labelKey: 'typeVerification' },
 };
 
 const DEFAULT_STYLE = { icon: 'fa-circle-dot', color: 'text-sub', bg: 'bg-bg', labelKey: 'typeDefault' };

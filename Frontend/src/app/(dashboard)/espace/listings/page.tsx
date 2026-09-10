@@ -15,9 +15,9 @@ import { useToast } from '@/components/ui/Toast';
 type StatusFilter = 'ALL' | 'ACTIVE' | 'DRAFT' | 'RENTED' | 'SUSPENDED';
 
 const STATUS_COLORS: Record<string, string> = {
-  ACTIVE:    'bg-green-100 text-green-700',
-  DRAFT:     'bg-amber-50 text-amber-700 border border-amber-200',
-  RENTED:    'bg-blue-50 text-blue-700',
+  ACTIVE:    'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
+  DRAFT:     'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40',
+  RENTED:    'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
   SUSPENDED: 'bg-card text-sub border border-line',
 };
 
@@ -236,7 +236,7 @@ function AdminListingsContent() {
                   <i className="fa-solid fa-user text-xs mr-1" />
                   {listing.owner?.firstName} {listing.owner?.lastName}
                   {listing.isVerified && (
-                    <span className="ml-2 text-emerald-600 font-medium">
+                    <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-medium">
                       <i className="fa-solid fa-shield-halved text-xs mr-0.5" />{t('alloVerifie')}
                     </span>
                   )}
@@ -254,7 +254,7 @@ function AdminListingsContent() {
                   <button
                     onClick={() => handleAction(listing.id, 'activate')}
                     disabled={actionId !== null}
-                    className="text-xs font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg px-2.5 py-1.5 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                    className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-2.5 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
                   >
                     {actionId === listing.id + 'activate'
                       ? <i className="fa-solid fa-spinner fa-spin" />
@@ -264,7 +264,7 @@ function AdminListingsContent() {
                   <button
                     onClick={() => handleAction(listing.id, 'suspend')}
                     disabled={actionId !== null}
-                    className="text-xs font-medium border border-amber-200 bg-amber-50 text-amber-700 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 disabled:opacity-50 transition-colors"
+                    className="text-xs font-medium border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 dark:hover:bg-amber-950/40 disabled:opacity-50 transition-colors"
                   >
                     {actionId === listing.id + 'suspend'
                       ? <i className="fa-solid fa-spinner fa-spin" />
@@ -274,7 +274,7 @@ function AdminListingsContent() {
                 <button
                   onClick={() => setDeleteModal(listing.id)}
                   disabled={actionId !== null}
-                  className="text-xs font-medium border border-red-200 bg-red-50 text-red-700 rounded-lg px-2.5 py-1.5 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                  className="text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-2.5 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
                 >
                   {actionId === listing.id + 'delete'
                     ? <i className="fa-solid fa-spinner fa-spin" />

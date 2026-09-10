@@ -580,7 +580,7 @@ function NightlyBookingSection({
 
       {/* Séjour minimum non respecté */}
       {belowMinimum && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 text-xs text-amber-800">
           <i className="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" />
           <span>{t('bookingMinNightsWarning', { count: minimumNights ?? 0 })}</span>
         </div>
@@ -588,7 +588,7 @@ function NightlyBookingSection({
 
       {/* Séjour maximum dépassé (mode NIGHTLY) */}
       {aboveMaximum && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 text-xs text-amber-800">
           <i className="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" />
           <span>{t('bookingMaxNightsWarning', { count: maximumNights ?? 0 })}</span>
         </div>
@@ -596,7 +596,7 @@ function NightlyBookingSection({
 
       {/* Séjour long sur annonce MIXTE — on suggère la location au mois */}
       {suggestMonthlyInstead ? (
-        <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-xs text-blue-800 space-y-2">
+        <div className="mt-3 rounded-xl border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 px-3.5 py-3 text-xs text-blue-800 space-y-2">
           <div className="flex items-start gap-2">
             <i className="fa-solid fa-circle-info mt-0.5 shrink-0" />
             <span>{t('suggestMonthlyNote', { months: minLeaseMonths ?? DEFAULT_MIN_LEASE_MONTHS })}</span>
@@ -625,7 +625,7 @@ function NightlyBookingSection({
 
           {/* Erreur */}
           {error && (
-            <p className="mt-3 flex items-center gap-1.5 text-sm text-red-600">
+            <p className="mt-3 flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
               <i className="fa-solid fa-circle-exclamation text-xs" />
               {error}
             </p>

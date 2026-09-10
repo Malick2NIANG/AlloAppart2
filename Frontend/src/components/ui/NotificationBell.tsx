@@ -19,7 +19,7 @@ interface Notif {
 
 const TYPE_ICON: Record<string, { icon: string; color: string }> = {
   VERIF_ASSIGNED:    { icon: 'fa-shield-halved',    color: 'text-blue-500'    },
-  VERIF_SCHEDULED:   { icon: 'fa-calendar-check',   color: 'text-blue-600'    },
+  VERIF_SCHEDULED:   { icon: 'fa-calendar-check',   color: 'text-blue-600 dark:text-blue-400'    },
   VERIF_IN_PROGRESS: { icon: 'fa-person-walking',   color: 'text-purple-500'  },
   VERIF_DONE:        { icon: 'fa-circle-check',      color: 'text-emerald-500' },
   VERIF_DECLINED:    { icon: 'fa-ban',               color: 'text-amber-500'   },
@@ -180,7 +180,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
                   <div
                     key={n.id}
                     onClick={() => void markOne(n.id)}
-                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-bg transition-colors ${!n.isRead ? 'bg-blue-50/40' : ''}`}
+                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-bg transition-colors ${!n.isRead ? 'bg-blue-50 dark:bg-blue-950/30/40' : ''}`}
                   >
                     <div className="shrink-0 h-8 w-8 rounded-xl flex items-center justify-center bg-bg border border-line mt-0.5">
                       <i className={`fa-solid ${cfg.icon} text-xs ${cfg.color}`} />

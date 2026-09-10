@@ -61,8 +61,8 @@ export function ConfirmModal({
             onClick={(e) => e.stopPropagation()}
           >
             {variant === 'danger' && (
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-                <i className="fa-solid fa-triangle-exclamation text-lg text-red-600" />
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40">
+                <i className="fa-solid fa-triangle-exclamation text-lg text-red-600 dark:text-red-400" />
               </div>
             )}
             <h2 className="mb-1 text-base font-semibold text-text">{title}</h2>

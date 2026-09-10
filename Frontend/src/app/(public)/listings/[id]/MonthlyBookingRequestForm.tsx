@@ -203,7 +203,7 @@ export default function MonthlyBookingRequestForm({
       </div>
 
       {error && (
-        <p className="mb-3 flex items-center gap-1.5 text-sm text-red-600">
+        <p className="mb-3 flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
           <i className="fa-solid fa-circle-exclamation text-xs" />
           {error}
         </p>
@@ -259,7 +259,7 @@ function DocSlot({
         <button
           type="button"
           onClick={onRemove}
-          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-600 transition-colors"
+          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400 hover:bg-red-100 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors"
         >
           <i className="fa-solid fa-check text-xs" />
         </button>

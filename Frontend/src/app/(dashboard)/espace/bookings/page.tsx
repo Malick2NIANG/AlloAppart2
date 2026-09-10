@@ -13,18 +13,18 @@ import { useToast } from '@/components/ui/Toast';
 type StatusFilter = 'ALL' | 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING:   'bg-amber-50 text-amber-700 border border-amber-200',
-  CONFIRMED: 'bg-blue-50 text-blue-700',
+  PENDING:   'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40',
+  CONFIRMED: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
   CANCELLED: 'bg-card text-sub border border-line',
-  COMPLETED: 'bg-green-100 text-green-700',
+  COMPLETED: 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
 };
 
 const ESCROW_COLORS: Record<string, string> = {
-  AWAITING_PAYMENT: 'bg-gray-50 text-gray-500 border border-gray-200',
-  HELD:             'bg-amber-50 text-amber-700 border border-amber-300',
-  DISPUTED:         'bg-red-50 text-red-700 border border-red-300',
-  RELEASED:         'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  REFUNDED:         'bg-blue-50 text-blue-700 border border-blue-200',
+  AWAITING_PAYMENT: 'bg-gray-50 dark:bg-gray-950/30 text-gray-500 border border-gray-200 dark:border-gray-900/40',
+  HELD:             'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-300',
+  DISPUTED:         'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border border-red-300',
+  RELEASED:         'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40',
+  REFUNDED:         'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-900/40',
 };
 const ESCROW_ICONS: Record<string, string> = {
   AWAITING_PAYMENT: 'fa-clock',
@@ -249,16 +249,16 @@ export default function AdminBookingsPage() {
 
                 {/* Détail du litige */}
                 {isDisputed && (
-                  <div className="rounded-lg border border-red-200 bg-red-50/60 p-3 flex flex-col gap-2">
+                  <div className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30/60 p-3 flex flex-col gap-2">
                     {booking.disputedAt && (
-                      <p className="text-xs text-red-700 font-medium">
+                      <p className="text-xs text-red-700 dark:text-red-400 font-medium">
                         <i className="fa-solid fa-triangle-exclamation mr-1" />
                         {t('disputedSince', { date: formatDate(booking.disputedAt) })}
                       </p>
                     )}
                     {booking.disputeReason && (
                       <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-400">
                           {t('disputeReasonLabel')}
                         </p>
                         <p className="text-sm text-text mt-0.5 whitespace-pre-wrap">{booking.disputeReason}</p>
@@ -266,7 +266,7 @@ export default function AdminBookingsPage() {
                     )}
                     {booking.disputeEvidence && booking.disputeEvidence.length > 0 && (
                       <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700 mb-1">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-400 mb-1">
                           {t('disputeEvidenceLabel')}
                         </p>
                         <div className="flex flex-wrap gap-2">
@@ -290,7 +290,7 @@ export default function AdminBookingsPage() {
                       <button
                         onClick={() => setCancelModal(booking.id)}
                         disabled={actionId !== null}
-                        className="text-xs font-medium border border-red-200 bg-red-50 text-red-700 rounded-lg px-3 py-1.5 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                        className="text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
                       >
                         {actionId === booking.id + 'cancel'
                           ? <i className="fa-solid fa-spinner fa-spin" />
@@ -304,7 +304,7 @@ export default function AdminBookingsPage() {
                         <button
                           onClick={() => setDisputeModal({ id: booking.id, decision: 'RELEASE', amount: booking.totalAmount })}
                           disabled={actionId !== null}
-                          className="text-xs font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg px-3 py-1.5 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                          className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
                         >
                           {actionId === booking.id + 'dispute'
                             ? <i className="fa-solid fa-spinner fa-spin" />
@@ -313,7 +313,7 @@ export default function AdminBookingsPage() {
                         <button
                           onClick={() => setDisputeModal({ id: booking.id, decision: 'REFUND', amount: booking.totalAmount })}
                           disabled={actionId !== null}
-                          className="text-xs font-medium border border-blue-200 bg-blue-50 text-blue-700 rounded-lg px-3 py-1.5 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                          className="text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-3 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors"
                         >
                           {actionId === booking.id + 'dispute'
                             ? <i className="fa-solid fa-spinner fa-spin" />
@@ -327,7 +327,7 @@ export default function AdminBookingsPage() {
                       <button
                         onClick={() => setPaymentModal({ id: booking.id, action: 'release', amount: booking.totalAmount })}
                         disabled={actionId !== null}
-                        className="text-xs font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg px-3 py-1.5 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                        className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
                       >
                         {actionId === booking.id + 'release'
                           ? <i className="fa-solid fa-spinner fa-spin" />
@@ -340,7 +340,7 @@ export default function AdminBookingsPage() {
                       <button
                         onClick={() => setPaymentModal({ id: booking.id, action: 'refund', amount: booking.totalAmount })}
                         disabled={actionId !== null}
-                        className="text-xs font-medium border border-blue-200 bg-blue-50 text-blue-700 rounded-lg px-3 py-1.5 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                        className="text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-3 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors"
                       >
                         {actionId === booking.id + 'refund'
                           ? <i className="fa-solid fa-spinner fa-spin" />

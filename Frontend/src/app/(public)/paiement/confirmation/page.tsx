@@ -79,7 +79,7 @@ export default function PaiementConfirmationPage() {
         {/* ── Erreur ─────────────────────────────────────────── */}
         {status === 'error' && (
           <div className="text-center">
-            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-red-50 ring-4 ring-red-100">
+            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/30 ring-4 ring-red-100">
               <i className="fa-solid fa-circle-xmark text-3xl text-red-500" />
             </div>
             <h1 className="text-2xl font-extrabold text-text">{t('errorTitle')}</h1>
@@ -96,8 +96,8 @@ export default function PaiementConfirmationPage() {
         {/* ── Confirmé ───────────────────────────────────────── */}
         {status === 'confirmed' && booking && (
           <div className="text-center">
-            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-50 ring-4 ring-green-100">
-              <i className="fa-solid fa-circle-check text-3xl text-green-600" />
+            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-50 dark:bg-green-950/30 ring-4 ring-green-100">
+              <i className="fa-solid fa-circle-check text-3xl text-green-600 dark:text-green-400" />
             </div>
             <h1 className="text-2xl font-extrabold text-text">{t('confirmedTitle')}</h1>
             <p className="mt-3 text-sm text-sub">{t('confirmedDesc')}</p>
@@ -149,7 +149,7 @@ export default function PaiementConfirmationPage() {
         {/* ── En attente ─────────────────────────────────────── */}
         {status === 'pending' && (
           <div className="text-center">
-            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-amber-50 ring-4 ring-amber-100">
+            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-950/30 ring-4 ring-amber-100">
               <i className="fa-solid fa-clock text-3xl text-amber-500" />
             </div>
             <h1 className="text-2xl font-extrabold text-text">{t('pendingTitle')}</h1>

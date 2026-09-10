@@ -91,12 +91,12 @@ export default function AdminConfigPage() {
                   : <><i className="fa-solid fa-rotate mr-1.5 text-xs" />{t('configReindex')}</>}
               </button>
               {reindexResult && (
-                <p className="mt-1.5 text-xs font-medium text-emerald-600">
+                <p className="mt-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                   <i className="fa-solid fa-circle-check mr-1" />{reindexResult}
                 </p>
               )}
               {reindexError && (
-                <p className="mt-1.5 text-xs font-medium text-red-600">{reindexError}</p>
+                <p className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">{reindexError}</p>
               )}
             </div>
           </div>

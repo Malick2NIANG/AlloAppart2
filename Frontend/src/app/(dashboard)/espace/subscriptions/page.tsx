@@ -10,14 +10,14 @@ import { SkeletonListRow } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 
 const STATUS_COLORS: Record<string, string> = {
-  ACTIVE:    'bg-green-100 text-green-700',
-  SUSPENDED: 'bg-amber-50 text-amber-700 border border-amber-200',
+  ACTIVE:    'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
+  SUSPENDED: 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40',
   CANCELLED: 'bg-card text-sub border border-line',
 };
 const PLAN_LABELS: Record<string, string> = { STARTER: 'Starter', PRO: 'Pro' };
 const PLAN_COLORS: Record<string, string> = {
-  STARTER: 'bg-blue-50 text-blue-700',
-  PRO:     'bg-purple-50 text-purple-700',
+  STARTER: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
+  PRO:     'bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400',
 };
 
 export default function AdminSubscriptionsPage() {
@@ -167,7 +167,7 @@ export default function AdminSubscriptionsPage() {
                   {sub.endDate && (
                     <span className={`font-medium ${
                       new Date(sub.endDate) < new Date(Date.now() + 7 * 86400000)
-                        ? 'text-amber-600'
+                        ? 'text-amber-600 dark:text-amber-400'
                         : 'text-sub'
                     }`}>
                       <i className="fa-regular fa-calendar mr-1" />
@@ -181,13 +181,13 @@ export default function AdminSubscriptionsPage() {
                 {sub.status === 'ACTIVE' ? (
                   <>
                     <button onClick={() => handleExtend(sub.id)} disabled={actionId !== null}
-                      className="text-xs font-medium border border-blue-200 bg-blue-50 text-blue-700 rounded-lg px-3 py-1.5 hover:bg-blue-100 disabled:opacity-50 transition-colors">
+                      className="text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-3 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors">
                       {actionId === sub.id + 'extend'
                         ? <i className="fa-solid fa-spinner fa-spin" />
                         : <><i className="fa-solid fa-plus text-xs mr-1" />{t('extend30Days')}</>}
                     </button>
                     <button onClick={() => handleSuspend(sub.id)} disabled={actionId !== null}
-                      className="text-xs font-medium border border-amber-200 bg-amber-50 text-amber-700 rounded-lg px-3 py-1.5 hover:bg-amber-100 disabled:opacity-50 transition-colors">
+                      className="text-xs font-medium border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-lg px-3 py-1.5 hover:bg-amber-100 dark:hover:bg-amber-950/40 disabled:opacity-50 transition-colors">
                       {actionId === sub.id + 'suspend'
                         ? <i className="fa-solid fa-spinner fa-spin" />
                         : <><i className="fa-solid fa-ban text-xs mr-1" />{t('suspend')}</>}
@@ -195,7 +195,7 @@ export default function AdminSubscriptionsPage() {
                   </>
                 ) : sub.status === 'SUSPENDED' ? (
                   <button onClick={() => handleActivate(sub.id)} disabled={actionId !== null}
-                    className="text-xs font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg px-3 py-1.5 hover:bg-emerald-100 disabled:opacity-50 transition-colors">
+                    className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors">
                     {actionId === sub.id + 'activate'
                       ? <i className="fa-solid fa-spinner fa-spin" />
                       : <><i className="fa-solid fa-circle-check text-xs mr-1" />{t('reactivate')}</>}

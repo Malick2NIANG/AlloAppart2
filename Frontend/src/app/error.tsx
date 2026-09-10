@@ -19,7 +19,7 @@ export default function GlobalError({
 
   return (
     <main className="flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center px-4 text-center">
-      <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-red-50">
+      <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-red-50 dark:bg-red-950/30">
         <i className="fa-solid fa-triangle-exclamation text-4xl text-red-400" />
       </div>
       <h1 className="text-3xl font-bold text-text">{t('title')}</h1>

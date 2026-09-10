@@ -98,7 +98,7 @@ export default function BailleurBookingsPage() {
               bookings={pending} onActionDone={fetchData} toast={toast} getToken={getToken} />
           )}
           {active.length > 0 && (
-            <Section title={t('sectionConfirmed')} icon="fa-circle-check" accent="text-green-600"
+            <Section title={t('sectionConfirmed')} icon="fa-circle-check" accent="text-green-600 dark:text-green-400"
               bookings={active} onActionDone={fetchData} toast={toast} getToken={getToken} />
           )}
           {archived.length > 0 && (

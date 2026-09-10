@@ -18,12 +18,12 @@ interface AssignModal {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  REQUESTED:       'bg-amber-50 text-amber-700',
+  REQUESTED:       'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400',
   SCHEDULED:       'bg-gold-pale text-gold-dark',
-  IN_PROGRESS:     'bg-blue-50 text-blue-700',
-  DONE:            'bg-green-100 text-green-700',
-  REJECTED:        'bg-red-100 text-red-700',
-  DECLINE_PENDING: 'bg-orange-50 text-orange-700',
+  IN_PROGRESS:     'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
+  DONE:            'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
+  REJECTED:        'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
+  DECLINE_PENDING: 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400',
 };
 
 export default function AdminVerificationsPage() {
@@ -342,7 +342,7 @@ export default function AdminVerificationsPage() {
                     <button
                       onClick={() => handleValidate(v.id)}
                       disabled={actionLoading !== null}
-                      className="text-xs font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg py-1.5 px-3 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                      className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg py-1.5 px-3 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-50"
                     >
                       {actionLoading === v.id + 'validate'
                         ? <i className="fa-solid fa-spinner fa-spin" />
@@ -355,7 +355,7 @@ export default function AdminVerificationsPage() {
                     return (
                       <div className="flex flex-col gap-1.5 w-full">
                         {declineReason && (
-                          <div className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-1.5 text-xs text-orange-700">
+                          <div className="rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/40 px-3 py-1.5 text-xs text-orange-700 dark:text-orange-400">
                             <span className="font-semibold">{t('declineReasonPrefix')}</span>{declineReason}
                           </div>
                         )}
@@ -363,7 +363,7 @@ export default function AdminVerificationsPage() {
                           <button
                             onClick={() => void handleApproveDecline(v.id)}
                             disabled={actionLoading !== null}
-                            className="text-xs font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg py-1.5 px-3 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                            className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg py-1.5 px-3 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-50"
                           >
                             {actionLoading === v.id + 'approve-decline'
                               ? <i className="fa-solid fa-spinner fa-spin" />
@@ -372,7 +372,7 @@ export default function AdminVerificationsPage() {
                           <button
                             onClick={() => void handleRefuseDecline(v.id)}
                             disabled={actionLoading !== null}
-                            className="text-xs font-medium border border-red-200 text-red-600 rounded-lg py-1.5 px-3 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            className="text-xs font-medium border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 rounded-lg py-1.5 px-3 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
                           >
                             {actionLoading === v.id + 'refuse-decline'
                               ? <i className="fa-solid fa-spinner fa-spin" />
@@ -385,7 +385,7 @@ export default function AdminVerificationsPage() {
                   {v.status !== 'REJECTED' && v.status !== 'DONE' && v.status !== 'DECLINE_PENDING' && (
                     <button
                       onClick={() => setRejectModal({ id: v.id })}
-                      className="text-xs font-medium text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors"
+                      className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors"
                     >
                       <i className="fa-solid fa-xmark text-xs mr-1" />{t('reject')}
                     </button>

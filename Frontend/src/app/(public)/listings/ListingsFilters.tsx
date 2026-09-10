@@ -193,7 +193,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
         {hasFilters && (
           <button
             onClick={() => router.push('/listings')}
-            className="flex h-9 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 text-sm text-sub hover:border-red-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-all duration-200"
+            className="flex h-9 items-center gap-1.5 rounded-full border border-line bg-card px-3.5 text-sm text-sub hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-500 dark:hover:bg-red-900/20 transition-all duration-200"
           >
             <i className="fa-solid fa-xmark text-xs" />
             {t('clearFilters')}

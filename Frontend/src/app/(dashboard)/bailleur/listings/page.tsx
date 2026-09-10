@@ -26,16 +26,16 @@ const ITEMS_PER_PAGE = 6;
 const FILTER_KEYS: ListingStatus[] = ['ACTIVE', 'DRAFT', 'RENTED', 'SUSPENDED'];
 
 const FILTER_META: Record<ListingStatus, { icon: string; iconColor: string; bgColor: string }> = {
-  ACTIVE:    { icon: 'fa-circle-check',  iconColor: 'text-green-600', bgColor: 'bg-green-50' },
-  DRAFT:     { icon: 'fa-pen-to-square', iconColor: 'text-amber-500', bgColor: 'bg-amber-50' },
-  RENTED:    { icon: 'fa-key',           iconColor: 'text-blue-500',  bgColor: 'bg-blue-50'  },
-  SUSPENDED: { icon: 'fa-box-archive',   iconColor: 'text-red-400',   bgColor: 'bg-red-50'   },
+  ACTIVE:    { icon: 'fa-circle-check',  iconColor: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-50 dark:bg-green-950/30' },
+  DRAFT:     { icon: 'fa-pen-to-square', iconColor: 'text-amber-500 dark:text-amber-400', bgColor: 'bg-amber-50 dark:bg-amber-950/30' },
+  RENTED:    { icon: 'fa-key',           iconColor: 'text-blue-500 dark:text-blue-400',   bgColor: 'bg-blue-50 dark:bg-blue-950/30'   },
+  SUSPENDED: { icon: 'fa-box-archive',   iconColor: 'text-red-400 dark:text-red-400',     bgColor: 'bg-red-50 dark:bg-red-950/30'     },
 };
 
 const STATUS_BADGE: Record<ListingStatus, string> = {
-  ACTIVE:    'bg-green-100 text-green-700',
-  DRAFT:     'bg-amber-50 text-amber-700 border border-amber-200',
-  RENTED:    'bg-blue-50 text-blue-700',
+  ACTIVE:    'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400',
+  DRAFT:     'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/40',
+  RENTED:    'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400',
   SUSPENDED: 'bg-card border border-line text-sub',
 };
 
@@ -509,9 +509,9 @@ function BailleurListingsContent() {
               <div className="space-y-2.5 mb-6">
                 {[
                   { icon: 'fa-bolt',       color: 'text-gold-dark',   text: t('boostListBenefit1') },
-                  { icon: 'fa-arrow-up',   color: 'text-emerald-600', text: t('boostListBenefit2') },
-                  { icon: 'fa-eye',        color: 'text-blue-500',    text: t('boostListBenefit3') },
-                  { icon: 'fa-chart-line', color: 'text-purple-500',  text: t('boostListBenefit4') },
+                  { icon: 'fa-arrow-up',   color: 'text-emerald-600 dark:text-emerald-400', text: t('boostListBenefit2') },
+                  { icon: 'fa-eye',        color: 'text-blue-500 dark:text-blue-400',        text: t('boostListBenefit3') },
+                  { icon: 'fa-chart-line', color: 'text-purple-500 dark:text-purple-400',    text: t('boostListBenefit4') },
                 ].map((item) => (
                   <div key={item.icon} className="flex items-center gap-3">
                     <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line ${item.color}`}>
@@ -558,8 +558,8 @@ function BailleurListingsContent() {
       {archiveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
-              <i className="fa-solid fa-box-archive text-amber-500" />
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/30">
+              <i className="fa-solid fa-box-archive text-amber-500 dark:text-amber-400" />
             </div>
             <h2 className="text-lg font-semibold text-text mb-1">{t('archiveModalTitle')}</h2>
             <p className="text-sm text-sub mb-1">&quot;{archiveModal.title}&quot;</p>
@@ -582,8 +582,8 @@ function BailleurListingsContent() {
       {deleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
-              <i className="fa-solid fa-trash text-red-500" />
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/30">
+              <i className="fa-solid fa-trash text-red-500 dark:text-red-400" />
             </div>
             <h2 className="text-lg font-semibold text-text mb-1">{t('deleteModalTitle')}</h2>
             <p className="text-sm text-sub mb-1">&quot;{deleteModal.title}&quot;</p>
@@ -683,7 +683,7 @@ function ListingCard({
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           {listing.isVerified && <AlloVerifieBadge />}
           {(listing._count?.bookings ?? 0) > 0 && (
-            <span className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">
+            <span className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 px-2.5 py-1 rounded-full font-medium">
               <i className="fa-solid fa-calendar text-xs mr-1" />
               {t('reservationCount', { count: listing._count?.bookings ?? 0 })}
             </span>
@@ -705,7 +705,7 @@ function ListingCard({
               {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
             </Link>
             <button onClick={() => onUnpublish(listing.id, listing.title)}
-              className="text-sm font-medium text-sub hover:text-amber-600 transition-colors">
+              className="text-sm font-medium text-sub hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
               <i className="fa-solid fa-eye-slash text-xs mr-1" />{t('actionUnpublish')}
             </button>
             {!boosted && (
@@ -765,19 +765,19 @@ function ListingCard({
           <>
             <button
               onClick={() => onRestore(listing.id, listing.title, 'DRAFT')}
-              className="text-sm font-medium text-sub hover:text-amber-600 transition-colors"
+              className="text-sm font-medium text-sub hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
             >
               <i className="fa-solid fa-pen-to-square text-xs mr-1" />{t('actionRestoreDraft')}
             </button>
             <button
               onClick={() => onRestore(listing.id, listing.title, 'ACTIVE')}
-              className="text-sm font-medium text-sub hover:text-green-600 transition-colors"
+              className="text-sm font-medium text-sub hover:text-green-600 dark:hover:text-green-400 transition-colors"
             >
               <i className="fa-solid fa-upload text-xs mr-1" />{t('actionRestoreActive')}
             </button>
             <button
               onClick={() => onDelete(listing.id, listing.title)}
-              className="text-sm font-medium text-red-500 hover:text-red-700 transition-colors ml-auto"
+              className="text-sm font-medium text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors ml-auto"
             >
               <i className="fa-solid fa-trash text-xs mr-1" />{t('actionDelete')}
             </button>

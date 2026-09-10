@@ -113,9 +113,9 @@ export default function AgentProfilPage() {
   const initials = `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase();
 
   const statCards = [
-    { key: 'scheduled', icon: 'fa-calendar-check', label: t('statScheduledShort'),    val: stats?.assigned      ?? 0, color: 'text-blue-600',    bg: 'bg-blue-50' },
-    { key: 'progress',  icon: 'fa-person-walking', label: t('statInProgressLabel'),   val: stats?.inProgress    ?? 0, color: 'text-purple-600',  bg: 'bg-purple-50' },
-    { key: 'month',     icon: 'fa-shield-check',   label: t('statThisMonth'),         val: stats?.doneThisMonth ?? 0, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { key: 'scheduled', icon: 'fa-calendar-check', label: t('statScheduledShort'),    val: stats?.assigned      ?? 0, color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-950/30' },
+    { key: 'progress',  icon: 'fa-person-walking', label: t('statInProgressLabel'),   val: stats?.inProgress    ?? 0, color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-50 dark:bg-purple-950/30' },
+    { key: 'month',     icon: 'fa-shield-check',   label: t('statThisMonth'),         val: stats?.doneThisMonth ?? 0, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
     { key: 'rating',    icon: 'fa-star',           label: t('statAvgRatingShort'),
       val: stats?.averageRating != null ? stats.averageRating.toFixed(1) : '—', color: 'text-gold-dark', bg: 'bg-gold-pale' },
   ];

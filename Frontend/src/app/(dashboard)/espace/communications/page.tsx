@@ -73,8 +73,8 @@ export default function AdminCommunicationsPage() {
       {flash && (
         <div className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${
           flash.ok
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            : 'border-red-200 bg-red-50 text-red-700'
+            ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
+            : 'border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400'
         }`}>
           <i className={`fa-solid ${flash.ok ? 'fa-circle-check' : 'fa-circle-xmark'} text-base`} />
           {flash.msg}
@@ -158,7 +158,7 @@ export default function AdminCommunicationsPage() {
               <h2 className="font-semibold text-text">{t('commsEmailTitle')}</h2>
               <p className="text-sm text-sub">{t('commsEmailDesc')}</p>
             </div>
-            <span className="ml-auto text-xs border border-amber-200 bg-amber-50 text-amber-700 rounded-full px-2.5 py-1 font-medium">
+            <span className="ml-auto text-xs border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-full px-2.5 py-1 font-medium">
               {t('commsComingSoon')}
             </span>
           </div>
@@ -179,8 +179,8 @@ export default function AdminCommunicationsPage() {
           <ul className="space-y-2">
             {AUTO_NOTIFICATIONS.map((item) => (
               <li key={item.key} className="flex items-start gap-3 text-sm">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50">
-                  <i className={`fa-solid ${item.icon} text-[10px] text-emerald-600`} />
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/30">
+                  <i className={`fa-solid ${item.icon} text-[10px] text-emerald-600 dark:text-emerald-400`} />
                 </span>
                 <span className="text-text">{item.label}</span>
               </li>

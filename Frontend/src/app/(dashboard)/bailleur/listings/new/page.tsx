@@ -358,7 +358,7 @@ function NewListingForm() {
         )}
 
         {submitError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+          <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
             <i className="fa-solid fa-circle-exclamation shrink-0" />
             {submitError}
           </div>

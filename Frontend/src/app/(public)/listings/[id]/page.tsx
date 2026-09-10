@@ -188,14 +188,14 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
             {/* AlloVérifié */}
             {listing.isVerified && listing.verification && (
-              <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-4">
+              <div className="mt-6 rounded-2xl border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/30 p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <i className="fa-solid fa-shield-halved text-green-700" />
+                  <i className="fa-solid fa-shield-halved text-green-700 dark:text-green-400" />
                   <span className="font-semibold text-green-800 text-sm">
                     {listing.verification.auditType === 'FULL' ? t('auditFull') : t('auditBasic')}
                   </span>
                   {listing.verification.completedAt && (
-                    <span className="ml-auto text-xs text-green-600">
+                    <span className="ml-auto text-xs text-green-600 dark:text-green-400">
                       {new Date(listing.verification.completedAt).toLocaleDateString(numLocale, {
                         day: '2-digit', month: 'long', year: 'numeric',
                       })}
@@ -203,14 +203,14 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                   )}
                 </div>
                 {listing.verification.notes && (
-                  <p className="text-sm text-green-700 leading-relaxed">{listing.verification.notes}</p>
+                  <p className="text-sm text-green-700 dark:text-green-400 leading-relaxed">{listing.verification.notes}</p>
                 )}
                 {listing.verification.reportUrl && (
                   <a
                     href={listing.verification.reportUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-green-700 hover:text-green-900 underline underline-offset-2"
+                    className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400 hover:text-green-900 underline underline-offset-2"
                   >
                     <i className="fa-solid fa-file-lines text-[10px]" />
                     {t('auditReportLink')}

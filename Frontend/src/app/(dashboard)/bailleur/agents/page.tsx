@@ -50,9 +50,9 @@ function AgentCard({ agent }: { agent: Agent }) {
 
       {/* Stats */}
       <div className="flex gap-3">
-        <div className="flex-1 bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
-          <p className="text-xl font-bold text-emerald-600">{agent.completedMissions}</p>
-          <p className="text-[10px] text-emerald-700 mt-0.5 leading-tight">
+        <div className="flex-1 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl p-3 text-center border border-emerald-100 dark:border-emerald-900/40">
+          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{agent.completedMissions}</p>
+          <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5 leading-tight">
             {t('agentMission', { count: agent.completedMissions })}
           </p>
         </div>
@@ -60,7 +60,7 @@ function AgentCard({ agent }: { agent: Agent }) {
           <p className="text-xl font-bold text-gold">
             <i className="fa-solid fa-shield-halved text-lg" />
           </p>
-          <p className="text-[10px] text-amber-700 mt-0.5 leading-tight">{t('agentCertified')}</p>
+          <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5 leading-tight">{t('agentCertified')}</p>
         </div>
       </div>
 
@@ -75,7 +75,7 @@ function AgentCard({ agent }: { agent: Agent }) {
       {agent.phone && (
         <a
           href={`tel:${agent.phone}`}
-          className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-700 transition-colors"
+          className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors"
         >
           <i className="fa-solid fa-phone text-[10px]" />
           {agent.phone}
@@ -85,17 +85,17 @@ function AgentCard({ agent }: { agent: Agent }) {
       {/* Badge expérience + lien profil */}
       <div className="mt-auto pt-3 border-t border-line flex items-center justify-between gap-2">
         {agent.completedMissions >= 10 ? (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-full px-2.5 py-1">
             <i className="fa-solid fa-star text-[9px] text-amber-500" />
             {t('agentExperienced')}
           </span>
         ) : agent.completedMissions >= 3 ? (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded-full px-2.5 py-1">
             <i className="fa-solid fa-circle-check text-[9px] text-blue-500" />
             {t('agentActiveLabel')}
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 rounded-full px-2.5 py-1">
             <i className="fa-solid fa-seedling text-[9px] text-emerald-500" />
             {t('agentNew')}
           </span>
@@ -168,9 +168,9 @@ export default function BailleurAgentsPage() {
       </div>
 
       {/* Info box */}
-      <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div className="flex items-start gap-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded-xl p-4">
         <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-blue-700 leading-relaxed">{t('agentInfoNote')}</p>
+        <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">{t('agentInfoNote')}</p>
       </div>
 
       {/* Grid */}

@@ -60,7 +60,7 @@ export default function AcceptTermsPage() {
             </div>
 
             {error && (
-              <p className="mt-4 flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+              <p className="mt-4 flex items-center gap-1.5 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2.5 text-sm text-red-700 dark:text-red-400">
                 <i className="fa-solid fa-circle-exclamation shrink-0" /> {error}
               </p>
             )}

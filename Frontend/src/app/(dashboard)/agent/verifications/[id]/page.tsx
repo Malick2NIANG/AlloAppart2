@@ -146,17 +146,17 @@ export default function MissionDetailPage() {
       <div className="rounded-2xl border border-line bg-card p-5">
         <div className="flex items-start gap-3 mb-3">
           <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
-            isInProgress ? 'bg-purple-50' : isDone ? 'bg-emerald-50' : 'bg-blue-50'
+            isInProgress ? 'bg-purple-50 dark:bg-purple-950/30' : isDone ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-blue-50 dark:bg-blue-950/30'
           }`}>
             <i className={`fa-solid text-sm ${
-              isInProgress ? 'fa-person-walking text-purple-600' : isDone ? 'fa-shield-check text-emerald-600' : 'fa-calendar-check text-blue-600'
+              isInProgress ? 'fa-person-walking text-purple-600 dark:text-purple-400' : isDone ? 'fa-shield-check text-emerald-600 dark:text-emerald-400' : 'fa-calendar-check text-blue-600 dark:text-blue-400'
             }`} />
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-extrabold text-text leading-tight">{v.listing?.title ?? t('missionFallback')}</h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                isInProgress ? 'bg-purple-50 text-purple-600' : isDone ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                isInProgress ? 'bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400' : isDone ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' : 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400'
               }`}>{STATUS_LABEL[v.status] ?? v.status}</span>
               <span className="text-[11px] font-medium bg-gold-pale text-gold-dark px-2.5 py-0.5 rounded-full">
                 {v.auditType === 'BASIC' ? t('auditBasic') : t('auditFull')}
@@ -262,7 +262,7 @@ export default function MissionDetailPage() {
             <div className="flex items-center gap-2">
               {v.listing.owner.phone && (
                 <a href={`tel:${v.listing.owner.phone}`}
-                  className="h-9 w-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition-colors"
+                  className="h-9 w-9 rounded-full bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors"
                   title={t('callTitle')}>
                   <i className="fa-solid fa-phone text-sm" />
                 </a>
@@ -314,10 +314,10 @@ export default function MissionDetailPage() {
                 {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-play text-sm" /> {t('startVisit')}</>}
               </button>
             ) : (
-              <div className="w-full flex items-center gap-3 rounded-2xl bg-blue-50 border border-blue-200 px-5 py-3.5">
+              <div className="w-full flex items-center gap-3 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 px-5 py-3.5">
                 <i className="fa-solid fa-clock text-blue-500 text-lg shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-blue-700">{t('visitScheduledAt', { time: fmtTime(v.scheduledAt) })}</p>
+                  <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">{t('visitScheduledAt', { time: fmtTime(v.scheduledAt) })}</p>
                   <p className="text-xs text-blue-500">{t('startAvailableIn', { mins: minsLeft })}</p>
                 </div>
               </div>
@@ -331,7 +331,7 @@ export default function MissionDetailPage() {
           )}
           {isScheduled && (
             <button onClick={() => setShowDecline(true)} disabled={acting}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl border border-amber-200 text-amber-600 hover:bg-amber-50 font-medium py-3 text-sm transition-colors">
+              className="w-full flex items-center justify-center gap-2 rounded-2xl border border-amber-200 dark:border-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 font-medium py-3 text-sm transition-colors">
               <i className="fa-solid fa-xmark" /> {t('declineMission')}
             </button>
           )}
@@ -410,9 +410,9 @@ export default function MissionDetailPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={(e) => e.target === e.currentTarget && setShowDecline(false)}>
           <div className="w-full max-w-lg bg-card rounded-2xl shadow-xl p-6 space-y-4">
             <h3 className="font-bold text-text text-lg">{t('declineMission')}</h3>
-            <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 flex items-start gap-2">
+            <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 p-3 flex items-start gap-2">
               <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-blue-700">{t('declineInfoShort')}</p>
+              <p className="text-xs text-blue-700 dark:text-blue-400">{t('declineInfoShort')}</p>
             </div>
             <textarea rows={4} value={declineReason} onChange={(e) => setDeclineReason(e.target.value)}
               placeholder={t('declineReasonPhShort')}

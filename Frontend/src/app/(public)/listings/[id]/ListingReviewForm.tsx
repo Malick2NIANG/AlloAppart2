@@ -148,12 +148,12 @@ export default function ListingReviewForm({ listingId }: Props) {
             <a href={signInUrl} className="text-gold-dark hover:underline font-medium">{t('signInLink')}</a>{' '}{t('signInForReview')}
           </div>
         ) : !canReview ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
             <i className="fa-solid fa-lock mr-1.5" />
             {t('reviewEligibility')}
           </div>
         ) : sent ? (
-          <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          <div className="flex items-center gap-2 rounded-xl border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/30 px-4 py-3 text-sm text-green-700 dark:text-green-400">
             <i className="fa-solid fa-circle-check" />
             {t('reviewThanks')}
           </div>

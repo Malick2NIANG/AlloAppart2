@@ -153,8 +153,8 @@ interface Props {
 
 const SPACE_BADGE_CLS = {
   bailleur:  { icon: 'fa-house-chimney-user', cls: 'bg-gold-pale text-gold-dark'      },
-  locataire: { icon: 'fa-user',               cls: 'bg-blue-50 text-blue-700'         },
-  agent:     { icon: 'fa-shield-halved',      cls: 'bg-emerald-50 text-emerald-700'   },
+  locataire: { icon: 'fa-user',               cls: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'         },
+  agent:     { icon: 'fa-shield-halved',      cls: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'   },
 };
 
 export default function MessagesShell({ emptyHint, space }: Props) {
@@ -773,10 +773,10 @@ export default function MessagesShell({ emptyHint, space }: Props) {
 
           {/* Bandeau — modification d'un message */}
           {editingId && (
-            <div className="mx-4 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
+            <div className="mx-4 flex items-center gap-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded-xl px-3 py-2">
               <i className="fa-solid fa-pen text-blue-500 text-xs shrink-0" />
-              <p className="text-xs text-blue-700 flex-1 truncate">{t('editingBanner')}</p>
-              <button type="button" onClick={cancelEdit} className="text-blue-400 hover:text-blue-600 shrink-0">
+              <p className="text-xs text-blue-700 dark:text-blue-400 flex-1 truncate">{t('editingBanner')}</p>
+              <button type="button" onClick={cancelEdit} className="text-blue-400 hover:text-blue-600 dark:hover:text-blue-400 shrink-0">
                 <i className="fa-solid fa-xmark text-xs" />
               </button>
             </div>
@@ -784,10 +784,10 @@ export default function MessagesShell({ emptyHint, space }: Props) {
 
           {/* Erreur vocal */}
           {voiceError && (
-            <div className="mx-4 flex items-center gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+            <div className="mx-4 flex items-center gap-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 rounded-xl px-3 py-2">
               <i className="fa-solid fa-triangle-exclamation shrink-0" />
               <span>{voiceError}</span>
-              <button type="button" onClick={() => setVoiceError(null)} className="ml-auto text-red-400 hover:text-red-600">
+              <button type="button" onClick={() => setVoiceError(null)} className="ml-auto text-red-400 hover:text-red-600 dark:hover:text-red-400">
                 <i className="fa-solid fa-xmark" />
               </button>
             </div>

@@ -129,7 +129,7 @@ export default function AdminReviewsPage() {
               <button
                 onClick={() => setDeleteModal(review)}
                 disabled={actionId !== null}
-                className="shrink-0 text-xs font-medium border border-red-200 bg-red-50 text-red-700 rounded-lg px-3 py-1.5 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                className="shrink-0 text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
               >
                 <i className="fa-solid fa-trash text-xs mr-1" />{t('delete')}
               </button>
@@ -155,8 +155,8 @@ export default function AdminReviewsPage() {
       {deleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-              <i className="fa-solid fa-trash text-red-600" />
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40">
+              <i className="fa-solid fa-trash text-red-600 dark:text-red-400" />
             </div>
             <h2 className="text-lg font-semibold text-text mb-1">{t('modalDeleteReview')}</h2>
             <p className="text-sm text-sub mb-2">

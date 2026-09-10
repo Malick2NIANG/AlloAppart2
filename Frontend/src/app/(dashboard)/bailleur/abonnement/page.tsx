@@ -184,9 +184,9 @@ function AbonnementContent() {
     CANCELLED: t('abonnementStatusCancelled'),
   };
   const statusColor: Record<string, string> = {
-    ACTIVE:    'text-green-700 bg-green-50 border-green-200',
-    SUSPENDED: 'text-red-700 bg-red-50 border-red-200',
-    CANCELLED: 'text-gray-600 bg-gray-50 border-gray-200',
+    ACTIVE:    'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900/40',
+    SUSPENDED: 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/40',
+    CANCELLED: 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-950/30 border-gray-200 dark:border-gray-900/40',
   };
 
   return (
@@ -195,7 +195,7 @@ function AbonnementContent() {
       {/* Toast */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 rounded-xl px-5 py-3 text-sm font-medium shadow-lg border ${
-          toast.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'
+          toast.type === 'success' ? 'bg-green-50 dark:bg-green-950/30 text-green-800 border-green-200 dark:border-green-900/40' : 'bg-red-50 dark:bg-red-950/30 text-red-800 border-red-200 dark:border-red-900/40'
         }`}>
           {toast.msg}
         </div>
@@ -288,7 +288,7 @@ function AbonnementContent() {
                   <div className="mt-6">
                     <button
                       disabled
-                      className="w-full rounded-xl py-2.5 text-sm font-semibold border border-line bg-gray-50 text-gray-400 cursor-not-allowed"
+                      className="w-full rounded-xl py-2.5 text-sm font-semibold border border-line bg-gray-50 dark:bg-gray-950/30 text-gray-400 cursor-not-allowed"
                     >
                       {t('abonnementChangePlan')}
                     </button>
@@ -300,7 +300,7 @@ function AbonnementContent() {
                     disabled={isActive || initiating !== null}
                     className={`mt-6 w-full rounded-xl py-2.5 text-sm font-semibold transition ${
                       isActive
-                        ? 'bg-green-100 text-green-700 cursor-default'
+                        ? 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400 cursor-default'
                         : plan.highlighted
                           ? 'btn-gold'
                           : 'border border-line bg-card text-text hover:bg-gold-pale hover:text-gold-dark'

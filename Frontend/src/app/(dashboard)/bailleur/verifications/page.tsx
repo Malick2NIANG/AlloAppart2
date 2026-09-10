@@ -38,12 +38,12 @@ interface Agent {
 /* ── Visual config (no text) ─────────────────────────────────────────────── */
 
 const VERIF_STYLE: Record<VerifStatus, { color: string; icon: string; bg: string }> = {
-  REQUESTED:       { color: 'text-amber-600',   icon: 'fa-clock',           bg: 'bg-amber-50'   },
-  SCHEDULED:       { color: 'text-blue-600',    icon: 'fa-calendar-check',  bg: 'bg-blue-50'    },
-  IN_PROGRESS:     { color: 'text-purple-600',  icon: 'fa-person-walking',  bg: 'bg-purple-50'  },
-  DONE:            { color: 'text-emerald-600', icon: 'fa-shield-check',    bg: 'bg-emerald-50' },
-  REJECTED:        { color: 'text-red-600',     icon: 'fa-circle-xmark',    bg: 'bg-red-50'     },
-  DECLINE_PENDING: { color: 'text-orange-600',  icon: 'fa-hourglass-half',  bg: 'bg-orange-50'  },
+  REQUESTED:       { color: 'text-amber-600 dark:text-amber-400',   icon: 'fa-clock',           bg: 'bg-amber-50 dark:bg-amber-950/30'   },
+  SCHEDULED:       { color: 'text-blue-600 dark:text-blue-400',    icon: 'fa-calendar-check',  bg: 'bg-blue-50 dark:bg-blue-950/30'    },
+  IN_PROGRESS:     { color: 'text-purple-600 dark:text-purple-400',  icon: 'fa-person-walking',  bg: 'bg-purple-50 dark:bg-purple-950/30'  },
+  DONE:            { color: 'text-emerald-600 dark:text-emerald-400', icon: 'fa-shield-check',    bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+  REJECTED:        { color: 'text-red-600 dark:text-red-400',     icon: 'fa-circle-xmark',    bg: 'bg-red-50 dark:bg-red-950/30'     },
+  DECLINE_PENDING: { color: 'text-orange-600 dark:text-orange-400',  icon: 'fa-hourglass-half',  bg: 'bg-orange-50 dark:bg-orange-950/30'  },
 };
 
 const STEPS: VerifStatus[] = ['REQUESTED', 'SCHEDULED', 'IN_PROGRESS', 'DONE'];
@@ -71,7 +71,7 @@ function Timeline({ status }: { status: VerifStatus }) {
     return (
       <div className="flex items-center gap-2 mt-3">
         <i className="fa-solid fa-circle-xmark text-red-500" />
-        <span className="text-xs text-red-600 font-medium">{t('verifRejected')}</span>
+        <span className="text-xs text-red-600 dark:text-red-400 font-medium">{t('verifRejected')}</span>
       </div>
     );
   }
@@ -90,12 +90,12 @@ function Timeline({ status }: { status: VerifStatus }) {
                   done
                     ? active
                       ? `${style.bg} ${style.color} ring-2 ring-offset-1 ring-current`
-                      : 'bg-emerald-100 text-emerald-600'
+                      : 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                     : 'bg-line text-sub'
                 }`}>
                   <i className={`fa-solid ${done ? (active ? style.icon : 'fa-check') : style.icon} text-[10px]`} />
                 </div>
-                <p className={`mt-1 text-[9px] text-center leading-tight max-w-[56px] ${done ? (active ? style.color + ' font-semibold' : 'text-emerald-600') : 'text-sub'}`}>
+                <p className={`mt-1 text-[9px] text-center leading-tight max-w-[56px] ${done ? (active ? style.color + ' font-semibold' : 'text-emerald-600 dark:text-emerald-400') : 'text-sub'}`}>
                   {STATUS_LABELS[step]}
                 </p>
               </div>
@@ -181,7 +181,7 @@ function RatingModal({ verifId, agentName, existing, onClose, onSaved }: {
               className="w-full rounded-xl border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub resize-none focus:outline-none focus:ring-2 focus:ring-gold/40" />
             <p className="text-[10px] text-sub text-right mt-0.5">{comment.length}/1000</p>
           </div>
-          {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+          {error && <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2">{error}</p>}
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-line bg-bg py-2.5 text-sm text-sub hover:text-text transition-colors">
               {t('cancel')}
@@ -248,7 +248,7 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
               {STATUS_LABELS[v.status]}
             </span>
             {v.rating && (
-              <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">
+              <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400">
                 <i className="fa-solid fa-star text-amber-400 text-[9px]" />{v.rating.rating}/5
               </span>
             )}
@@ -270,9 +270,9 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
             const initials = `${agent.firstName?.[0] ?? ''}${agent.lastName?.[0] ?? ''}`.toUpperCase();
             const isScheduled = v.status === 'SCHEDULED';
             return (
-              <div className={`mt-4 rounded-xl border p-4 ${isScheduled ? 'border-blue-200 bg-blue-50' : 'border-line bg-bg'}`}>
+              <div className={`mt-4 rounded-xl border p-4 ${isScheduled ? 'border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30' : 'border-line bg-bg'}`}>
                 {isScheduled && (
-                  <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide mb-2">
+                  <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
                     <i className="fa-solid fa-circle-check mr-1" />{t('verifAssignedBadge')}
                   </p>
                 )}
@@ -290,14 +290,14 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
                     {agent.bio && <p className="text-xs text-sub mt-0.5 line-clamp-2">{agent.bio}</p>}
                     {agent.phone && (
                       <div className="flex items-center gap-3 mt-1.5">
-                        <a href={`tel:${agent.phone}`} className="text-xs text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1">
+                        <a href={`tel:${agent.phone}`} className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors flex items-center gap-1">
                           <i className="fa-solid fa-phone text-[9px]" />{agent.phone}
                         </a>
                         <button
                           type="button"
                           onClick={() => void openAgentChat(agent.id)}
                           disabled={openingChat}
-                          className="text-xs text-emerald-600 hover:text-emerald-700 transition-colors flex items-center gap-1 disabled:opacity-50"
+                          className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors flex items-center gap-1 disabled:opacity-50"
                         >
                           {openingChat
                             ? <i className="fa-solid fa-spinner fa-spin text-[9px]" />
@@ -315,9 +315,9 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
 
           {v.status === 'DONE' && (
             <div className="mt-4 space-y-2">
-              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5">
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2.5">
                 <i className="fa-solid fa-shield-check text-emerald-500" />
-                <p className="text-sm font-semibold text-emerald-700">{t('verifCertifiedBadge')}</p>
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{t('verifCertifiedBadge')}</p>
               </div>
               {v.notes && (
                 <div className="rounded-xl bg-bg p-3">
@@ -363,7 +363,7 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
                         <p className="text-[11px] text-sub mt-0.5">{t('verifRateHint')}</p>
                       </div>
                       <button onClick={onRate}
-                        className="shrink-0 flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors">
+                        className="shrink-0 flex items-center gap-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 transition-colors">
                         <i className="fa-solid fa-star text-amber-400 text-[10px]" />{t('verifLeaveReview')}
                       </button>
                     </div>
@@ -374,9 +374,9 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
           )}
 
           {v.status === 'REJECTED' && v.notes && (
-            <div className="mt-4 rounded-xl bg-red-50 border border-red-100 px-4 py-3">
-              <p className="text-[10px] font-semibold text-red-600 uppercase tracking-wide mb-1">{t('verifRejectionReason')}</p>
-              <p className="text-sm text-red-700">{v.notes}</p>
+            <div className="mt-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 px-4 py-3">
+              <p className="text-[10px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide mb-1">{t('verifRejectionReason')}</p>
+              <p className="text-sm text-red-700 dark:text-red-400">{v.notes}</p>
             </div>
           )}
 
@@ -416,37 +416,37 @@ function AgentCard({ agent }: { agent: Agent }) {
       </div>
 
       <div className="flex gap-3">
-        <div className="flex-1 bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
-          <p className="text-xl font-bold text-emerald-600">{agent.completedMissions}</p>
-          <p className="text-[10px] text-emerald-700 mt-0.5 leading-tight">
+        <div className="flex-1 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl p-3 text-center border border-emerald-100 dark:border-emerald-900/40">
+          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{agent.completedMissions}</p>
+          <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5 leading-tight">
             {t('agentMission', { count: agent.completedMissions })}
           </p>
         </div>
         <div className="flex-1 bg-gold/5 rounded-xl p-3 text-center border border-gold/20">
           <p className="text-xl font-bold text-gold"><i className="fa-solid fa-shield-halved text-lg" /></p>
-          <p className="text-[10px] text-amber-700 mt-0.5 leading-tight">{t('agentCertified')}</p>
+          <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5 leading-tight">{t('agentCertified')}</p>
         </div>
       </div>
 
       {agent.bio && <p className="text-xs text-sub leading-relaxed line-clamp-3">{agent.bio}</p>}
 
       {agent.phone && (
-        <a href={`tel:${agent.phone}`} className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-700 transition-colors">
+        <a href={`tel:${agent.phone}`} className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors">
           <i className="fa-solid fa-phone text-[10px]" />{agent.phone}
         </a>
       )}
 
       <div className="mt-auto pt-3 border-t border-line flex items-center justify-between gap-2">
         {agent.completedMissions >= 10 ? (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-full px-2.5 py-1">
             <i className="fa-solid fa-star text-[9px] text-amber-500" />{t('agentExperienced')}
           </span>
         ) : agent.completedMissions >= 3 ? (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded-full px-2.5 py-1">
             <i className="fa-solid fa-circle-check text-[9px] text-blue-500" />{t('agentActiveLabel')}
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 rounded-full px-2.5 py-1">
             <i className="fa-solid fa-seedling text-[9px] text-emerald-500" />{t('agentNew')}
           </span>
         )}
@@ -781,7 +781,7 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
           </div>
         </div>
 
-        {error && <p className="mt-3 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+        {error && <p className="mt-3 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2">{error}</p>}
 
         <div className="flex gap-3 mt-6 justify-end">
           <button onClick={onClose}
@@ -942,9 +942,9 @@ function NosAgentsTab() {
         )}
       </div>
 
-      <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div className="flex items-start gap-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded-xl p-4">
         <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-blue-700 leading-relaxed">{t('verifAgentsInfoNote')}</p>
+        <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">{t('verifAgentsInfoNote')}</p>
       </div>
 
       {loading ? (

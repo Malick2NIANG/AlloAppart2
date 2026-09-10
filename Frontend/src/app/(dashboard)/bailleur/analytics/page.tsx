@@ -186,16 +186,16 @@ export default function VitrineAnalyticsPage() {
           label={t('analyticsVitrineViews')}
           value={stats.profileViews.toLocaleString(numLocale)}
           sub={t('analyticsViewsSub')}
-          accent="text-blue-600"
-          bg="bg-blue-50"
+          accent="text-blue-600 dark:text-blue-400"
+          bg="bg-blue-50 dark:bg-blue-950/30"
         />
         <KpiCard
           icon="fa-house"
           label={t('analyticsActiveListings')}
           value={`${stats.activeListings} / ${stats.totalListings}`}
           sub={t('analyticsActiveListingsSub')}
-          accent="text-emerald-600"
-          bg="bg-emerald-50"
+          accent="text-emerald-600 dark:text-emerald-400"
+          bg="bg-emerald-50 dark:bg-emerald-950/30"
         />
         <KpiCard
           icon="fa-sack-dollar"
@@ -210,8 +210,8 @@ export default function VitrineAnalyticsPage() {
           label={t('analyticsAvgRating')}
           value={stats.avgRating ? `${stats.avgRating.toFixed(1)} / 5` : '—'}
           sub={t('analyticsReviewCount', { count: stats.reviewCount })}
-          accent="text-yellow-600"
-          bg="bg-yellow-50"
+          accent="text-yellow-600 dark:text-yellow-400"
+          bg="bg-yellow-50 dark:bg-yellow-950/30"
         />
       </div>
 
@@ -254,8 +254,8 @@ export default function VitrineAnalyticsPage() {
             {/* Taux de conversion */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50">
-                  <i className="fa-solid fa-arrows-turn-to-dots text-sm text-purple-600" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-950/30">
+                  <i className="fa-solid fa-arrows-turn-to-dots text-sm text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-text">{t('analyticsConversionTitle')}</p>
@@ -280,8 +280,8 @@ export default function VitrineAnalyticsPage() {
             {/* Pression AlloVérifié */}
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50">
-                  <i className="fa-solid fa-shield-halved text-sm text-emerald-600" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/30">
+                  <i className="fa-solid fa-shield-halved text-sm text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-text">{t('analyticsVerifiedTitle')}</p>
@@ -445,8 +445,8 @@ export default function VitrineAnalyticsPage() {
       {isPro ? (
         <div className="rounded-2xl border border-line bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50">
-              <i className="fa-solid fa-file-pdf text-red-500 text-sm" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/30">
+              <i className="fa-solid fa-file-pdf text-red-500 dark:text-red-400 text-sm" />
             </div>
             <div>
               <p className="text-sm font-semibold text-text">{t('analyticsReportTitle')}</p>

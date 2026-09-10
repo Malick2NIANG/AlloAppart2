@@ -42,7 +42,7 @@ export function DismissibleAlerts({ overdueVerifications, expiringSubscriptions,
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
       <div className="mb-3 flex items-center gap-2">
-        <i className="fa-solid fa-triangle-exclamation text-amber-600" />
+        <i className="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400" />
         <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">{t('alertsTitle')}</p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -50,14 +50,14 @@ export function DismissibleAlerts({ overdueVerifications, expiringSubscriptions,
           <div key={alert.key} className="flex items-center rounded-xl border border-amber-200 bg-white dark:border-amber-900/40 dark:bg-amber-950/30">
             <Link
               href={alert.href}
-              className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-amber-700 hover:text-amber-900 dark:text-amber-300"
+              className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:text-amber-300"
             >
               <i className={alert.icon} />
               {alert.label}
             </Link>
             <button
               onClick={() => dismiss(alert.key)}
-              className="pr-2.5 text-amber-400 hover:text-amber-700 dark:hover:text-amber-200 transition-colors"
+              className="pr-2.5 text-amber-400 hover:text-amber-700 dark:hover:text-amber-400 dark:hover:text-amber-200 transition-colors"
               title={t('alertClose')}
             >
               <i className="fa-solid fa-xmark text-xs" />

@@ -142,7 +142,7 @@ export default function AvailabilityCalendar({ ranges, loading, selectedStart, s
                   onClick={() => onSelectDate(toLocalISODate(day))}
                   className={`flex items-center justify-center h-9 rounded-lg text-xs font-medium transition ${
                     booked
-                      ? 'bg-red-100 text-red-500 line-through cursor-not-allowed'
+                      ? 'bg-red-100 dark:bg-red-950/40 text-red-500 line-through cursor-not-allowed'
                       : past
                         ? 'text-sub/40 cursor-not-allowed'
                         : isStart || isEnd
@@ -151,7 +151,7 @@ export default function AvailabilityCalendar({ ranges, loading, selectedStart, s
                             ? 'bg-gold-pale text-gold-dark'
                             : isToday
                               ? 'border border-gold text-gold-dark font-bold'
-                              : 'bg-green-50 text-green-700 hover:bg-green-100'
+                              : 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-950/40'
                   }`}
                 >
                   {day.getDate()}
@@ -162,11 +162,11 @@ export default function AvailabilityCalendar({ ranges, loading, selectedStart, s
 
           <div className="mt-3 flex items-center gap-4 text-xs text-sub">
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-sm bg-green-50 border border-green-200" />
+              <span className="h-3 w-3 rounded-sm bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/40" />
               {t('availabilityLegendAvailable')}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded-sm bg-red-100 border border-red-200" />
+              <span className="h-3 w-3 rounded-sm bg-red-100 dark:bg-red-950/40 border border-red-200 dark:border-red-900/40" />
               {t('availabilityLegendBooked')}
             </span>
           </div>

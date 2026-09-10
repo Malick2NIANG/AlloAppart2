@@ -203,7 +203,7 @@ export default function SignInForm() {
           <Flash flash={flash} />
 
           {attempts === 0 ? (
-            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <div className="flex items-start gap-3 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 p-4 text-sm text-red-700 dark:text-red-400">
               <i className="fa-solid fa-shield-halved mt-0.5 shrink-0" />
               <div>
                 <p className="font-semibold">{ts('tooManyTitle')}</p>
@@ -217,7 +217,7 @@ export default function SignInForm() {
                   <IconInput type="email" value={email} onChange={setEmail} icon="fa-solid fa-envelope" placeholder={t('emailPlaceholder')} />
                 </Field>
                 {attempts < 3 && (
-                  <p className="mt-1 flex items-center gap-1 text-xs text-amber-600">
+                  <p className="mt-1 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
                     <i className="fa-solid fa-triangle-exclamation" />
                     {ts('attemptsLeft', { count: attempts })}
                   </p>
@@ -300,7 +300,7 @@ export default function SignInForm() {
               <PwdInput value={confirmPwd} onChange={setConfirmPwd} show={showConfirm} onToggle={() => setShowConfirm(!showConfirm)} />
             </Field>
             {newPassword && confirmPwd && newPassword !== confirmPwd && (
-              <p className="flex items-center gap-1 text-xs text-red-600">
+              <p className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
                 <i className="fa-solid fa-circle-xmark" /> {ts('passwordMismatch')}
               </p>
             )}
@@ -360,9 +360,9 @@ function Flash({ flash }: { flash: Flash | null }) {
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}
           className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm ${
-            flash.type === 'error' ? 'border border-red-200 bg-red-50 text-red-700'
-            : flash.type === 'info' ? 'border border-blue-200 bg-blue-50 text-blue-700'
-            : 'border border-green-200 bg-green-50 text-green-700'
+            flash.type === 'error' ? 'border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400'
+            : flash.type === 'info' ? 'border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'
+            : 'border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400'
           }`}>
           <i className={`shrink-0 text-sm ${
             flash.type === 'error' ? 'fa-solid fa-circle-exclamation'

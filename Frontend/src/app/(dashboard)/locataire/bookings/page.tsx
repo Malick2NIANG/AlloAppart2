@@ -128,7 +128,7 @@ export default function LocataireBookingsPage() {
             <Section
               title={t('sectionConfirmed')}
               icon="fa-circle-check"
-              accent="text-green-600"
+              accent="text-green-600 dark:text-green-400"
               bookings={confirmed}
               reviewedBookingIds={reviewedBookingIds}
               onRefresh={fetchData}
@@ -379,7 +379,7 @@ function LocataireBookingActions({
             <button
               onClick={handleCancel}
               disabled={cancelLoading}
-              className="text-xs font-medium text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
             >
               {cancelLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('cancelBtn')}
             </button>
@@ -397,7 +397,7 @@ function LocataireBookingActions({
             <button
               onClick={handleCancel}
               disabled={cancelLoading}
-              className="text-xs font-medium text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
             >
               {cancelLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('withdrawRequestBtn')}
             </button>
@@ -419,7 +419,7 @@ function LocataireBookingActions({
             <button
               onClick={handleCancel}
               disabled={cancelLoading}
-              className="text-xs font-medium text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
             >
               {cancelLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('cancelBtn')}
             </button>
@@ -434,7 +434,7 @@ function LocataireBookingActions({
               <button
                 onClick={() => void handleTerminate()}
                 disabled={terminateLoading}
-                className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 text-red-700 hover:bg-red-200 transition disabled:opacity-50"
+                className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200 transition disabled:opacity-50"
               >
                 {terminateLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('actionTerminateLeaseConfirm')}
               </button>
@@ -450,7 +450,7 @@ function LocataireBookingActions({
               <StatusChip status={status} />
               <button
                 onClick={() => setConfirmTerminate(true)}
-                className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 text-red-700 hover:bg-red-200 transition"
+                className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200 transition"
               >
                 {t('actionTerminateLease')}
               </button>
@@ -464,7 +464,7 @@ function LocataireBookingActions({
 
         {/* Litige en cours — les fonds sont gelés en attente d'arbitrage admin */}
         {booking.escrowStatus === 'DISPUTED' && (
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-1.5 px-3">
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-lg py-1.5 px-3">
             <i className="fa-solid fa-hourglass-half text-[10px]" />
             {t('disputeInProgress')}
           </span>
@@ -478,7 +478,7 @@ function LocataireBookingActions({
           return (
             <button
               onClick={() => onDispute(booking)}
-              className="text-xs font-medium text-amber-700 hover:text-amber-800 border border-amber-200 hover:border-amber-300 rounded-lg py-1.5 px-3 transition-colors"
+              className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 border border-amber-200 dark:border-amber-900/40 hover:border-amber-300 rounded-lg py-1.5 px-3 transition-colors"
             >
               <i className="fa-solid fa-triangle-exclamation mr-1" />{t('reportDisputeBtn')}
             </button>
@@ -494,7 +494,7 @@ function LocataireBookingActions({
             <button
               onClick={() => onCancel(booking)}
               disabled={cancelLoading}
-              className="text-xs font-medium text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
             >
               {cancelLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('cancelBtn')}
             </button>
@@ -516,7 +516,7 @@ function LocataireBookingActions({
         {/* Bouton avis — uniquement sur COMPLETED */}
         {status === 'COMPLETED' && (
           alreadyReviewed ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg py-1.5 px-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 rounded-lg py-1.5 px-3">
               <i className="fa-solid fa-star text-[10px]" />
               {t('reviewGiven')}
             </span>
@@ -540,16 +540,16 @@ function LocataireBookingActions({
 function StatusChip({ status }: { status: BookingStatus }) {
   const t = useTranslations('locataire');
   const styles: Record<BookingStatus, string> = {
-    CONFIRMED:  'bg-green-100 text-green-700',
+    CONFIRMED:  'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
     PENDING:    'bg-gold-pale text-gold-dark',
-    CANCELLED:  'bg-red-100 text-red-700',
-    COMPLETED:  'bg-blue-100 text-blue-700',
+    CANCELLED:  'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
+    COMPLETED:  'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
     // Cycle de vie du bail mensuel (location hybride)
     REQUESTED:  'bg-gold-pale text-gold-dark',
-    APPROVED:   'bg-green-100 text-green-700',
-    REJECTED:   'bg-red-100 text-red-700',
-    ACTIVE:     'bg-emerald-100 text-emerald-700',
-    TERMINATED: 'bg-gray-100 text-gray-600',
+    APPROVED:   'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
+    REJECTED:   'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
+    ACTIVE:     'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
+    TERMINATED: 'bg-gray-100 dark:bg-gray-950/40 text-gray-600 dark:text-gray-400',
   };
   const labels: Record<BookingStatus, string> = {
     CONFIRMED:  t('statusConfirmed'),
@@ -615,7 +615,7 @@ function CancellationModal({
       <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="bg-red-50 border-b border-red-100 p-5 flex items-start justify-between">
+        <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-100 dark:border-red-900/40 p-5 flex items-start justify-between">
           <div>
             <p className="text-xs font-semibold text-red-400 uppercase tracking-wide">{t('cancelModalBadge')}</p>
             <h3 className="text-lg font-bold text-text mt-0.5 leading-tight line-clamp-2">
@@ -633,10 +633,10 @@ function CancellationModal({
         {/* Corps */}
         <div className="p-5 space-y-4">
           {/* Politique */}
-          <div className={`rounded-xl p-4 flex gap-3 ${fullRefund ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
-            <i className={`fa-solid ${fullRefund ? 'fa-circle-check text-green-600' : 'fa-triangle-exclamation text-amber-500'} mt-0.5 text-sm shrink-0`} />
+          <div className={`rounded-xl p-4 flex gap-3 ${fullRefund ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/40' : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40'}`}>
+            <i className={`fa-solid ${fullRefund ? 'fa-circle-check text-green-600 dark:text-green-400' : 'fa-triangle-exclamation text-amber-500'} mt-0.5 text-sm shrink-0`} />
             <div>
-              <p className={`text-sm font-semibold ${fullRefund ? 'text-green-700' : 'text-amber-700'}`}>
+              <p className={`text-sm font-semibold ${fullRefund ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
                 {fullRefund ? t('fullRefundTitle') : t('noRefundTitle')}
               </p>
               <p className="text-xs text-sub mt-0.5">
@@ -645,7 +645,7 @@ function CancellationModal({
                   : t('noRefundDesc')}
               </p>
               {fullRefund && refundAmount > 0 && (
-                <p className="text-sm font-bold text-green-700 mt-1">
+                <p className="text-sm font-bold text-green-700 dark:text-green-400 mt-1">
                   {t('refundAmount', { amount: refundAmount.toLocaleString() })}
                 </p>
               )}
@@ -727,7 +727,7 @@ function DisputeModal({
       <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
 
         {/* Header */}
-        <div className="bg-amber-50 border-b border-amber-100 p-5 flex items-start justify-between shrink-0">
+        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-100 dark:border-amber-900/40 p-5 flex items-start justify-between shrink-0">
           <div>
             <p className="text-xs font-semibold text-amber-500 uppercase tracking-wide">{t('disputeModalBadge')}</p>
             <h3 className="text-lg font-bold text-text mt-0.5 leading-tight line-clamp-2">
@@ -744,9 +744,9 @@ function DisputeModal({
 
         {/* Corps */}
         <div className="p-5 space-y-4 overflow-y-auto">
-          <div className="rounded-xl p-4 bg-amber-50 border border-amber-200 flex gap-3">
+          <div className="rounded-xl p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 flex gap-3">
             <i className="fa-solid fa-hourglass-half text-amber-500 mt-0.5 text-sm shrink-0" />
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
               {t('disputeWindowHint', { hours: hoursLeft })}
             </p>
           </div>

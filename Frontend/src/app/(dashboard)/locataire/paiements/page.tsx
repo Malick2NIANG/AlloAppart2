@@ -10,9 +10,9 @@ import type { Booking } from '@/types';
 
 const ESCROW_CLS: Record<string, string> = {
   AWAITING_PAYMENT: 'bg-gold-pale text-gold-dark border-gold/30',
-  HELD:             'bg-blue-50 text-blue-700 border-blue-200',
-  RELEASED:         'bg-emerald-50 text-emerald-700 border-emerald-200',
-  REFUNDED:         'bg-red-50 text-red-600 border-red-200',
+  HELD:             'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900/40',
+  RELEASED:         'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40',
+  REFUNDED:         'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40',
 };
 
 const ESCROW_ICON: Record<string, string> = {
@@ -107,19 +107,19 @@ export default function PaiementsPage() {
 
       {/* KPI Cards financières */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-[10px] uppercase tracking-widest text-emerald-700 font-semibold mb-1">{t('kpiTotalPaid')}</p>
+        <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 p-4">
+          <p className="text-[10px] uppercase tracking-widest text-emerald-700 dark:text-emerald-400 font-semibold mb-1">{t('kpiTotalPaid')}</p>
           <p className="text-2xl font-bold text-emerald-800">{formatPrice(totalPaid)}</p>
-          <p className="text-xs text-emerald-600 mt-0.5">{t('transactionsCount', { count: paid.length })}</p>
+          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">{t('transactionsCount', { count: paid.length })}</p>
         </div>
         <div className="rounded-2xl border border-gold/30 bg-gold-pale p-4">
           <p className="text-[10px] uppercase tracking-widest text-gold-dark font-semibold mb-1">{t('kpiPending')}</p>
           <p className="text-2xl font-bold text-gold-dark">{formatPrice(totalPending)}</p>
           <p className="text-xs text-gold-dark/70 mt-0.5">{t('transactionsCount', { count: pending.length })}</p>
         </div>
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-          <p className="text-[10px] uppercase tracking-widest text-red-600 font-semibold mb-1">{t('kpiRefunded')}</p>
-          <p className="text-2xl font-bold text-red-700">{formatPrice(totalRefunded)}</p>
+        <div className="rounded-2xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 p-4">
+          <p className="text-[10px] uppercase tracking-widest text-red-600 dark:text-red-400 font-semibold mb-1">{t('kpiRefunded')}</p>
+          <p className="text-2xl font-bold text-red-700 dark:text-red-400">{formatPrice(totalRefunded)}</p>
           <p className="text-xs text-red-500 mt-0.5">{t('transactionsCount', { count: refunded.length })}</p>
         </div>
       </div>

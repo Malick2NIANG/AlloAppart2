@@ -23,12 +23,12 @@ interface FullVerif extends Omit<Verification, 'listing'> {
 /* ── Status visual config (no text) ──────────────────────────────────────── */
 
 const STATUS_STYLE: Record<string, { bg: string; color: string; icon: string }> = {
-  SCHEDULED:       { bg: 'bg-blue-50',    color: 'text-blue-600',    icon: 'fa-calendar-check' },
-  IN_PROGRESS:     { bg: 'bg-purple-50',  color: 'text-purple-600',  icon: 'fa-person-walking' },
-  DONE:            { bg: 'bg-emerald-50', color: 'text-emerald-600', icon: 'fa-shield-check'   },
-  REJECTED:        { bg: 'bg-red-50',     color: 'text-red-600',     icon: 'fa-circle-xmark'   },
-  REQUESTED:       { bg: 'bg-amber-50',   color: 'text-amber-600',   icon: 'fa-clock'          },
-  DECLINE_PENDING: { bg: 'bg-orange-50',  color: 'text-orange-600',  icon: 'fa-hourglass-half' },
+  SCHEDULED:       { bg: 'bg-blue-50 dark:bg-blue-950/30',    color: 'text-blue-600 dark:text-blue-400',    icon: 'fa-calendar-check' },
+  IN_PROGRESS:     { bg: 'bg-purple-50 dark:bg-purple-950/30',  color: 'text-purple-600 dark:text-purple-400',  icon: 'fa-person-walking' },
+  DONE:            { bg: 'bg-emerald-50 dark:bg-emerald-950/30', color: 'text-emerald-600 dark:text-emerald-400', icon: 'fa-shield-check'   },
+  REJECTED:        { bg: 'bg-red-50 dark:bg-red-950/30',     color: 'text-red-600 dark:text-red-400',     icon: 'fa-circle-xmark'   },
+  REQUESTED:       { bg: 'bg-amber-50 dark:bg-amber-950/30',   color: 'text-amber-600 dark:text-amber-400',   icon: 'fa-clock'          },
+  DECLINE_PENDING: { bg: 'bg-orange-50 dark:bg-orange-950/30',  color: 'text-orange-600 dark:text-orange-400',  icon: 'fa-hourglass-half' },
 };
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
@@ -238,9 +238,9 @@ export default function AgentVerificationsPage() {
       {/* ── Modal Décliner ── */}
       {declineModal && (
         <Modal title={t('declineModalTitle')} onClose={() => { setDeclineModal(null); setDeclineReason(''); }}>
-          <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 mb-4 flex items-start gap-2">
+          <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 p-3 mb-4 flex items-start gap-2">
             <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 shrink-0" />
-            <p className="text-xs text-blue-700">{t('declineInfo')}</p>
+            <p className="text-xs text-blue-700 dark:text-blue-400">{t('declineInfo')}</p>
           </div>
           <p className="text-sm text-sub mb-2">
             {t('missionLabel')} <span className="font-semibold text-text">{declineModal.listing?.title}</span>
@@ -403,7 +403,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
 
   return (
     <div className={`rounded-2xl border bg-card overflow-hidden transition-colors ${
-      isInProgress ? 'border-purple-200' : isDone ? 'border-emerald-200' : 'border-line'
+      isInProgress ? 'border-purple-200 dark:border-purple-900/40' : isDone ? 'border-emerald-200 dark:border-emerald-900/40' : 'border-line'
     }`}>
       {/* Barre de statut en haut */}
       {isInProgress && <div className="h-0.5 bg-gradient-to-r from-purple-400 to-gold-dark" />}
@@ -455,7 +455,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
               <div className="flex gap-2">
                 {v.listing.owner.phone && (
                   <a href={`tel:${v.listing.owner.phone}`}
-                    className="h-8 w-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 hover:bg-emerald-100 transition-colors"
+                    className="h-8 w-8 rounded-full bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors"
                     title={v.listing.owner.phone}
                   >
                     <i className="fa-solid fa-phone text-xs" />
@@ -463,7 +463,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                 )}
                 {v.listing.owner.email && (
                   <a href={`mailto:${v.listing.owner.email}`}
-                    className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition-colors"
+                    className="h-8 w-8 rounded-full bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors"
                     title={v.listing.owner.email}
                   >
                     <i className="fa-solid fa-envelope text-xs" />
@@ -487,8 +487,8 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
 
           {/* Notes / rapport si DONE */}
           {isDone && v.notes && (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3">
-              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-1">{t('yourObservations')}</p>
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 p-3">
+              <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide mb-1">{t('yourObservations')}</p>
               <p className="text-sm text-emerald-800">{v.notes}</p>
             </div>
           )}
@@ -508,19 +508,19 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
 
           {/* Motif rejet */}
           {isRejected && v.notes && (
-            <div className="rounded-xl bg-red-50 border border-red-100 p-3">
-              <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-1">{t('rejectReason')}</p>
-              <p className="text-sm text-red-700">{v.notes}</p>
+            <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 p-3">
+              <p className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wide mb-1">{t('rejectReason')}</p>
+              <p className="text-sm text-red-700 dark:text-red-400">{v.notes}</p>
             </div>
           )}
 
           {/* Actions */}
           {v.status === 'DECLINE_PENDING' && (
-            <div className="rounded-xl bg-orange-50 border border-orange-200 p-3 flex items-start gap-2">
+            <div className="rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/40 p-3 flex items-start gap-2">
               <i className="fa-solid fa-hourglass-half text-orange-500 mt-0.5 text-sm" />
               <div>
-                <p className="text-sm font-semibold text-orange-700">{t('declinePendingTitle')}</p>
-                <p className="text-xs text-orange-600 mt-0.5">{t('declinePendingDesc')}</p>
+                <p className="text-sm font-semibold text-orange-700 dark:text-orange-400">{t('declinePendingTitle')}</p>
+                <p className="text-xs text-orange-600 dark:text-orange-400 mt-0.5">{t('declinePendingDesc')}</p>
               </div>
             </div>
           )}
@@ -536,10 +536,10 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                     {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-play text-xs" /> {t('startVisit')}</>}
                   </button>
                 ) : (
-                  <div className="flex-1 flex items-center gap-2 rounded-xl bg-blue-50 border border-blue-200 px-4 py-2.5">
+                  <div className="flex-1 flex items-center gap-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 px-4 py-2.5">
                     <i className="fa-solid fa-clock text-blue-500 text-sm shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-blue-700">{t('visitScheduledAt', { time: fmtTime(v.scheduledAt) })}</p>
+                      <p className="text-xs font-semibold text-blue-700 dark:text-blue-400">{t('visitScheduledAt', { time: fmtTime(v.scheduledAt) })}</p>
                       <p className="text-[10px] text-blue-500">{t('availableIn', { mins: minsLeft })}</p>
                     </div>
                   </div>
@@ -559,7 +559,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                 <button
                   onClick={onDecline}
                   disabled={acting !== null}
-                  className="flex items-center gap-1.5 rounded-xl border border-amber-200 text-amber-600 hover:bg-amber-50 text-sm font-medium px-4 py-2.5 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-xl border border-amber-200 dark:border-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-sm font-medium px-4 py-2.5 transition-colors disabled:opacity-50"
                 >
                   <i className="fa-solid fa-ban text-xs" /> {t('decline')}
                 </button>

@@ -15,11 +15,11 @@ type RoleFilter = 'ALL' | 'LOCATAIRE' | 'BAILLEUR' | 'PRO_AGENCE' | 'AGENT_TERRA
 const LIMIT_OPTIONS = [10, 20, 50, 100];
 
 const ROLE_COLORS: Record<string, string> = {
-  LOCATAIRE: 'bg-blue-50 text-blue-700',
+  LOCATAIRE: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
   BAILLEUR: 'bg-gold-pale text-gold-dark',
-  PRO_AGENCE: 'bg-purple-50 text-purple-700',
-  AGENT_TERRAIN: 'bg-emerald-50 text-emerald-700',
-  ADMIN: 'bg-red-50 text-red-700',
+  PRO_AGENCE: 'bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400',
+  AGENT_TERRAIN: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400',
+  ADMIN: 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400',
 };
 
 interface AgentForm { firstName: string; lastName: string; email: string; phone: string }
@@ -238,11 +238,11 @@ export default function AdminUsersPage() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => { setAgentForm(AGENT_INIT); setFormError(null); setAgentModal(true); }}
-            className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors">
+            className="flex items-center gap-1.5 rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors">
             <i className="fa-solid fa-user-shield text-xs" />{t('createAgentBtn')}
           </button>
           <button onClick={() => { setAgenceForm(AGENCE_INIT); setFormError(null); setAgenceModal(true); }}
-            className="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-medium text-purple-700 hover:bg-purple-100 transition-colors">
+            className="flex items-center gap-1.5 rounded-xl border border-purple-200 dark:border-purple-900/40 bg-purple-50 dark:bg-purple-950/30 px-3 py-2 text-xs font-medium text-purple-700 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-950/40 transition-colors">
             <i className="fa-solid fa-building text-xs" />{t('createAgenceBtn')}
           </button>
         </div>
@@ -296,7 +296,7 @@ export default function AdminUsersPage() {
         <div className="flex flex-col gap-2">
           {users.map(user => (
             <div key={user.id}
-              className={`rounded-xl border bg-card p-4 ${user.isSuspended ? 'border-red-200 opacity-70' : 'border-line'}`}>
+              className={`rounded-xl border bg-card p-4 ${user.isSuspended ? 'border-red-200 dark:border-red-900/40 opacity-70' : 'border-line'}`}>
               {/* Ligne 1 : infos + boutons */}
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -306,7 +306,7 @@ export default function AdminUsersPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-text truncate">{user.firstName} {user.lastName}</p>
-                      {user.isSuspended && <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium shrink-0">{t('badgeSuspended')}</span>}
+                      {user.isSuspended && <span className="text-xs bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 px-2 py-0.5 rounded-full font-medium shrink-0">{t('badgeSuspended')}</span>}
                     </div>
                     <p className="text-sm text-sub truncate">{user.email}</p>
                     {user.agencyName && <p className="text-xs text-sub truncate"><i className="fa-solid fa-building text-xs mr-1" />{user.agencyName}</p>}
@@ -321,11 +321,11 @@ export default function AdminUsersPage() {
                   {!user.roles.includes('ADMIN') && (
                     <>
                       <button onClick={() => openEdit(user)} title={t('titleEdit')}
-                        className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors">
+                        className="rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 px-2.5 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors">
                         <i className="fa-solid fa-pen text-xs" />
                       </button>
                       <button onClick={() => void handleResetPassword(user.id)} disabled={actionId !== null} title={t('titleResetPassword')}
-                        className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100 disabled:opacity-50 transition-colors">
+                        className="rounded-lg border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-950/30 px-2.5 py-1.5 text-xs font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-950/40 disabled:opacity-50 transition-colors">
                         {actionId === user.id + 'reset' ? <i className="fa-solid fa-spinner fa-spin" /> : <i className="fa-solid fa-key text-xs" />}
                       </button>
                       {user.roles.includes('BAILLEUR') && (
@@ -336,11 +336,11 @@ export default function AdminUsersPage() {
                       )}
                       <button onClick={() => void handleSuspend(user)} disabled={actionId !== null}
                         title={user.isSuspended ? t('reactivate') : t('suspend')}
-                        className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${user.isSuspended ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>
+                        className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${user.isSuspended ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40' : 'border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40'}`}>
                         {actionId === user.id + 'suspend' ? <i className="fa-solid fa-spinner fa-spin" /> : <i className={`fa-solid ${user.isSuspended ? 'fa-circle-check' : 'fa-ban'} text-xs`} />}
                       </button>
                       <button onClick={() => setDeleteModal(user)} disabled={actionId !== null} title={t('titleDelete')}
-                        className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors">
+                        className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-2.5 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors">
                         <i className="fa-solid fa-trash text-xs" />
                       </button>
                     </>
@@ -423,20 +423,20 @@ export default function AdminUsersPage() {
             {!viewModal.roles.includes('ADMIN') && (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-line">
                 <button onClick={() => { setViewModal(null); openEdit(viewModal); }}
-                  className="flex-1 rounded-xl border border-blue-200 bg-blue-50 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors">
+                  className="flex-1 rounded-xl border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 py-2 text-sm font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors">
                   <i className="fa-solid fa-pen text-xs mr-1.5" />{t('edit')}
                 </button>
                 <button onClick={() => void handleResetPassword(viewModal.id)} disabled={actionId !== null}
-                  className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 hover:bg-violet-100 disabled:opacity-50 transition-colors"
+                  className="rounded-xl border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-950/30 px-4 py-2 text-sm font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-950/40 disabled:opacity-50 transition-colors"
                   title={t('titleResetPassword')}>
                   {actionId === viewModal.id + 'reset' ? <i className="fa-solid fa-spinner fa-spin" /> : <i className="fa-solid fa-key text-xs" />}
                 </button>
                 <button onClick={() => void handleSuspend(viewModal)} disabled={actionId !== null}
-                  className={`flex-1 rounded-xl border py-2 text-sm font-medium transition-colors disabled:opacity-50 ${viewModal.isSuspended ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>
+                  className={`flex-1 rounded-xl border py-2 text-sm font-medium transition-colors disabled:opacity-50 ${viewModal.isSuspended ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40' : 'border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40'}`}>
                   {viewModal.isSuspended ? t('reactivate') : t('suspend')}
                 </button>
                 <button onClick={() => { setViewModal(null); setDeleteModal(viewModal); }}
-                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors">
+                  className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors">
                   <i className="fa-solid fa-trash text-xs" />
                 </button>
               </div>
@@ -469,7 +469,7 @@ export default function AdminUsersPage() {
                 <input value={editForm.agencyName} onChange={e => setEditForm(f => ({ ...f, agencyName: e.target.value }))} className={inputCls} />
               </div>
             )}
-            {formError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{formError}</p>}
+            {formError && <p className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-400">{formError}</p>}
             <div className="flex gap-3 justify-end pt-1">
               <button type="button" onClick={() => setEditModal(null)} className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">{t('cancel')}</button>
               <button type="submit" disabled={formLoading}
@@ -484,8 +484,8 @@ export default function AdminUsersPage() {
       {/* MODAL — Supprimer */}
       {deleteModal && (
         <Modal onClose={() => setDeleteModal(null)} title={t('modalDeleteUser')}>
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-            <i className="fa-solid fa-triangle-exclamation text-red-600" />
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40">
+            <i className="fa-solid fa-triangle-exclamation text-red-600 dark:text-red-400" />
           </div>
           <p className="text-sm text-sub mb-1"><span className="font-medium text-text">{deleteModal.firstName} {deleteModal.lastName}</span></p>
           <p className="text-xs text-sub mb-6">{t('deleteUserWarning')}</p>
@@ -503,9 +503,9 @@ export default function AdminUsersPage() {
       {agentModal && (
         <Modal onClose={() => setAgentModal(false)} title={t('modalCreateAgent')}>
           <form onSubmit={e => void handleCreateAgent(e)} className="flex flex-col gap-3">
-            <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-              <i className="fa-solid fa-circle-info text-emerald-600 mt-0.5 shrink-0 text-sm" />
-              <p className="text-xs text-emerald-700">{t('randomPasswordNote')}</p>
+            <div className="flex items-start gap-2 rounded-lg border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2.5">
+              <i className="fa-solid fa-circle-info text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0 text-sm" />
+              <p className="text-xs text-emerald-700 dark:text-emerald-400">{t('randomPasswordNote')}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -525,7 +525,7 @@ export default function AdminUsersPage() {
               <label className="mb-1 block text-xs font-medium text-sub">{t('fieldPhone')}</label>
               <input value={agentForm.phone} onChange={e => setAgentForm(f => ({ ...f, phone: e.target.value }))} placeholder={t('fieldPhonePh')} className={inputCls} />
             </div>
-            {formError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{formError}</p>}
+            {formError && <p className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-400">{formError}</p>}
             <div className="flex gap-3 justify-end pt-1">
               <button type="button" onClick={() => setAgentModal(false)} className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">{t('cancel')}</button>
               <button type="submit" disabled={formLoading}
@@ -554,9 +554,9 @@ export default function AdminUsersPage() {
       {agenceModal && (
         <Modal onClose={() => setAgenceModal(false)} title={t('modalCreateAgence')}>
           <form onSubmit={e => void handleCreateAgence(e)} className="flex flex-col gap-3">
-            <div className="flex items-start gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2.5">
-              <i className="fa-solid fa-circle-info text-purple-600 mt-0.5 shrink-0 text-sm" />
-              <p className="text-xs text-purple-700">{t('randomPasswordNote')}</p>
+            <div className="flex items-start gap-2 rounded-lg border border-purple-200 dark:border-purple-900/40 bg-purple-50 dark:bg-purple-950/30 px-3 py-2.5">
+              <i className="fa-solid fa-circle-info text-purple-600 dark:text-purple-400 mt-0.5 shrink-0 text-sm" />
+              <p className="text-xs text-purple-700 dark:text-purple-400">{t('randomPasswordNote')}</p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-sub">{t('fieldAgencyNameReq')}</label>
@@ -580,7 +580,7 @@ export default function AdminUsersPage() {
               <label className="mb-1 block text-xs font-medium text-sub">{t('fieldPhone')}</label>
               <input value={agenceForm.phone} onChange={e => setAgenceForm(f => ({ ...f, phone: e.target.value }))} placeholder={t('fieldPhonePh')} className={inputCls} />
             </div>
-            {formError && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{formError}</p>}
+            {formError && <p className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-400">{formError}</p>}
             <div className="flex gap-3 justify-end pt-1">
               <button type="button" onClick={() => setAgenceModal(false)} className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">{t('cancel')}</button>
               <button type="submit" disabled={formLoading}

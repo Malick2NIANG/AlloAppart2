@@ -282,7 +282,7 @@ function BackBtn({ onClick, label }: { onClick: () => void; label: string }) {
 
 function ErrorBanner({ msg }: { msg: string }) {
   return (
-    <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+    <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-600 dark:text-red-400">
       <i className="fa-solid fa-circle-exclamation shrink-0" /> {msg}
     </div>
   );

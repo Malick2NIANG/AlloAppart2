@@ -46,9 +46,9 @@ function Stars({ value }: { value: number }) {
 }
 
 function experienceBadge(missions: number, t: ReturnType<typeof useTranslations>) {
-  if (missions >= 20) return { label: t('badgeExperienced'), color: 'bg-purple-100 text-purple-700' };
-  if (missions >= 5)  return { label: t('badgeActiveAgent'), color: 'bg-blue-100 text-blue-700'    };
-  return                     { label: t('badgeNewAgent'),    color: 'bg-amber-100 text-amber-700'  };
+  if (missions >= 20) return { label: t('badgeExperienced'), color: 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400' };
+  if (missions >= 5)  return { label: t('badgeActiveAgent'), color: 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400'    };
+  return                     { label: t('badgeNewAgent'),    color: 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'  };
 }
 
 function relativeTime(dateStr: string, t: ReturnType<typeof useTranslations>, numLocale: string) {
@@ -163,11 +163,11 @@ export default function AgentProfilePage() {
             {/* Contact */}
             {agent.phone && (
               <div className="flex items-center gap-3 mt-3">
-                <a href={`tel:${agent.phone}`} className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 transition-colors">
+                <a href={`tel:${agent.phone}`} className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors">
                   <i className="fa-solid fa-phone text-[10px]" />
                   {agent.phone}
                 </a>
-                <a href={`sms:${agent.phone}`} className="flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 transition-colors">
+                <a href={`sms:${agent.phone}`} className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
                   <i className="fa-solid fa-message text-[10px]" />
                   SMS
                 </a>

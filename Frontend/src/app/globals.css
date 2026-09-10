@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Tailwind v4 fait pointer `dark:` sur @media (prefers-color-scheme) par
+   défaut. Le thème de l'app se pilote via la classe .dark sur <html>
+   (cookie allo-theme, cf. ThemeToggle.tsx) — sans ce remap, tous les
+   utilitaires `dark:` du projet suivent l'OS et ignorent le bouton. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ── Keyframes ─────────────────────────────────────────────────────── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(20px); }

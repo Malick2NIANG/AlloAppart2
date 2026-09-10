@@ -17,15 +17,15 @@ const ALERT_CONFIG: Record<
   { bg: string; border: string; icon: string; iconColor: string; text: string; btnClass: string }
 > = {
   warning: {
-    bg:        'bg-amber-50',
-    border:    'border-amber-200',
+    bg:        'bg-amber-50 dark:bg-amber-950/30',
+    border:    'border-amber-200 dark:border-amber-900/40',
     icon:      'fa-solid fa-triangle-exclamation',
     iconColor: 'text-amber-500',
     text:      'text-amber-800',
     btnClass:  'bg-amber-600 hover:bg-amber-700 text-white',
   },
   critical: {
-    bg:        'bg-orange-50',
+    bg:        'bg-orange-50 dark:bg-orange-950/30',
     border:    'border-orange-300',
     icon:      'fa-solid fa-clock',
     iconColor: 'text-orange-500',
@@ -33,7 +33,7 @@ const ALERT_CONFIG: Record<
     btnClass:  'bg-orange-600 hover:bg-orange-700 text-white',
   },
   expired: {
-    bg:        'bg-red-50',
+    bg:        'bg-red-50 dark:bg-red-950/30',
     border:    'border-red-300',
     icon:      'fa-solid fa-circle-exclamation',
     iconColor: 'text-red-500',

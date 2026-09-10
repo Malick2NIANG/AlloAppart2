@@ -10,12 +10,12 @@ import type { Verification } from '@/types';
 type ViewMode = 'month' | 'week';
 
 const STATUS_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
-  REQUESTED:      { bg: 'bg-blue-50',    text: 'text-blue-600',   dot: 'bg-blue-500' },
+  REQUESTED:      { bg: 'bg-blue-50 dark:bg-blue-950/30',    text: 'text-blue-600 dark:text-blue-400',   dot: 'bg-blue-500' },
   SCHEDULED:      { bg: 'bg-gold-pale',  text: 'text-gold-dark',  dot: 'bg-gold' },
-  IN_PROGRESS:    { bg: 'bg-purple-50',  text: 'text-purple-600', dot: 'bg-purple-500' },
-  DONE:           { bg: 'bg-emerald-50', text: 'text-emerald-600',dot: 'bg-emerald-500' },
-  REJECTED:       { bg: 'bg-red-50',     text: 'text-red-600',    dot: 'bg-red-500' },
-  DECLINE_PENDING:{ bg: 'bg-amber-50',   text: 'text-amber-600',  dot: 'bg-amber-500' },
+  IN_PROGRESS:    { bg: 'bg-purple-50 dark:bg-purple-950/30',  text: 'text-purple-600 dark:text-purple-400', dot: 'bg-purple-500' },
+  DONE:           { bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-600 dark:text-emerald-400',dot: 'bg-emerald-500' },
+  REJECTED:       { bg: 'bg-red-50 dark:bg-red-950/30',     text: 'text-red-600 dark:text-red-400',    dot: 'bg-red-500' },
+  DECLINE_PENDING:{ bg: 'bg-amber-50 dark:bg-amber-950/30',   text: 'text-amber-600 dark:text-amber-400',  dot: 'bg-amber-500' },
 };
 
 function startOfWeek(d: Date) {

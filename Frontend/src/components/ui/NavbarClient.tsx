@@ -83,7 +83,7 @@ function ProfileDropdown({ userName, userEmail, isDemo, demoMode, profileLabel, 
         <p className="text-sm font-semibold text-text truncate">{userName}</p>
         <p className="text-xs text-sub truncate">{userEmail}</p>
         {isDemo && (
-          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950/40 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
             <i className="fa-solid fa-flask text-[9px]" /> {demoMode}
           </span>
         )}
@@ -106,7 +106,7 @@ function ProfileDropdown({ userName, userEmail, isDemo, demoMode, profileLabel, 
 
       {/* Sign out */}
       <button onClick={onSignOut}
-        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 transition">
+        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 dark:hover:bg-red-950/40 transition">
         <i className="fa-solid fa-right-from-bracket text-xs w-4 text-center" />
         {signOut}
       </button>
@@ -543,7 +543,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                 </div>
 
                 <button onClick={() => { setMobileOpen(false); handleSignOut(); }}
-                  className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition">
+                  className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 dark:hover:bg-red-950/40 transition">
                   <i className="fa-solid fa-right-from-bracket w-4 text-xs" /> {labels.signOut}
                 </button>
               </>

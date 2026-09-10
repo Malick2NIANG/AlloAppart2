@@ -83,11 +83,11 @@ function BookingResultContent() {
 
       {/* Icon */}
       <div className={`mb-6 flex h-20 w-20 items-center justify-center rounded-full ${
-        isSuccess ? 'bg-green-100' : isCancelled ? 'bg-red-100' : 'bg-gold-pale'
+        isSuccess ? 'bg-green-100 dark:bg-green-950/40' : isCancelled ? 'bg-red-100 dark:bg-red-950/40' : 'bg-gold-pale'
       }`}>
         <i className={`text-3xl ${
           isSuccess
-            ? 'fa-solid fa-circle-check text-green-600'
+            ? 'fa-solid fa-circle-check text-green-600 dark:text-green-400'
             : isCancelled
             ? 'fa-solid fa-circle-xmark text-red-500'
             : 'fa-solid fa-clock text-gold-dark'
@@ -167,10 +167,10 @@ export default function BookingResultPage() {
 function StatusBadge({ status }: { status: string }) {
   const t = useTranslations('bookingResult');
   const styles: Record<string, string> = {
-    CONFIRMED: 'bg-green-100 text-green-700',
+    CONFIRMED: 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
     PENDING:   'bg-gold-pale text-gold-dark',
-    CANCELLED: 'bg-red-100 text-red-700',
-    COMPLETED: 'bg-blue-100 text-blue-700',
+    CANCELLED: 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
+    COMPLETED: 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
   };
   const labels: Record<string, string> = {
     CONFIRMED: t('statusConfirmed'),
@@ -189,9 +189,9 @@ function EscrowBadge({ status }: { status: string }) {
   const t = useTranslations('bookingResult');
   const styles: Record<string, string> = {
     AWAITING_PAYMENT: 'bg-gold-pale text-gold-dark',
-    HELD:             'bg-blue-100 text-blue-700',
-    RELEASED:         'bg-green-100 text-green-700',
-    REFUNDED:         'bg-red-100 text-red-700',
+    HELD:             'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
+    RELEASED:         'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
+    REFUNDED:         'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
   };
   const labels: Record<string, string> = {
     AWAITING_PAYMENT: t('escrowAwaiting'),

@@ -105,7 +105,7 @@ export default function OnboardingPage() {
         </div>
 
         {error && (
-          <p className="mt-4 flex items-center justify-center gap-1.5 text-sm text-red-600">
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-sm text-red-600 dark:text-red-400">
             <i className="fa-solid fa-circle-exclamation text-xs" />
             {error}
           </p>

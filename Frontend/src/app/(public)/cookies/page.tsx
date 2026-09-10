@@ -3,10 +3,10 @@ import { getTranslations } from 'next-intl/server';
 
 /* Ordre d'affichage + style — le texte vit dans les fichiers de locale */
 const COOKIE_ORDER = [
-  { key: 'necessaires', icon: 'fa-solid fa-lock',              badgeColor: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  { key: 'performance', icon: 'fa-solid fa-chart-line',        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'           },
-  { key: 'preferences', icon: 'fa-solid fa-sliders',           badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'           },
-  { key: 'tiers',       icon: 'fa-solid fa-map-location-dot',  badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'        },
+  { key: 'necessaires', icon: 'fa-solid fa-lock',              badgeColor: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/40' },
+  { key: 'performance', icon: 'fa-solid fa-chart-line',        badgeColor: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/40'           },
+  { key: 'preferences', icon: 'fa-solid fa-sliders',           badgeColor: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/40'           },
+  { key: 'tiers',       icon: 'fa-solid fa-map-location-dot',  badgeColor: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/40'        },
 ] as const;
 
 interface CookieType { badge: string; title: string; body: string }

@@ -70,8 +70,8 @@ export default function ReportModal({ listingId, onClose }: Props) {
     return (
       <Backdrop onClose={onClose}>
         <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl space-y-4 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 border border-emerald-200 mx-auto">
-            <i className="fa-solid fa-check text-emerald-600 text-xl" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 mx-auto">
+            <i className="fa-solid fa-check text-emerald-600 dark:text-emerald-400 text-xl" />
           </div>
           <h2 className="text-base font-bold text-text">{t('doneThanks')}</h2>
           <p className="text-sm text-sub">{t('doneDesc')}</p>
@@ -90,13 +90,13 @@ export default function ReportModal({ listingId, onClose }: Props) {
             <i className="fa-regular fa-flag text-red-500" />
             {t('confirmTitle')}
           </h2>
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 space-y-1">
+          <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-800 space-y-1">
             <p className="font-semibold">{t('confirmMotive')} : {selectedReason?.label}</p>
-            {description && <p className="text-amber-700 text-xs">{description}</p>}
+            {description && <p className="text-amber-700 dark:text-amber-400 text-xs">{description}</p>}
           </div>
           <p className="text-xs text-sub">{t('confirmWarning')}</p>
           {error && (
-            <p className="text-xs text-red-600 flex items-center gap-1.5">
+            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
               <i className="fa-solid fa-circle-exclamation" />{error}
             </p>
           )}
@@ -162,7 +162,7 @@ export default function ReportModal({ listingId, onClose }: Props) {
               onClick={() => setReason(r.value)}
               className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-sm text-left transition ${
                 reason === r.value
-                  ? 'border-red-400 bg-red-50 text-red-700'
+                  ? 'border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400'
                   : 'border-line bg-card text-text hover:border-line/80 hover:bg-gold-pale/30'
               }`}
             >

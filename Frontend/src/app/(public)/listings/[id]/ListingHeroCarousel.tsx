@@ -137,8 +137,8 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
             {shareOpen && (
               <div className="absolute right-0 mt-2 w-52 bg-card border border-line rounded-xl shadow-lg p-2 z-20">
                 {[
-                  { icon: 'fa-brands fa-whatsapp', color: 'text-green-600', label: t('shareWhatsapp'), action: shareWhatsapp },
-                  { icon: 'fa-brands fa-facebook', color: 'text-blue-600',  label: t('shareFacebook'), action: shareFacebook },
+                  { icon: 'fa-brands fa-whatsapp', color: 'text-green-600 dark:text-green-400', label: t('shareWhatsapp'), action: shareWhatsapp },
+                  { icon: 'fa-brands fa-facebook', color: 'text-blue-600 dark:text-blue-400',  label: t('shareFacebook'), action: shareFacebook },
                   { icon: 'fa-regular fa-envelope', color: 'text-text',     label: t('shareEmail'),    action: shareEmail    },
                   { icon: 'fa-regular fa-copy',     color: 'text-text',     label: copied ? t('shareCopied') : t('shareCopy'), action: copyLink },
                 ].map((item) => (

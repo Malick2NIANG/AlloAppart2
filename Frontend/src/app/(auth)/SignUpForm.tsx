@@ -224,7 +224,7 @@ function Flash({ flash }: { flash: Flash | null }) {
         <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}
           className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm ${
-            flash.type === 'error' ? 'border border-red-200 bg-red-50 text-red-700' : 'border border-green-200 bg-green-50 text-green-700'
+            flash.type === 'error' ? 'border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400' : 'border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400'
           }`}>
           <i className={`shrink-0 text-sm ${flash.type === 'error' ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-check'}`} />
           {flash.message}

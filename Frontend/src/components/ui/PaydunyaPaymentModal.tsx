@@ -146,8 +146,8 @@ export default function PaydunyaPaymentModal({
   };
 
   const methods: { key: Method; label: string; logo?: string; icon?: string; color: string }[] = [
-    { key: 'orange-money', label: t('methodOrangeMoney'), logo: '/payment-logos/orange-money.svg', color: 'border-orange-300 bg-orange-50 text-orange-700' },
-    { key: 'wave',         label: t('methodWave'),         logo: '/payment-logos/wave.png',         color: 'border-blue-300 bg-blue-50 text-blue-700' },
+    { key: 'orange-money', label: t('methodOrangeMoney'), logo: '/payment-logos/orange-money.svg', color: 'border-orange-300 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400' },
+    { key: 'wave',         label: t('methodWave'),         logo: '/payment-logos/wave.png',         color: 'border-blue-300 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400' },
     { key: 'free-money',   label: t('methodFreeMoney'),    logo: '/payment-logos/mixx-by-yas.svg',  color: 'border-[#003881]/20 bg-[#003881]/5 text-[#003881]' },
     { key: 'card',         label: t('methodCard'),         icon: 'fa-credit-card',  color: 'border-line bg-bg text-text' },
   ];
@@ -165,8 +165,8 @@ export default function PaydunyaPaymentModal({
         <div className="p-6">
           {confirmed ? (
             <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 ring-4 ring-green-100">
-                <i className="fa-solid fa-circle-check text-3xl text-green-600" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 dark:bg-green-950/30 ring-4 ring-green-100">
+                <i className="fa-solid fa-circle-check text-3xl text-green-600 dark:text-green-400" />
               </div>
               <p className="font-semibold text-text">{t('successMessage')}</p>
             </div>
@@ -198,7 +198,7 @@ export default function PaydunyaPaymentModal({
               {method === 'orange-money' && softpayResult?.omUrl && (
                 <div className="mt-2 flex flex-col gap-2 w-full">
                   <a href={softpayResult.omUrl} target="_blank" rel="noopener noreferrer"
-                    className="rounded-xl border border-orange-300 bg-orange-50 text-orange-700 px-4 py-2 text-sm font-semibold text-center">
+                    className="rounded-xl border border-orange-300 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 px-4 py-2 text-sm font-semibold text-center">
                     {t('omOpenApp')}
                   </a>
                   {softpayResult.maxitUrl && (
@@ -236,7 +236,7 @@ export default function PaydunyaPaymentModal({
               </div>
 
               {error && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
+                <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-2.5 text-sm text-red-600 dark:text-red-400">
                   {error}
                 </div>
               )}

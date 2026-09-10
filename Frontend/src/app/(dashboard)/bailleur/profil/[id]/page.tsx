@@ -7,11 +7,11 @@ import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 
 const ROLE_COLORS: Record<string, string> = {
-  LOCATAIRE:     'bg-blue-50 text-blue-700',
+  LOCATAIRE:     'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
   BAILLEUR:      'bg-gold-pale text-gold-dark',
-  PRO_AGENCE:    'bg-purple-50 text-purple-700',
-  AGENT_TERRAIN: 'bg-emerald-50 text-emerald-700',
-  ADMIN:         'bg-red-50 text-red-700',
+  PRO_AGENCE:    'bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400',
+  AGENT_TERRAIN: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400',
+  ADMIN:         'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400',
 };
 
 interface UserProfile {
@@ -72,7 +72,7 @@ export default function ProfilPage() {
   if (error || !user) {
     return (
       <div className="max-w-lg mx-auto mt-16 text-center">
-        <div className="h-16 w-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+        <div className="h-16 w-16 rounded-2xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center mx-auto mb-4">
           <i className="fa-solid fa-user-slash text-2xl text-red-400" />
         </div>
         <p className="font-semibold text-text">{error ?? t('profilNotFound')}</p>
@@ -127,7 +127,7 @@ export default function ProfilPage() {
             )}
             <div className="flex flex-wrap gap-1.5 mt-2">
               {user.roles.map((role) => (
-                <span key={role} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[role] ?? 'bg-gray-100 text-gray-600'}`}>
+                <span key={role} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[role] ?? 'bg-gray-100 dark:bg-gray-950/40 text-gray-600 dark:text-gray-400'}`}>
                   {ROLE_LABELS[role] ?? role}
                 </span>
               ))}
@@ -150,7 +150,7 @@ export default function ProfilPage() {
             {user.phone && (
               <div className="flex items-center gap-3 text-sm text-sub">
                 <i className="fa-solid fa-phone w-4 text-center text-gold-dark/60" />
-                <a href={`tel:${user.phone}`} className="text-blue-600 hover:text-blue-700 transition-colors">
+                <a href={`tel:${user.phone}`} className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors">
                   {user.phone}
                 </a>
               </div>

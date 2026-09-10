@@ -31,10 +31,10 @@ export default function LocataireDashboardPage() {
   const [loading, setLoading]   = useState(true);
 
   const BOOKING_STATUS_LABEL = useMemo<Record<string, { label: string; color: string }>>(() => ({
-    PENDING:   { label: t('statusPending'),   color: 'text-amber-600 bg-amber-50 border-amber-200'       },
-    CONFIRMED: { label: t('statusConfirmed'), color: 'text-blue-600 bg-blue-50 border-blue-200'          },
-    COMPLETED: { label: t('statusCompleted'), color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-    CANCELLED: { label: t('statusCancelled'), color: 'text-red-600 bg-red-50 border-red-200'             },
+    PENDING:   { label: t('statusPending'),   color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40'       },
+    CONFIRMED: { label: t('statusConfirmed'), color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/40'          },
+    COMPLETED: { label: t('statusCompleted'), color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40' },
+    CANCELLED: { label: t('statusCancelled'), color: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/40'             },
   }), [t]);
 
   useEffect(() => {
@@ -182,17 +182,17 @@ function NavStatCard({ icon, label, sub, value, href }: {
   return (
     <Link
       href={href}
-      className="group relative flex flex-col justify-between rounded-2xl border border-blue-100 bg-blue-50 p-5 transition hover:border-blue-300 hover:shadow-sm"
+      className="group relative flex flex-col justify-between rounded-2xl border border-blue-100 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 p-5 transition hover:border-blue-300 hover:shadow-sm"
     >
       <div className="flex items-start justify-between">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 shadow-sm">
-          <i className={`fa-solid ${icon} text-sm text-blue-600`} />
+          <i className={`fa-solid ${icon} text-sm text-blue-600 dark:text-blue-400`} />
         </div>
         <i className="fa-solid fa-arrow-right text-[10px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
       </div>
       <div className="mt-3">
-        <p className="text-2xl font-bold text-blue-700">{value}</p>
-        <p className="mt-0.5 text-xs font-semibold text-blue-600">{label}</p>
+        <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{value}</p>
+        <p className="mt-0.5 text-xs font-semibold text-blue-600 dark:text-blue-400">{label}</p>
         <p className="text-[10px] text-blue-400 mt-0.5">{sub}</p>
       </div>
     </Link>

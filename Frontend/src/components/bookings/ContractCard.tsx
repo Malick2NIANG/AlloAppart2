@@ -18,8 +18,8 @@ interface Props {
 const STATUS_STYLES: Record<ContractStatus, string> = {
   DRAFT: 'bg-gold-pale text-gold-dark border-gold/30',
   AWAITING_FIRST_SIGNATURE: 'bg-gold-pale text-gold-dark border-gold/30',
-  AWAITING_SECOND_SIGNATURE: 'bg-blue-50 text-blue-700 border-blue-200',
-  FULLY_SIGNED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  AWAITING_SECOND_SIGNATURE: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/40',
+  FULLY_SIGNED: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/40',
 };
 
 export default function ContractCard({ bookingId, viewerRole }: Props) {
@@ -104,7 +104,7 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 flex items-center gap-2">
+      <div className="rounded-2xl border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/30 p-4 text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
         <i className="fa-solid fa-circle-exclamation text-xs" />
         {error}
       </div>
@@ -176,7 +176,7 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
             href={contract.finalPdfUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:border-emerald-300 rounded-lg py-1.5 px-3 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:border-emerald-300 dark:text-emerald-400 dark:bg-emerald-950/30 dark:border-emerald-900/40 dark:hover:border-emerald-800/60 rounded-lg py-1.5 px-3 transition-colors"
           >
             <i className="fa-solid fa-file-circle-check text-xs" />
             {t('downloadFinal')}
@@ -186,7 +186,7 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
 
       {/* Zone d'action selon le tour de signature */}
       {contract.status === 'FULLY_SIGNED' ? (
-        <p className="text-xs text-emerald-700 flex items-center gap-1.5">
+        <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
           <i className="fa-solid fa-circle-check text-xs" />
           {t('fullySignedNote')}
         </p>
@@ -220,7 +220,7 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
             )}
           </button>
           {uploadError && (
-            <p className="text-xs text-red-600 flex items-center gap-1.5">
+            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
               <i className="fa-solid fa-circle-exclamation text-xs" />
               {uploadError}
             </p>

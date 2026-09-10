@@ -124,7 +124,7 @@ export default function FavoritesPage() {
                 <button
                   onClick={() => remove(listing.id)}
                   disabled={removing === listing.id}
-                  className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow transition hover:bg-red-50 hover:text-red-500"
+                  className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow transition hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-500"
                 >
                   {removing === listing.id
                     ? <i className="fa-solid fa-spinner fa-spin text-xs text-sub" />

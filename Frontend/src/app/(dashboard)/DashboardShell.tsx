@@ -21,17 +21,17 @@ export interface NavItem {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  LOCATAIRE:     'bg-blue-50 text-blue-700',
+  LOCATAIRE:     'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400',
   BAILLEUR:      'bg-gold-pale text-gold-dark',
-  PRO_AGENCE:    'bg-purple-50 text-purple-700',
-  AGENT_TERRAIN: 'bg-emerald-50 text-emerald-700',
-  ADMIN:         'bg-red-50 text-red-700',
+  PRO_AGENCE:    'bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400',
+  AGENT_TERRAIN: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400',
+  ADMIN:         'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400',
 };
 
 const DOMINANT_BADGE_CLASS: Record<string, string> = {
-  ADMIN:         'bg-red-100 text-red-700',
-  PRO_AGENCE:    'bg-purple-100 text-purple-700',
-  AGENT_TERRAIN: 'bg-blue-100 text-blue-700',
+  ADMIN:         'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400',
+  PRO_AGENCE:    'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400',
+  AGENT_TERRAIN: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400',
 };
 
 type DominantRole = 'ADMIN' | 'PRO_AGENCE' | 'AGENT_TERRAIN';
@@ -385,7 +385,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
               setTooltip({ label: td('signOut'), top: rect.top + rect.height / 2 });
             }}
             onMouseLeave={() => setTooltip(null)}
-            className={`flex w-full items-center rounded-xl px-2.5 py-2 text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors
+            className={`flex w-full items-center rounded-xl px-2.5 py-2 text-sm font-medium text-red-500 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors
               ${collapsed ? 'justify-center gap-0' : 'gap-3'}
             `}
           >

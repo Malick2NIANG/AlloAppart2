@@ -113,7 +113,7 @@ export default function ListingContactCard({
             disabled={likeLoading}
             title={liked ? t('removeFavorite') : t('addFavorite')}
             className={`h-10 w-10 rounded-full border grid place-items-center transition ${
-              liked ? 'border-red-300 bg-red-50 text-red-400' : 'border-line hover:bg-gold-pale text-sub hover:text-gold-dark'
+              liked ? 'border-red-300 bg-red-50 dark:bg-red-950/30 text-red-400' : 'border-line hover:bg-gold-pale text-sub hover:text-gold-dark'
             }`}>
             {likeLoading
               ? <i className="fa-solid fa-spinner fa-spin text-sm" />
@@ -133,7 +133,7 @@ export default function ListingContactCard({
               <span className="font-medium">{t('yourListing')}</span>
             </div>
           ) : sent ? (
-            <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            <div className="flex items-center gap-2 rounded-xl border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/30 px-4 py-3 text-sm text-green-700 dark:text-green-400">
               <i className="fa-solid fa-circle-check" />
               {t('messageSent')}
             </div>
@@ -148,7 +148,7 @@ export default function ListingContactCard({
                 className="w-full border border-line rounded-xl px-3 py-2 text-sm text-text bg-bg placeholder:text-sub outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition resize-none"
               />
               {error && (
-                <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                <p className="mt-1 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
                   <i className="fa-solid fa-circle-exclamation text-[10px]" /> {error}
                 </p>
               )}
@@ -189,7 +189,7 @@ export default function ListingContactCard({
                 />
               ) : (
                 <div className={`h-10 w-10 rounded-full grid place-items-center text-sm font-bold ${
-                  isAgency ? 'bg-blue-50 text-blue-700' : 'bg-gold-pale text-gold-dark'
+                  isAgency ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400' : 'bg-gold-pale text-gold-dark'
                 }`}>
                   {isAgency
                     ? <i className="fa-solid fa-building text-xs" />

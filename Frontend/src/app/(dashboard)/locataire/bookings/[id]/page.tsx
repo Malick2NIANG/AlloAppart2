@@ -18,16 +18,16 @@ interface MyReview {
 
 const STATUS_CLS: Record<string, string> = {
   PENDING:   'bg-gold-pale text-gold-dark border-gold/30',
-  CONFIRMED: 'bg-blue-50 text-blue-700 border-blue-200',
-  CANCELLED: 'bg-red-50 text-red-600 border-red-200',
-  COMPLETED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  CONFIRMED: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900/40',
+  CANCELLED: 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40',
+  COMPLETED: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40',
 };
 
 const ESCROW_CLS: Record<string, string> = {
   AWAITING_PAYMENT: 'bg-gold-pale text-gold-dark border-gold/30',
-  HELD:             'bg-blue-50 text-blue-700 border-blue-200',
-  RELEASED:         'bg-emerald-50 text-emerald-700 border-emerald-200',
-  REFUNDED:         'bg-red-50 text-red-600 border-red-200',
+  HELD:             'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900/40',
+  RELEASED:         'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40',
+  REFUNDED:         'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40',
 };
 
 const ESCROW_ICON: Record<string, string> = {
@@ -269,7 +269,7 @@ export default function BookingDetailPage() {
 
       {/* Avis déjà posté */}
       {myReview && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+        <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 p-5">
           <h2 className="text-sm font-semibold text-emerald-800 flex items-center gap-2 mb-3">
             <i className="fa-solid fa-star text-xs" />
             {t('yourReviewSection')}
@@ -287,7 +287,7 @@ export default function BookingDetailPage() {
 
       {/* Flash review */}
       {reviewFlash && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-center gap-2">
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
           <i className="fa-solid fa-circle-check" />
           {reviewFlash}
         </div>
@@ -308,7 +308,7 @@ export default function BookingDetailPage() {
           <button
             onClick={() => void cancel()}
             disabled={canceling}
-            className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 transition disabled:opacity-50"
+            className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition disabled:opacity-50"
           >
             {canceling
               ? <><i className="fa-solid fa-spinner fa-spin mr-1.5" />{t('cancelingAction')}</>

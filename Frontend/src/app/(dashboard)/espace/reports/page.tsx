@@ -42,9 +42,9 @@ const REASON_ICONS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  ACTIVE:    'bg-green-100 text-green-700',
-  DRAFT:     'bg-amber-50 text-amber-700 border border-amber-200',
-  RENTED:    'bg-blue-50 text-blue-700',
+  ACTIVE:    'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
+  DRAFT:     'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40',
+  RENTED:    'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
   SUSPENDED: 'bg-card text-sub border border-line',
 };
 
@@ -131,7 +131,7 @@ export default function AdminReportsPage() {
           <h1 className="text-2xl font-bold text-text">{t('reportsTitle')}</h1>
           <p className="mt-1 text-sm text-sub">
             {t('reportsSubtitlePre')}{' '}
-            <span className="font-semibold text-red-600">{t('reportsThreshold', { count: HIGH_THRESHOLD })}</span>{' '}
+            <span className="font-semibold text-red-600 dark:text-red-400">{t('reportsThreshold', { count: HIGH_THRESHOLD })}</span>{' '}
             {t('reportsSubtitlePost')}
           </p>
         </div>
@@ -158,15 +158,15 @@ export default function AdminReportsPage() {
           icon="fa-flag"
           label={t('reportsStatReported')}
           value={items.length}
-          color="text-amber-600"
-          bg="bg-amber-50"
+          color="text-amber-600 dark:text-amber-400"
+          bg="bg-amber-50 dark:bg-amber-950/30"
         />
         <StatCard
           icon="fa-triangle-exclamation"
           label={t('reportsStatHigh', { count: HIGH_THRESHOLD })}
           value={items.filter((i) => i.reportCount >= HIGH_THRESHOLD).length}
-          color="text-red-600"
-          bg="bg-red-50"
+          color="text-red-600 dark:text-red-400"
+          bg="bg-red-50 dark:bg-red-950/30"
         />
         <StatCard
           icon="fa-pause-circle"
@@ -208,7 +208,7 @@ export default function AdminReportsPage() {
 
                 return (
                   <Fragment key={item.listingId}>
-                    <tr className={`hover:bg-gold-pale/20 transition ${isHigh ? 'bg-red-50/40' : ''}`}>
+                    <tr className={`hover:bg-gold-pale/20 transition ${isHigh ? 'bg-red-50 dark:bg-red-950/30/40' : ''}`}>
                       {/* Annonce */}
                       <td className="px-4 py-3">
                         <div className="font-medium text-text line-clamp-1">{item.title}</div>
@@ -235,7 +235,7 @@ export default function AdminReportsPage() {
                       {/* Count */}
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-flex items-center justify-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                          isHigh ? 'bg-red-100 text-red-700' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          isHigh ? 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400' : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40'
                         }`}>
                           {isHigh && <i className="fa-solid fa-triangle-exclamation text-[9px]" />}
                           {item.reportCount}

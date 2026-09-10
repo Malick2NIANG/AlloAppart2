@@ -173,7 +173,7 @@ export default function MaVitrinePage() {
           <button
             type="button"
             onClick={() => { void navigator.clipboard.writeText(`https://alloAppart.sn${vitrinUrl}`); toastRef.current.success(t('vitrineLinkCopied')); }}
-            className="h-8 w-8 rounded-lg bg-white/60 flex items-center justify-center text-sub hover:text-gold-dark hover:bg-white transition-colors shrink-0">
+            className="h-8 w-8 rounded-lg bg-white/60 dark:bg-white/10 flex items-center justify-center text-sub hover:text-gold-dark hover:bg-white dark:hover:bg-white/20 transition-colors shrink-0">
             <i className="fa-regular fa-copy text-sm" />
           </button>
         </div>
@@ -241,7 +241,7 @@ export default function MaVitrinePage() {
               </p>
             )}
             {agencySlug && slugAvail === true && (
-              <p className="text-[11px] text-emerald-600 mt-1">{t('vitrineSlugAvailable')}</p>
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1">{t('vitrineSlugAvailable')}</p>
             )}
             <p className="text-[11px] text-sub mt-1">{t('vitrineSlugNote')}</p>
           </div>

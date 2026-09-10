@@ -135,7 +135,7 @@ export default async function ListingsPage({
               <i className={`fa-heart text-xs ${isFavorisTab ? 'fa-solid' : 'fa-regular'}`} />
               Mes favoris
               {favoriteIds.length > 0 && (
-                <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">
+                <span className="rounded-full bg-red-100 dark:bg-red-950/40 px-1.5 py-0.5 text-[10px] font-semibold text-red-600 dark:text-red-400">
                   {favoriteIds.length}
                 </span>
               )}
@@ -220,7 +220,7 @@ export default async function ListingsPage({
                           <i className="fa-solid fa-location-dot text-gold-dark text-xs" />{listing.city}
                         </p>
                         {listing.tourUrl && (
-                          <span className="flex items-center gap-1 text-[10px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                          <span className="flex items-center gap-1 text-[10px] font-medium bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full">
                             <i className="fa-solid fa-cube text-[10px]" aria-hidden="true" /> Visite 3D
                           </span>
                         )}
