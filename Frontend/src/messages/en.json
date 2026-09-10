@@ -694,6 +694,7 @@
   "messages": {
     "title": "Messaging",
     "backToSpace": "← My space",
+    "backToList": "Back to conversations",
     "search": "Search…",
     "writeMessage": "Write a message…",
     "realtimeNote": "Real-time messaging (Soketi) coming soon.",

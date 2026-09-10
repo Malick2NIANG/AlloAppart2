@@ -53,7 +53,10 @@ export default function FavoriteButton({ listingId, initialFavorite = false, cla
     }
   };
 
-  const dim = size === 'md' ? 'h-10 w-10' : 'h-9 w-9';
+  // ≥40px sur les deux tailles : cible tactile minimale recommandée sur mobile
+  // (le cœur est le contrôle le plus fréquemment tapé de toute l'app, sur
+  // chaque carte d'annonce).
+  const dim = size === 'md' ? 'h-11 w-11' : 'h-10 w-10';
 
   return (
     <>

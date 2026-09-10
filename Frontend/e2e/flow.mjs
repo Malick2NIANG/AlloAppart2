@@ -448,6 +448,58 @@ async function signContract(page, { bookingId, label }) {
   return body;
 }
 
+/* ───────────────────── responsive smoke ────────────────────
+ * Pas de couverture mobile/tablette avant ce lot — toute la suite tournait
+ * au viewport desktop par défaut de Chromium. Ce stage ouvre les pages
+ * publiques les plus visitées à des largeurs mobile (375px) et tablette
+ * (768px), vérifie l'absence de débordement horizontal (cause n°1 de
+ * rupture visuelle sur petit écran) et que le menu hamburger s'ouvre. */
+
+const VIEWPORTS = {
+  mobile: { width: 375, height: 812 },
+  tablet: { width: 768, height: 1024 },
+};
+
+const RESPONSIVE_PAGES = ['/', '/listings', '/agences', '/cookies', '/cgu'];
+
+async function assertNoHorizontalOverflow(page, label) {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  if (overflow > 2) {
+    throw new Error(`Horizontal overflow detected on ${label}: scrollWidth exceeds viewport by ${overflow}px`);
+  }
+}
+
+async function stageResponsiveSmoke(browser) {
+  for (const [device, viewport] of Object.entries(VIEWPORTS)) {
+    const ctx = await browser.newContext({ viewport, hasTouch: device === 'mobile' });
+    const page = await ctx.newPage();
+    attachDiagnostics(page, `responsive-${device}`);
+    try {
+      for (const route of RESPONSIVE_PAGES) {
+        await page.goto(`${FRONTEND}${route}`, { waitUntil: 'domcontentloaded' });
+        await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+        await assertNoHorizontalOverflow(page, `${device}${route}`);
+        await shot(page, `responsive-${device}-${route === '/' ? 'home' : route.replace(/\//g, '_')}`);
+        log(`responsive:${device}${route}`, 'pass', { width: viewport.width });
+      }
+
+      // Le menu hamburger (lg:hidden) doit s'ouvrir en dessous de 1024px, à
+      // mobile comme à tablette — c'est le seul accès à la nav sur ces tailles.
+      await page.goto(FRONTEND, { waitUntil: 'domcontentloaded' });
+      const menuBtn = page.getByRole('button', { name: /Ouvrir le menu|Open menu/i });
+      await menuBtn.waitFor({ state: 'visible', timeout: 5000 });
+      await menuBtn.click();
+      await page.waitForTimeout(300); // transition CSS
+      const closeBtn = page.getByRole('button', { name: /Fermer le menu|Close menu/i });
+      await closeBtn.waitFor({ state: 'visible', timeout: 5000 });
+      await shot(page, `responsive-${device}-menu-open`);
+      log(`responsive:${device}-menu-toggle`, 'pass');
+    } finally {
+      await ctx.close();
+    }
+  }
+}
+
 /* ───────────────────────── stages ───────────────────────── */
 
 async function stageSignupBailleur(browser) {
@@ -821,6 +873,9 @@ const STAGE_MAP = {
   'monthly-pay': () => stageMonthlyPay,
   'contract-tenant-sign': () => stageContractTenantSign,
   'contract-landlord-sign': () => stageContractLandlordSign,
+  // Indépendant du reste — pas de compte requis, peut tourner seul :
+  // node e2e/flow.mjs responsive-smoke
+  'responsive-smoke': () => stageResponsiveSmoke,
 };
 
 async function main() {

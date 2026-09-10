@@ -235,8 +235,8 @@ export default function MessagesPage() {
 
         <div className="flex flex-1 overflow-hidden rounded-2xl border border-line bg-card min-h-0">
 
-          {/* Thread list */}
-          <div className="w-72 shrink-0 border-r border-line flex flex-col overflow-hidden">
+          {/* Thread list — plein écran sur mobile tant qu'aucune conversation n'est ouverte */}
+          <div className={`w-full md:w-72 shrink-0 border-r border-line flex-col overflow-hidden ${activeRoom ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-3 border-b border-line">
               <div className="flex items-center gap-2 rounded-xl bg-bg px-3 py-2 text-xs">
                 <i className="fa-solid fa-magnifying-glass text-[11px] text-sub" />
@@ -302,11 +302,19 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* Chat window */}
+          {/* Chat window — remplace la liste sur mobile une fois une conversation ouverte */}
           {activeRoom ? (
             <div className="flex flex-1 flex-col min-w-0">
               {/* Header */}
               <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
+                <button
+                  type="button"
+                  onClick={() => setActiveRoom(null)}
+                  aria-label={t('backToList')}
+                  className="md:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-bg active:bg-bg transition-colors -ml-1.5"
+                >
+                  <i className="fa-solid fa-arrow-left text-sub" />
+                </button>
                 {(() => {
                   const others = otherParticipants(activeRoom);
                   const name = others.length > 0 ? `${others[0].firstName} ${others[0].lastName}` : t('roomFallback');
@@ -388,7 +396,7 @@ export default function MessagesPage() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center text-center p-10">
+            <div className="hidden md:flex flex-1 flex-col items-center justify-center text-center p-10">
               <i className="fa-solid fa-comments text-5xl text-sub/20 mb-4" />
               <p className="text-sm text-sub">{t('selectRoom')}</p>
             </div>

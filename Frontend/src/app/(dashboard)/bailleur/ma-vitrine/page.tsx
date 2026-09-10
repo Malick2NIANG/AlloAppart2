@@ -222,14 +222,16 @@ export default function MaVitrinePage() {
             <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">
               {t('vitrineSlugLabel')} <span className="text-sub font-normal">{t('vitrineSlugDesc')}</span>
             </label>
+            {/* Sur mobile le préfixe passe au-dessus du champ — pas assez de place à côté */}
+            <p className="sm:hidden text-xs text-sub mb-1 select-none">alloAppart.sn/agences/</p>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sub text-sm select-none">alloAppart.sn/agences/</span>
+              <span className="hidden sm:block absolute left-4 top-1/2 -translate-y-1/2 text-sub text-sm select-none">alloAppart.sn/agences/</span>
               <input
                 value={agencySlug}
                 onChange={(e) => handleSlugChange(e.target.value)}
                 placeholder={t('vitrineSlugPh')}
                 maxLength={80}
-                className="w-full rounded-xl border border-line bg-bg pl-[200px] pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40"
+                className="w-full rounded-xl border border-line bg-bg pl-4 sm:pl-[200px] pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40"
               />
               {slugStatusIcon && (
                 <i className={`fa-solid ${slugStatusIcon} absolute right-3.5 top-1/2 -translate-y-1/2 text-sm`} />

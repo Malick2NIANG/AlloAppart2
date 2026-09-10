@@ -422,7 +422,7 @@ export default function NavbarClient({ locale, labels }: Props) {
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? labels.closeMenu : labels.openMenu}
               aria-expanded={mobileOpen}
-              className="lg:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-line hover:bg-card transition"
+              className="lg:hidden flex h-11 w-11 items-center justify-center rounded-xl border border-line hover:bg-card transition"
             >
               <i className={`fa-solid ${mobileOpen ? 'fa-xmark' : 'fa-bars'} text-sub`} />
             </button>

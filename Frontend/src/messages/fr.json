@@ -694,6 +694,7 @@
   "messages": {
     "title": "Messagerie",
     "backToSpace": "← Mon espace",
+    "backToList": "Retour aux conversations",
     "search": "Rechercher…",
     "writeMessage": "Écrivez un message…",
     "realtimeNote": "La messagerie temps réel (Soketi) sera disponible prochainement.",

@@ -199,7 +199,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
           {/* Bouton fermeture mobile */}
           <button
             onClick={() => setOpen(false)}
-            className="absolute right-3 lg:hidden flex h-8 w-8 items-center justify-center rounded-lg text-sub hover:bg-bg transition"
+            className="absolute right-3 lg:hidden flex h-11 w-11 items-center justify-center rounded-lg text-sub hover:bg-bg transition"
             aria-label={td('closeMenu')}
           >
             <i className="fa-solid fa-xmark" />
@@ -404,7 +404,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-line bg-card px-4 lg:hidden">
           <button
             onClick={() => setOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-line text-sub hover:bg-bg transition"
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-line text-sub hover:bg-bg transition"
             aria-label={td('openMenu')}
           >
             <i className="fa-solid fa-bars" />
