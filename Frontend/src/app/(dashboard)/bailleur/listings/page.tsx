@@ -15,8 +15,11 @@ import PaydunyaPaymentModal from '@/components/ui/PaydunyaPaymentModal';
 import { revalidateListingsCache } from './actions';
 
 const BOOST_PRICE_XOF = 5_000;
+// Doit rester synchronisé avec AUDIT_PRICE_XOF côté backend (verifications.service.ts)
+const AUDIT_PRICE_XOF: Record<'BASIC' | 'FULL', number> = { BASIC: 25_000, FULL: 60_000 };
 
 interface BoostPaymentModal { listingId: string; paymentToken: string; cardUrl: string; }
+interface VerifPaymentModal { listingId: string; title: string; paymentToken: string; cardUrl: string; amount: number; }
 
 interface VerifModal { listingId: string; title: string; }
 interface AgentOption { id: string; firstName: string; lastName: string; completedMissions: number; }
@@ -63,6 +66,11 @@ function BailleurListingsContent() {
   const [boostModal,   setBoostModal]   = useState<{ listingId: string; title: string } | null>(null);
   const [boosting,     setBoosting]     = useState<string | null>(null);
   const [boostPaymentModal, setBoostPaymentModal] = useState<BoostPaymentModal | null>(null);
+  const [verifPaymentModal, setVerifPaymentModal] = useState<VerifPaymentModal | null>(null);
+  // Abonnement PRO actif = boost illimité gratuit + AlloVérifié gratuit (cf. isProActive() backend).
+  // /subscriptions/me est réservé PRO_AGENCE/ADMIN : un simple BAILLEUR reçoit un 403, traité
+  // ici comme "pas PRO" (même schéma défensif que fetchSubscription() dans bailleur/abonnement).
+  const [isProActive, setIsProActive] = useState(false);
 
   const FILTER_LABELS = useMemo<Record<ListingStatus, string>>(() => ({
     ACTIVE:    t('filterActive'),
@@ -93,10 +101,21 @@ function BailleurListingsContent() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
+    getToken().then((token) => {
+      if (!token) return;
+      api.get<{ plan: string; status: string }>('/subscriptions/me', token)
+        .then((sub) => setIsProActive(sub?.plan === 'PRO' && sub?.status === 'ACTIVE'))
+        .catch(() => setIsProActive(false));
+    });
+  }, [getToken]);
+
+  useEffect(() => {
     const status = searchParams.get('status');
     if (status === 'boost_success') toastRef.current.success(t('boostSuccess'));
     if (status === 'boost_cancel')  toastRef.current.error(t('boostCancelPayment'));
-  }, [searchParams, t]);
+    if (status === 'verif_success') { toastRef.current.success(t('verifPaySuccess')); load(); }
+    if (status === 'verif_cancel')  toastRef.current.error(t('verifPayCancel'));
+  }, [searchParams, t, load]);
 
   useEffect(() => { setPage(1); }, [filter, search]);
 
@@ -127,12 +146,32 @@ function BailleurListingsContent() {
     if (!token) return;
     setVerifLoading(true);
     try {
-      await api.post('/verifications', {
+      const res = await api.post<{ payment_url?: string; paymentToken?: string }>('/verifications', {
         listingId: verifModal.listingId,
         auditType: verifForm.auditType,
         scheduledAt: new Date(verifForm.scheduledAt).toISOString(),
         ...(verifForm.preferredAgentId ? { preferredAgentId: verifForm.preferredAgentId } : {}),
       }, token);
+
+      if (res.payment_url && res.paymentToken) {
+        // Non-PRO : paiement AlloVérifié requis — ouvre le modal de paiement custom (SOFTPAY)
+        setVerifPaymentModal({
+          listingId: verifModal.listingId,
+          title: verifModal.title,
+          paymentToken: res.paymentToken,
+          cardUrl: res.payment_url,
+          amount: AUDIT_PRICE_XOF[verifForm.auditType as 'BASIC' | 'FULL'],
+        });
+        setVerifModal(null);
+        setVerifForm({ auditType: 'BASIC', scheduledAt: '', preferredAgentId: '' });
+        return;
+      }
+      if (res.payment_url) {
+        // Bypass dev — paiement déjà confirmé, redirection directe vers la page de succès
+        window.location.href = res.payment_url;
+        return;
+      }
+      // PRO actif ou admin — gratuit, Verification créée directement
       toast.success(t('verifSuccess', { title: verifModal.title }));
       setVerifModal(null);
       setVerifForm({ auditType: 'BASIC', scheduledAt: '', preferredAgentId: '' });
@@ -141,6 +180,13 @@ function BailleurListingsContent() {
     } finally {
       setVerifLoading(false);
     }
+  };
+
+  const verifyVerifPayment = async (listingId: string) => {
+    const token = await getToken();
+    if (!token) return false;
+    const res = await api.post<{ done: boolean }>(`/verifications/payment/${listingId}/verify`, {}, token);
+    return res.done;
   };
 
   const patchLocal = (listingId: string, patch: Partial<Listing>) =>
@@ -232,9 +278,15 @@ function BailleurListingsContent() {
     try {
       const token = await getToken();
       if (!token) return;
-      const res = await api.post<{ payment_url?: string; paymentToken?: string }>(
+      const res = await api.post<{ payment_url?: string; paymentToken?: string; free?: boolean; boosted?: boolean }>(
         `/listings/${listingId}/boost`, {}, token,
       );
+      if (res.free && res.boosted) {
+        // Abonnement PRO actif — boost appliqué directement, pas de paiement.
+        toast.success(t('boostSuccess'));
+        load();
+        return;
+      }
       if (!res.payment_url) {
         toast.error(t('boostServiceError'));
         return;
@@ -423,15 +475,22 @@ function BailleurListingsContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
             <h2 className="text-lg font-semibold text-text mb-1">{t('verifModalTitle')}</h2>
-            <p className="text-sm text-sub mb-5 truncate">{verifModal.title}</p>
+            <p className="text-sm text-sub mb-1 truncate">{verifModal.title}</p>
+            {isProActive ? (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-4 flex items-center gap-1.5">
+                <i className="fa-solid fa-circle-check" /> {t('verifFreePro')}
+              </p>
+            ) : (
+              <p className="text-xs text-sub mb-4">{t('verifPriceNote')}</p>
+            )}
             <div className="flex flex-col gap-4">
               <div>
                 <label className="block text-xs font-medium text-sub mb-1.5">{t('verifAuditType')}</label>
                 <div className="flex gap-3">
-                  {[
+                  {([
                     { value: 'BASIC', label: t('verifAuditBasic'), desc: t('verifAuditBasicDesc') },
                     { value: 'FULL',  label: t('verifAuditFull'),  desc: t('verifAuditFullDesc')  },
-                  ].map((opt) => (
+                  ] as const).map((opt) => (
                     <button key={opt.value} type="button"
                       onClick={() => setVerifForm((f) => ({ ...f, auditType: opt.value }))}
                       className={`flex-1 rounded-xl border p-3 text-left transition-colors ${
@@ -439,6 +498,9 @@ function BailleurListingsContent() {
                       }`}>
                       <p className={`text-sm font-medium ${verifForm.auditType === opt.value ? 'text-gold-dark' : 'text-text'}`}>{opt.label}</p>
                       <p className="text-xs text-sub mt-0.5">{opt.desc}</p>
+                      <p className={`text-xs font-semibold mt-1.5 ${verifForm.auditType === opt.value ? 'text-gold-dark' : 'text-sub'}`}>
+                        {isProActive ? t('verifFreeBadge') : `${AUDIT_PRICE_XOF[opt.value].toLocaleString('fr-FR')} FCFA`}
+                      </p>
                     </button>
                   ))}
                 </div>
@@ -475,7 +537,9 @@ function BailleurListingsContent() {
                 {t('cancel')}
               </button>
               <button onClick={requestVerif} disabled={!verifForm.scheduledAt || verifLoading} className="btn-gold text-sm disabled:opacity-50">
-                {verifLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('verifSubmit')}
+                {verifLoading
+                  ? <i className="fa-solid fa-spinner fa-spin" />
+                  : (isProActive ? t('verifSubmit') : t('verifSubmitPay', { amount: AUDIT_PRICE_XOF[verifForm.auditType as 'BASIC' | 'FULL'].toLocaleString('fr-FR') }))}
               </button>
             </div>
           </div>
@@ -498,13 +562,22 @@ function BailleurListingsContent() {
               <div className="flex items-center justify-between rounded-2xl border border-gold/30 bg-gold-pale/60 px-5 py-4 mb-5">
                 <div>
                   <p className="text-xs font-bold text-sub uppercase tracking-wider">{t('boostPriceLabel')}</p>
-                  <p className="text-3xl font-extrabold text-text mt-0.5">5 000 <span className="text-lg font-semibold">FCFA</span></p>
+                  {isProActive ? (
+                    <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{t('boostFreePro')}</p>
+                  ) : (
+                    <p className="text-3xl font-extrabold text-text mt-0.5">5 000 <span className="text-lg font-semibold">FCFA</span></p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-bold text-sub uppercase tracking-wider">{t('boostDurationLabel')}</p>
                   <p className="text-3xl font-extrabold text-gold-dark mt-0.5">7 <span className="text-lg font-semibold">{t('boostDurationDays')}</span></p>
                 </div>
               </div>
+              {isProActive && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 -mt-3 mb-5 flex items-center gap-1.5">
+                  <i className="fa-solid fa-circle-check" /> {t('boostFreeProNote')}
+                </p>
+              )}
 
               <div className="space-y-2.5 mb-6">
                 {[
@@ -533,11 +606,13 @@ function BailleurListingsContent() {
                   onClick={() => void confirmBoost()}
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 text-sm transition-colors"
                 >
-                  <i className="fa-solid fa-lock text-xs" />
-                  {t('boostListPay')}
+                  <i className={`fa-solid ${isProActive ? 'fa-rocket' : 'fa-lock'} text-xs`} />
+                  {isProActive ? t('boostListActivateFree') : t('boostListPay')}
                 </button>
               </div>
-              <p className="text-[10px] text-sub text-center mt-3">{t('boostListPayNote')}</p>
+              {!isProActive && (
+                <p className="text-[10px] text-sub text-center mt-3">{t('boostListPayNote')}</p>
+              )}
             </div>
           </div>
         </div>
@@ -552,6 +627,17 @@ function BailleurListingsContent() {
         cardUrl={boostPaymentModal?.cardUrl ?? null}
         onVerify={() => boostPaymentModal ? verifyBoostPayment(boostPaymentModal.listingId) : Promise.resolve(false)}
         onSuccess={() => { toast.success(t('boostSuccess')); load(); }}
+      />
+
+      {/* Modal paiement AlloVérifié (SOFTPAY custom) — non-PRO uniquement */}
+      <PaydunyaPaymentModal
+        open={verifPaymentModal !== null}
+        onClose={() => setVerifPaymentModal(null)}
+        amount={verifPaymentModal?.amount ?? 0}
+        paymentToken={verifPaymentModal?.paymentToken ?? null}
+        cardUrl={verifPaymentModal?.cardUrl ?? null}
+        onVerify={() => verifPaymentModal ? verifyVerifPayment(verifPaymentModal.listingId) : Promise.resolve(false)}
+        onSuccess={() => { toast.success(t('verifPaySuccess')); load(); }}
       />
 
       {/* Archive modal */}

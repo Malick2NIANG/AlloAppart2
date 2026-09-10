@@ -7,15 +7,33 @@
   NotFoundException,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 import { CreateVerificationDto } from './dto/create-verification.dto';
 import { CompleteVerificationDto } from './dto/complete-verification.dto';
 import { RateVerificationDto } from './dto/rate-verification.dto';
-import { type User, Role, VerifStatus } from '@prisma/client';
+import {
+  type User,
+  Role,
+  VerifStatus,
+  SubscriptionPlan,
+  SubscriptionStatus,
+} from '@prisma/client';
 
 // Durée de validité du badge AlloVérifié — Article 6 des CGU (6 mois)
 const BADGE_VALIDITY_MONTHS = 6;
+
+// Tarifs AlloVérifié pour les demandeurs non couverts par un abonnement PRO
+// actif (STARTER, bailleur individuel) — gratuit et illimité pour PRO actif
+// et pour les admins. Cf. confirmation utilisateur du 2026-09-10 : même
+// logique que le boost, "PRO gratuit, reste payant 25k/60k".
+export const AUDIT_PRICE_XOF: Record<'BASIC' | 'FULL', number> = {
+  BASIC: 25_000,
+  FULL: 60_000,
+};
 
 @Injectable()
 export class VerificationsService {
@@ -24,7 +42,21 @@ export class VerificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notif: NotificationsService,
+    private readonly config: ConfigService,
+    private readonly softpay: PaydunyaSoftpayService,
   ) {}
+
+  /** Abonnement PRO_AGENCE + plan PRO + statut ACTIVE — cf. isProActive() dans listings.service.ts. */
+  private isProActive(user: {
+    roles: Role[];
+    subscription: { plan: SubscriptionPlan; status: SubscriptionStatus } | null;
+  }): boolean {
+    return (
+      user.roles.includes(Role.PRO_AGENCE) &&
+      user.subscription?.plan === SubscriptionPlan.PRO &&
+      user.subscription?.status === SubscriptionStatus.ACTIVE
+    );
+  }
 
   async create(requesterId: string, dto: CreateVerificationDto) {
     const listing = await this.prisma.listing.findUnique({
@@ -36,6 +68,7 @@ export class VerificationsService {
     const isOwner = listing.ownerId === requesterId;
     const requester = await this.prisma.user.findUniqueOrThrow({
       where: { id: requesterId },
+      include: { subscription: true },
     });
     const isAdmin = requester.roles.includes(Role.ADMIN);
 
@@ -54,15 +87,250 @@ export class VerificationsService {
       );
     }
 
-    return this.prisma.verification.create({
+    // Gratuit et illimité : admin ou abonnement PRO actif (cf. AUDIT_PRICE_XOF ci-dessus).
+    if (isAdmin || this.isProActive(requester)) {
+      return this.prisma.verification.create({
+        data: {
+          listingId: dto.listingId,
+          auditType: dto.auditType,
+          scheduledAt: new Date(dto.scheduledAt),
+          status: VerifStatus.REQUESTED,
+          ...(dto.preferredAgentId ? { preferredAgentId: dto.preferredAgentId } : {}),
+        },
+      });
+    }
+
+    // Tout le reste (STARTER, bailleur individuel) : paiement PayDunya requis
+    // avant que la Verification ne soit réellement créée.
+    const existingPendingPayment = await this.prisma.verificationPayment.findFirst({
+      where: { listingId: dto.listingId, status: 'PENDING' },
+    });
+    if (existingPendingPayment) {
+      throw new ConflictException(
+        'Un paiement AlloVérifié est déjà en attente pour cette annonce.',
+      );
+    }
+
+    return this.initiatePaymentWithPayDunya(requesterId, dto);
+  }
+
+  private async initiatePaymentWithPayDunya(
+    requesterId: string,
+    dto: CreateVerificationDto,
+  ) {
+    const amount = AUDIT_PRICE_XOF[dto.auditType];
+    const isDev = this.config.get<string>('NODE_ENV') !== 'production';
+
+    // ── Mode bypass dev : simule le paiement sans appeler PayDunya ──────────
+    if (isDev && this.config.get<string>('PAYDUNYA_DEV_BYPASS') === 'true') {
+      this.logger.warn(
+        `[DEV BYPASS] Paiement AlloVérifié direct pour l'annonce ${dto.listingId} (${amount} FCFA — ${dto.auditType})`,
+      );
+      const paymentRef = `DEV-VERIF-${Date.now()}`;
+      const payment = await this.prisma.verificationPayment.create({
+        data: {
+          listingId: dto.listingId,
+          requesterId,
+          auditType: dto.auditType,
+          scheduledAt: new Date(dto.scheduledAt),
+          preferredAgentId: dto.preferredAgentId,
+          amount,
+          paymentRef,
+          status: 'CONFIRMED',
+        },
+      });
+      const verification = await this.createVerificationFromPayment(payment.id);
+      const frontendUrl =
+        this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+      return {
+        payment_url: `${frontendUrl}/bailleur/listings?status=verif_success`,
+        transId: paymentRef,
+        verification,
+      };
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
+    const masterKey = this.config.get<string>('PAYDUNYA_MASTER_KEY');
+    const privateKey = this.config.get<string>('PAYDUNYA_PRIVATE_KEY');
+    const token = this.config.get<string>('PAYDUNYA_TOKEN');
+    if (!masterKey || !privateKey || !token) {
+      throw new BadRequestException('Payment service unavailable');
+    }
+    const baseUrl = isDev
+      ? 'https://app.paydunya.com/sandbox-api/v1'
+      : 'https://app.paydunya.com/api/v1';
+    const response = await axios
+      .post<{ response_code: string; token: string; response_text: string }>(
+        baseUrl + '/checkout-invoice/create',
+        {
+          invoice: {
+            total_amount: amount,
+            description: `AlloVérifié ${dto.auditType} -- AlloAppart`,
+            return_url:
+              this.config.get<string>('FRONTEND_URL') +
+              '/bailleur/listings?status=verif_success',
+            cancel_url:
+              this.config.get<string>('FRONTEND_URL') +
+              '/bailleur/listings?status=verif_cancel',
+            callback_url:
+              this.config.get<string>('BACKEND_URL') +
+              '/api/v1/verifications/webhook/paydunya',
+          },
+          store: {
+            name: 'AlloAppart',
+            tagline: 'Location immobilière au Sénégal',
+            logo_url: `${this.config.get<string>('FRONTEND_URL')}/images/LOGO.png`,
+            website_url: this.config.get<string>('FRONTEND_URL'),
+          },
+          custom_data: { listing_id: dto.listingId },
+        },
+        {
+          headers: {
+            'PAYDUNYA-MASTER-KEY': masterKey,
+            'PAYDUNYA-PRIVATE-KEY': privateKey,
+            'PAYDUNYA-TOKEN': token,
+            'Content-Type': 'application/json',
+          },
+        },
+      )
+      .catch((err: unknown) => {
+        const axiosErr = err as {
+          response?: { status: number; data: unknown };
+          message?: string;
+        };
+        this.logger.error(
+          `PayDunya AlloVérifié ERREUR — status: ${axiosErr.response?.status ?? 'N/A'} — body: ${JSON.stringify(axiosErr.response?.data ?? axiosErr.message)}`,
+        );
+        throw new BadRequestException('Payment service unavailable');
+      });
+
+    if (response.data.response_code !== '00') {
+      this.logger.error(
+        `PayDunya AlloVérifié response_code inattendu : ${JSON.stringify(response.data)}`,
+      );
+      throw new BadRequestException('Payment service unavailable');
+    }
+    const invoiceUrl = response.data.response_text;
+    if (!invoiceUrl) {
+      this.logger.error(
+        `PayDunya AlloVérifié response_text absent — réponse : ${JSON.stringify(response.data)}`,
+      );
+      throw new BadRequestException('Payment service unavailable');
+    }
+    const paymentRef = 'PD-' + response.data.token;
+    await this.prisma.verificationPayment.create({
       data: {
         listingId: dto.listingId,
+        requesterId,
         auditType: dto.auditType,
         scheduledAt: new Date(dto.scheduledAt),
-        status: VerifStatus.REQUESTED,
-        ...(dto.preferredAgentId ? { preferredAgentId: dto.preferredAgentId } : {}),
+        preferredAgentId: dto.preferredAgentId,
+        amount,
+        paymentRef,
+        status: 'PENDING',
       },
     });
+    return {
+      payment_url: invoiceUrl,
+      transId: paymentRef,
+      paymentToken: response.data.token,
+    };
+  }
+
+  /** Crée la Verification réelle une fois le paiement confirmé, et trace le lien sur le paiement. */
+  private async createVerificationFromPayment(paymentId: string) {
+    const payment = await this.prisma.verificationPayment.findUniqueOrThrow({
+      where: { id: paymentId },
+    });
+    if (payment.verificationId) {
+      // Déjà traité (idempotence — double webhook/vérif active)
+      return this.prisma.verification.findUnique({
+        where: { id: payment.verificationId },
+      });
+    }
+    const verification = await this.prisma.verification.create({
+      data: {
+        listingId: payment.listingId,
+        auditType: payment.auditType,
+        scheduledAt: payment.scheduledAt,
+        status: VerifStatus.REQUESTED,
+        ...(payment.preferredAgentId ? { preferredAgentId: payment.preferredAgentId } : {}),
+      },
+    });
+    await this.prisma.verificationPayment.update({
+      where: { id: payment.id },
+      data: { verificationId: verification.id },
+    });
+    return verification;
+  }
+
+  /**
+   * Vérification active du paiement — appelée depuis l'UI de paiement custom
+   * (SOFTPAY) après paiement via Orange Money / Wave / Free Money, cf.
+   * verifyBoost() dans listings.service.ts (même raison : ces flux n'ont pas
+   * de "retour" navigateur déclenchant le webhook).
+   */
+  async verifyPayment(listingId: string, userId: string) {
+    const vp = await this.prisma.verificationPayment.findFirst({
+      where: { listingId, requesterId: userId, status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!vp) return { done: false };
+
+    const tokenPart = vp.paymentRef.replace('PD-', '');
+    const confirm = await this.softpay.confirmInvoiceStatus(tokenPart);
+    if (!confirm || confirm.status !== 'completed') {
+      return { done: false };
+    }
+
+    await this.prisma.verificationPayment.update({
+      where: { id: vp.id },
+      data: { status: 'CONFIRMED' },
+    });
+    const verification = await this.createVerificationFromPayment(vp.id);
+    return { done: true, verification };
+  }
+
+  /**
+   * Webhook IPN PayDunya pour AlloVérifié. Comme pour le boost : le payload
+   * entrant n'est jamais une source de vérité — `verifyAndParseCallback`
+   * vérifie le hash, puis on rappelle `confirmInvoiceStatus` nous-mêmes
+   * auprès de PayDunya pour connaître le statut réel.
+   */
+  async handleWebhookPayDunya(rawBody: Record<string, unknown>) {
+    const { token, customData } = this.softpay.verifyAndParseCallback(rawBody);
+
+    const listingId = customData['listing_id'];
+    if (typeof listingId !== 'string' || !listingId) return { ok: true };
+
+    const vp = await this.prisma.verificationPayment.findFirst({
+      where: { listingId, status: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!vp) return { ok: true }; // déjà traité (idempotence) ou inconnu
+
+    const confirm = await this.softpay.confirmInvoiceStatus(token);
+    if (!confirm) {
+      throw new BadRequestException(
+        'Impossible de confirmer le paiement PayDunya',
+      );
+    }
+
+    if (confirm.status === 'completed') {
+      await this.prisma.verificationPayment.update({
+        where: { id: vp.id },
+        data: { status: 'CONFIRMED', paymentRef: 'PD-' + token },
+      });
+      await this.createVerificationFromPayment(vp.id);
+    } else if (confirm.status === 'cancelled' || confirm.status === 'failed') {
+      await this.prisma.verificationPayment.update({
+        where: { id: vp.id },
+        data: { status: 'FAILED' },
+      });
+    }
+    // status === 'pending' — on attend le prochain callback ou la vérification active.
+
+    return { ok: true };
   }
 
   async findOne(id: string, agentId: string) {

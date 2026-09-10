@@ -1,4 +1,5 @@
 ﻿import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { VerificationsService } from './verifications.service';
 import { CreateVerificationDto } from './dto/create-verification.dto';
 import { CompleteVerificationDto } from './dto/complete-verification.dto';
@@ -7,6 +8,7 @@ import { RejectVerificationDto } from './dto/reject-verification.dto';
 import { DeclineVerificationDto } from './dto/decline-verification.dto';
 import { RateVerificationDto } from './dto/rate-verification.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { type User, Role, VerifStatus } from '@prisma/client';
 
@@ -18,6 +20,22 @@ export class VerificationsController {
   @Post()
   create(@CurrentUser() user: User, @Body() dto: CreateVerificationDto) {
     return this.verificationsService.create(user.id, dto);
+  }
+
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
+  @Post('payment/:listingId/verify')
+  verifyPayment(@Param('listingId') listingId: string, @CurrentUser() user: User) {
+    return this.verificationsService.verifyPayment(listingId, user.id);
+  }
+
+  // Body non typé par un DTO class-validator : voir la note équivalente dans
+  // PaymentsController.webhookPaydunya — même raison.
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @Public()
+  @Post('webhook/paydunya')
+  webhookPaydunya(@Body() body: Record<string, unknown>) {
+    return this.verificationsService.handleWebhookPayDunya(body);
   }
 
   @Roles(Role.BAILLEUR, Role.PRO_AGENCE, Role.ADMIN)

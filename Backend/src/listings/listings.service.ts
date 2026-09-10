@@ -574,6 +574,9 @@ export class ListingsService {
       // 7. BoostPayments
       await tx.boostPayment.deleteMany({ where: { listingId: id } });
 
+      // 7bis. VerificationPayments (AlloVérifié payant, non-PRO)
+      await tx.verificationPayment.deleteMany({ where: { listingId: id } });
+
       // 8. Listing (many-to-many favoritedBy auto-géré par Prisma)
       await tx.listing.delete({ where: { id } });
     });
@@ -586,7 +589,35 @@ export class ListingsService {
     const listing = await this.findOne(id);
     if (listing.ownerId !== user.id)
       throw new ForbiddenException('Not authorized');
+
+    // Un abonnement PRO actif inclut le boost en illimité — pas de passage
+    // par PayDunya, on applique l'effet directement. `@CurrentUser()` ne
+    // charge pas la relation `subscription` (cf. clerk-auth.guard.ts), d'où
+    // le re-fetch dédié, comme dans assertCanPublish()/analytics.service.ts.
+    if (await this.isProActive(user.id)) {
+      const updated = await this.applyBoost(id, listing.boostScore);
+      return {
+        free: true,
+        boosted: true,
+        boostUntil: updated.boostUntil,
+        boostScore: updated.boostScore,
+      };
+    }
+
     return this.initiateBoostWithPayDunya(id);
+  }
+
+  /** Abonnement PRO_AGENCE + plan PRO + statut ACTIVE — cf. assertCanPublish()/analytics.service.ts. */
+  private async isProActive(userId: string): Promise<boolean> {
+    const owner = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      include: { subscription: true },
+    });
+    return (
+      owner.roles.includes(Role.PRO_AGENCE) &&
+      owner.subscription?.plan === SubscriptionPlan.PRO &&
+      owner.subscription?.status === SubscriptionStatus.ACTIVE
+    );
   }
 
   private async initiateBoostWithPayDunya(listingId: string) {

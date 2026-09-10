@@ -88,6 +88,7 @@ model Listing {
   verifications Verification[]
   favoritedBy   User[]         @relation("UserFavorites")
   boostPayments BoostPayment[]
+  verificationPayments VerificationPayment[]
   reports       Report[]
 
   @@index([ownerId])
@@ -427,4 +428,30 @@ model BoostPayment {
 
   @@index([listingId])
   @@map("boost_payments")
+}
+
+/**
+ * Paiement AlloVérifié pour les demandeurs non couverts par un abonnement PRO
+ * actif (STARTER, bailleur individuel) — gratuit pour PRO actif/admin, cf.
+ * VerificationsService.isProActive(). Reprend le schéma de BoostPayment ;
+ * porte en plus les champs de la future Verification (auditType,
+ * scheduledAt, preferredAgentId) puisque celle-ci n'est créée qu'une fois le
+ * paiement confirmé — `verificationId` trace alors la Verification résultante.
+ */
+model VerificationPayment {
+  id               String    @id @default(uuid())
+  listingId        String
+  requesterId      String
+  auditType        AuditType
+  scheduledAt      DateTime
+  preferredAgentId String?
+  amount           Int
+  paymentRef       String    @unique
+  status           String    @default("PENDING")
+  verificationId   String?   @unique
+  createdAt        DateTime  @default(now())
+  listing          Listing   @relation(fields: [listingId], references: [id])
+
+  @@index([listingId])
+  @@map("verification_payments")
 }

@@ -26,7 +26,7 @@ describe('ListingsService', () => {
       findUniqueOrThrow: jest.Mock;
       groupBy: jest.Mock;
     };
-    boostPayment: { findFirst: jest.Mock; update: jest.Mock };
+    boostPayment: { findFirst: jest.Mock; update: jest.Mock; create: jest.Mock };
   };
   let searchMock: {
     indexListing: jest.Mock;
@@ -36,6 +36,7 @@ describe('ListingsService', () => {
     confirmInvoiceStatus: jest.Mock;
     verifyAndParseCallback: jest.Mock;
   };
+  let configMock: { get: jest.Mock };
 
   beforeEach(async () => {
     prismaMock = {
@@ -48,7 +49,7 @@ describe('ListingsService', () => {
         findUniqueOrThrow: jest.fn(),
         groupBy: jest.fn(),
       },
-      boostPayment: { findFirst: jest.fn(), update: jest.fn() },
+      boostPayment: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
     };
     searchMock = {
       indexListing: jest.fn().mockResolvedValue(undefined),
@@ -58,13 +59,14 @@ describe('ListingsService', () => {
       confirmInvoiceStatus: jest.fn(),
       verifyAndParseCallback: jest.fn(),
     };
+    configMock = { get: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ListingsService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: SearchService, useValue: searchMock },
-        { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: ConfigService, useValue: configMock },
         { provide: NotificationsService, useValue: {} },
         { provide: PaydunyaSoftpayService, useValue: softpayMock },
       ],
@@ -411,6 +413,83 @@ describe('ListingsService', () => {
         data: { status: 'FAILED' },
       });
       expect(prismaMock.listing.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // Confirmation utilisateur 2026-09-10 : un abonnement PRO actif inclut le
+  // boost en illimité, sans repasser par PayDunya à chaque fois.
+  describe('boost', () => {
+    const listing = { id: 'l1', ownerId: 'owner1', boostScore: 20 };
+
+    it("refuse si l'appelant n'est pas le propriétaire", async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValueOnce(listing as never);
+
+      await expect(
+        service.boost('l1', { id: 'other' } as User),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prismaMock.user.findUniqueOrThrow).not.toHaveBeenCalled();
+    });
+
+    it('applique le boost directement (gratuit) pour un abonnement PRO actif — pas de PayDunya', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValueOnce(listing as never);
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'owner1',
+        roles: [Role.PRO_AGENCE],
+        subscription: { plan: SubscriptionPlan.PRO, status: SubscriptionStatus.ACTIVE },
+      });
+      prismaMock.listing.update.mockResolvedValueOnce({
+        id: 'l1',
+        boostUntil: new Date(),
+        boostScore: 30,
+      });
+
+      const result = await service.boost('l1', { id: 'owner1' } as User);
+
+      expect(result).toMatchObject({ free: true, boosted: true });
+      expect(prismaMock.listing.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'l1' } }),
+      );
+    });
+
+    it('passe par PayDunya pour un plan STARTER (pas de gratuité)', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValueOnce(listing as never);
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'owner1',
+        roles: [Role.PRO_AGENCE],
+        subscription: { plan: SubscriptionPlan.STARTER, status: SubscriptionStatus.ACTIVE },
+      });
+      configMock.get.mockImplementation((key: string) => {
+        if (key === 'NODE_ENV') return 'test';
+        if (key === 'PAYDUNYA_DEV_BYPASS') return 'true';
+        return undefined;
+      });
+      prismaMock.boostPayment.create.mockResolvedValueOnce({ id: 'bp1' });
+
+      const result = await service.boost('l1', { id: 'owner1' } as User);
+
+      expect(result).not.toHaveProperty('free');
+      expect(result).toHaveProperty('payment_url');
+      expect(prismaMock.boostPayment.create).toHaveBeenCalled();
+    });
+
+    it('passe par PayDunya pour un bailleur individuel sans abonnement', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValueOnce(listing as never);
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'owner1',
+        roles: [Role.BAILLEUR],
+        subscription: null,
+      });
+      configMock.get.mockImplementation((key: string) => {
+        if (key === 'NODE_ENV') return 'test';
+        if (key === 'PAYDUNYA_DEV_BYPASS') return 'true';
+        return undefined;
+      });
+      prismaMock.boostPayment.create.mockResolvedValueOnce({ id: 'bp1' });
+
+      const result = await service.boost('l1', { id: 'owner1' } as User);
+
+      expect(result).not.toHaveProperty('free');
+      expect(result).toHaveProperty('payment_url');
     });
   });
 
