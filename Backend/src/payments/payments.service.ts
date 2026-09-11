@@ -109,6 +109,16 @@ export class PaymentsService {
       booking.status === reusableStatus &&
       booking.paymentRef?.startsWith('PD-')
     ) {
+      // Le paiement a pu être finalisé côté PayDunya sans que notre webhook
+      // IPN ne soit jamais arrivé (ex. environnement sandbox) — on revérifie
+      // activement avant de renvoyer vers l'ancien checkout : sinon PayDunya
+      // affiche "facture déjà réglée" alors que notre statut reste bloqué
+      // sur PENDING/APPROVED, et le locataire ne peut plus jamais payer.
+      const reverified = await this.verifyBooking(bookingId, tenantId);
+      if (reverified.status !== reusableStatus) {
+        throw new BadRequestException('ALREADY_PAID');
+      }
+
       const token = booking.paymentRef.replace('PD-', '');
       const isDev = this.config.get<string>('NODE_ENV') !== 'production';
       const baseUrl = isDev

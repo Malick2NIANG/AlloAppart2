@@ -48,7 +48,9 @@ export default function PaiementConfirmationPage() {
 
         const b: Booking = await res.json() as Booking;
         setBooking(b);
-        setStatus(b.status === 'CONFIRMED' ? 'confirmed' : 'pending');
+        // CONFIRMED (nuitée) ou ACTIVE (bail mensuel, cf. markBookingPaid
+        // côté backend) signalent tous les deux un paiement réussi.
+        setStatus(b.status === 'CONFIRMED' || b.status === 'ACTIVE' ? 'confirmed' : 'pending');
       } catch (e: unknown) {
         setErrorMsg(e instanceof Error ? e.message : t('verifyError'));
         setStatus('error');

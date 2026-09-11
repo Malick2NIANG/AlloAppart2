@@ -328,8 +328,15 @@ function LocataireBookingActions({
         token,
       );
       window.location.href = payment_url;
-    } catch {
-      setError(t('payError'));
+    } catch (err: unknown) {
+      // Le paiement a pu être finalisé côté PayDunya sans que notre webhook
+      // ne soit jamais arrivé (fréquent en sandbox) — le backend revérifie
+      // et débloque le statut au lieu de renvoyer vers un checkout mort.
+      if (err instanceof Error && err.message === 'ALREADY_PAID') {
+        onRefresh();
+      } else {
+        setError(t('payError'));
+      }
       setPayLoading(false);
     }
   };

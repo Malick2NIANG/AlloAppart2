@@ -8,11 +8,16 @@ import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { getAgencyColorOption } from '@/lib/agencyColors';
 import { getListingPriceAmounts } from '@/types';
+import type { User } from '@/types';
 import { useToast } from '@/components/ui/Toast';
 import type { Agency, AgencyListing } from './page';
 
 type RentalFilter = 'ALL' | 'NIGHTLY' | 'MONTHLY';
 const PAGE_SIZE_OPTIONS = [6, 9, 12, 24] as const;
+// Les 5 types du formulaire de publication (source de vérité, cf.
+// (public)/publier/page.tsx) — toujours proposés dans le filtre, même si
+// l'agence n'a pas encore d'annonce de ce type.
+const ALL_LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
 
 function fmtPrice(p: string | number) {
   return Number(p).toLocaleString('fr-FR');
@@ -68,10 +73,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
 
   const since = new Date(agency.createdAt).getFullYear();
 
-  const distinctTypes = useMemo(
-    () => Array.from(new Set(agency.listings.map((l) => l.type))),
-    [agency.listings],
-  );
+  const distinctTypes = ALL_LISTING_TYPES;
 
   const listings = useMemo(() => {
     const min = minPrice ? Number(minPrice) : null;
@@ -99,7 +101,15 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
       const token = await getToken();
       if (!token) return;
       const room = await api.post<{ id: string }>('/messages/rooms', { listingId: listing.id }, token);
-      router.push(`/messages?room=${room.id}`);
+      // Redirige vers la messagerie du bon espace (pas la page publique
+      // générique) — même logique de rôle que NavbarClient.tsx.
+      let base = '/locataire/messages';
+      try {
+        const me = await api.get<User>('/auth/me', token);
+        if (me.roles.includes('AGENT_TERRAIN')) base = '/agent/messages';
+        else if (me.roles.includes('BAILLEUR') || me.roles.includes('PRO_AGENCE')) base = '/bailleur/messages';
+      } catch {}
+      router.push(`${base}?room=${room.id}`);
     } catch (err: unknown) {
       const status = (err as { status?: number } | undefined)?.status;
       toast.error(status === 400 ? t('contactOwnListing') : t('contactError'));

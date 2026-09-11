@@ -7,6 +7,12 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 import { ContractsService } from '../contracts/contracts.service';
 import { BookingStatus, EscrowStatus } from '@prisma/client';
+import axios from 'axios';
+
+// Utilisé par PaymentsService.verifyBooking() (appel direct à l'API PayDunya,
+// distinct du PaydunyaSoftpayService injecté utilisé par le webhook).
+jest.mock('axios');
+const axiosGetMock = axios.get as jest.Mock;
 
 describe('PaymentsService', () => {
   let service: PaymentsService;
@@ -25,6 +31,7 @@ describe('PaymentsService', () => {
   };
   let notificationsMock: { notifyPaymentConfirmed: jest.Mock };
   let contractsMock: { generateForBooking: jest.Mock };
+  let configMock: { get: jest.Mock };
 
   beforeEach(async () => {
     prismaMock = {
@@ -48,12 +55,16 @@ describe('PaymentsService', () => {
     contractsMock = {
       generateForBooking: jest.fn().mockResolvedValue({ id: 'contract1' }),
     };
+    // Par défaut, aucune clé PayDunya configurée (comme la plupart des specs
+    // existantes) — chaque test qui en a besoin surcharge via mockImplementation.
+    configMock = { get: jest.fn().mockReturnValue(undefined) };
+    axiosGetMock.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentsService,
         { provide: PrismaService, useValue: prismaMock },
-        { provide: ConfigService, useValue: { get: () => undefined } },
+        { provide: ConfigService, useValue: configMock },
         { provide: NotificationsService, useValue: notificationsMock },
         { provide: PaydunyaSoftpayService, useValue: softpayMock },
         { provide: ContractsService, useValue: contractsMock },
@@ -334,6 +345,113 @@ describe('PaymentsService', () => {
       const result = await service.handlePaydunyaWebhook({});
 
       expect(result).toEqual({ ok: true });
+      expect(prismaMock.booking.update).not.toHaveBeenCalled();
+    });
+  });
+
+  // Régression : initiate() renvoyait aveuglément l'ancien lien PayDunya dès
+  // qu'un checkout existait déjà (paymentRef PD-...), sans jamais revérifier
+  // si la facture avait entre-temps été réglée côté PayDunya (le webhook IPN
+  // n'arrive pas toujours, notamment en sandbox). Résultat : le locataire
+  // payait, PayDunya affichait "facture déjà réglée" en cas de nouvel essai,
+  // mais notre statut restait bloqué sur PENDING/APPROVED pour toujours.
+  describe('initiate — réutilisation du checkout PayDunya', () => {
+    it('revérifie via PayDunya, débloque le booking en base et rejette avec ALREADY_PAID si la facture est déjà réglée', async () => {
+      configMock.get.mockImplementation((key: string) => ({
+        PAYDUNYA_MASTER_KEY: 'mk',
+        PAYDUNYA_PRIVATE_KEY: 'pk',
+        PAYDUNYA_TOKEN: 'tk',
+      })[key]);
+
+      // 1) initiate() charge le booking
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b10', tenantId: 't10', bookingType: 'MONTHLY',
+        status: BookingStatus.APPROVED, paymentRef: 'PD-tok10',
+        totalAmount: 240000, listing: {}, tenant: {},
+      });
+      // 2) verifyBooking() recharge le booking (include différent)
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b10', tenantId: 't10', bookingType: 'MONTHLY',
+        status: BookingStatus.APPROVED, paymentRef: 'PD-tok10',
+        totalAmount: 240000, listing: { owner: {} }, tenant: {},
+      });
+      axiosGetMock.mockResolvedValueOnce({
+        data: {
+          status: 'completed',
+          custom_data: { booking_id: 'b10' },
+          invoice: { total_amount: 240000 },
+        },
+      });
+      // 3) markBookingPaid() recharge le booking pour connaître bookingType
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b10', bookingType: 'MONTHLY',
+      });
+      prismaMock.booking.update.mockResolvedValueOnce({
+        id: 'b10', listingId: 'l10', tenantId: 't10',
+        tenant: { email: 't@x.com', firstName: 'T', lastName: 'T' },
+        listing: { owner: { email: 'o@x.com', firstName: 'O', lastName: 'O', id: 'o1' }, title: 'X', city: 'Dakar' },
+        totalAmount: 240000, platformFee: 0, landlordAmount: 240000,
+      });
+
+      await expect(service.initiate('b10', 't10')).rejects.toThrow('ALREADY_PAID');
+
+      // Le plus important : le statut a bien été débloqué en base, même si
+      // la requête HTTP courante se termine par une erreur (le front
+      // rafraîchit ensuite et voit le booking désormais payé).
+      expect(prismaMock.booking.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'b10' },
+          data: expect.objectContaining({ status: BookingStatus.ACTIVE }),
+        }),
+      );
+      expect(prismaMock.listing.update).toHaveBeenCalledWith({
+        where: { id: 'l10' },
+        data: { status: 'RENTED' },
+      });
+    });
+
+    it("réutilise l'URL existante si le paiement est encore 'pending' chez PayDunya", async () => {
+      configMock.get.mockImplementation((key: string) => ({
+        PAYDUNYA_MASTER_KEY: 'mk',
+        PAYDUNYA_PRIVATE_KEY: 'pk',
+        PAYDUNYA_TOKEN: 'tk',
+      })[key]);
+
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b11', tenantId: 't11', bookingType: 'NIGHTLY',
+        status: BookingStatus.PENDING, paymentRef: 'PD-tok11',
+        totalAmount: 90000, listing: {}, tenant: {},
+      });
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b11', tenantId: 't11', bookingType: 'NIGHTLY',
+        status: BookingStatus.PENDING, paymentRef: 'PD-tok11',
+        totalAmount: 90000, listing: { owner: {} }, tenant: {},
+      });
+      axiosGetMock.mockResolvedValueOnce({ data: { status: 'pending' } });
+
+      const result = await service.initiate('b11', 't11');
+
+      expect(result.paymentToken).toBe('tok11');
+      expect(prismaMock.booking.update).not.toHaveBeenCalled();
+    });
+
+    it("réutilise l'URL existante sans appeler PayDunya si aucune clé n'est configurée (comportement historique préservé)", async () => {
+      // configMock par défaut : get() renvoie undefined pour toute clé.
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b12', tenantId: 't12', bookingType: 'NIGHTLY',
+        status: BookingStatus.PENDING, paymentRef: 'PD-tok12',
+        totalAmount: 50000, listing: {}, tenant: {},
+      });
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b12', tenantId: 't12', bookingType: 'NIGHTLY',
+        status: BookingStatus.PENDING, paymentRef: 'PD-tok12',
+        totalAmount: 50000, listing: { owner: {} }, tenant: {},
+      });
+
+      const result = await service.initiate('b12', 't12');
+
+      expect(result.paymentToken).toBe('tok12');
+      expect(axiosGetMock).not.toHaveBeenCalled();
       expect(prismaMock.booking.update).not.toHaveBeenCalled();
     });
   });
