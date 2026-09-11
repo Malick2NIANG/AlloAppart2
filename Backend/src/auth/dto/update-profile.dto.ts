@@ -5,8 +5,8 @@ import {
   IsPhoneNumber,
   IsUrl,
   MaxLength,
-  Matches,
 } from 'class-validator';
+import { AGENCY_COLOR_KEYS } from '../agency-color-palette';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -54,18 +54,25 @@ export class UpdateProfileDto {
   @IsPhoneNumber()
   agencyPhone?: string;
 
+  /** Adresse affichée sur la vitrine — distincte de l'adresse des annonces. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  agencyAddress?: string;
+
+  /** Clé de palette prédéfinie (cf. agency-color-palette.ts) — pas de hex libre. */
+  @IsOptional()
+  @IsIn(AGENCY_COLOR_KEYS)
+  agencyColor?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(200)
   coverageZone?: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(80)
-  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-    message: 'Le slug ne peut contenir que des lettres minuscules, chiffres et tirets (ex: immobilier-dakar)',
-  })
-  agencySlug?: string;
+  // agencySlug n'est plus modifiable par l'agence — assigné automatiquement une
+  // seule fois (cf. AuthService.generateUniqueAgencySlug), "Ma vitrine" reste
+  // une page AlloAppart et non un nom de domaine à configurer soi-même.
 
   /** Langue de communication (emails, SMS, notifications). */
   @IsOptional()

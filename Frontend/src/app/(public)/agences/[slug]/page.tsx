@@ -17,6 +17,10 @@ export interface Agency {
   id: string; firstName: string; lastName: string;
   agencyName?: string | null; agencySlug?: string | null;
   avatar?: string | null; bio?: string | null; phone?: string | null;
+  /** Adresse affichée sur la vitrine — distincte de l'adresse des annonces. */
+  agencyAddress?: string | null;
+  /** Clé de palette prédéfinie (cf. lib/agencyColors.ts) — pas de hex libre. */
+  agencyColor?: string | null;
   createdAt: string;
   subscription?: { plan: string; status: string } | null;
   _count: { listings: number };

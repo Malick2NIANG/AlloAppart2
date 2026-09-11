@@ -20,7 +20,12 @@ model User {
   locale        String         @default("fr") @db.VarChar(5)
   roles         Role[]         @default([LOCATAIRE])
   agencyName               String?        // Renseigné uniquement pour PRO_AGENCE
-  agencySlug               String?        @unique @db.VarChar(80) // Slug URL unique ex: immobilier-dakar
+  // Slug URL de la vitrine (/agences/:slug) — assigné automatiquement une
+  // seule fois (création du compte PRO_AGENCE, ou premier remplissage
+  // d'agencyName si absent), jamais exposé/éditable côté agence : "Ma
+  // vitrine" reste une page AlloAppart, pas un nom de domaine à gérer. Cf.
+  // AuthService.generateUniqueAgencySlug().
+  agencySlug               String?        @unique @db.VarChar(80)
   // Champs publics de la vitrine agence (/agences/:slug) — volontairement
   // distincts de bio/avatar/phone (profil personnel, utilisés pour le contact
   // direct sur une annonce). Sans cette séparation, éditer son profil perso
@@ -29,6 +34,10 @@ model User {
   agencyBio                String?        @db.Text
   agencyAvatar             String?
   agencyPhone              String?
+  agencyAddress            String?        @db.VarChar(200) // Adresse affichée sur la vitrine (distincte de l'adresse des annonces)
+  // Clé de palette prédéfinie (cf. agency-color-palette.ts / lib/agencyColors.ts)
+  // — pas de hex libre, pour garantir un rendu toujours lisible sur la vitrine.
+  agencyColor              String?        @db.VarChar(20)
   profileViews             Int            @default(0) // Compteur de visites de la vitrine
   bailleurTermsAcceptedAt  DateTime?      // null = jamais accepté (engagements spécifiques bailleur)
   termsAcceptedAt          DateTime?      // null = jamais accepté (CGU générales — tous rôles)

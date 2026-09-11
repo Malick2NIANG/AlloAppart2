@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
+import { getAgencyColorOption } from '@/lib/agencyColors';
 import type { Agency, AgencyListing } from './page';
 
 function fmtPrice(p: string | number) {
@@ -26,6 +27,10 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
   const typeLabels = t.raw('typeLabels') as Record<string, string>;
   const name       = agency.agencyName ?? `${agency.firstName} ${agency.lastName}`;
   const premium    = isPremium(agency);
+  // Couleur d'accent choisie par l'agence (page "Ma vitrine") — n'affecte que
+  // le hero (identité de marque) ; la grille catalogue en dessous reste en
+  // gold standard AlloAppart, cf. décision produit du 2026-09-11.
+  const color      = getAgencyColorOption(agency.agencyColor);
 
   // Tracker la vue vitrine (fire-and-forget)
   useEffect(() => {
@@ -56,10 +61,10 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
 
       {/* ── Hero agence ── */}
       <div className={`relative overflow-hidden ${premium ? 'bg-gradient-to-br from-[#1a1200] to-[#2d1f00]' : 'bg-gradient-to-br from-gray-900 to-gray-800'}`}>
-        {/* Fond décoratif */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-gold rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-gold rounded-full blur-3xl" />
+        {/* Fond décoratif — teinté avec la couleur d'accent choisie par l'agence */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full blur-3xl" style={{ backgroundColor: color.hex }} />
+          <div className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full blur-3xl" style={{ backgroundColor: color.hex }} />
         </div>
 
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
@@ -70,9 +75,11 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
               {agency.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={agency.avatar} alt={name}
-                  className="h-24 w-24 rounded-2xl object-cover ring-4 ring-gold/30 shadow-xl" />
+                  className="h-24 w-24 rounded-2xl object-cover shadow-xl"
+                  style={{ boxShadow: `0 0 0 4px ${color.hex}4d` }} />
               ) : (
-                <div className="h-24 w-24 rounded-2xl bg-gold/20 ring-4 ring-gold/30 flex items-center justify-center text-3xl font-extrabold text-gold">
+                <div className="h-24 w-24 rounded-2xl flex items-center justify-center text-3xl font-extrabold"
+                  style={{ backgroundColor: `${color.hex}33`, boxShadow: `0 0 0 4px ${color.hex}4d`, color: color.hex }}>
                   {name[0]}
                 </div>
               )}
@@ -83,7 +90,8 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
               <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start mb-2">
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white">{name}</h1>
                 {premium && (
-                  <span className="flex items-center gap-1 bg-gold/20 border border-gold/40 text-gold text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                  <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full"
+                    style={{ backgroundColor: `${color.hex}33`, borderColor: `${color.hex}66`, borderWidth: 1, color: color.hex }}>
                     <i className="fa-solid fa-crown text-[9px]" /> {t('proBadge')}
                   </span>
                 )}
@@ -95,18 +103,24 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
 
               <div className="flex flex-wrap items-center gap-4 justify-center sm:justify-start text-sm text-gray-400">
                 <span className="flex items-center gap-1.5">
-                  <i className="fa-solid fa-building text-gold text-xs" />
+                  <i className="fa-solid fa-building text-xs" style={{ color: color.hex }} />
                   <span className="font-semibold text-white">{agency._count.listings}</span>{' '}
                   {t(agency._count.listings > 1 ? 'biens' : 'bien')}{' '}
                   {t(agency._count.listings > 1 ? 'disponibles' : 'disponible')}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <i className="fa-regular fa-calendar text-gold text-xs" />
+                  <i className="fa-regular fa-calendar text-xs" style={{ color: color.hex }} />
                   {t('memberSince')} {since}
                 </span>
+                {agency.agencyAddress && (
+                  <span className="flex items-center gap-1.5">
+                    <i className="fa-solid fa-location-dot text-xs" style={{ color: color.hex }} />
+                    {agency.agencyAddress}
+                  </span>
+                )}
                 {agency.phone && (
-                  <a href={`tel:${agency.phone}`} className="flex items-center gap-1.5 hover:text-gold transition-colors">
-                    <i className="fa-solid fa-phone text-gold text-xs" />
+                  <a href={`tel:${agency.phone}`} className="flex items-center gap-1.5 hover:text-white transition-colors">
+                    <i className="fa-solid fa-phone text-xs" style={{ color: color.hex }} />
                     {agency.phone}
                   </a>
                 )}

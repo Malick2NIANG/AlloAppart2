@@ -20,6 +20,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from '../mail/mail.service';
 import { Role } from '@prisma/client';
+import type { CreateProAgenceDto } from './dto/create-pro-agence.dto';
 
 const baseUser = {
   id: 'user1',
@@ -75,7 +76,11 @@ describe('AuthService', () => {
         },
         {
           provide: MailService,
-          useValue: { sendWelcome: jest.fn(), sendPasswordChanged: jest.fn() },
+          useValue: {
+            sendWelcome: jest.fn(),
+            sendPasswordChanged: jest.fn(),
+            sendCredentials: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -268,6 +273,134 @@ describe('AuthService', () => {
           'svix-signature': 'sig',
         }),
       ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  // --- Slug de vitrine auto-généré (jamais saisi/édité par l'agence) ---
+  // Régression produit : l'agence ne doit plus jamais voir/choisir de slug —
+  // "Ma vitrine" reste une page AlloAppart, pas un nom de domaine à gérer.
+  describe('updateMe — assignation automatique du slug agence', () => {
+    it("attribue un slug au premier renseignement d'agencyName (agence sans slug)", async () => {
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        ...baseUser,
+        agencyName: null,
+        agencySlug: null,
+      });
+      prismaMock.user.findUnique.mockResolvedValueOnce(null); // slug candidat libre
+      prismaMock.user.update.mockResolvedValueOnce({
+        ...baseUser,
+        agencyName: 'Guilla Immo',
+        agencySlug: 'guilla-immo',
+      });
+
+      const result = await service.updateMe('user1', {
+        agencyName: 'Guilla Immo',
+      });
+
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 'user1' },
+        data: { agencyName: 'Guilla Immo', agencySlug: 'guilla-immo' },
+      });
+      expect(result.agencySlug).toBe('guilla-immo');
+    });
+
+    it("ajoute un suffixe -2 si le slug de base est déjà pris par une autre agence", async () => {
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        ...baseUser,
+        agencyName: null,
+        agencySlug: null,
+      });
+      prismaMock.user.findUnique
+        .mockResolvedValueOnce({ id: 'autre-user' }) // "guilla-immo" déjà pris
+        .mockResolvedValueOnce(null); // "guilla-immo-2" libre
+      prismaMock.user.update.mockResolvedValueOnce({
+        ...baseUser,
+        agencyName: 'Guilla Immo',
+        agencySlug: 'guilla-immo-2',
+      });
+
+      const result = await service.updateMe('user1', {
+        agencyName: 'Guilla Immo',
+      });
+
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 'user1' },
+        data: { agencyName: 'Guilla Immo', agencySlug: 'guilla-immo-2' },
+      });
+      expect(result.agencySlug).toBe('guilla-immo-2');
+    });
+
+    it('ne régénère jamais le slug une fois déjà assigné (URL stable)', async () => {
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        ...baseUser,
+        agencyName: 'Guilla Immo',
+        agencySlug: 'guilla-immo',
+      });
+      prismaMock.user.update.mockResolvedValueOnce({
+        ...baseUser,
+        agencyName: 'Guilla Immo SARL',
+        agencySlug: 'guilla-immo',
+      });
+
+      await service.updateMe('user1', { agencyName: 'Guilla Immo SARL' });
+
+      expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 'user1' },
+        data: { agencyName: 'Guilla Immo SARL' },
+      });
+    });
+
+    it("ne touche pas au slug si agencyName n'est pas fourni dans le DTO", async () => {
+      prismaMock.user.update.mockResolvedValueOnce(baseUser);
+
+      await service.updateMe('user1', { bio: 'Nouvelle bio' });
+
+      expect(prismaMock.user.findUniqueOrThrow).not.toHaveBeenCalled();
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 'user1' },
+        data: { bio: 'Nouvelle bio' },
+      });
+    });
+  });
+
+  describe('createProAgence — slug assigné dès la création du compte', () => {
+    const adminUser = { ...baseUser, id: 'admin1', roles: [Role.ADMIN] };
+    const dto: CreateProAgenceDto = {
+      email: 'agence@example.com',
+      firstName: 'Fatou',
+      lastName: 'Ndiaye',
+      agencyName: "Immo Dakar Plus",
+    };
+
+    it('génère et persiste un agencySlug sans que le DTO ne le contienne', async () => {
+      const createUser = jest
+        .fn()
+        .mockResolvedValueOnce({ id: 'clerk_new_agency' });
+      // @ts-expect-error accès à la propriété privée clerkClient pour le mock de test
+      service.clerkClient = { users: { createUser } };
+
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce(adminUser);
+      prismaMock.user.findUnique
+        .mockResolvedValueOnce(null) // email pas déjà pris
+        .mockResolvedValueOnce(null); // slug candidat "immo-dakar-plus" libre
+      prismaMock.user.create.mockResolvedValueOnce({
+        ...baseUser,
+        agencyName: dto.agencyName,
+        agencySlug: 'immo-dakar-plus',
+        roles: [Role.PRO_AGENCE],
+      });
+
+      const result = await service.createProAgence('admin1', dto);
+
+      expect(prismaMock.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            agencySlug: 'immo-dakar-plus',
+          }),
+        }),
+      );
+      expect(result.agencySlug).toBe('immo-dakar-plus');
     });
   });
 });

@@ -1,8 +1,6 @@
-import { Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Controller, Get, Param, Post } from '@nestjs/common';
 import { AgencesService } from './agences.service';
 import { Public } from '../common/decorators/public.decorator';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import type { User } from '@prisma/client';
 
 @Controller('agences')
 export class AgencesController {
@@ -13,15 +11,6 @@ export class AgencesController {
   @Get()
   findAll() {
     return this.agencesService.findAll();
-  }
-
-  /** Vérifier la disponibilité d'un slug */
-  @Get('check-slug')
-  checkSlug(
-    @Query('slug') slug: string,
-    @CurrentUser() user: User,
-  ) {
-    return this.agencesService.checkSlug(slug, user?.id);
   }
 
   /** Profil public d'une agence par slug */

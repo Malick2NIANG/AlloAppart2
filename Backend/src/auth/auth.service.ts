@@ -117,21 +117,61 @@ export class AuthService {
     return user;
   }
 
-  async updateMe(userId: string, dto: UpdateProfileDto): Promise<User> {
-    // Vérifier unicité du slug si fourni
-    if (dto.agencySlug) {
+  /**
+   * Slug URL de la vitrine — dérivé du nom d'agence, jamais saisi par
+   * l'agence elle-même (cf. UpdateProfileDto). "Ma vitrine" doit rester une
+   * simple page AlloAppart plutôt qu'un nom de domaine à configurer.
+   */
+  private slugifyAgencyName(name: string): string {
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '') // diacritiques
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .slice(0, 70); // marge pour un éventuel suffixe numérique (colonne @db.VarChar(80))
+  }
+
+  /** Ajoute -2, -3, ... jusqu'à trouver un slug libre. `excludeUserId` permet à l'agence de garder le sien lors d'une régénération. */
+  private async generateUniqueAgencySlug(
+    agencyName: string,
+    excludeUserId?: string,
+  ): Promise<string> {
+    const base = this.slugifyAgencyName(agencyName) || 'agence';
+    let candidate = base;
+    let suffix = 2;
+    for (;;) {
       const existing = await this.prisma.user.findUnique({
-        where: { agencySlug: dto.agencySlug },
+        where: { agencySlug: candidate },
+        select: { id: true },
       });
-      if (existing && existing.id !== userId) {
-        throw new ConflictException(
-          'This slug is already used by another agency.',
+      if (!existing || existing.id === excludeUserId) return candidate;
+      candidate = `${base}-${suffix}`;
+      suffix += 1;
+    }
+  }
+
+  async updateMe(userId: string, dto: UpdateProfileDto): Promise<User> {
+    // Assignation automatique du slug au premier renseignement du nom
+    // d'agence — jamais réattribué ensuite (URL stable une fois partagée),
+    // et jamais exposé au formulaire (cf. UpdateProfileDto).
+    let agencySlug: string | undefined;
+    if (dto.agencyName) {
+      const current = await this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+      });
+      if (!current.agencySlug) {
+        agencySlug = await this.generateUniqueAgencySlug(
+          dto.agencyName,
+          userId,
         );
       }
     }
     return this.prisma.user.update({
       where: { id: userId },
-      data: dto,
+      data: { ...dto, ...(agencySlug ? { agencySlug } : {}) },
     });
   }
 
@@ -671,6 +711,10 @@ export class AuthService {
       `Création PRO_AGENCE → clerkId=${clerkId} email=${dto.email} agence=${dto.agencyName}`,
     );
 
+    // Sa page vitrine (/agences/:slug) existe dès la création du compte,
+    // sans que l'agence n'ait jamais à choisir/saisir un slug elle-même.
+    const agencySlug = await this.generateUniqueAgencySlug(dto.agencyName);
+
     const user = await this.prisma.user.create({
       data: {
         clerkId,
@@ -679,6 +723,7 @@ export class AuthService {
         lastName: dto.lastName,
         phone: dto.phone ?? null,
         agencyName: dto.agencyName,
+        agencySlug,
         roles: [Role.PRO_AGENCE],
         mustChangePassword: true,
       },

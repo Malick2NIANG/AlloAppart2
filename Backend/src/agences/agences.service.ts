@@ -18,6 +18,8 @@ const AGENCY_PUBLIC_SELECT = {
   agencyAvatar: true,
   agencyBio:   true,
   agencyPhone: true,
+  agencyAddress: true,
+  agencyColor: true,
   createdAt:   true,
   roles:       true,
   isSuspended: true,
@@ -129,15 +131,5 @@ export class AgencesService {
       where: { agencySlug: slug },
       data: { profileViews: { increment: 1 } },
     });
-  }
-
-  /** Vérifie la disponibilité d'un slug (route publique) */
-  async checkSlug(slug: string, excludeUserId?: string) {
-    const existing = await this.prisma.user.findUnique({
-      where: { agencySlug: slug },
-      select: { id: true },
-    });
-    const available = !existing || existing.id === excludeUserId;
-    return { slug, available };
   }
 }

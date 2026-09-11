@@ -40,6 +40,10 @@ export interface User {
   agencyBio?: string | null;
   agencyAvatar?: string | null;
   agencyPhone?: string | null;
+  /** Adresse affichée sur la vitrine — distincte de l'adresse des annonces. */
+  agencyAddress?: string | null;
+  /** Clé de palette prédéfinie (cf. lib/agencyColors.ts) — pas de hex libre. */
+  agencyColor?: string | null;
   coverageZone?: string | null;
   createdAt: string;
   updatedAt: string;
