@@ -28,12 +28,15 @@ interface Props { locale: Locale; labels: Labels; }
 type DropdownKey = 'listings' | 'regions' | 'profile';
 type DemoRole    = 'visitor' | 'locataire' | 'bailleur' | 'dual' | 'admin' | 'agent';
 
+// Ordre + icônes alignés sur le formulaire de publication (source de vérité,
+// cf. (public)/publier/page.tsx TYPE_ICONS) — ne pas diverger d'un fichier à
+// l'autre, cf. décision produit du 2026-09-11.
 const LISTING_TYPES = [
-  { key: 'APPARTEMENT', icon: 'fa-building'   },
-  { key: 'STUDIO',      icon: 'fa-bed'        },
-  { key: 'VILLA',       icon: 'fa-house-user' },
-  { key: 'BUREAU',      icon: 'fa-briefcase'  },
-  { key: 'CHAMBRE',     icon: 'fa-door-open'  },
+  { key: 'APPARTEMENT', icon: 'fa-building'      },
+  { key: 'VILLA',       icon: 'fa-house-chimney' },
+  { key: 'STUDIO',      icon: 'fa-door-open'     },
+  { key: 'CHAMBRE',     icon: 'fa-bed'           },
+  { key: 'BUREAU',      icon: 'fa-briefcase'     },
 ];
 
 interface ListingsDropdownProps {

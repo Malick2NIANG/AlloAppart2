@@ -4,13 +4,16 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 
+// Ordre + icônes alignés sur le formulaire de publication (source de vérité,
+// cf. (public)/publier/page.tsx TYPE_ICONS) — ne pas diverger d'un fichier à
+// l'autre, cf. décision produit du 2026-09-11.
 const TYPES = [
-  { key: '',            icon: 'fa-list',       tKey: 'filterAll'     },
-  { key: 'APPARTEMENT', icon: 'fa-building',   tKey: 'filterApts'    },
-  { key: 'STUDIO',      icon: 'fa-bed',        tKey: 'filterStudios' },
-  { key: 'VILLA',       icon: 'fa-house-user', tKey: 'filterVillas'  },
-  { key: 'BUREAU',      icon: 'fa-briefcase',  tKey: 'filterOffices' },
-  { key: 'CHAMBRE',     icon: 'fa-door-open',  tKey: 'filterRooms'   },
+  { key: '',            icon: 'fa-list',          tKey: 'filterAll'     },
+  { key: 'APPARTEMENT', icon: 'fa-building',      tKey: 'filterApts'    },
+  { key: 'VILLA',       icon: 'fa-house-chimney', tKey: 'filterVillas'  },
+  { key: 'STUDIO',      icon: 'fa-door-open',     tKey: 'filterStudios' },
+  { key: 'CHAMBRE',     icon: 'fa-bed',           tKey: 'filterRooms'   },
+  { key: 'BUREAU',      icon: 'fa-briefcase',     tKey: 'filterOffices' },
 ];
 
 const REGIONS = [
