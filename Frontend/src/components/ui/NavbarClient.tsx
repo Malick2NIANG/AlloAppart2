@@ -240,13 +240,16 @@ export default function NavbarClient({ locale, labels }: Props) {
   }, []);
 
   /* ── Sync search bar ─────────────────────────────────────── */
+  // La vitrine d'une agence (/agences/[slug]) réutilise aussi cette barre
+  // (localité + budget min/max) — cf. décision produit du 2026-09-11.
+  const onVitrine = /^\/agences\/[^/]+$/.test(pathname);
   useEffect(() => {
-    if (!pathname.startsWith('/listings')) return;
+    if (!pathname.startsWith('/listings') && !onVitrine) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchVal(searchParams.get('q') ?? '');
     setMinPrice(searchParams.get('minPrice') ?? '');
     setMaxPrice(searchParams.get('maxPrice') ?? '');
-  }, [searchParams, pathname]);
+  }, [searchParams, pathname, onVitrine]);
 
   /* ── Handlers ────────────────────────────────────────────── */
   const handleSearch = (e: React.FormEvent) => {
@@ -255,7 +258,9 @@ export default function NavbarClient({ locale, labels }: Props) {
     if (searchVal.trim()) params.set('q', searchVal.trim());
     if (minPrice)         params.set('minPrice', minPrice);
     if (maxPrice)         params.set('maxPrice', maxPrice);
-    router.push(`/listings?${params.toString()}`);
+    // Sur une vitrine d'agence, on filtre sur place au lieu de partir vers
+    // /listings — ailleurs, comportement inchangé.
+    router.push(onVitrine ? `${pathname}?${params.toString()}` : `/listings?${params.toString()}`);
   };
 
   const toggleDropdown = (key: DropdownKey) =>
