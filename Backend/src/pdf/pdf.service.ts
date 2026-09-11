@@ -168,7 +168,52 @@ export class PdfService {
    * Les parties le signent ensuite séquentiellement (locataire puis
    * bailleur) en le re-téléversant signé via leur espace AlloAppart.
    */
-  generateLeaseContract(data: LeaseContractData): Promise<Buffer> {
+  generateLeaseContract(rawData: LeaseContractData): Promise<Buffer> {
+    // ── Assainissement défensif des données ────────────────────────────────
+    // pdfkit peut boucler indéfiniment sur `addPage`/`continueOnNewPage`
+    // (RangeError: Maximum call stack size exceeded) face à un champ texte
+    // anormal (espaces multiples/caractères de contrôle dans une adresse
+    // saisie librement, par ex.) ou un nombre non fini (NaN/Infinity issu
+    // d'une conversion Decimal ratée). On normalise tout ici, une seule fois,
+    // avant toute mise en page — plutôt que de laisser pdfkit planter en
+    // silence sur une réservation précise sans jamais créer son contrat.
+    const cleanText = (s: string, maxLen = 300): string =>
+      s.replace(/\s+/g, ' ').trim().slice(0, maxLen) || '—';
+    const finite = (n: number, fallback = 0): number =>
+      Number.isFinite(n) ? n : fallback;
+    const validDate = (d: Date): Date =>
+      d instanceof Date && !Number.isNaN(d.getTime()) ? d : new Date();
+
+    const data: LeaseContractData = {
+      ...rawData,
+      landlord: {
+        firstName: cleanText(rawData.landlord.firstName, 80),
+        lastName: cleanText(rawData.landlord.lastName, 80),
+        email: cleanText(rawData.landlord.email, 120),
+        phone: rawData.landlord.phone ? cleanText(rawData.landlord.phone, 40) : null,
+      },
+      tenant: {
+        firstName: cleanText(rawData.tenant.firstName, 80),
+        lastName: cleanText(rawData.tenant.lastName, 80),
+        email: cleanText(rawData.tenant.email, 120),
+        phone: rawData.tenant.phone ? cleanText(rawData.tenant.phone, 40) : null,
+      },
+      listing: {
+        ...rawData.listing,
+        title: cleanText(rawData.listing.title, 150),
+        address: rawData.listing.address ? cleanText(rawData.listing.address, 200) : null,
+        city: cleanText(rawData.listing.city, 100),
+        region: cleanText(rawData.listing.region, 100),
+      },
+      monthlyRent: finite(rawData.monthlyRent),
+      depositAmount: finite(rawData.depositAmount),
+      totalDueAtSigning: finite(rawData.totalDueAtSigning),
+      platformFee: finite(rawData.platformFee),
+      depositMonths: Math.max(0, Math.round(finite(rawData.depositMonths, 0))),
+      minLeaseMonths: Math.max(1, Math.round(finite(rawData.minLeaseMonths, 1))),
+      moveInDate: validDate(rawData.moveInDate),
+    };
+
     return new Promise<Buffer>((resolve, reject) => {
       const chunks: Buffer[] = [];
       const doc = new PDFDocumentLib({ size: 'A4', margin: 50 });
@@ -185,6 +230,18 @@ export class PdfService {
 
       const drawFooter = () => {
         const bottom = doc.page.height - 40;
+        // Le pied de page est dessiné dans la marge basse (bottom + 6 dépasse
+        // page.height - margins.bottom, la zone imprimable définie par
+        // `margin: 50`). Sans neutraliser temporairement cette marge, pdfkit
+        // considère ce texte "hors zone" et redéclenche indéfiniment
+        // addPage → pageAdded → drawFooter → addPage, jusqu'à RangeError:
+        // Maximum call stack size exceeded. On neutralise la marge le temps
+        // du dessin, puis on restaure marge + curseur (x/y) pour ne pas
+        // perturber la suite de la mise en page sur la nouvelle page.
+        const originalMarginBottom = doc.page.margins.bottom;
+        const originalX = doc.x;
+        const originalY = doc.y;
+        doc.page.margins.bottom = 0;
         doc
           .moveTo(50, bottom)
           .lineTo(545, bottom)
@@ -201,6 +258,9 @@ export class PdfService {
             bottom + 6,
             { width: 495, align: 'center' },
           );
+        doc.page.margins.bottom = originalMarginBottom;
+        doc.x = originalX;
+        doc.y = originalY;
       };
       doc.on('pageAdded', drawFooter);
 
@@ -209,13 +269,17 @@ export class PdfService {
       const fullName = (p: { firstName: string; lastName: string }) =>
         `${p.firstName} ${p.lastName}`;
 
+      // width explicite partout (au lieu de laisser pdfkit le déduire de
+      // doc.x/marges courants) — évite toute dérive de largeur de ligne après
+      // les appels positionnés en absolu de l'en-tête, cause plausible du
+      // bug de boucle infinie addPage/continueOnNewPage.
       const sectionTitle = (title: string) => {
         doc
           .moveDown(1)
           .fontSize(11)
           .font('Helvetica-Bold')
           .fillColor(INK)
-          .text(title)
+          .text(title, { width: 495 })
           .moveDown(0.4);
       };
 
@@ -224,7 +288,7 @@ export class PdfService {
           .fontSize(9.5)
           .font('Helvetica')
           .fillColor(SLATE)
-          .text(text, { align: 'justify', lineGap: 2 })
+          .text(text, { width: 495, align: 'justify', lineGap: 2 })
           .moveDown(0.5);
       };
 
@@ -241,12 +305,12 @@ export class PdfService {
           .fontSize(9.5)
           .font('Helvetica-Bold')
           .fillColor(INK)
-          .text(label)
+          .text(label, { width: 495 })
           .font('Helvetica')
           .fillColor(SLATE)
-          .text(fullName(p))
-          .text(p.email)
-          .text(p.phone ?? 'Telephone communique via la messagerie AlloAppart')
+          .text(fullName(p), { width: 495 })
+          .text(p.email, { width: 495 })
+          .text(p.phone ?? 'Telephone communique via la messagerie AlloAppart', { width: 495 })
           .moveDown(0.6);
       };
 
