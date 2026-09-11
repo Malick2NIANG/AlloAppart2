@@ -12,7 +12,7 @@ import ListingReviewForm from './ListingReviewForm';
 import ReportButton from './ReportButton';
 import MapView from '@/components/map/MapView';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
-import { type Listing, priceToNumber, ownerFullName } from '@/types/listing';
+import { type Listing, priceToNumber, ownerFullName, getListingPriceAmounts } from '@/types/listing';
 
 const AMENITY_ICONS: Record<string, string> = {
   wifi: 'fa-wifi', clim: 'fa-snowflake', tv: 'fa-tv',
@@ -89,7 +89,11 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     }
   } catch { /* non connecté ou erreur → isOwner reste false */ }
 
-  const price = `${priceToNumber(listing.price).toLocaleString(numLocale)} FCFA/${t('perMonth')}`;
+  // Tarif(s) affiché(s) selon le mode de location — nuitée si NIGHTLY, mensuel
+  // si MONTHLY, les deux si MIXED (cf. getListingPriceAmounts, types/index.ts).
+  const price = getListingPriceAmounts(listing)
+    .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`)
+    .join(' · ');
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const isNew = (now - new Date(listing.createdAt).getTime()) < 10 * 24 * 60 * 60 * 1000;
@@ -324,7 +328,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                       <p className="font-medium text-text truncate text-sm">{s.title}</p>
                       <p className="text-xs text-sub">{s.city}</p>
                       <p className="text-gold-dark font-semibold mt-1 text-sm">
-                        {priceToNumber(s.price).toLocaleString(numLocale)} FCFA/{t('perMonth')}
+                        {getListingPriceAmounts(s)
+                          .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`)
+                          .join(' · ')}
                       </p>
                     </div>
                   </Link>
@@ -341,15 +347,13 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             {/* Price + contact + landlord */}
             <ListingContactCard
               listingId={listing.id}
-              price={price}
               landlordName={ownerFullName(listing.owner)}
               landlordAvatar={listing.owner?.avatar ?? null}
               landlordPhone={listing.owner?.phone ?? null}
               isAgency={listing.owner?.roles?.includes('PRO_AGENCE') ?? false}
               agencyName={listing.owner?.agencyName ?? null}
               agencySlug={listing.owner?.agencySlug ?? null}
-              perMonth={t('perMonth')}
-              priceRaw={priceToNumber(listing.price)}
+              priceEntries={getListingPriceAmounts(listing)}
               numLocale={numLocale}
               isOwner={isOwner}
             />

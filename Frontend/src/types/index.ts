@@ -96,6 +96,36 @@ export function priceToNumber(price: string | number): number {
   return typeof price === 'string' ? parseFloat(price) : price;
 }
 
+export type ListingPriceUnit = 'night' | 'month';
+
+export interface ListingPriceAmount {
+  amount: number;
+  unit: ListingPriceUnit;
+}
+
+/**
+ * Tarif(s) à afficher pour une annonce selon son mode de location — ne
+ * jamais afficher `price` (loyer mensuel) tel quel pour une annonce NIGHTLY :
+ * ce champ peut être un équivalent mensuel dérivé (pricePerNight × 30) plutôt
+ * que le tarif réellement choisi par le bailleur (cf. resolveMonthlyPrice
+ * côté backend, listings.service.ts). Retourne 1 entrée (NIGHTLY/MONTHLY) ou
+ * 2 entrées, mensuel puis nuit (MIXED).
+ */
+export function getListingPriceAmounts(
+  listing: Pick<Listing, 'rentalMode' | 'price' | 'pricePerNight'>,
+): ListingPriceAmount[] {
+  const monthly = priceToNumber(listing.price);
+  const nightly = listing.pricePerNight != null ? priceToNumber(listing.pricePerNight) : null;
+
+  if (listing.rentalMode === 'NIGHTLY') {
+    return nightly != null ? [{ amount: nightly, unit: 'night' }] : [{ amount: monthly, unit: 'month' }];
+  }
+  if (listing.rentalMode === 'MIXED' && nightly != null) {
+    return [{ amount: monthly, unit: 'month' }, { amount: nightly, unit: 'night' }];
+  }
+  return [{ amount: monthly, unit: 'month' }];
+}
+
 export function ownerFullName(owner?: Pick<User, 'firstName' | 'lastName'> | null): string {
   if (!owner) return '';
   return `${owner.firstName} ${owner.lastName}`.trim();

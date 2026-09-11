@@ -8,6 +8,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1
 
 export interface AgencyListing {
   id: string; title: string; price: string | number; type: string;
+  /** Mode de location : nuitée / mensuel / mixte — détermine le tarif à afficher. */
+  rentalMode: 'NIGHTLY' | 'MONTHLY' | 'MIXED';
+  pricePerNight?: string | number | null;
   city: string; region: string; address?: string; images: string[];
   rooms?: number; surface?: number; beds?: number; baths?: number;
   boostUntil?: string | null; boostScore: number; isVerified: boolean; createdAt: string;

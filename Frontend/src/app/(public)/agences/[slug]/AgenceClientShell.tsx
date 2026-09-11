@@ -7,6 +7,8 @@ import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { getAgencyColorOption } from '@/lib/agencyColors';
+import { getListingPriceAmounts } from '@/types';
+import { useToast } from '@/components/ui/Toast';
 import type { Agency, AgencyListing } from './page';
 
 function fmtPrice(p: string | number) {
@@ -21,6 +23,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
   const t                              = useTranslations('agences');
   const router                         = useRouter();
   const { isSignedIn, getToken }       = useAuth();
+  const { toast }                       = useToast();
   const [contacting, setContacting]    = useState<string | null>(null);
   const [search,     setSearch]        = useState('');
 
@@ -52,8 +55,10 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
       if (!token) return;
       const room = await api.post<{ id: string }>('/messages/rooms', { listingId: listing.id }, token);
       router.push(`/messages?room=${room.id}`);
-    } catch { /* ignore */ }
-    finally { setContacting(null); }
+    } catch (err: unknown) {
+      const status = (err as { status?: number } | undefined)?.status;
+      toast.error(status === 400 ? t('contactOwnListing') : t('contactError'));
+    } finally { setContacting(null); }
   };
 
   return (
@@ -136,7 +141,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
         {/* Barre recherche + compteur */}
         <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
           <h2 className="text-lg font-extrabold text-text">
-            {t('catalogueTitle')} — <span className="text-gold-dark">{listings.length} {t(listings.length > 1 ? 'biens' : 'bien')}</span>
+            <span className="text-gold-dark">{t('catalogueAvailableCount', { count: listings.length })}</span>
           </h2>
           <div className="relative">
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sub text-xs" />
@@ -186,11 +191,13 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
                         </span>
                       )}
                     </div>
-                    {/* Prix */}
-                    <div className="absolute bottom-2 right-2">
-                      <span className="bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full">
-                        {fmtPrice(listing.price)} FCFA/{t('perMonth')}
-                      </span>
+                    {/* Prix — 1 pastille (NIGHTLY/MONTHLY) ou 2 empilées (MIXED) */}
+                    <div className="absolute bottom-2 right-2 flex flex-col items-end gap-1">
+                      {getListingPriceAmounts(listing).map((e) => (
+                        <span key={e.unit} className="bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full">
+                          {fmtPrice(e.amount)} FCFA/{t(e.unit === 'night' ? 'perNight' : 'perMonth')}
+                        </span>
+                      ))}
                     </div>
                   </div>
 

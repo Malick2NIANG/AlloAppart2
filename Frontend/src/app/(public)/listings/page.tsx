@@ -5,7 +5,7 @@ import { auth } from '@clerk/nextjs/server';
 import FavoriteButton from '@/components/ui/FavoriteButton';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import ListingsFilters from './ListingsFilters';
-import { type Listing, type ListingsResponse, priceToNumber } from '@/types/listing';
+import { type Listing, type ListingsResponse, getListingPriceAmounts } from '@/types/listing';
 
 export default async function ListingsPage({
   searchParams,
@@ -203,9 +203,14 @@ export default async function ListingsPage({
                             </span>
                           )}
                         </div>
-                        <span className="absolute bottom-3 left-3 rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
-                          {priceToNumber(listing.price).toLocaleString(numLocale)} FCFA/{t('perMonth')}
-                        </span>
+                        {/* Badge prix — 1 pastille (NIGHTLY/MONTHLY) ou 2 empilées (MIXED) */}
+                        <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
+                          {getListingPriceAmounts(listing).map((e) => (
+                            <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
+                              {e.amount.toLocaleString(numLocale)} FCFA/{t(e.unit === 'night' ? 'perNight' : 'perMonth')}
+                            </span>
+                          ))}
+                        </div>
                         <FavoriteButton listingId={listing.id} initialFavorite={favoriteIds.includes(listing.id)} className="absolute top-3 right-3" />
                       </div>
 

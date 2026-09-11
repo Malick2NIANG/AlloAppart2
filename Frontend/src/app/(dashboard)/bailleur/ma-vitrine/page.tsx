@@ -134,9 +134,9 @@ export default function MaVitrinePage() {
           <p className="text-sm text-sub mt-0.5">{t('vitrineSubtitle')}</p>
         </div>
         {vitrinUrl && (
-          <Link href={vitrinUrl} target="_blank"
+          <Link href={vitrinUrl}
             className="inline-flex items-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
-            <i className="fa-solid fa-arrow-up-right-from-square text-xs" /> {t('vitrineSeeLink')}
+            <i className="fa-solid fa-eye text-xs" /> {t('vitrineSeeLink')}
           </Link>
         )}
       </div>

@@ -37,6 +37,11 @@ const LISTING_PUBLIC_SELECT = {
   id:        true,
   title:     true,
   price:     true,
+  // Nécessaires pour afficher le bon tarif (nuitée/mensuel/les deux) sur la
+  // vitrine — `price` seul peut être un équivalent mensuel dérivé pour une
+  // annonce NIGHTLY (cf. resolveMonthlyPrice, listings.service.ts).
+  rentalMode:    true,
+  pricePerNight: true,
   type:      true,
   city:      true,
   region:    true,

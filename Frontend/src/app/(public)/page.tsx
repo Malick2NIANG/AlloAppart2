@@ -5,7 +5,7 @@ import { auth } from '@clerk/nextjs/server';
 import FavoriteButton from '@/components/ui/FavoriteButton';
 import GreetingHero from '@/components/ui/GreetingHero';
 import GreetingCTA from '@/components/ui/GreetingCTA';
-import { priceToNumber, type Listing, type PaginatedResponse } from '@/types';
+import { getListingPriceAmounts, type Listing, type PaginatedResponse } from '@/types';
 import { REGIONS } from '@/lib/regions';
 
 export const revalidate = 300; // fallback 5 min — invalidation immédiate via /api/revalidate
@@ -81,8 +81,6 @@ export default async function HomePage() {
     fetchPublicStats(),
   ]);
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
-  const formatPrice = (n: number | string) =>
-    priceToNumber(n).toLocaleString(numLocale) + ' FCFA/' + t('perMonth');
 
   // Chiffres réels (voir fetchPublicStats) — pas de "+" ni d'arrondi marketing :
   // on affiche le compte exact pour ne jamais induire les visiteurs en erreur.
@@ -339,10 +337,14 @@ export default async function HomePage() {
                         </span>
                       )}
                     </div>
-                    {/* Badge prix */}
-                    <span className="absolute bottom-3 left-3 rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
-                      {formatPrice(l.price)}
-                    </span>
+                    {/* Badge prix — 1 pastille (NIGHTLY/MONTHLY) ou 2 empilées (MIXED) */}
+                    <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
+                      {getListingPriceAmounts(l).map((e) => (
+                        <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
+                          {e.amount.toLocaleString(numLocale)} FCFA/{t(e.unit === 'night' ? 'perNight' : 'perMonth')}
+                        </span>
+                      ))}
+                    </div>
                     {/* Bouton favori */}
                     <FavoriteButton listingId={l.id} initialFavorite={favoriteIds.includes(l.id)} className="absolute top-3 right-3" />
                   </div>

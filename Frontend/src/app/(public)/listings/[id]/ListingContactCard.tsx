@@ -7,19 +7,18 @@ import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import type { MessageRoom } from '@/types';
+import type { MessageRoom, ListingPriceAmount } from '@/types';
 
 interface Props {
   listingId: string;
-  price: string;
   landlordName: string;
   landlordAvatar?: string | null;
   landlordPhone?: string | null;
   isAgency?: boolean;
   agencyName?: string | null;
   agencySlug?: string | null;
-  perMonth: string;
-  priceRaw: number;
+  /** Tarif(s) à afficher — 1 entrée (NIGHTLY/MONTHLY) ou 2 (MIXED), cf. getListingPriceAmounts. */
+  priceEntries: ListingPriceAmount[];
   numLocale: string;
   isOwner?: boolean;
 }
@@ -27,7 +26,7 @@ interface Props {
 export default function ListingContactCard({
   listingId, landlordName, landlordAvatar, landlordPhone,
   isAgency = false, agencyName, agencySlug,
-  perMonth, priceRaw, numLocale, isOwner = false,
+  priceEntries, numLocale, isOwner = false,
 }: Props) {
   const { isSignedIn } = useUser();
   const { getToken } = useAuth();
@@ -101,11 +100,15 @@ export default function ListingContactCard({
       {/* ── Price + contact card ────────────────────────────────── */}
       <div className="bg-card/80 backdrop-blur-xl border border-line rounded-3xl p-6 shadow-lg">
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-2xl font-extrabold text-text">
-              {priceRaw.toLocaleString(numLocale)} FCFA
-            </p>
-            <p className="text-xs text-sub -mt-0.5">{perMonth}</p>
+          <div className="space-y-1.5">
+            {priceEntries.map((e) => (
+              <div key={e.unit}>
+                <p className="text-2xl font-extrabold text-text">
+                  {e.amount.toLocaleString(numLocale)} FCFA
+                </p>
+                <p className="text-xs text-sub -mt-0.5">{t(e.unit === 'night' ? 'perNight' : 'perMonth')}</p>
+              </div>
+            ))}
           </div>
           {/* Favorite */}
           <button
@@ -237,8 +240,9 @@ export default function ListingContactCard({
       {!isOwner && <div className="fixed bottom-3 inset-x-0 z-40 px-4 md:hidden">
         <div className="mx-auto max-w-md rounded-2xl shadow-lg border border-line bg-card/90 backdrop-blur-xl p-3 flex items-center justify-between">
           <div>
-            <p className="text-base font-extrabold text-text">{priceRaw.toLocaleString(numLocale)} FCFA</p>
-            <p className="text-[11px] text-sub -mt-0.5">{perMonth}</p>
+            <p className="text-base font-extrabold text-text">
+              {priceEntries.map((e) => `${e.amount.toLocaleString(numLocale)} FCFA/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`).join(' · ')}
+            </p>
           </div>
           <button
             onClick={() => document.getElementById('contact-textarea')?.focus()}

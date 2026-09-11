@@ -5,7 +5,7 @@ import { useAuth } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
-import type { Listing, PaginatedResponse } from '@/types';
+import { getListingPriceAmounts, type Listing, type PaginatedResponse } from '@/types';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/utils';
 import { SkeletonListRow } from '@/components/ui/Skeleton';
@@ -230,7 +230,10 @@ function AdminListingsContent() {
                 <p className="font-semibold text-text truncate">{listing.title}</p>
                 <p className="text-sm text-sub mt-0.5">
                   <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
-                  {listing.city} · {formatPrice(listing.price)}{t('perMonth')}
+                  {listing.city} ·{' '}
+                  {getListingPriceAmounts(listing)
+                    .map((e) => `${formatPrice(e.amount)}${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`)
+                    .join(' · ')}
                 </p>
                 <p className="text-xs text-sub mt-0.5">
                   <i className="fa-solid fa-user text-xs mr-1" />

@@ -7,7 +7,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import Image from 'next/image';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { type Listing, type PaginatedResponse, priceToNumber } from '@/types';
+import { type Listing, type PaginatedResponse, getListingPriceAmounts } from '@/types';
 import { useToast } from '@/components/ui/Toast';
 import PaydunyaPaymentModal from '@/components/ui/PaydunyaPaymentModal';
 
@@ -321,7 +321,9 @@ function ListingBoostCard({
         </div>
         <p className="mt-0.5 text-xs text-sub">
           {listing.city} · {typeLabel[listing.type] ?? listing.type} ·{' '}
-          {priceToNumber(listing.price).toLocaleString(numLocale)} FCFA/mois
+          {getListingPriceAmounts(listing)
+            .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA${t(e.unit === 'night' ? 'priceUnitNight' : 'priceUnitMonth')}`)
+            .join(' · ')}
         </p>
         {listing.boostScore > 0 && (
           <p className="mt-0.5 text-[11px] text-purple-600 dark:text-purple-400">
