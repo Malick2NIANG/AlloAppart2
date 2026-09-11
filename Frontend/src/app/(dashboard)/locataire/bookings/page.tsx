@@ -47,7 +47,31 @@ export default function LocataireBookingsPage() {
         api.get<{ roles: string[] }>('/auth/me', token),
         api.get<MyReview[]>('/reviews/mine', token),
       ]);
-      setBookings(data);
+
+      // Réconciliation silencieuse : un paiement PayDunya a pu aboutir sans
+      // que le webhook IPN ne soit jamais reçu (fréquent en sandbox) — on
+      // revérifie activement les réservations encore "payables" qui ont déjà
+      // un lien PayDunya, pour ne pas laisser le bouton "Payer" affiché à
+      // tort après un paiement en réalité déjà réglé.
+      const toRecheck = data.filter((b) =>
+        b.paymentRef?.startsWith('PD-') &&
+        ((b.bookingType === 'MONTHLY' && b.status === 'APPROVED') ||
+         ((!b.bookingType || b.bookingType === 'NIGHTLY') && b.status === 'PENDING')),
+      );
+      let finalData = data;
+      if (toRecheck.length > 0) {
+        const outcomes = await Promise.all(
+          toRecheck.map((b) =>
+            api.post<Booking>(`/payments/verify/${b.id}`, {}, token).catch(() => null),
+          ),
+        );
+        const changed = outcomes.some((r, i) => r && r.status !== toRecheck[i].status);
+        if (changed) {
+          finalData = await api.get<Booking[]>('/bookings/mine', token);
+        }
+      }
+
+      setBookings(finalData);
       setMyReviews(reviews);
       setHasBailleur(me.roles.some((r) => ['BAILLEUR', 'PRO_AGENCE', 'ADMIN'].includes(r)));
     } catch {
