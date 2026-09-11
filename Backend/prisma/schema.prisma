@@ -21,6 +21,14 @@ model User {
   roles         Role[]         @default([LOCATAIRE])
   agencyName               String?        // Renseigné uniquement pour PRO_AGENCE
   agencySlug               String?        @unique @db.VarChar(80) // Slug URL unique ex: immobilier-dakar
+  // Champs publics de la vitrine agence (/agences/:slug) — volontairement
+  // distincts de bio/avatar/phone (profil personnel, utilisés pour le contact
+  // direct sur une annonce). Sans cette séparation, éditer son profil perso
+  // écrasait silencieusement ce qu'affichait la vitrine publique, et
+  // inversement. Renseignés uniquement pour PRO_AGENCE, page "Ma vitrine".
+  agencyBio                String?        @db.Text
+  agencyAvatar             String?
+  agencyPhone              String?
   profileViews             Int            @default(0) // Compteur de visites de la vitrine
   bailleurTermsAcceptedAt  DateTime?      // null = jamais accepté (engagements spécifiques bailleur)
   termsAcceptedAt          DateTime?      // null = jamais accepté (CGU générales — tous rôles)

@@ -340,6 +340,8 @@
     "agencyType": "Agence immobilière",
     "landlordType": "Bailleur particulier",
     "viewAgencyShowcase": "Voir la vitrine de l'agence",
+    "moreFromAgency": "Plus d'annonces de {name}",
+    "moreFromAgencyDesc": "Découvrez tout le catalogue de cette agence sur sa vitrine.",
     "shareBtn": "Partager",
     "viewAllPhotos": "Voir les {count} photos",
     "allPhotosBtn": "Toutes ({count})",

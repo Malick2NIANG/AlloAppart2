@@ -285,6 +285,29 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           {/* Reviews + leave-a-review form (auth-gated) */}
           <ListingReviewForm listingId={listing.id} />
 
+          {/* Catalogue de l'agence — même lien que la sidebar (ListingContactCard),
+              mais dupliqué ici pour rester visible juste après les avis : sur
+              mobile la sidebar (colonne 2 de la grille) ne s'affiche qu'après
+              tout le contenu principal, donc bien après cette section. */}
+          {listing.owner?.roles?.includes('PRO_AGENCE') && listing.owner?.agencySlug && (
+            <div className={CARD}>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <h2 className="text-lg font-semibold text-text">
+                    {t('moreFromAgency', { name: listing.owner.agencyName ?? ownerFullName(listing.owner) })}
+                  </h2>
+                  <p className="text-sm text-sub mt-0.5">{t('moreFromAgencyDesc')}</p>
+                </div>
+                <Link
+                  href={`/agences/${listing.owner.agencySlug}`}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white text-sm font-semibold px-4 py-2.5 transition-colors shrink-0"
+                >
+                  {t('viewAgencyShowcase')} <i className="fa-solid fa-arrow-right text-xs" />
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* Similar listings */}
           {similar.length > 0 && (
             <div className={CARD}>

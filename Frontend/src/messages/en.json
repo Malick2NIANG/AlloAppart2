@@ -340,6 +340,8 @@
     "agencyType": "Real estate agency",
     "landlordType": "Private landlord",
     "viewAgencyShowcase": "View agency profile",
+    "moreFromAgency": "More listings from {name}",
+    "moreFromAgencyDesc": "Discover this agency's full catalog on their showcase page.",
     "shareBtn": "Share",
     "viewAllPhotos": "View all {count} photos",
     "allPhotosBtn": "All ({count})",

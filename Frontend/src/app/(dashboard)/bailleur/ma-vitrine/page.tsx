@@ -60,9 +60,13 @@ export default function MaVitrinePage() {
       setUser(me);
       setAgencyName(me.agencyName ?? '');
       setAgencySlug(me.agencySlug ?? '');
-      setBio(me.bio ?? '');
-      setPhone(me.phone ?? '');
-      setAvatar(me.avatar ?? '');
+      // Repli sur les champs perso (bio/phone/avatar) tant que la vitrine n'a
+      // pas encore ses propres valeurs — évite qu'un formulaire vide semble
+      // effacer ce qui s'affiche déjà publiquement (cf. agencesService
+      // .resolveVitrineFields côté back, même logique de repli).
+      setBio(me.agencyBio ?? me.bio ?? '');
+      setPhone(me.agencyPhone ?? me.phone ?? '');
+      setAvatar(me.agencyAvatar ?? me.avatar ?? '');
       if (me.agencySlug) setSlugAvail(true);
     } catch { /* ignore */ }
     finally { setLoading(false); }
@@ -115,11 +119,11 @@ export default function MaVitrinePage() {
     setSaving(true);
     try {
       const updated = await api.patch<User>('/auth/me', {
-        agencyName: agencyName.trim() || undefined,
-        agencySlug: agencySlug.trim() || undefined,
-        bio:        bio.trim()        || undefined,
-        phone:      phone.trim()      || undefined,
-        avatar:     avatar            || undefined,
+        agencyName:   agencyName.trim() || undefined,
+        agencySlug:   agencySlug.trim() || undefined,
+        agencyBio:    bio.trim()        || undefined,
+        agencyPhone:  phone.trim()      || undefined,
+        agencyAvatar: avatar            || undefined,
       }, token);
       setUser(updated);
       toastRef.current.success(t('vitrineSaved'));

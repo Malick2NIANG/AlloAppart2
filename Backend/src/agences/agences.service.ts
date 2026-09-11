@@ -8,9 +8,16 @@ const AGENCY_PUBLIC_SELECT = {
   lastName:    true,
   agencyName:  true,
   agencySlug:  true,
+  // Champs dédiés à la vitrine publique (page "Ma vitrine"), distincts de
+  // avatar/bio/phone (profil personnel) — voir schema.prisma. Les personnels
+  // restent sélectionnés en repli tant qu'une agence n'a pas renseigné les
+  // champs vitrine (agences déjà existantes avant cette migration).
   avatar:      true,
   bio:         true,
   phone:       true,
+  agencyAvatar: true,
+  agencyBio:   true,
+  agencyPhone: true,
   createdAt:   true,
   roles:       true,
   isSuspended: true,
@@ -47,6 +54,26 @@ const LISTING_PUBLIC_SELECT = {
 export class AgencesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Résout les champs vitrine (agencyBio/agencyAvatar/agencyPhone, saisis
+   * depuis "Ma vitrine") en priorité, avec repli sur bio/avatar/phone
+   * (profil personnel) — utile pour les agences créées avant l'ajout de ces
+   * champs dédiés et qui n'ont pas encore rempli leur vitrine. Le contrat
+   * public (bio/avatar/phone) reste inchangé pour ne pas casser le frontend
+   * existant ; les champs bruts agencyX ne sont jamais exposés tels quels.
+   */
+  private resolveVitrineFields<
+    T extends { agencyBio: string | null; agencyAvatar: string | null; agencyPhone: string | null; bio: string | null; avatar: string | null; phone: string | null },
+  >(agency: T) {
+    const { agencyBio, agencyAvatar, agencyPhone, ...rest } = agency;
+    return {
+      ...rest,
+      bio: agencyBio ?? agency.bio,
+      avatar: agencyAvatar ?? agency.avatar,
+      phone: agencyPhone ?? agency.phone,
+    };
+  }
+
   /** Liste publique de toutes les agences actives, triées par plan puis par date */
   async findAll() {
     const agencies = await this.prisma.user.findMany({
@@ -61,13 +88,15 @@ export class AgencesService {
     });
 
     // Tri : abonnement PRO > STARTER > sans abonnement
-    return agencies.sort((a, b) => {
-      const planScore = (sub: typeof a.subscription) => {
-        if (!sub || sub.status !== 'ACTIVE') return 0;
-        return sub.plan === 'PRO' ? 2 : 1;
-      };
-      return planScore(b.subscription) - planScore(a.subscription);
-    });
+    return agencies
+      .sort((a, b) => {
+        const planScore = (sub: typeof a.subscription) => {
+          if (!sub || sub.status !== 'ACTIVE') return 0;
+          return sub.plan === 'PRO' ? 2 : 1;
+        };
+        return planScore(b.subscription) - planScore(a.subscription);
+      })
+      .map((a) => this.resolveVitrineFields(a));
   }
 
   /** Profil public d'une agence + ses annonces actives */
@@ -91,7 +120,7 @@ export class AgencesService {
       throw new NotFoundException('Agency not found.');
     }
 
-    return agency;
+    return this.resolveVitrineFields(agency);
   }
 
   /** Incrémente le compteur de vues de la vitrine */

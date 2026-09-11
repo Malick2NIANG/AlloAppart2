@@ -35,6 +35,11 @@ export interface User {
   agencySlug?: string | null;
   bio?: string | null;
   avatar?: string | null;
+  // Champs publics de la vitrine agence (page "Ma vitrine"), distincts de
+  // bio/avatar ci-dessus (profil personnel) — cf. schema.prisma backend.
+  agencyBio?: string | null;
+  agencyAvatar?: string | null;
+  agencyPhone?: string | null;
   coverageZone?: string | null;
   createdAt: string;
   updatedAt: string;

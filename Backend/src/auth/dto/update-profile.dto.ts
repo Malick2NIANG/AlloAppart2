@@ -38,6 +38,22 @@ export class UpdateProfileDto {
   @IsUrl()
   avatar?: string;
 
+  // ── Champs publics de la vitrine agence (page "Ma vitrine") — distincts de
+  // bio/avatar/phone ci-dessus (profil personnel, utilisés pour le contact
+  // direct sur une annonce). Cf. schema.prisma pour le raisonnement complet.
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  agencyBio?: string;
+
+  @IsOptional()
+  @IsUrl()
+  agencyAvatar?: string;
+
+  @IsOptional()
+  @IsPhoneNumber()
+  agencyPhone?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(200)
