@@ -161,20 +161,19 @@ model BookingDocument {
   @@map("booking_documents")
 }
 
+// Contrat de bail : PDF généré automatiquement à l'activation d'une location
+// mensuelle, avec des espaces laissés libres pour les informations privées
+// (pièce d'identité, etc.). Signé à la main par les deux parties lors de
+// leur rencontre en personne — AlloAppart ne fait pas transiter de
+// signature électronique, donc un simple lien de téléchargement suffit.
 model Contract {
-  id                  String         @id @default(uuid())
-  bookingId           String         @unique
-  type                ContractType
-  status              ContractStatus @default(DRAFT)
-  pdfUrl               String?        // PDF généré non signé
-  firstSignedPdfUrl    String?        // PDF re-téléversé après signature de la 1ère partie
-  finalPdfUrl          String?        // PDF final, les deux parties ont signé
-  firstSignedById      String?        // userId de la 1ère partie à avoir signé
-  firstSignedAt        DateTime?
-  secondSignedAt       DateTime?
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
-  booking              Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  id         String       @id @default(uuid())
+  bookingId  String       @unique
+  type       ContractType
+  pdfUrl     String?      // PDF généré, à compléter et signer manuscritement
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  booking    Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@map("contracts")
 }
@@ -334,13 +333,6 @@ enum DocumentType {
 enum ContractType {
   SEASONAL
   HABITATION
-}
-
-enum ContractStatus {
-  DRAFT
-  AWAITING_FIRST_SIGNATURE
-  AWAITING_SECOND_SIGNATURE
-  FULLY_SIGNED
 }
 
 enum EscrowStatus {

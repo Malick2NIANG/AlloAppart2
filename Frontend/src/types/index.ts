@@ -18,8 +18,6 @@ export type AuditType = 'BASIC' | 'FULL';
 export type DocumentType = 'ID_CARD' | 'PROOF_OF_INCOME' | 'GUARANTOR';
 
 export type ContractType = 'SEASONAL' | 'HABITATION';
-export type ContractStatus =
-  | 'DRAFT' | 'AWAITING_FIRST_SIGNATURE' | 'AWAITING_SECOND_SIGNATURE' | 'FULLY_SIGNED';
 
 export interface User {
   id: string;
@@ -169,13 +167,7 @@ export interface Contract {
   id: string;
   bookingId: string;
   type: ContractType;
-  status: ContractStatus;
-  pdfUrl?: string | null;              // PDF généré non signé
-  firstSignedPdfUrl?: string | null;   // re-téléversé après signature du locataire
-  finalPdfUrl?: string | null;         // PDF final, les deux parties ont signé
-  firstSignedById?: string | null;
-  firstSignedAt?: string | null;
-  secondSignedAt?: string | null;
+  pdfUrl?: string | null;   // PDF généré, à compléter et signer manuscritement en personne
   createdAt: string;
   updatedAt: string;
 }

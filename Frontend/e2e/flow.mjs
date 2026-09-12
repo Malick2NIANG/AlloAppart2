@@ -325,8 +325,6 @@ async function createBookingAndPay(page, { startDate, endDate }, label) {
 
 /* ─────────────── bail mensuel + contrat (Phase 6/7) ─────────────── */
 
-const SIGNED_PDF_FIXTURE = path.join(__dirname, 'fixtures', 'test-signed-contract.pdf');
-
 // Même assistant que publishListing() pour les étapes 0/1/2 communes, mais l'étape 3
 // ("Mode de location & Prix") sélectionne explicitement le mode MENSUEL (même si c'est
 // déjà la valeur par défaut du formulaire — cliqué pour la robustesse du test face à un
@@ -424,28 +422,11 @@ async function requestMonthlyBooking(page, listingTitle, moveInDate) {
 
 // Compte tenu du décalage entre le paiement (qui déclenche la génération du contrat en
 // tâche de fond côté serveur — PDF + upload Cloudinary) et son apparition côté client, on
-// attend l'input file du ContractCard (qui n'apparaît que si c'est le tour du visiteur de
-// signer) avec une tolérance plus généreuse que robustGoto par défaut, un seul reload de secours.
-async function waitForContractSignTurn(page, url) {
-  const readyLocator = (p) => p.locator('input[type="file"][accept="application/pdf"]').first();
+// attend le lien de téléchargement du ContractCard avec une tolérance plus généreuse que
+// robustGoto par défaut, un seul reload de secours.
+async function waitForContractReady(page, url) {
+  const readyLocator = (p) => p.getByRole('link', { name: 'Télécharger le contrat' });
   await robustGoto(page, url, readyLocator, { patientTimeout: 30000, reloadTimeout: 20000 });
-}
-
-async function signContract(page, { bookingId, label }) {
-  const [signResp] = await Promise.all([
-    page.waitForResponse((r) => r.url().includes(`/api/v1/contracts/`) && r.url().endsWith('/sign') && r.request().method() === 'POST', { timeout: 20000 }),
-    page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles(SIGNED_PDF_FIXTURE),
-  ]);
-  const status = signResp.status();
-  const body = await signResp.json().catch(() => null);
-  await shot(page, `${label}-signed`);
-
-  if (status < 200 || status >= 300) {
-    log(`contract-sign:${label}`, 'fail', { status, body });
-    throw new Error(`Contract sign upload failed: HTTP ${status} — ${JSON.stringify(body)}`);
-  }
-  log(`contract-sign:${label}`, 'pass', { bookingId, contractStatus: body?.status });
-  return body;
 }
 
 /* ───────────────────── responsive smoke ────────────────────
@@ -708,13 +689,13 @@ async function stageRegressionEmptyOptionalFields(browser) {
   }
 }
 
-// ─────────── Phase 6/7 : bail mensuel + contrat signé séquentiellement ───────────
+// ─────────── Phase 6/7 : bail mensuel + génération du contrat ───────────
 // Requiert PAYDUNYA_DEV_BYPASS=true côté Backend (même prérequis implicite que
 // book-1/book-2 ci-dessus) pour que payments/initiate confirme le paiement de
 // façon synchrone sans passer par une vraie redirection PayDunya.
 //
 // Chaîne complète : publish-monthly-listing → monthly-request → monthly-approve
-// → monthly-pay → contract-tenant-sign → contract-landlord-sign.
+// → monthly-pay → contract-ready.
 // Chaque étape sauvegarde son état dans state.json pour que les étapes suivantes
 // (invocations séparées de node flow.mjs) puissent le relire.
 
@@ -808,41 +789,34 @@ async function stageMonthlyPay(browser) {
   }
 }
 
-async function stageContractTenantSign(browser) {
-  const ctx = await browser.newContext();
-  const page = await ctx.newPage();
-  attachDiagnostics(page, 'contract-tenant');
+// Le contrat n'est plus signé numériquement dans l'app (signature manuscrite en
+// personne) — on vérifie seulement que le lien de téléchargement du PDF généré
+// apparaît bien pour les deux parties une fois le bail actif. Un contexte par
+// utilisateur, comme partout ailleurs dans ce fichier (pas de switch d'utilisateur
+// au sein d'une même session Clerk).
+async function stageContractReady(browser) {
+  const tenantCtx = await browser.newContext();
+  const tenantPage = await tenantCtx.newPage();
+  attachDiagnostics(tenantPage, 'contract-ready-tenant');
   try {
-    await signIn(page, state.locataire, 'contract-tenant');
-    await waitForContractSignTurn(page, `${FRONTEND}/locataire/bookings`);
-    await shot(page, 'contract-tenant-01-ready');
-    const contract = await signContract(page, { bookingId: state.monthlyBooking.id, label: 'contract-tenant' });
-    if (contract?.status !== 'AWAITING_SECOND_SIGNATURE') {
-      throw new Error(`Expected AWAITING_SECOND_SIGNATURE after tenant signature, got ${contract?.status}`);
-    }
-    state.contract = { status: contract.status };
-    saveState(state);
+    await signIn(tenantPage, state.locataire, 'contract-ready-tenant');
+    await waitForContractReady(tenantPage, `${FRONTEND}/locataire/bookings`);
+    await shot(tenantPage, 'contract-ready-01-tenant');
+    log('contract-ready:tenant', 'pass', { bookingId: state.monthlyBooking.id });
   } finally {
-    await ctx.close();
+    await tenantCtx.close();
   }
-}
 
-async function stageContractLandlordSign(browser) {
-  const ctx = await browser.newContext();
-  const page = await ctx.newPage();
-  attachDiagnostics(page, 'contract-landlord');
+  const landlordCtx = await browser.newContext();
+  const landlordPage = await landlordCtx.newPage();
+  attachDiagnostics(landlordPage, 'contract-ready-landlord');
   try {
-    await signIn(page, state.bailleur, 'contract-landlord');
-    await waitForContractSignTurn(page, `${FRONTEND}/bailleur/bookings`);
-    await shot(page, 'contract-landlord-01-ready');
-    const contract = await signContract(page, { bookingId: state.monthlyBooking.id, label: 'contract-landlord' });
-    if (contract?.status !== 'FULLY_SIGNED') {
-      throw new Error(`Expected FULLY_SIGNED after landlord signature, got ${contract?.status}`);
-    }
-    state.contract = { status: contract.status };
-    saveState(state);
+    await signIn(landlordPage, state.bailleur, 'contract-ready-landlord');
+    await waitForContractReady(landlordPage, `${FRONTEND}/bailleur/bookings`);
+    await shot(landlordPage, 'contract-ready-02-landlord');
+    log('contract-ready:landlord', 'pass', { bookingId: state.monthlyBooking.id });
   } finally {
-    await ctx.close();
+    await landlordCtx.close();
   }
 }
 
@@ -863,16 +837,15 @@ const STAGE_MAP = {
   'complete-and-owner-cancel': () => stageCompleteRejectedAndOwnerCancel,
   'tenant-cancel': () => stageCancelTenant,
   'regression-empty-fields': () => stageRegressionEmptyOptionalFields,
-  // Phase 6/7 — bail mensuel + contrat de bail signé séquentiellement (locataire puis
-  // bailleur). Ordre d'exécution attendu : signup-bailleur, publish-monthly-listing,
-  // signup-locataire, monthly-request, monthly-approve, monthly-pay,
-  // contract-tenant-sign, contract-landlord-sign.
+  // Phase 6/7 — bail mensuel + contrat de bail généré (signature manuscrite en
+  // personne, plus de signature numérique dans l'app). Ordre d'exécution attendu :
+  // signup-bailleur, publish-monthly-listing, signup-locataire, monthly-request,
+  // monthly-approve, monthly-pay, contract-ready.
   'publish-monthly-listing': () => stagePublishMonthlyListing,
   'monthly-request': () => stageMonthlyRequest,
   'monthly-approve': () => stageMonthlyApprove,
   'monthly-pay': () => stageMonthlyPay,
-  'contract-tenant-sign': () => stageContractTenantSign,
-  'contract-landlord-sign': () => stageContractLandlordSign,
+  'contract-ready': () => stageContractReady,
   // Indépendant du reste — pas de compte requis, peut tourner seul :
   // node e2e/flow.mjs responsive-smoke
   'responsive-smoke': () => stageResponsiveSmoke,

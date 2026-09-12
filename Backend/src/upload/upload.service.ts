@@ -84,11 +84,6 @@ export class UploadService {
     });
   }
 
-  /** Vérifie la signature PDF (%PDF) — utilisé pour valider un re-téléversement client. */
-  isPdf(buf: Buffer): boolean {
-    return buf.length >= 5 && buf.slice(0, 5).toString('ascii') === '%PDF-';
-  }
-
   async uploadFile(
     file: Express.Multer.File,
   ): Promise<{ url: string; publicId: string }> {

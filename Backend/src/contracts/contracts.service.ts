@@ -1,20 +1,9 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PdfService } from '../pdf/pdf.service';
 import { UploadService } from '../upload/upload.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import {
-  type Contract,
-  type User,
-  ContractStatus,
-  ContractType,
-  Role,
-} from '@prisma/client';
+import { type Contract, type User, ContractType, Role } from '@prisma/client';
 
 type BookingParty = { tenantId: string; listing: { ownerId: string } };
 
@@ -38,7 +27,8 @@ export class ContractsService {
   }
 
   /**
-   * Génère le contrat de bail (DRAFT -> AWAITING_FIRST_SIGNATURE) pour une
+   * Génère le contrat de bail (PDF avec espaces libres pour les informations
+   * privées, à compléter et signer manuscritement en personne) pour une
    * réservation mensuelle qui vient de démarrer. Idempotent : si un contrat
    * existe déjà pour cette réservation, le retourne tel quel sans le
    * régénérer. Appelée depuis PaymentsService.markBookingPaid — ne doit
@@ -98,13 +88,12 @@ export class ContractsService {
       data: {
         bookingId: booking.id,
         type: ContractType.HABITATION,
-        status: ContractStatus.AWAITING_FIRST_SIGNATURE,
         pdfUrl: url,
       },
     });
 
     this.notifications
-      .notifyContractAwaitingSignature({
+      .notifyContractReady({
         tenantEmail: booking.tenant.email,
         tenantName: `${booking.tenant.firstName} ${booking.tenant.lastName}`,
         tenantId: booking.tenantId,
@@ -118,7 +107,7 @@ export class ContractsService {
       })
       .catch((err: unknown) =>
         this.logger.error(
-          'notifyContractAwaitingSignature échouée : ' +
+          'notifyContractReady échouée : ' +
             (err instanceof Error ? err.message : String(err)),
         ),
       );
@@ -133,128 +122,5 @@ export class ContractsService {
     });
     this.assertParty(booking, user);
     return this.prisma.contract.findUnique({ where: { bookingId } });
-  }
-
-  /**
-   * Upload du PDF signé — ordre séquentiel obligatoire : le Locataire signe
-   * en premier (AWAITING_FIRST_SIGNATURE -> AWAITING_SECOND_SIGNATURE), puis
-   * le Bailleur/Agence finalise (-> FULLY_SIGNED). Chaque partie ne peut
-   * signer qu'à son tour.
-   */
-  async uploadSigned(
-    contractId: string,
-    user: User,
-    file: Express.Multer.File,
-  ): Promise<Contract> {
-    if (!file?.buffer || !this.upload.isPdf(file.buffer)) {
-      throw new BadRequestException('Fichier invalide : un PDF est attendu');
-    }
-
-    const contract = await this.prisma.contract.findUniqueOrThrow({
-      where: { id: contractId },
-      include: {
-        booking: {
-          include: { listing: { include: { owner: true } }, tenant: true },
-        },
-      },
-    });
-
-    const booking = contract.booking;
-    const isTenant = booking.tenantId === user.id;
-    const isLandlord = booking.listing.ownerId === user.id;
-    if (!isTenant && !isLandlord) {
-      throw new ForbiddenException('Not authorized');
-    }
-
-    if (contract.status === ContractStatus.AWAITING_FIRST_SIGNATURE) {
-      if (!isTenant) {
-        throw new BadRequestException(
-          "C'est au tour du locataire de signer en premier.",
-        );
-      }
-      const { url } = await this.upload.uploadPdfBuffer(
-        file.buffer,
-        `contrat-${booking.id}-signe-locataire-${Date.now()}.pdf`,
-      );
-      const updated = await this.prisma.contract.update({
-        where: { id: contractId },
-        data: {
-          firstSignedPdfUrl: url,
-          firstSignedById: user.id,
-          firstSignedAt: new Date(),
-          status: ContractStatus.AWAITING_SECOND_SIGNATURE,
-        },
-      });
-
-      this.notifications
-        .notifyContractCounterSignature({
-          tenantEmail: booking.tenant.email,
-          tenantName: `${booking.tenant.firstName} ${booking.tenant.lastName}`,
-          tenantId: booking.tenantId,
-          landlordEmail: booking.listing.owner.email,
-          landlordName: `${booking.listing.owner.firstName} ${booking.listing.owner.lastName}`,
-          landlordId: booking.listing.ownerId,
-          listingTitle: booking.listing.title,
-          listingCity: booking.listing.city,
-          bookingId: booking.id,
-          totalAmount: Number(booking.totalAmount),
-        })
-        .catch((err: unknown) =>
-          this.logger.error(
-            'notifyContractCounterSignature échouée : ' +
-              (err instanceof Error ? err.message : String(err)),
-          ),
-        );
-
-      return updated;
-    }
-
-    if (contract.status === ContractStatus.AWAITING_SECOND_SIGNATURE) {
-      if (!isLandlord) {
-        throw new BadRequestException(
-          isTenant
-            ? 'Vous avez déjà signé ce contrat.'
-            : "C'est au tour du bailleur de signer.",
-        );
-      }
-      const { url } = await this.upload.uploadPdfBuffer(
-        file.buffer,
-        `contrat-${booking.id}-final-${Date.now()}.pdf`,
-      );
-      const updated = await this.prisma.contract.update({
-        where: { id: contractId },
-        data: {
-          finalPdfUrl: url,
-          secondSignedAt: new Date(),
-          status: ContractStatus.FULLY_SIGNED,
-        },
-      });
-
-      this.notifications
-        .notifyContractFullySigned({
-          tenantEmail: booking.tenant.email,
-          tenantName: `${booking.tenant.firstName} ${booking.tenant.lastName}`,
-          tenantId: booking.tenantId,
-          landlordEmail: booking.listing.owner.email,
-          landlordName: `${booking.listing.owner.firstName} ${booking.listing.owner.lastName}`,
-          landlordId: booking.listing.ownerId,
-          listingTitle: booking.listing.title,
-          listingCity: booking.listing.city,
-          bookingId: booking.id,
-          totalAmount: Number(booking.totalAmount),
-        })
-        .catch((err: unknown) =>
-          this.logger.error(
-            'notifyContractFullySigned échouée : ' +
-              (err instanceof Error ? err.message : String(err)),
-          ),
-        );
-
-      return updated;
-    }
-
-    throw new BadRequestException(
-      'Ce contrat ne peut plus être signé (statut : ' + contract.status + ').',
-    );
   }
 }

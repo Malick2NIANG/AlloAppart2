@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
 import { ContractsService } from './contracts.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PdfService } from '../pdf/pdf.service';
 import { UploadService } from '../upload/upload.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { ContractStatus, Role, type User } from '@prisma/client';
+import { Role, type User } from '@prisma/client';
 
 const owner: User = {
   id: 'owner1',
@@ -101,13 +101,7 @@ const contract = {
   id: 'contract1',
   bookingId: 'booking1',
   type: 'HABITATION' as const,
-  status: ContractStatus.AWAITING_FIRST_SIGNATURE,
   pdfUrl: 'https://res.cloudinary.com/x/raw/upload/contrat-draft.pdf',
-  firstSignedPdfUrl: null,
-  finalPdfUrl: null,
-  firstSignedById: null,
-  firstSignedAt: null,
-  secondSignedAt: null,
 };
 
 describe('ContractsService', () => {
@@ -122,12 +116,8 @@ describe('ContractsService', () => {
     booking: { findUniqueOrThrow: jest.Mock };
   };
   let pdfMock: { generateLeaseContract: jest.Mock };
-  let uploadMock: { uploadPdfBuffer: jest.Mock; isPdf: jest.Mock };
-  let notifMock: {
-    notifyContractAwaitingSignature: jest.Mock;
-    notifyContractCounterSignature: jest.Mock;
-    notifyContractFullySigned: jest.Mock;
-  };
+  let uploadMock: { uploadPdfBuffer: jest.Mock };
+  let notifMock: { notifyContractReady: jest.Mock };
 
   beforeEach(async () => {
     prismaMock = {
@@ -151,12 +141,9 @@ describe('ContractsService', () => {
           url: 'https://res.cloudinary.com/x/raw/upload/f.pdf',
           publicId: 'f',
         }),
-      isPdf: jest.fn().mockReturnValue(true),
     };
     notifMock = {
-      notifyContractAwaitingSignature: jest.fn().mockResolvedValue(undefined),
-      notifyContractCounterSignature: jest.fn().mockResolvedValue(undefined),
-      notifyContractFullySigned: jest.fn().mockResolvedValue(undefined),
+      notifyContractReady: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -184,7 +171,7 @@ describe('ContractsService', () => {
       expect(uploadMock.uploadPdfBuffer).not.toHaveBeenCalled();
     });
 
-    it('génère le PDF, le téléverse et crée le contrat en AWAITING_FIRST_SIGNATURE', async () => {
+    it('génère le PDF, le téléverse et crée le contrat', async () => {
       prismaMock.contract.findUnique.mockResolvedValueOnce(null);
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(bookingFull);
       prismaMock.contract.create.mockResolvedValueOnce(contract);
@@ -211,10 +198,10 @@ describe('ContractsService', () => {
         data: expect.objectContaining({
           bookingId: 'booking1',
           type: 'HABITATION',
-          status: ContractStatus.AWAITING_FIRST_SIGNATURE,
+          pdfUrl: 'https://res.cloudinary.com/x/raw/upload/f.pdf',
         }),
       });
-      expect(notifMock.notifyContractAwaitingSignature).toHaveBeenCalled();
+      expect(notifMock.notifyContractReady).toHaveBeenCalled();
       expect(result).toEqual(contract);
     });
   });
@@ -275,119 +262,6 @@ describe('ContractsService', () => {
         ForbiddenException,
       );
       expect(prismaMock.contract.findUnique).not.toHaveBeenCalled();
-    });
-  });
-
-  // --- uploadSigned ---
-  describe('uploadSigned', () => {
-    const pdfFile = {
-      buffer: Buffer.from('%PDF-fake'),
-      mimetype: 'application/pdf',
-    } as Express.Multer.File;
-
-    const contractWithBooking = (status: ContractStatus) => ({
-      ...contract,
-      status,
-      booking: bookingFull,
-    });
-
-    it('lève BadRequestException si le fichier n’est pas un PDF valide', async () => {
-      uploadMock.isPdf.mockReturnValueOnce(false);
-      await expect(
-        service.uploadSigned('contract1', tenant, pdfFile),
-      ).rejects.toThrow(BadRequestException);
-      expect(prismaMock.contract.findUniqueOrThrow).not.toHaveBeenCalled();
-    });
-
-    it('AWAITING_FIRST_SIGNATURE : le locataire signe en premier avec succès', async () => {
-      prismaMock.contract.findUniqueOrThrow.mockResolvedValueOnce(
-        contractWithBooking(ContractStatus.AWAITING_FIRST_SIGNATURE),
-      );
-      prismaMock.contract.update.mockResolvedValueOnce({
-        ...contract,
-        status: ContractStatus.AWAITING_SECOND_SIGNATURE,
-        firstSignedById: 'tenant1',
-      });
-
-      const result = await service.uploadSigned('contract1', tenant, pdfFile);
-
-      expect(result.status).toBe(ContractStatus.AWAITING_SECOND_SIGNATURE);
-      expect(prismaMock.contract.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'contract1' },
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          data: expect.objectContaining({
-            firstSignedById: 'tenant1',
-            status: ContractStatus.AWAITING_SECOND_SIGNATURE,
-          }),
-        }),
-      );
-      expect(notifMock.notifyContractCounterSignature).toHaveBeenCalled();
-    });
-
-    it('AWAITING_FIRST_SIGNATURE : le bailleur ne peut pas signer avant le locataire', async () => {
-      prismaMock.contract.findUniqueOrThrow.mockResolvedValueOnce(
-        contractWithBooking(ContractStatus.AWAITING_FIRST_SIGNATURE),
-      );
-
-      await expect(
-        service.uploadSigned('contract1', owner, pdfFile),
-      ).rejects.toThrow(BadRequestException);
-      expect(prismaMock.contract.update).not.toHaveBeenCalled();
-    });
-
-    it('AWAITING_SECOND_SIGNATURE : le bailleur finalise avec succès', async () => {
-      prismaMock.contract.findUniqueOrThrow.mockResolvedValueOnce(
-        contractWithBooking(ContractStatus.AWAITING_SECOND_SIGNATURE),
-      );
-      prismaMock.contract.update.mockResolvedValueOnce({
-        ...contract,
-        status: ContractStatus.FULLY_SIGNED,
-      });
-
-      const result = await service.uploadSigned('contract1', owner, pdfFile);
-
-      expect(result.status).toBe(ContractStatus.FULLY_SIGNED);
-      expect(prismaMock.contract.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          data: expect.objectContaining({
-            status: ContractStatus.FULLY_SIGNED,
-          }),
-        }),
-      );
-      expect(notifMock.notifyContractFullySigned).toHaveBeenCalled();
-    });
-
-    it('AWAITING_SECOND_SIGNATURE : le locataire ne peut pas re-signer', async () => {
-      prismaMock.contract.findUniqueOrThrow.mockResolvedValueOnce(
-        contractWithBooking(ContractStatus.AWAITING_SECOND_SIGNATURE),
-      );
-
-      await expect(
-        service.uploadSigned('contract1', tenant, pdfFile),
-      ).rejects.toThrow(BadRequestException);
-      expect(prismaMock.contract.update).not.toHaveBeenCalled();
-    });
-
-    it('FULLY_SIGNED : plus aucune signature possible', async () => {
-      prismaMock.contract.findUniqueOrThrow.mockResolvedValueOnce(
-        contractWithBooking(ContractStatus.FULLY_SIGNED),
-      );
-
-      await expect(
-        service.uploadSigned('contract1', tenant, pdfFile),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it("lève ForbiddenException si l'utilisateur n'est ni locataire ni bailleur", async () => {
-      prismaMock.contract.findUniqueOrThrow.mockResolvedValueOnce(
-        contractWithBooking(ContractStatus.AWAITING_FIRST_SIGNATURE),
-      );
-
-      await expect(
-        service.uploadSigned('contract1', stranger, pdfFile),
-      ).rejects.toThrow(ForbiddenException);
     });
   });
 });
