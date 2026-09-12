@@ -457,13 +457,6 @@
     "missionText": "Notre mission est de faciliter la location immobilière au Sénégal en toute confiance. En combinant technologie et expertise terrain, AlloAppart supprime les frictions de la recherche immobilière traditionnelle — permettant à chaque Sénégalais de trouver un logement adapté à ses besoins et à son budget.",
     "alloVerHead": "AlloVérifié™",
     "alloVerText": "AlloVérifié™ est notre label qualité unique. Chaque bien publié sur AlloAppart est visité et évalué sur place par un agent terrain certifié avant publication. Photos, superficie, équipements et tarifs sont tous vérifiés pour garantir l'exactitude et protéger bailleurs comme locataires.",
-    "legalHead": "Informations légales",
-    "legalDenomination": "Dénomination",
-    "legalCapital": "Capital social",
-    "legalRccm": "RCCM",
-    "legalNinea": "NINEA",
-    "legalSiege": "Siège social",
-    "legalFounded": "Fondée à",
     "valuesHead": "Nos valeurs",
     "values": [
       {
@@ -489,14 +482,9 @@
       "fa-solid fa-lightbulb",
       "fa-solid fa-people-group"
     ],
-    "teamHead": "L'équipe",
     "joinHead": "Nous rejoindre",
     "joinText": "Passionné·e par l'immobilier et la technologie au Sénégal ? Rejoignez l'aventure AlloAppart et participez à la transformation du marché du logement.",
-    "joinCta": "Rejoindre la plateforme",
-    "teamRoleCeo": "Fondateur & CEO",
-    "teamRoleOps": "Directrice des Opérations",
-    "teamRoleVerif": "Responsable AlloVérifié™",
-    "teamRoleDeveloper": "Développeuse Full-Stack"
+    "joinCta": "Rejoindre la plateforme"
   },
   "agences": {
     "partnerBadge": "Agences partenaires",

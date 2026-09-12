@@ -1,23 +1,6 @@
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
-/* Les noms sont des noms propres — seuls les intitulés de poste sont traduits */
-const TEAM = [
-  { name: 'Moussa Diallo',  roleKey: 'teamRoleCeo',        avatar: 'MD' },
-  { name: 'Aïda Ndiaye',    roleKey: 'teamRoleOps',        avatar: 'AN' },
-  { name: 'Ibrahima Fall',  roleKey: 'teamRoleVerif',      avatar: 'IF' },
-  { name: 'Fatou Sow',      roleKey: 'teamRoleDeveloper',  avatar: 'FS' },
-] as const;
-
-const LEGAL_ITEMS = [
-  { icon: 'fa-solid fa-building',       labelKey: 'legalDenomination', value: 'AlloAppart SN SARL'               },
-  { icon: 'fa-solid fa-coins',          labelKey: 'legalCapital',      value: '10 000 000 FCFA'                  },
-  { icon: 'fa-solid fa-file-contract',  labelKey: 'legalRccm',         value: 'SN-DKR-2024-B-12345'              },
-  { icon: 'fa-solid fa-id-card',        labelKey: 'legalNinea',        value: '007890123 4Z3'                    },
-  { icon: 'fa-solid fa-location-dot',   labelKey: 'legalSiege',        value: '25 Rue Carnot, Plateau, Dakar 11000, Sénégal' },
-  { icon: 'fa-solid fa-map-pin',        labelKey: 'legalFounded',      value: 'Dakar, Sénégal — 2024'            },
-];
-
 export default async function AboutPage() {
   const t = await getTranslations('apropos');
   const values   = t.raw('values')      as Array<{ label: string; desc: string }>;
@@ -77,25 +60,6 @@ export default async function AboutPage() {
           </p>
         </div>
 
-        {/* Informations légales */}
-        <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-dark flex items-center gap-2">
-          <i className="fa-solid fa-circle-dot text-xs" />
-          {t('legalHead')}
-        </h2>
-        <div className="rounded-2xl border border-line bg-card p-5">
-          <ul className="space-y-2 text-sm text-sub">
-            {LEGAL_ITEMS.map((item) => (
-              <li key={item.labelKey} className="flex items-start gap-2">
-                <i className={`${item.icon} mt-0.5 text-gold-dark shrink-0`} />
-                <span>
-                  <strong className="text-text">{t(item.labelKey as Parameters<typeof t>[0])} :</strong>{' '}
-                  {item.value}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
         {/* Nos valeurs */}
         <h2 className="mt-10 mb-5 text-lg font-semibold text-gold-dark flex items-center gap-2">
           <i className="fa-solid fa-circle-dot text-xs" />
@@ -111,23 +75,6 @@ export default async function AboutPage() {
                 <p className="text-sm font-semibold text-text">{v.label}</p>
                 <p className="mt-1 text-xs leading-relaxed text-sub">{v.desc}</p>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* L'équipe */}
-        <h2 className="mt-10 mb-5 text-lg font-semibold text-gold-dark flex items-center gap-2">
-          <i className="fa-solid fa-circle-dot text-xs" />
-          {t('teamHead')}
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-          {TEAM.map((m) => (
-            <div key={m.name} className="rounded-2xl border border-line bg-card p-5 text-center">
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full border-2 border-gold/40 bg-gold-pale text-lg font-bold text-gold-dark">
-                {m.avatar}
-              </div>
-              <p className="text-sm font-semibold text-text">{m.name}</p>
-              <p className="mt-1 text-xs text-sub">{t(m.roleKey)}</p>
             </div>
           ))}
         </div>

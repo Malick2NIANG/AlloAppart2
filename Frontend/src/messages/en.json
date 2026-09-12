@@ -457,13 +457,6 @@
     "missionText": "Our mission is to make renting in Senegal simple, transparent, and trustworthy. By combining technology and field expertise, AlloAppart removes the friction of traditional real-estate search — giving every Senegalese the ability to find a home that fits their needs and budget.",
     "alloVerHead": "AlloVérifié™",
     "alloVerText": "AlloVérifié™ is our unique quality seal. Each property listed on AlloAppart is physically visited and assessed by a certified field agent before publication. Photos, surface area, amenities, and pricing are all cross-checked to guarantee accuracy and protect both landlords and tenants.",
-    "legalHead": "Legal Information",
-    "legalDenomination": "Company name",
-    "legalCapital": "Share capital",
-    "legalRccm": "RCCM",
-    "legalNinea": "NINEA",
-    "legalSiege": "Registered office",
-    "legalFounded": "Founded in",
     "valuesHead": "Our Values",
     "values": [
       {
@@ -489,14 +482,9 @@
       "fa-solid fa-lightbulb",
       "fa-solid fa-people-group"
     ],
-    "teamHead": "The Team",
     "joinHead": "Join Us",
     "joinText": "Passionate about real estate and technology in Senegal? Join the AlloAppart adventure and help transform the housing market.",
-    "joinCta": "Join the platform",
-    "teamRoleCeo": "Founder & CEO",
-    "teamRoleOps": "Head of Operations",
-    "teamRoleVerif": "AlloVerified™ Lead",
-    "teamRoleDeveloper": "Full-Stack Developer"
+    "joinCta": "Join the platform"
   },
   "agences": {
     "partnerBadge": "Partner agencies",
