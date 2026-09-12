@@ -2534,8 +2534,8 @@
     "title": "Conditions Générales d'Utilisation",
     "subtitle": "Conformément au Code des Obligations Civiles et Commerciales (COCC) sénégalais et à la loi n° 2008-11 sur la cybercriminalité.",
     "lastUpdated": "Dernière mise à jour :",
-    "lastUpdatedDate": "18 mai 2026",
-    "footnote": "Ces CGU peuvent être mises à jour. Les utilisateurs seront informés des modifications significatives par e-mail avec un préavis minimum de 15 jours.",
+    "lastUpdatedDate": "12 septembre 2026",
+    "footnote": "Ces CGU peuvent être mises à jour. Les utilisateurs seront informés des modifications significatives par e-mail avec un préavis minimum de 15 jours. Elles sont complémentaires à notre Politique de confidentialité et à notre Politique des cookies.",
     "prevalence": "Version française faisant foi. La traduction anglaise est fournie à titre indicatif ; en cas de divergence d'interprétation, la version française prévaut.",
     "sections": {
       "objet": {
@@ -2608,8 +2608,8 @@
     "title": "Politique de confidentialité",
     "subtitle": "Conformément à la loi sénégalaise n° 2008-12 sur la protection des données personnelles.",
     "lastUpdated": "Dernière mise à jour :",
-    "lastUpdatedDate": "18 mai 2026",
-    "footnote": "Cette politique peut être mise à jour. Les utilisateurs seront informés des modifications significatives par e-mail.",
+    "lastUpdatedDate": "12 septembre 2026",
+    "footnote": "Cette politique peut être mise à jour. Les utilisateurs seront informés des modifications significatives par e-mail. Elle est complémentaire à nos CGU et à notre Politique des cookies.",
     "prevalence": "Version française faisant foi. La traduction anglaise est fournie à titre indicatif ; en cas de divergence d'interprétation, la version française prévaut.",
     "sections": {
       "responsable": {
@@ -2618,7 +2618,7 @@
       },
       "donnees": {
         "title": "2. Données collectées",
-        "body": "Nous collectons les catégories de données suivantes :\n• Données d'identité : nom, prénom, date de naissance.\n• Données de contact : adresse e-mail, numéro de téléphone.\n• Données de navigation : adresse IP, cookies, pages visitées, durée de session.\n• Données de paiement : informations nécessaires à la transaction (traitées par nos partenaires de paiement agréés).\n• Données relatives aux annonces : photos, descriptions, localisation des biens publiés par les bailleurs."
+        "body": "Nous collectons les catégories de données suivantes :\n• Données d'identité : nom, prénom, date de naissance.\n• Données de contact : adresse e-mail, numéro de téléphone.\n• Données de navigation : adresse IP, cookies, pages visitées, durée de session.\n• Données de paiement : informations nécessaires à la transaction, traitées par PayDunya, notre partenaire de paiement (Orange Money, Wave, Mixx by Yas, carte bancaire) — non conservées par AlloAppart.\n• Données relatives aux annonces et vitrines : photos, descriptions, localisation des biens publiés par les bailleurs, ainsi que l'adresse professionnelle qu'une agence choisit de rendre publique sur sa vitrine."
       },
       "finalites": {
         "title": "3. Finalités du traitement",
@@ -2634,7 +2634,7 @@
       },
       "destinataires": {
         "title": "6. Destinataires des données",
-        "body": "Vos données peuvent être partagées avec :\n• Les agents AlloVérifié™ chargés de la vérification terrain des biens.\n• Nos partenaires de paiement agréés (Orange Money, Wave, etc.).\n• Notre hébergeur et prestataires techniques soumis à des obligations de confidentialité strictes.\nNous ne vendons jamais vos données à des tiers à des fins commerciales."
+        "body": "Vos données peuvent être partagées avec :\n• Les agents AlloVérifié™ chargés de la vérification terrain des biens.\n• PayDunya, notre prestataire de paiement agréé, qui traite les transactions effectuées via Orange Money, Wave, Mixx by Yas ou carte bancaire.\n• Clerk, notre prestataire d'authentification, qui héberge vos identifiants de connexion (AlloAppart ne stocke jamais votre mot de passe — voir Article 9).\n• Cloudinary, notre prestataire de stockage, pour l'hébergement des photos d'annonces et des documents (contrats de location).\n• Notre hébergeur et autres prestataires techniques soumis à des obligations de confidentialité strictes.\nNous ne vendons jamais vos données à des tiers à des fins commerciales."
       },
       "droits": {
         "title": "7. Droits des utilisateurs",

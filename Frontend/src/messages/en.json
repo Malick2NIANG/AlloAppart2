@@ -2534,8 +2534,8 @@
     "title": "Terms of Service",
     "subtitle": "In accordance with the Senegalese Code of Civil and Commercial Obligations (COCC) and Law No. 2008-11 on cybercrime.",
     "lastUpdated": "Last updated:",
-    "lastUpdatedDate": "18 May 2026",
-    "footnote": "These Terms of Service may be updated. Users will be notified of significant changes by email with a minimum 15-day notice period.",
+    "lastUpdatedDate": "12 September 2026",
+    "footnote": "These Terms of Service may be updated. Users will be notified of significant changes by email with a minimum 15-day notice period. They are complementary to our Privacy Policy and our Cookie Policy.",
     "prevalence": "The French version is the legally binding text. This English translation is provided for convenience only; in the event of any discrepancy in interpretation, the French version prevails.",
     "sections": {
       "objet": {
@@ -2608,8 +2608,8 @@
     "title": "Privacy Policy",
     "subtitle": "In accordance with Senegalese Law No. 2008-12 on the protection of personal data.",
     "lastUpdated": "Last updated:",
-    "lastUpdatedDate": "18 May 2026",
-    "footnote": "This policy may be updated. Users will be notified of significant changes by email.",
+    "lastUpdatedDate": "12 September 2026",
+    "footnote": "This policy may be updated. Users will be notified of significant changes by email. It is complementary to our Terms of Service and our Cookie Policy.",
     "prevalence": "The French version is the legally binding text. This English translation is provided for convenience only; in the event of any discrepancy in interpretation, the French version prevails.",
     "sections": {
       "responsable": {
@@ -2618,7 +2618,7 @@
       },
       "donnees": {
         "title": "2. Data collected",
-        "body": "We collect the following categories of data:\n• Identity data: surname, first name, date of birth.\n• Contact data: email address, phone number.\n• Browsing data: IP address, cookies, pages visited, session duration.\n• Payment data: information required for the transaction (processed by our approved payment partners).\n• Listing data: photos, descriptions and location of properties published by landlords."
+        "body": "We collect the following categories of data:\n• Identity data: surname, first name, date of birth.\n• Contact data: email address, phone number.\n• Browsing data: IP address, cookies, pages visited, session duration.\n• Payment data: information required for the transaction, processed by PayDunya, our payment partner (Orange Money, Wave, Mixx by Yas, credit/debit card) — never retained by AlloAppart.\n• Listing and agency page data: photos, descriptions and location of properties published by landlords, as well as any professional address an agency chooses to make public on its storefront page."
       },
       "finalites": {
         "title": "3. Purposes of processing",
@@ -2634,7 +2634,7 @@
       },
       "destinataires": {
         "title": "6. Data recipients",
-        "body": "Your data may be shared with:\n• AlloVerified™ agents responsible for on-site property inspections.\n• Our approved payment partners (Orange Money, Wave, etc.).\n• Our hosting provider and technical subcontractors, bound by strict confidentiality obligations.\nWe never sell your data to third parties for commercial purposes."
+        "body": "Your data may be shared with:\n• AlloVerified™ agents responsible for on-site property inspections.\n• PayDunya, our approved payment partner, which processes transactions made via Orange Money, Wave, Mixx by Yas or credit/debit card.\n• Clerk, our authentication provider, which hosts your login credentials (AlloAppart never stores your password — see Section 9).\n• Cloudinary, our storage provider, for hosting listing photos and documents (lease contracts).\n• Our hosting provider and other technical subcontractors, bound by strict confidentiality obligations.\nWe never sell your data to third parties for commercial purposes."
       },
       "droits": {
         "title": "7. User rights",
