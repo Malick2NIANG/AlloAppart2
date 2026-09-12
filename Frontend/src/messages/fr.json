@@ -2532,7 +2532,9 @@
     "primary": "Principale",
     "photoCount": "{count, plural, one {# photo} other {# photos}}",
     "videoSuffix": "1 vidéo",
-    "firstIsPrimary": "La première photo sera la principale"
+    "firstIsPrimary": "La première photo sera la principale",
+    "adjustLabel": "Ajuster",
+    "adjustUploadError": "Impossible d'enregistrer le recadrage, la photo d'origine a été conservée."
   },
   "cgu": {
     "breadcrumbHome": "Accueil",

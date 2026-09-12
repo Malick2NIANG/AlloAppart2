@@ -2532,7 +2532,9 @@
     "primary": "Main",
     "photoCount": "{count, plural, one {# photo} other {# photos}}",
     "videoSuffix": "1 video",
-    "firstIsPrimary": "The first photo will be the main one"
+    "firstIsPrimary": "The first photo will be the main one",
+    "adjustLabel": "Adjust",
+    "adjustUploadError": "Couldn't save the crop, the original photo was kept."
   },
   "cgu": {
     "breadcrumbHome": "Home",

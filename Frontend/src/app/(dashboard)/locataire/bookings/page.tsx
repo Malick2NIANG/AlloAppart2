@@ -801,7 +801,7 @@ function DisputeModal({
             <label className="block text-xs font-semibold text-sub mb-1.5">
               {t('disputeEvidenceLabel')}
             </label>
-            <ImageUploadZone images={evidence} onChange={setEvidence} getToken={getToken} />
+            <ImageUploadZone images={evidence} onChange={setEvidence} getToken={getToken} enableCrop={false} />
           </div>
 
           {error && (

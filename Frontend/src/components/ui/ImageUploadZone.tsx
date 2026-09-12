@@ -2,6 +2,7 @@
 
 import { useState, useRef, DragEvent } from 'react';
 import { useTranslations } from 'next-intl';
+import PhotoCropper from './PhotoCropper';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 const MAX_IMG_SIZE   = 8   * 1024 * 1024; // 8 MB
@@ -22,17 +23,19 @@ interface Props {
   images: string[];
   onChange: (imgs: string[]) => void;
   getToken: () => Promise<string | null>;
+  // Recadrage 4:3 à l'ajout + action "Ajuster" a posteriori. Activé par
+  // défaut (photos d'annonce) ; désactivé explicitement pour les usages où
+  // rogner l'image serait indésirable (ex. preuves jointes à un litige).
+  enableCrop?: boolean;
 }
 
 function genId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-// Redimensionne/compresse une image côté client avant upload — une photo de
-// smartphone récent (souvent 4-8 Mo) videra sinon le forfait data de
-// l'utilisateur en quelques secondes. On vise ~1920px de côté max et une
-// qualité JPEG raisonnable ; si la compression échoue ou n'aide pas, on
-// renvoie le fichier original tel quel (fail-safe, jamais bloquant).
+// Redimensionne/compresse une image côté client avant upload, utilisé
+// seulement quand enableCrop=false (le recadrage produit déjà une image de
+// taille/qualité maîtrisée, donc ce passage est inutile sur ce chemin-là).
 async function compressImage(file: File, maxDim = 1920, quality = 0.82): Promise<File> {
   if (!file.type.startsWith('image/') || file.type === 'image/heic') return file;
   try {
@@ -61,14 +64,50 @@ function syncUrls(items: UploadItem[], onChange: (imgs: string[]) => void) {
   onChange(items.filter((it) => it.status === 'done').map((it) => it.url));
 }
 
-export default function ImageUploadZone({ images, onChange, getToken }: Props) {
+export default function ImageUploadZone({ images, onChange, getToken, enableCrop = true }: Props) {
   const t = useTranslations('upload');
   const [items, setItems] = useState<UploadItem[]>(
     () => images.map((url) => ({ id: genId(), url, status: 'done' as const, name: url.split('/').pop() ?? 'photo' }))
   );
   const [dragging, setDragging] = useState(false);
   const [sizeError, setSizeError] = useState(false);
+  const [adjustError, setAdjustError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // File d'attente de recadrage : chaque photo (pas vidéo) fraîchement
+  // sélectionnée/déposée passe par PhotoCropper avant d'être compressée et
+  // envoyée — un seul cadre affiché à la fois, les suivants s'enchaînent.
+  const [cropQueue, setCropQueue] = useState<{ id: string; file: File; previewUrl: string }[]>([]);
+  // Cible d'un recadrage a posteriori ("Ajuster") sur une photo déjà uploadée.
+  const [adjustTarget, setAdjustTarget] = useState<{ id: string; url: string; oldUrl: string } | null>(null);
+
+  // Envoie un fichier déjà prêt (compressé ou issu d'un recadrage) vers l'API
+  // et met à jour le slot correspondant par son ID.
+  const uploadOne = async (file: File, itemId: string) => {
+    const token = await getToken();
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res = await fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { url } = await res.json() as { url: string };
+      setItems((prev) => {
+        const next = prev.map((it) => it.id === itemId ? { ...it, url, status: 'done' as const } : it);
+        syncUrls(next, onChange);
+        return next;
+      });
+    } catch {
+      setItems((prev) => {
+        const next = prev.map((it) => it.id === itemId ? { ...it, status: 'error' as const } : it);
+        syncUrls(next, onChange);
+        return next;
+      });
+    }
+  };
 
   const uploadFiles = async (files: FileList | File[]) => {
     const fileArr = Array.from(files);
@@ -84,8 +123,6 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
     }
     setSizeError(false);
 
-    const token = await getToken();
-
     // Assign a stable ID to each upload slot before the async work starts
     const pending: UploadItem[] = fileArr.map((f) => ({
       id: genId(), url: '', status: 'uploading' as const, name: f.name,
@@ -97,35 +134,96 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
       return next;
     });
 
-    // Upload each file independently; update its slot by ID when done
-    await Promise.all(
-      fileArr.map(async (file, i) => {
-        const itemId = pending[i].id;
-        const uploadFile = isVideoFile(file) ? file : await compressImage(file);
-        const fd = new FormData();
-        fd.append('file', uploadFile);
-        try {
-          const res = await fetch(`${API_URL}/upload`, {
-            method: 'POST',
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            body: fd,
-          });
-          if (!res.ok) throw new Error(await res.text());
-          const { url } = await res.json() as { url: string };
-          setItems((prev) => {
-            const next = prev.map((it) => it.id === itemId ? { ...it, url, status: 'done' as const } : it);
-            syncUrls(next, onChange);
-            return next;
-          });
-        } catch {
-          setItems((prev) => {
-            const next = prev.map((it) => it.id === itemId ? { ...it, status: 'error' as const } : it);
-            syncUrls(next, onChange);
-            return next;
-          });
-        }
-      })
-    );
+    // Vidéos : jamais de recadrage, upload direct.
+    const videoUploads = fileArr
+      .map((file, i) => ({ file, itemId: pending[i].id }))
+      .filter(({ file }) => isVideoFile(file));
+
+    const photos = fileArr
+      .map((file, i) => ({ file, itemId: pending[i].id }))
+      .filter(({ file }) => !isVideoFile(file));
+
+    if (enableCrop) {
+      // Photos d'annonce : mises en file pour passer par PhotoCropper une à une.
+      const photoAdds = photos.map(({ file, itemId }) => ({ id: itemId, file, previewUrl: URL.createObjectURL(file) }));
+      if (photoAdds.length) setCropQueue((prev) => [...prev, ...photoAdds]);
+    } else {
+      // Autres usages (ex. preuves de litige) : pas de recadrage, upload direct après compression.
+      await Promise.all(photos.map(async ({ file, itemId }) => uploadOne(await compressImage(file), itemId)));
+    }
+
+    await Promise.all(videoUploads.map(({ file, itemId }) => uploadOne(file, itemId)));
+  };
+
+  const currentCrop = cropQueue[0];
+
+  const handleCropConfirm = async (blob: Blob) => {
+    if (!currentCrop) return;
+    const { id, file, previewUrl } = currentCrop;
+    URL.revokeObjectURL(previewUrl);
+    setCropQueue((prev) => prev.slice(1));
+    const cropped = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' });
+    await uploadOne(cropped, id);
+  };
+
+  const handleCropCancel = () => {
+    if (!currentCrop) return;
+    URL.revokeObjectURL(currentCrop.previewUrl);
+    setCropQueue((prev) => prev.slice(1));
+    remove(currentCrop.id);
+  };
+
+  const openAdjust = (item: UploadItem) => {
+    if (item.status !== 'done' || isVideoUrl(item.url)) return;
+    setAdjustTarget({ id: item.id, url: item.url, oldUrl: item.url });
+  };
+
+  const handleAdjustConfirm = async (blob: Blob) => {
+    if (!adjustTarget) return;
+    const { id, oldUrl } = adjustTarget;
+    setAdjustTarget(null);
+    setItems((prev) => {
+      const next = prev.map((it) => it.id === id ? { ...it, status: 'uploading' as const } : it);
+      syncUrls(next, onChange);
+      return next;
+    });
+    const token = await getToken();
+    const fd = new FormData();
+    fd.append('file', new File([blob], 'photo.jpg', { type: 'image/jpeg' }));
+    try {
+      const res = await fetch(`${API_URL}/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { url } = await res.json() as { url: string };
+      setItems((prev) => {
+        const next = prev.map((it) => it.id === id ? { ...it, url, status: 'done' as const } : it);
+        syncUrls(next, onChange);
+        return next;
+      });
+    } catch {
+      // On garde la photo d'origine plutôt que de la marquer en erreur.
+      setItems((prev) => {
+        const next = prev.map((it) => it.id === id ? { ...it, url: oldUrl, status: 'done' as const } : it);
+        syncUrls(next, onChange);
+        return next;
+      });
+      setAdjustError(true);
+      setTimeout(() => setAdjustError(false), 4000);
+    }
+  };
+
+  const handleAdjustCancel = () => setAdjustTarget(null);
+
+  // Une image locale (objet URL) ne peut pas échouer par CORS ; une image
+  // distante déjà uploadée (Cloudinary) le pourrait en théorie — filet de
+  // sécurité pour ne jamais planter silencieusement.
+  const handleAdjustLoadError = () => {
+    setAdjustTarget(null);
+    setAdjustError(true);
+    setTimeout(() => setAdjustError(false), 4000);
   };
 
   const remove = (id: string) => {
@@ -192,6 +290,12 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
         </p>
       )}
 
+      {adjustError && (
+        <p className="flex items-center gap-1.5 text-xs text-red-500">
+          <i className="fa-solid fa-circle-exclamation" /> {t('adjustUploadError')}
+        </p>
+      )}
+
       {items.length > 0 && (
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {items.map((item, idx) => (
@@ -237,6 +341,17 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
                 </button>
               )}
 
+              {/* Bouton "Ajuster" — recadrer a posteriori une photo déjà envoyée */}
+              {enableCrop && item.status === 'done' && !isVideoUrl(item.url) && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); openAdjust(item); }}
+                  className="absolute bottom-1.5 left-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-semibold text-white opacity-0 transition group-hover:opacity-100 hover:bg-gold hover:text-gray-900"
+                >
+                  <i className="fa-solid fa-crop-simple text-[8px] mr-1" />{t('adjustLabel')}
+                </button>
+              )}
+
               {/* Bouton supprimer */}
               <button
                 type="button"
@@ -256,6 +371,28 @@ export default function ImageUploadZone({ images, onChange, getToken }: Props) {
           {items.some((i) => i.status === 'done' && isVideoUrl(i.url)) && ` · ${t('videoSuffix')}`}
           {' '}· {t('firstIsPrimary')}
         </p>
+      )}
+
+      {/* Recadrage à l'ajout — une photo à la fois, la file s'enchaîne */}
+      {currentCrop && (
+        <PhotoCropper
+          key={currentCrop.id}
+          src={currentCrop.previewUrl}
+          onConfirm={(blob) => void handleCropConfirm(blob)}
+          onCancel={handleCropCancel}
+          onError={handleCropCancel}
+        />
+      )}
+
+      {/* Recadrage a posteriori ("Ajuster") sur une photo déjà envoyée */}
+      {adjustTarget && (
+        <PhotoCropper
+          key={adjustTarget.id}
+          src={adjustTarget.url}
+          onConfirm={(blob) => void handleAdjustConfirm(blob)}
+          onCancel={handleAdjustCancel}
+          onError={handleAdjustLoadError}
+        />
       )}
     </div>
   );
