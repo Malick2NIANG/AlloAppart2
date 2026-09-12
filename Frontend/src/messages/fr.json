@@ -1003,7 +1003,10 @@
     "pendingDesc": "Votre paiement est en cours de traitement.",
     "pendingRetryHint": "Si vous avez effectué le paiement, attendez quelques instants et actualisez.",
     "trackReservation": "Suivre ma réservation",
-    "retryBtn": "Actualiser"
+    "retryBtn": "Actualiser",
+    "failedTitle": "Paiement non abouti",
+    "failedDesc": "Le paiement n'a pas pu être finalisé (solde insuffisant, transaction annulée ou refusée). Votre réservation a été annulée — vous pouvez retenter une réservation à tout moment.",
+    "failedToast": "Le paiement n'a pas abouti. Votre réservation a été annulée."
   },
   "paydunyaModal": {
     "title": "Choisissez votre moyen de paiement",
@@ -1390,6 +1393,7 @@
     "leaveReviewAction": "Laisser un avis",
     "cancelReservationBtn": "Annuler la réservation",
     "cancelingAction": "Annulation…",
+    "paymentCancelledToast": "Le paiement n'a pas abouti (annulé ou refusé). Votre réservation reste en attente.",
     "backToListBtn": "← Retour à la liste",
     "reviewFormTitle": "Laisser un avis",
     "reviewCommentPh": "Décrivez votre expérience (facultatif)",

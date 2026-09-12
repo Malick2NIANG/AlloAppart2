@@ -349,6 +349,90 @@ describe('PaymentsService', () => {
     });
   });
 
+  // Régression : verifyBooking() (appelée depuis /paiement/confirmation)
+  // traitait tout statut PayDunya non 'completed' de façon identique —
+  // 'cancelled'/'failed' (paiement définitivement refusé) restait confondu
+  // avec 'pending' (encore en cours), laissant le booking bloqué en
+  // PENDING/APPROVED pour toujours et la page de confirmation affichait un
+  // écran "en cours de traitement" qui ne se résolvait jamais.
+  describe('verifyBooking — échec/annulation PayDunya', () => {
+    beforeEach(() => {
+      configMock.get.mockImplementation((key: string) => ({
+        PAYDUNYA_MASTER_KEY: 'mk',
+        PAYDUNYA_PRIVATE_KEY: 'pk',
+        PAYDUNYA_TOKEN: 'tk',
+      })[key]);
+    });
+
+    it("marque le booking CANCELLED si PayDunya confirme 'cancelled'", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b20', tenantId: 't20', status: BookingStatus.PENDING,
+        paymentRef: 'PD-tok20', totalAmount: 50000,
+      });
+      axiosGetMock.mockResolvedValueOnce({ data: { status: 'cancelled' } });
+      prismaMock.booking.update.mockResolvedValueOnce({
+        id: 'b20', status: BookingStatus.CANCELLED, escrowStatus: EscrowStatus.REFUNDED,
+      });
+
+      const result = await service.verifyBooking('b20', 't20');
+
+      expect(prismaMock.booking.update).toHaveBeenCalledWith({
+        where: { id: 'b20' },
+        data: { status: BookingStatus.CANCELLED, escrowStatus: EscrowStatus.REFUNDED },
+        include: { listing: { include: { owner: true } }, tenant: true },
+      });
+      expect(result.status).toBe(BookingStatus.CANCELLED);
+    });
+
+    it("marque le booking CANCELLED si PayDunya confirme 'failed'", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'b21', tenantId: 't21', status: BookingStatus.APPROVED,
+        paymentRef: 'PD-tok21', totalAmount: 75000,
+      });
+      axiosGetMock.mockResolvedValueOnce({ data: { status: 'failed' } });
+      prismaMock.booking.update.mockResolvedValueOnce({
+        id: 'b21', status: BookingStatus.CANCELLED, escrowStatus: EscrowStatus.REFUNDED,
+      });
+
+      const result = await service.verifyBooking('b21', 't21');
+
+      expect(prismaMock.booking.update).toHaveBeenCalledWith({
+        where: { id: 'b21' },
+        data: { status: BookingStatus.CANCELLED, escrowStatus: EscrowStatus.REFUNDED },
+        include: { listing: { include: { owner: true } }, tenant: true },
+      });
+      expect(result.status).toBe(BookingStatus.CANCELLED);
+    });
+
+    it('ne réécrit rien si le booking est déjà CANCELLED (idempotence, webhook déjà passé)', async () => {
+      const already = {
+        id: 'b22', tenantId: 't22', status: BookingStatus.CANCELLED,
+        paymentRef: 'PD-tok22', totalAmount: 30000,
+      };
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(already);
+      axiosGetMock.mockResolvedValueOnce({ data: { status: 'failed' } });
+
+      const result = await service.verifyBooking('b22', 't22');
+
+      expect(prismaMock.booking.update).not.toHaveBeenCalled();
+      expect(result).toBe(already);
+    });
+
+    it("laisse le booking inchangé si PayDunya renvoie 'pending' (pas encore finalisé)", async () => {
+      const pendingBooking = {
+        id: 'b23', tenantId: 't23', status: BookingStatus.PENDING,
+        paymentRef: 'PD-tok23', totalAmount: 40000,
+      };
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(pendingBooking);
+      axiosGetMock.mockResolvedValueOnce({ data: { status: 'pending' } });
+
+      const result = await service.verifyBooking('b23', 't23');
+
+      expect(prismaMock.booking.update).not.toHaveBeenCalled();
+      expect(result).toBe(pendingBooking);
+    });
+  });
+
   // Régression : initiate() renvoyait aveuglément l'ancien lien PayDunya dès
   // qu'un checkout existait déjà (paymentRef PD-...), sans jamais revérifier
   // si la facture avait entre-temps été réglée côté PayDunya (le webhook IPN

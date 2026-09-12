@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations, useLocale } from 'next-intl';
+import { useToast } from '@/components/ui/Toast';
 import type { Booking } from '@/types';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -16,9 +17,10 @@ export default function PaiementConfirmationPage() {
   const t = useTranslations('payment');
   const locale = useLocale();
   const numLocale = locale === 'en' ? 'en-US' : 'fr-SN';
+  const { toast } = useToast();
 
   const [booking,  setBooking]  = useState<Booking | null>(null);
-  const [status,   setStatus]   = useState<'loading' | 'confirmed' | 'pending' | 'error'>('loading');
+  const [status,   setStatus]   = useState<'loading' | 'confirmed' | 'pending' | 'failed' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,8 +51,19 @@ export default function PaiementConfirmationPage() {
         const b: Booking = await res.json() as Booking;
         setBooking(b);
         // CONFIRMED (nuitée) ou ACTIVE (bail mensuel, cf. markBookingPaid
-        // côté backend) signalent tous les deux un paiement réussi.
-        setStatus(b.status === 'CONFIRMED' || b.status === 'ACTIVE' ? 'confirmed' : 'pending');
+        // côté backend) signalent tous les deux un paiement réussi. CANCELLED
+        // signale un échec/annulation définitif côté PayDunya (solde
+        // insuffisant, transaction refusée, etc.) — distinct d'un simple
+        // "pas encore finalisé" pour ne pas laisser l'utilisateur sur un
+        // écran "en cours de traitement" qui ne se résoudra jamais.
+        if (b.status === 'CONFIRMED' || b.status === 'ACTIVE') {
+          setStatus('confirmed');
+        } else if (b.status === 'CANCELLED') {
+          setStatus('failed');
+          toast.error(t('failedToast'));
+        } else {
+          setStatus('pending');
+        }
       } catch (e: unknown) {
         setErrorMsg(e instanceof Error ? e.message : t('verifyError'));
         setStatus('error');
@@ -170,6 +183,31 @@ export default function PaiementConfirmationPage() {
               >
                 <i className="fa-solid fa-rotate-right" /> {t('retryBtn')}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Échec / annulation définitive ───────────────────── */}
+        {status === 'failed' && (
+          <div className="text-center">
+            <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/30 ring-4 ring-red-100">
+              <i className="fa-solid fa-circle-xmark text-3xl text-red-500" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-text">{t('failedTitle')}</h1>
+            <p className="mt-3 text-sm text-sub">{t('failedDesc')}</p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <Link
+                href="/locataire/bookings"
+                className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold"
+              >
+                <i className="fa-solid fa-calendar-check" /> {t('myBookings')}
+              </Link>
+              <Link
+                href="/listings"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+              >
+                {t('continueExploring')}
+              </Link>
             </div>
           </div>
         )}

@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { formatDate, formatPrice } from '@/lib/utils';
+import { useToast } from '@/components/ui/Toast';
 import type { Booking } from '@/types';
 
 interface MyReview {
@@ -40,7 +41,9 @@ const ESCROW_ICON: Record<string, string> = {
 export default function BookingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
+  const searchParams = useSearchParams();
   const { getToken } = useAuth();
+  const { toast } = useToast();
   const t = useTranslations('locataire');
 
   const STATUS_LABEL: Record<string, string> = {
@@ -90,6 +93,18 @@ export default function BookingDetailPage() {
   }, [id, getToken, t]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // PayDunya redirige ici via `cancel_url` quand l'utilisateur annule ou que
+  // le paiement échoue directement sur sa page hébergée (solde insuffisant,
+  // etc.) — avant même que notre webhook ne soit appelé. Sans ce toast,
+  // l'utilisateur atterrissait silencieusement sur la fiche de réservation
+  // sans aucune indication que le paiement n'avait pas abouti.
+  useEffect(() => {
+    if (searchParams.get('status') === 'cancel') {
+      toast.error(t('paymentCancelledToast'));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const cancel = async () => {
     if (!booking || canceling) return;

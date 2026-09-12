@@ -1003,7 +1003,10 @@
     "pendingDesc": "Your payment is being processed.",
     "pendingRetryHint": "If you completed the payment, wait a moment and refresh.",
     "trackReservation": "Track my booking",
-    "retryBtn": "Refresh"
+    "retryBtn": "Refresh",
+    "failedTitle": "Payment unsuccessful",
+    "failedDesc": "The payment could not be completed (insufficient funds, cancelled or declined transaction). Your booking has been cancelled — you can book again at any time.",
+    "failedToast": "The payment didn't go through. Your booking has been cancelled."
   },
   "paydunyaModal": {
     "title": "Choose your payment method",
@@ -1395,6 +1398,7 @@
     "leaveReviewAction": "Leave a review",
     "cancelReservationBtn": "Cancel booking",
     "cancelingAction": "Cancelling…",
+    "paymentCancelledToast": "The payment didn't go through (cancelled or declined). Your booking is still pending.",
     "backToListBtn": "← Back to list",
     "reviewFormTitle": "Leave a review",
     "reviewCommentPh": "Describe your experience (optional)",

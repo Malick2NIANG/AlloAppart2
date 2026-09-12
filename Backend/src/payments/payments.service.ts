@@ -396,8 +396,26 @@ export class PaymentsService {
       })
       .catch(() => null);
 
-    if (!confirm || confirm.data.status !== 'completed') {
-      return booking; // paiement pas encore finalisé
+    if (!confirm) {
+      return booking; // impossible d'interroger PayDunya — statut inconnu, on ne conclut rien
+    }
+
+    // Échec/annulation définitifs — distincts d'un simple "pas encore
+    // finalisé" (pending) : sans cette branche, un paiement refusé (solde
+    // insuffisant, annulation par l'utilisateur, etc.) restait indéfiniment
+    // PENDING/APPROVED côté réservation, et la page de confirmation
+    // affichait "en cours de traitement" pour toujours au lieu d'un échec.
+    if (confirm.data.status === 'cancelled' || confirm.data.status === 'failed') {
+      if (booking.status === BookingStatus.CANCELLED) return booking; // déjà traité par le webhook
+      return this.prisma.booking.update({
+        where: { id: bookingId },
+        data: { status: BookingStatus.CANCELLED, escrowStatus: EscrowStatus.REFUNDED },
+        include: { listing: { include: { owner: true } }, tenant: true },
+      });
+    }
+
+    if (confirm.data.status !== 'completed') {
+      return booking; // toujours en attente côté PayDunya (pending)
     }
 
     // Vérification du montant
