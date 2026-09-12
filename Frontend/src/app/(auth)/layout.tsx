@@ -1,9 +1,19 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { auth } from '@clerk/nextjs/server';
 import AuthCarousel from './AuthCarousel';
 import { getTranslations } from 'next-intl/server';
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const t = await getTranslations('auth');
+
+  // Un cookie de session Clerk survit à la fermeture de l'onglet/navigateur
+  // (comportement normal, pas un bug) : sans ce garde-fou, un utilisateur
+  // déjà connecté qui revient sur /sign-in ou /sign-up se retrouvait bloqué
+  // avec une erreur brute Clerk "session_exists" en soumettant le
+  // formulaire. On le redirige directement vers son espace à la place.
+  const { userId } = await auth();
+  if (userId) redirect('/redirect');
 
   return (
     <div className="flex h-screen overflow-hidden">

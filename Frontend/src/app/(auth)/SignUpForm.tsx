@@ -59,8 +59,16 @@ export default function SignUpForm() {
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       setView('verify');
     } catch (err: unknown) {
-      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? ts('errorFallback');
-      setFlash({ type: 'error', message: msg });
+      const clerkErr = (err as { errors?: { code?: string; message: string }[] })?.errors?.[0];
+      if (clerkErr?.code === 'session_exists') {
+        // Session déjà active — filet de sécurité si (auth)/layout.tsx n'a
+        // pas encore redirigé (page restée ouverte depuis une connexion
+        // précédente). On redirige plutôt que d'afficher l'erreur brute Clerk.
+        setFlash({ type: 'success', message: ts('alreadySignedIn') });
+        setTimeout(() => window.location.replace('/redirect'), 900);
+        return;
+      }
+      setFlash({ type: 'error', message: clerkErr?.message ?? ts('errorFallback') });
     } finally { setLoading(false); }
   };
 

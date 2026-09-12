@@ -56,8 +56,18 @@ export default function SignInForm() {
         return;
       }
     } catch (err: unknown) {
-      const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? ts('invalidCredentials');
-      setFlash({ type: 'error', message: msg });
+      const clerkErr = (err as { errors?: { code?: string; message: string }[] })?.errors?.[0];
+      if (clerkErr?.code === 'session_exists') {
+        // Session déjà active (ex. page /sign-in restée ouverte dans un onglet
+        // depuis une connexion précédente) — le garde-fou serveur de
+        // (auth)/layout.tsx couvre le cas normal, ceci est un filet de
+        // sécurité pour une page déjà chargée. On redirige directement au
+        // lieu de laisser l'utilisateur bloqué avec l'erreur brute Clerk.
+        setFlash({ type: 'info', message: ts('alreadySignedIn') });
+        setTimeout(() => window.location.replace('/redirect'), 900);
+        return;
+      }
+      setFlash({ type: 'error', message: clerkErr?.message ?? ts('invalidCredentials') });
     } finally { setLoading(false); }
   };
 
