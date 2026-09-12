@@ -568,6 +568,14 @@
         "href": "/listings"
       },
       {
+        "label": "Publier une annonce",
+        "href": "/publier"
+      },
+      {
+        "label": "Agences partenaires",
+        "href": "/agences"
+      },
+      {
         "label": "À propos",
         "href": "/a-propos"
       }
@@ -592,14 +600,6 @@
       {
         "label": "Chambres",
         "href": "/listings?type=CHAMBRE"
-      },
-      {
-        "label": "Locaux commerciaux",
-        "href": "/listings?type=LOCAL"
-      },
-      {
-        "label": "Terrains",
-        "href": "/listings?type=TERRAIN"
       }
     ],
     "accountLinks": [
@@ -613,7 +613,7 @@
       },
       {
         "label": "Mon espace",
-        "href": "/locataire/dashboard"
+        "href": "/locataire"
       }
     ],
     "infoLinks": [
