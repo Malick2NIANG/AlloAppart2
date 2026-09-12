@@ -162,7 +162,7 @@
     "signIn": {
       "title": "Bon retour",
       "subtitle": "Connectez-vous pour accéder à votre espace.",
-      "forgotPassword": "Oublié ?",
+      "forgotPassword": "Mot de passe oublié ?",
       "submit": "Se connecter",
       "submitting": "Connexion…",
       "noAccount": "Pas de compte ?",
