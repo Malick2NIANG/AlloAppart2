@@ -96,7 +96,9 @@ export default function SignUpForm() {
 
   const handleGoogle = async () => {
     if (!isLoaded) return;
-    await signUp.authenticateWithRedirect({ strategy: 'oauth_google', redirectUrl: '/sign-up', redirectUrlComplete: '/' });
+    // redirectUrl doit pointer vers une page qui finalise le handshake OAuth
+    // (voir (auth)/sso-callback) — /redirect gère ensuite le routage par rôle.
+    await signUp.authenticateWithRedirect({ strategy: 'oauth_google', redirectUrl: '/sso-callback', redirectUrlComplete: '/redirect' });
   };
 
   const pwdMismatch = confirm.length > 0 && password !== confirm;

@@ -84,7 +84,9 @@ export default function SignInForm() {
 
   const handleGoogle = async () => {
     if (!isLoaded) return;
-    await signIn.authenticateWithRedirect({ strategy: 'oauth_google', redirectUrl: '/sign-in', redirectUrlComplete: '/' });
+    // redirectUrl doit pointer vers une page qui finalise le handshake OAuth
+    // (voir (auth)/sso-callback) — /redirect gère ensuite le routage par rôle.
+    await signIn.authenticateWithRedirect({ strategy: 'oauth_google', redirectUrl: '/sso-callback', redirectUrlComplete: '/redirect' });
   };
 
   // Étape 1 — envoyer le code OTP par email
