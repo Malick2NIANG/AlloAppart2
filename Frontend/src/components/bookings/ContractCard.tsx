@@ -16,9 +16,10 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
   const { getToken } = useAuth();
   const t = useTranslations('contract');
 
-  const [contract, setContract] = useState<Contract | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
+  const [contract, setContract]     = useState<Contract | null>(null);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const retriedRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -37,6 +38,34 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
+
+  // Avant : simple <a href> vers l'URL Cloudinary brute — le navigateur
+  // l'ouvrait (souvent en visualisation inline dans un nouvel onglet) au
+  // lieu de forcer un vrai téléchargement, contrairement au reçu de
+  // paiement qui, lui, force le téléchargement via fetch+blob. On reproduit
+  // exactement le même comportement ici.
+  const handleDownload = async () => {
+    if (!contract?.pdfUrl || downloading) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(contract.pdfUrl);
+      if (!res.ok) throw new Error('error');
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `contrat-${contract.bookingId.slice(0, 8)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Repli : l'URL Cloudinary reste valide en soi — on ouvre directement
+      // plutôt que de laisser le clic sans aucun effet en cas d'échec du
+      // téléchargement forcé (ex. CORS).
+      window.open(contract.pdfUrl, '_blank', 'noopener,noreferrer');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   // Le contrat est généré en tâche de fond juste après le paiement — un
   // court délai est normal. Un seul re-essai automatique, pas de polling continu.
@@ -82,15 +111,15 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
       </div>
 
       {contract.pdfUrl && (
-        <a
-          href={contract.pdfUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-gold inline-flex items-center gap-2 text-xs py-2 px-4"
+        <button
+          type="button"
+          onClick={() => void handleDownload()}
+          disabled={downloading}
+          className="btn-gold inline-flex items-center gap-2 text-xs py-2 px-4 disabled:opacity-50"
         >
-          <i className="fa-solid fa-download" />
+          <i className={`fa-solid ${downloading ? 'fa-spinner fa-spin' : 'fa-download'}`} />
           {t('downloadBtn')}
-        </a>
+        </button>
       )}
 
       <div className="rounded-xl border border-gold/30 bg-gold-pale/50 p-3.5 space-y-1.5">
