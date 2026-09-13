@@ -70,7 +70,17 @@ type MonthlyReportData = {
 
 @Injectable()
 export class PdfService {
-  generateReceipt(booking: BookingFull): Promise<Buffer> {
+  /**
+   * @param qrCodeBuffer PNG du QR de vérification d'identité locataire
+   * (voir BookingsService.getVerificationQr / verifyPublic). Optionnel pour
+   * ne jamais faire échouer la génération du reçu si le QR n'a pas pu être
+   * produit (ex. secret non configuré en dev) — le reçu reste utilisable
+   * sans, juste sans le bloc de vérification.
+   */
+  generateReceipt(
+    booking: BookingFull,
+    qrCodeBuffer?: Buffer,
+  ): Promise<Buffer> {
     return new Promise<Buffer>((resolve, reject) => {
       const chunks: Buffer[] = [];
       const doc = new PDFDocumentLib({ size: 'A4', margin: 50 });
@@ -78,6 +88,22 @@ export class PdfService {
       doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
+
+      if (qrCodeBuffer) {
+        try {
+          doc.image(qrCodeBuffer, 455, 50, { width: 90 });
+          doc
+            .fontSize(6.5)
+            .font('Helvetica')
+            .fillColor('#888888')
+            .text('Verification identite', 455, 143, {
+              width: 90,
+              align: 'center',
+            });
+        } catch {
+          // Image corrompue/illisible : on continue sans bloquer le reçu.
+        }
+      }
 
       // Header
       doc
@@ -168,7 +194,14 @@ export class PdfService {
    * Les parties le signent ensuite séquentiellement (locataire puis
    * bailleur) en le re-téléversant signé via leur espace AlloAppart.
    */
-  generateLeaseContract(rawData: LeaseContractData): Promise<Buffer> {
+  /**
+   * @param qrCodeBuffer PNG du QR de vérification (voir generateReceipt) —
+   * optionnel, même raison de robustesse.
+   */
+  generateLeaseContract(
+    rawData: LeaseContractData,
+    qrCodeBuffer?: Buffer,
+  ): Promise<Buffer> {
     // ── Assainissement défensif des données ────────────────────────────────
     // pdfkit peut boucler indéfiniment sur `addPage`/`continueOnNewPage`
     // (RangeError: Maximum call stack size exceeded) face à un champ texte
@@ -190,18 +223,24 @@ export class PdfService {
         firstName: cleanText(rawData.landlord.firstName, 80),
         lastName: cleanText(rawData.landlord.lastName, 80),
         email: cleanText(rawData.landlord.email, 120),
-        phone: rawData.landlord.phone ? cleanText(rawData.landlord.phone, 40) : null,
+        phone: rawData.landlord.phone
+          ? cleanText(rawData.landlord.phone, 40)
+          : null,
       },
       tenant: {
         firstName: cleanText(rawData.tenant.firstName, 80),
         lastName: cleanText(rawData.tenant.lastName, 80),
         email: cleanText(rawData.tenant.email, 120),
-        phone: rawData.tenant.phone ? cleanText(rawData.tenant.phone, 40) : null,
+        phone: rawData.tenant.phone
+          ? cleanText(rawData.tenant.phone, 40)
+          : null,
       },
       listing: {
         ...rawData.listing,
         title: cleanText(rawData.listing.title, 150),
-        address: rawData.listing.address ? cleanText(rawData.listing.address, 200) : null,
+        address: rawData.listing.address
+          ? cleanText(rawData.listing.address, 200)
+          : null,
         city: cleanText(rawData.listing.city, 100),
         region: cleanText(rawData.listing.region, 100),
       },
@@ -210,7 +249,10 @@ export class PdfService {
       totalDueAtSigning: finite(rawData.totalDueAtSigning),
       platformFee: finite(rawData.platformFee),
       depositMonths: Math.max(0, Math.round(finite(rawData.depositMonths, 0))),
-      minLeaseMonths: Math.max(1, Math.round(finite(rawData.minLeaseMonths, 1))),
+      minLeaseMonths: Math.max(
+        1,
+        Math.round(finite(rawData.minLeaseMonths, 1)),
+      ),
       moveInDate: validDate(rawData.moveInDate),
     };
 
@@ -310,7 +352,10 @@ export class PdfService {
           .fillColor(SLATE)
           .text(fullName(p), { width: 495 })
           .text(p.email, { width: 495 })
-          .text(p.phone ?? 'Telephone communique via la messagerie AlloAppart', { width: 495 })
+          .text(
+            p.phone ?? 'Telephone communique via la messagerie AlloAppart',
+            { width: 495 },
+          )
           .moveDown(0.6);
       };
 
@@ -415,12 +460,37 @@ export class PdfService {
         'Le present contrat est regi par le droit de la Republique du Senegal, notamment le Code des Obligations Civiles et Commerciales (COCC). En cas de litige et a defaut de resolution amiable, competence exclusive est attribuee au Tribunal de Grande Instance de Dakar.',
       );
 
-      if (doc.y > doc.page.height - 220) doc.addPage();
+      if (doc.y > doc.page.height - (qrCodeBuffer ? 260 : 220)) doc.addPage();
 
       sectionTitle('Signatures');
       paragraph(
         'Ce contrat est signe de maniere sequentielle : le Locataire signe en premier et le re-televerse sur AlloAppart, puis le Bailleur le signe a son tour pour finaliser le bail. Chaque partie peut apposer sa signature electroniquement (ex. Adobe Acrobat / Adobe Fill & Sign) avant re-televersement.',
       );
+
+      if (qrCodeBuffer) {
+        try {
+          const qrSize = 70;
+          const qrX = 545 - qrSize;
+          const qrY = doc.y;
+          doc.image(qrCodeBuffer, qrX, qrY, { width: qrSize });
+          doc
+            .fontSize(6.5)
+            .font('Helvetica')
+            .fillColor(GREY)
+            .text(
+              "Scanner pour verifier ce bail et l'identite du locataire",
+              qrX - 130,
+              qrY + qrSize + 2,
+              {
+                width: qrSize + 130,
+                align: 'right',
+              },
+            );
+          doc.y = qrY + qrSize + 16;
+        } catch {
+          // Image corrompue/illisible : on continue sans bloquer le contrat.
+        }
+      }
 
       const sigY = doc.y + 10;
       doc.fontSize(9.5).font('Helvetica-Bold').fillColor(INK);

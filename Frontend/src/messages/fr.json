@@ -2710,5 +2710,30 @@
   },
   "meta": {
     "description": "Trouvez votre logement idéal au Sénégal avec la certification AlloVérifié™. Appartements, villas, studios à Dakar et partout au Sénégal."
+  },
+  "verification": {
+    "qrButtonLabel": "Mon QR de vérification",
+    "modalTitle": "QR de vérification d'identité",
+    "modalInstructions": "Montrez ce code à votre bailleur à l'arrivée (ou pour prouver l'authenticité de votre bail). Il le scanne avec son téléphone — aucune connexion ni application requise.",
+    "modalError": "Impossible de générer le QR pour le moment. Réessayez plus tard.",
+    "close": "Fermer",
+    "invalidTitle": "QR invalide ou non vérifiable",
+    "validTitle": "Identité vérifiée",
+    "validDesc": "Ce QR correspond à une réservation AlloAppart active et vérifiée.",
+    "tenantLabel": "Locataire",
+    "listingLabel": "Annonce",
+    "datesLabel": "Séjour",
+    "statusLabel": "Statut",
+    "statusActiveLease": "Bail actif",
+    "statusConfirmedStay": "Réservation confirmée",
+    "backHome": "Retour à l'accueil",
+    "reasonINVALID": "Ce lien de vérification n'est pas valide.",
+    "reasonNOT_FOUND": "Cette réservation n'existe plus.",
+    "reasonCANCELLED": "Cette réservation a été annulée.",
+    "reasonNOT_CONFIRMED": "Cette réservation n'a pas encore été confirmée/payée.",
+    "reasonTOO_EARLY": "Ce QR n'est pas encore valide — trop tôt avant le début du séjour.",
+    "reasonEXPIRED": "Ce QR a expiré — le séjour est terminé depuis trop longtemps.",
+    "reasonTERMINATED": "Ce bail a été résilié.",
+    "reasonNOT_ACTIVE": "Ce bail n'est pas encore actif."
   }
 }

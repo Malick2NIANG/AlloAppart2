@@ -11,6 +11,7 @@ import { formatDate, formatPrice, openPaymentTab, redirectPaymentTab, closePayme
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import ContractCard from '@/components/bookings/ContractCard';
+import { VerificationQrModal } from '@/components/bookings/VerificationQrModal';
 
 const DISPUTE_WINDOW_HOURS = 24;
 const FALLBACK_IMG = 'https://via.placeholder.com/600x400?text=AlloAppart';
@@ -333,11 +334,19 @@ function BookingCard({
 }) {
   const router = useRouter();
   const t = useTranslations('locataire');
+  const tVerif = useTranslations('verification');
   const [showContract, setShowContract] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const img = booking.listing?.images?.[0] ?? FALLBACK_IMG;
   const goToDetail = () => router.push(`/locataire/bookings/${booking.id}`);
   const hasContract = booking.bookingType === 'MONTHLY' &&
     (booking.status === 'ACTIVE' || booking.status === 'TERMINATED');
+  // QR de vérification d'identité — nuitée confirmée/terminée (le bailleur
+  // vérifie à l'arrivée), ou bail mensuel actif (preuve d'authenticité).
+  const canShowQr =
+    (booking.bookingType !== 'MONTHLY' &&
+      (booking.status === 'CONFIRMED' || booking.status === 'COMPLETED')) ||
+    (booking.bookingType === 'MONTHLY' && booking.status === 'ACTIVE');
 
   return (
     <div className="flex flex-col gap-3">
@@ -393,6 +402,15 @@ function BookingCard({
                 {showContract ? t('hideContractBtn') : t('viewContractBtn')}
               </button>
             )}
+            {canShowQr && (
+              <button
+                onClick={() => setShowQrModal(true)}
+                className="flex items-center gap-1.5 text-xs font-medium text-gold-dark hover:text-gold transition-colors"
+              >
+                <i className="fa-solid fa-qrcode text-[10px]" />
+                {tVerif('qrButtonLabel')}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -403,6 +421,12 @@ function BookingCard({
           <ContractCard bookingId={booking.id} viewerRole="tenant" />
         </div>
       )}
+
+      <VerificationQrModal
+        open={showQrModal}
+        onClose={() => setShowQrModal(false)}
+        bookingId={booking.id}
+      />
     </div>
   );
 }

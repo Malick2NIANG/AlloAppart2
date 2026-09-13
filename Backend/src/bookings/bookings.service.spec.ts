@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { BookingsService } from './bookings.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -160,6 +161,10 @@ describe('BookingsService', () => {
         BookingsService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: NotificationsService, useValue: notifMock },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(undefined) },
+        },
       ],
     }).compile();
 
@@ -1103,6 +1108,264 @@ describe('BookingsService', () => {
       await expect(
         service.terminateLease('booking-monthly-1', tenant),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // --- getVerificationQr ---
+  describe('getVerificationQr', () => {
+    it('retourne un token + une url pour le locataire de la réservation', async () => {
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'booking1',
+        tenantId: 'tenant1',
+      });
+
+      const result = await service.getVerificationQr('booking1', 'tenant1');
+
+      expect(result.token).toBeTruthy();
+      expect(result.url).toContain('/verifier/');
+      expect(result.url).toContain(result.token);
+    });
+
+    it("lève ForbiddenException si l'appelant n'est pas le locataire", async () => {
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'booking1',
+        tenantId: 'tenant1',
+      });
+
+      await expect(
+        service.getVerificationQr('booking1', 'quelqu-un-d-autre'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('lève NotFoundException si la réservation n’existe pas', async () => {
+      prismaMock.booking.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.getVerificationQr('booking-inconnu', 'tenant1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('produit le même token que verifyPublic sait décoder (round-trip)', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-05T10:00:00Z'));
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'booking1',
+        tenantId: 'tenant1',
+      });
+      const { token } = await service.getVerificationQr('booking1', 'tenant1');
+
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        ...pendingBooking,
+        bookingType: BookingType.NIGHTLY,
+        status: BookingStatus.CONFIRMED,
+      });
+      const result = await service.verifyPublic(token);
+
+      expect(result.valid).toBe(true);
+      jest.useRealTimers();
+    });
+  });
+
+  // --- verifyPublic ---
+  describe('verifyPublic', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('rejette un token malformé sans toucher la base', async () => {
+      const result = await service.verifyPublic(
+        'token-invalide-sans-signature',
+      );
+
+      expect(result).toEqual({ valid: false, reason: 'INVALID' });
+      expect(prismaMock.booking.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('retourne NOT_FOUND si la réservation référencée n’existe plus', async () => {
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'booking1',
+        tenantId: 'tenant1',
+      });
+      const { token } = await service.getVerificationQr('booking1', 'tenant1');
+
+      prismaMock.booking.findUnique.mockResolvedValueOnce(null);
+
+      const result = await service.verifyPublic(token);
+
+      expect(result).toEqual({ valid: false, reason: 'NOT_FOUND' });
+    });
+
+    it('nuitée CONFIRMED dans la fenêtre du séjour → valide, avec infos locataire', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-07-05T10:00:00Z'));
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'booking1',
+        tenantId: 'tenant1',
+      });
+      const { token } = await service.getVerificationQr('booking1', 'tenant1');
+
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        ...pendingBooking,
+        bookingType: BookingType.NIGHTLY,
+        status: BookingStatus.CONFIRMED,
+        startDate: new Date('2026-07-01'),
+        endDate: new Date('2026-08-01'),
+      });
+
+      const result = await service.verifyPublic(token);
+
+      expect(result.valid).toBe(true);
+      if (result.valid) {
+        expect(result.tenant.firstName).toBe(tenant.firstName);
+        expect(result.listing.title).toBe(listing.title);
+        expect(result.booking.status).toBe(BookingStatus.CONFIRMED);
+      }
+    });
+
+    it('nuitée CANCELLED → invalide, reason CANCELLED', async () => {
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'booking1',
+        tenantId: 'tenant1',
+      });
+      const { token } = await service.getVerificationQr('booking1', 'tenant1');
+
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        ...pendingBooking,
+        bookingType: BookingType.NIGHTLY,
+        status: BookingStatus.CANCELLED,
+      });
+
+      const result = await service.verifyPublic(token);
+
+      expect(result).toEqual({ valid: false, reason: 'CANCELLED' });
+    });
+
+    it('nuitée PENDING (jamais confirmée/payée) → invalide, reason NOT_CONFIRMED', async () => {
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'booking1',
+        tenantId: 'tenant1',
+      });
+      const { token } = await service.getVerificationQr('booking1', 'tenant1');
+
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        ...pendingBooking,
+        bookingType: BookingType.NIGHTLY,
+        status: BookingStatus.PENDING,
+      });
+
+      const result = await service.verifyPublic(token);
+
+      expect(result).toEqual({ valid: false, reason: 'NOT_CONFIRMED' });
+    });
+
+    it('nuitée CONFIRMED mais avant la fenêtre du séjour → invalide, reason TOO_EARLY', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-06-01T10:00:00Z'));
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'booking1',
+        tenantId: 'tenant1',
+      });
+      const { token } = await service.getVerificationQr('booking1', 'tenant1');
+
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        ...pendingBooking,
+        bookingType: BookingType.NIGHTLY,
+        status: BookingStatus.CONFIRMED,
+        startDate: new Date('2026-07-01'),
+        endDate: new Date('2026-08-01'),
+      });
+
+      const result = await service.verifyPublic(token);
+
+      expect(result).toEqual({ valid: false, reason: 'TOO_EARLY' });
+    });
+
+    it('nuitée COMPLETED bien après le séjour → invalide, reason EXPIRED', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-12-01T10:00:00Z'));
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'booking1',
+        tenantId: 'tenant1',
+      });
+      const { token } = await service.getVerificationQr('booking1', 'tenant1');
+
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        ...pendingBooking,
+        bookingType: BookingType.NIGHTLY,
+        status: BookingStatus.COMPLETED,
+        startDate: new Date('2026-07-01'),
+        endDate: new Date('2026-08-01'),
+      });
+
+      const result = await service.verifyPublic(token);
+
+      expect(result).toEqual({ valid: false, reason: 'EXPIRED' });
+    });
+
+    it('bail mensuel ACTIVE → valide, quelle que soit la date', async () => {
+      const monthlyBooking = {
+        id: 'booking-monthly-1',
+        tenantId: 'tenant1',
+      };
+      prismaMock.booking.findUnique.mockResolvedValueOnce(monthlyBooking);
+      const { token } = await service.getVerificationQr(
+        'booking-monthly-1',
+        'tenant1',
+      );
+
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        ...pendingBooking,
+        id: 'booking-monthly-1',
+        bookingType: BookingType.MONTHLY,
+        status: BookingStatus.ACTIVE,
+        endDate: null,
+      });
+
+      const result = await service.verifyPublic(token);
+
+      expect(result.valid).toBe(true);
+    });
+
+    it('bail mensuel TERMINATED → invalide, reason TERMINATED', async () => {
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'booking-monthly-1',
+        tenantId: 'tenant1',
+      });
+      const { token } = await service.getVerificationQr(
+        'booking-monthly-1',
+        'tenant1',
+      );
+
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        ...pendingBooking,
+        id: 'booking-monthly-1',
+        bookingType: BookingType.MONTHLY,
+        status: BookingStatus.TERMINATED,
+        endDate: null,
+      });
+
+      const result = await service.verifyPublic(token);
+
+      expect(result).toEqual({ valid: false, reason: 'TERMINATED' });
+    });
+
+    it('bail mensuel REQUESTED/APPROVED (pas encore actif) → invalide, reason NOT_ACTIVE', async () => {
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        id: 'booking-monthly-1',
+        tenantId: 'tenant1',
+      });
+      const { token } = await service.getVerificationQr(
+        'booking-monthly-1',
+        'tenant1',
+      );
+
+      prismaMock.booking.findUnique.mockResolvedValueOnce({
+        ...pendingBooking,
+        id: 'booking-monthly-1',
+        bookingType: BookingType.MONTHLY,
+        status: BookingStatus.APPROVED,
+        endDate: null,
+      });
+
+      const result = await service.verifyPublic(token);
+
+      expect(result).toEqual({ valid: false, reason: 'NOT_ACTIVE' });
     });
   });
 });

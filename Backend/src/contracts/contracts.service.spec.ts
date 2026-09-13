@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ContractsService } from './contracts.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PdfService } from '../pdf/pdf.service';
@@ -135,12 +136,10 @@ describe('ContractsService', () => {
         .mockResolvedValue(Buffer.from('%PDF-fake')),
     };
     uploadMock = {
-      uploadPdfBuffer: jest
-        .fn()
-        .mockResolvedValue({
-          url: 'https://res.cloudinary.com/x/raw/upload/f.pdf',
-          publicId: 'f',
-        }),
+      uploadPdfBuffer: jest.fn().mockResolvedValue({
+        url: 'https://res.cloudinary.com/x/raw/upload/f.pdf',
+        publicId: 'f',
+      }),
     };
     notifMock = {
       notifyContractReady: jest.fn().mockResolvedValue(undefined),
@@ -153,6 +152,10 @@ describe('ContractsService', () => {
         { provide: PdfService, useValue: pdfMock },
         { provide: UploadService, useValue: uploadMock },
         { provide: NotificationsService, useValue: notifMock },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(undefined) },
+        },
       ],
     }).compile();
 
@@ -188,6 +191,9 @@ describe('ContractsService', () => {
           totalDueAtSigning: 600000,
           platformFee: 200000,
         }),
+        // QR de vérification d'identité locataire (incrusté dans le PDF) —
+        // généré à la volée, on vérifie juste qu'un buffer a bien été passé.
+        expect.any(Buffer),
       );
       expect(uploadMock.uploadPdfBuffer).toHaveBeenCalledWith(
         expect.any(Buffer),

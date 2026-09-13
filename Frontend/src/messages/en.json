@@ -2710,5 +2710,30 @@
   },
   "meta": {
     "description": "Find your ideal home in Senegal with AlloVerified™ certification. Apartments, villas and studios in Dakar and across Senegal."
+  },
+  "verification": {
+    "qrButtonLabel": "My verification QR",
+    "modalTitle": "Identity verification QR",
+    "modalInstructions": "Show this code to your landlord on arrival (or to prove your lease is genuine). They scan it with their phone — no account or app needed.",
+    "modalError": "Couldn't generate the QR right now. Please try again later.",
+    "close": "Close",
+    "invalidTitle": "Invalid or unverifiable QR",
+    "validTitle": "Identity verified",
+    "validDesc": "This QR matches an active, verified AlloAppart booking.",
+    "tenantLabel": "Tenant",
+    "listingLabel": "Listing",
+    "datesLabel": "Stay",
+    "statusLabel": "Status",
+    "statusActiveLease": "Active lease",
+    "statusConfirmedStay": "Confirmed booking",
+    "backHome": "Back to home",
+    "reasonINVALID": "This verification link isn't valid.",
+    "reasonNOT_FOUND": "This booking no longer exists.",
+    "reasonCANCELLED": "This booking was cancelled.",
+    "reasonNOT_CONFIRMED": "This booking hasn't been confirmed/paid yet.",
+    "reasonTOO_EARLY": "This QR isn't valid yet — it's too early before the stay starts.",
+    "reasonEXPIRED": "This QR has expired — the stay ended too long ago.",
+    "reasonTERMINATED": "This lease has been terminated.",
+    "reasonNOT_ACTIVE": "This lease isn't active yet."
   }
 }

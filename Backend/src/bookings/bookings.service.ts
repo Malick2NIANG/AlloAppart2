@@ -2,14 +2,21 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateMonthlyBookingDto } from './dto/create-monthly-booking.dto';
 import { ReportDisputeDto } from './dto/report-dispute.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
+import {
+  signVerificationToken,
+  verifyVerificationToken,
+  resolveVerificationSecret,
+} from '../common/verification-token.util';
 import {
   type User,
   BookingStatus,
@@ -19,6 +26,13 @@ import {
   RentalMode,
   Role,
 } from '@prisma/client';
+
+// Fenêtre de tolérance (jours) autour des dates de séjour (nuitée) pendant
+// laquelle le QR de vérification est considéré valide — évite qu'un QR
+// affiché la veille de l'arrivée ou le lendemain du départ (fuseau horaire,
+// arrivée tardive, etc.) soit refusé à tort, tout en empêchant un QR d'être
+// réutilisé bien après la fin du séjour.
+const VERIFICATION_WINDOW_BUFFER_DAYS = 1;
 
 // Fenêtre de signalement de non-conformité — Article 9 des CGU
 const DISPUTE_WINDOW_HOURS = 24;
@@ -30,10 +44,17 @@ const DEFAULT_MIN_LEASE_MONTHS = 1;
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly config: ConfigService,
   ) {}
+
+  private getVerificationSecret(): string {
+    return resolveVerificationSecret(this.config, this.logger);
+  }
 
   async create(tenantId: string, dto: CreateBookingDto) {
     const listing = await this.prisma.listing.findUniqueOrThrow({
@@ -504,6 +525,135 @@ export class BookingsService {
     const isTenant = booking.tenantId === userId;
     if (!isOwner && !isTenant) throw new ForbiddenException('Access denied');
     return booking;
+  }
+
+  /**
+   * Génère (ou régénère — c'est un calcul stable, pas une création) le
+   * token de vérification QR de cette réservation, réservé au locataire
+   * concerné. Utilisé par le frontend pour afficher un QR que le locataire
+   * montre au bailleur à l'arrivée (nuitée) ou pour prouver l'authenticité
+   * de son bail (mensuel).
+   */
+  async getVerificationQr(bookingId: string, userId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { id: true, tenantId: true },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.tenantId !== userId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const token = signVerificationToken(
+      booking.id,
+      this.getVerificationSecret(),
+    );
+    const frontendUrl =
+      this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+    return { token, url: `${frontendUrl}/verifier/${token}` };
+  }
+
+  /**
+   * Même calcul que getVerificationQr, mais sans vérification de
+   * propriétaire — utilisé côté serveur pour incruster le QR dans un PDF
+   * (reçu, contrat de bail) généré pour cette réservation, quel que soit
+   * l'appelant (le PDF lui-même est déjà protégé par ses propres contrôles
+   * d'accès).
+   */
+  buildVerificationUrl(bookingId: string): string {
+    const token = signVerificationToken(
+      bookingId,
+      this.getVerificationSecret(),
+    );
+    const frontendUrl =
+      this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+    return `${frontendUrl}/verifier/${token}`;
+  }
+
+  /**
+   * Calcule si une réservation est actuellement "vérifiable" (le bailleur
+   * peut se fier au scan) à partir de son statut ET, pour une nuitée, d'une
+   * fenêtre de dates autour du séjour. Recalculé à chaque scan à partir des
+   * données live — jamais depuis le token, qui ne contient que l'ID de
+   * réservation.
+   */
+  private computeVerificationOutcome(booking: {
+    bookingType: BookingType;
+    status: BookingStatus;
+    startDate: Date;
+    endDate: Date | null;
+  }): { valid: true } | { valid: false; reason: string } {
+    if (booking.bookingType === BookingType.MONTHLY) {
+      if (booking.status === BookingStatus.ACTIVE) return { valid: true };
+      if (booking.status === BookingStatus.TERMINATED) {
+        return { valid: false, reason: 'TERMINATED' };
+      }
+      return { valid: false, reason: 'NOT_ACTIVE' };
+    }
+
+    // Nuitée
+    if (booking.status === BookingStatus.CANCELLED) {
+      return { valid: false, reason: 'CANCELLED' };
+    }
+    if (booking.status === BookingStatus.PENDING) {
+      return { valid: false, reason: 'NOT_CONFIRMED' };
+    }
+    // CONFIRMED ou COMPLETED : valide dans une fenêtre autour du séjour.
+    const windowStart = new Date(booking.startDate);
+    windowStart.setDate(
+      windowStart.getDate() - VERIFICATION_WINDOW_BUFFER_DAYS,
+    );
+    const windowEnd = new Date(booking.endDate ?? booking.startDate);
+    windowEnd.setDate(windowEnd.getDate() + VERIFICATION_WINDOW_BUFFER_DAYS);
+    const now = new Date();
+    if (now < windowStart) return { valid: false, reason: 'TOO_EARLY' };
+    if (now > windowEnd) return { valid: false, reason: 'EXPIRED' };
+    return { valid: true };
+  }
+
+  /**
+   * Endpoint public (scanné par le bailleur) : décode + vérifie la
+   * signature du token, puis retourne le statut de vérification + les
+   * informations d'identité du locataire nécessaires pour que le bailleur
+   * puisse le reconnaître. Ne lève jamais d'exception HTTP — un token
+   * invalide/périmé/annulé est une réponse `{ valid: false, reason }`
+   * normale, pas une erreur serveur.
+   */
+  async verifyPublic(token: string) {
+    const bookingId = verifyVerificationToken(
+      token,
+      this.getVerificationSecret(),
+    );
+    if (!bookingId) return { valid: false as const, reason: 'INVALID' };
+
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { listing: true, tenant: true },
+    });
+    if (!booking) return { valid: false as const, reason: 'NOT_FOUND' };
+
+    const outcome = this.computeVerificationOutcome(booking);
+    if (!outcome.valid)
+      return { valid: false as const, reason: outcome.reason };
+
+    return {
+      valid: true as const,
+      tenant: {
+        firstName: booking.tenant.firstName,
+        lastName: booking.tenant.lastName,
+        avatar: booking.tenant.avatar,
+      },
+      listing: {
+        title: booking.listing.title,
+        city: booking.listing.city,
+      },
+      booking: {
+        type: booking.bookingType,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        status: booking.status,
+      },
+    };
   }
 
   async confirm(id: string, ownerId: string) {

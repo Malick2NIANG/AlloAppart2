@@ -19,6 +19,7 @@ import { ReportDisputeDto } from './dto/report-dispute.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { generateVerificationQrPng } from '../common/verification-token.util';
 import { type User, Role, BookingStatus } from '@prisma/client';
 
 @Controller('bookings')
@@ -106,6 +107,20 @@ export class BookingsController {
     return this.bookingsService.getAvailability(listingId);
   }
 
+  // Scannée par le bailleur (page publique /verifier/:token) — doit être
+  // déclarée avant @Get(':id') pour ne pas être capturée par ce pattern.
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Get('verify/:token')
+  verifyPublic(@Param('token') token: string) {
+    return this.bookingsService.verifyPublic(token);
+  }
+
+  @Get(':id/verification-qr')
+  getVerificationQr(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.bookingsService.getVerificationQr(id, user.id);
+  }
+
   @Get(':id/receipt')
   async getReceipt(
     @Param('id') id: string,
@@ -113,7 +128,14 @@ export class BookingsController {
     @Res() res: Response,
   ) {
     const booking = await this.bookingsService.findOneForReceipt(id, user.id);
-    const pdf = await this.pdfService.generateReceipt(booking);
+    let qrCodeBuffer: Buffer | undefined;
+    try {
+      const url = this.bookingsService.buildVerificationUrl(id);
+      qrCodeBuffer = await generateVerificationQrPng(url);
+    } catch {
+      // Le reçu reste utile sans QR — on ne bloque jamais son téléchargement.
+    }
+    const pdf = await this.pdfService.generateReceipt(booking, qrCodeBuffer);
     const filename = 'recu-' + id.slice(0, 8).toUpperCase() + '.pdf';
     res.set({
       'Content-Type': 'application/pdf',

@@ -1,8 +1,14 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PdfService } from '../pdf/pdf.service';
 import { UploadService } from '../upload/upload.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  signVerificationToken,
+  generateVerificationQrPng,
+  resolveVerificationSecret,
+} from '../common/verification-token.util';
 import { type Contract, type User, ContractType, Role } from '@prisma/client';
 
 type BookingParty = { tenantId: string; listing: { ownerId: string } };
@@ -16,6 +22,7 @@ export class ContractsService {
     private readonly pdf: PdfService,
     private readonly upload: UploadService,
     private readonly notifications: NotificationsService,
+    private readonly config: ConfigService,
   ) {}
 
   private assertParty(booking: BookingParty, user: User): void {
@@ -46,38 +53,61 @@ export class ContractsService {
       include: { listing: { include: { owner: true } }, tenant: true },
     });
 
-    const pdfBuffer = await this.pdf.generateLeaseContract({
-      bookingId: booking.id,
-      landlord: {
-        firstName: booking.listing.owner.firstName,
-        lastName: booking.listing.owner.lastName,
-        email: booking.listing.owner.email,
-        phone: booking.listing.owner.phone,
+    // QR de vérification d'identité locataire (voir verification-token.util
+    // et BookingsService.verifyPublic) — incrusté dans le contrat pour que
+    // le bailleur puisse en scanner l'authenticité en personne. Ne doit
+    // jamais faire échouer la génération du contrat si le QR échoue.
+    let qrCodeBuffer: Buffer | undefined;
+    try {
+      const frontendUrl =
+        this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+      const secret = resolveVerificationSecret(this.config, this.logger);
+      const token = signVerificationToken(booking.id, secret);
+      qrCodeBuffer = await generateVerificationQrPng(
+        `${frontendUrl}/verifier/${token}`,
+      );
+    } catch (err: unknown) {
+      this.logger.error(
+        'Génération du QR de vérification échouée (contrat) : ' +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    }
+
+    const pdfBuffer = await this.pdf.generateLeaseContract(
+      {
+        bookingId: booking.id,
+        landlord: {
+          firstName: booking.listing.owner.firstName,
+          lastName: booking.listing.owner.lastName,
+          email: booking.listing.owner.email,
+          phone: booking.listing.owner.phone,
+        },
+        tenant: {
+          firstName: booking.tenant.firstName,
+          lastName: booking.tenant.lastName,
+          email: booking.tenant.email,
+          phone: booking.tenant.phone,
+        },
+        listing: {
+          title: booking.listing.title,
+          type: booking.listing.type,
+          address: booking.listing.address,
+          city: booking.listing.city,
+          region: booking.listing.region,
+          rooms: booking.listing.rooms,
+          surface: booking.listing.surface,
+        },
+        monthlyRent: Number(booking.listing.price),
+        chargesIncluded: booking.listing.chargesIncluded,
+        depositMonths: booking.listing.depositMonths ?? 0,
+        depositAmount: Number(booking.depositAmount ?? 0),
+        minLeaseMonths: booking.listing.minLeaseMonths ?? 1,
+        moveInDate: booking.startDate,
+        totalDueAtSigning: Number(booking.totalAmount),
+        platformFee: Number(booking.platformFee ?? 0),
       },
-      tenant: {
-        firstName: booking.tenant.firstName,
-        lastName: booking.tenant.lastName,
-        email: booking.tenant.email,
-        phone: booking.tenant.phone,
-      },
-      listing: {
-        title: booking.listing.title,
-        type: booking.listing.type,
-        address: booking.listing.address,
-        city: booking.listing.city,
-        region: booking.listing.region,
-        rooms: booking.listing.rooms,
-        surface: booking.listing.surface,
-      },
-      monthlyRent: Number(booking.listing.price),
-      chargesIncluded: booking.listing.chargesIncluded,
-      depositMonths: booking.listing.depositMonths ?? 0,
-      depositAmount: Number(booking.depositAmount ?? 0),
-      minLeaseMonths: booking.listing.minLeaseMonths ?? 1,
-      moveInDate: booking.startDate,
-      totalDueAtSigning: Number(booking.totalAmount),
-      platformFee: Number(booking.platformFee ?? 0),
-    });
+      qrCodeBuffer,
+    );
 
     const { url } = await this.upload.uploadPdfBuffer(
       pdfBuffer,
