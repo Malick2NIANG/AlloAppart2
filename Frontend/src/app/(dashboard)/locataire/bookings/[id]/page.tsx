@@ -174,7 +174,7 @@ export default function BookingDetailPage() {
     : null;
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
 
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-xs text-sub">
