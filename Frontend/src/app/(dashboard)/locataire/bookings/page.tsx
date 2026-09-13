@@ -1,17 +1,20 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Booking, BookingStatus } from '@/types';
 import { formatDate, formatPrice, openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
-import { SkeletonListRow } from '@/components/ui/Skeleton';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import ContractCard from '@/components/bookings/ContractCard';
 
 const DISPUTE_WINDOW_HOURS = 24;
+const FALLBACK_IMG = 'https://via.placeholder.com/600x400?text=AlloAppart';
+const PER_PAGE_OPTIONS = [6, 12, 24] as const;
 
 interface MyReview {
   id: string;
@@ -91,10 +94,60 @@ export default function LocataireBookingsPage() {
   const archived  = bookings.filter((b) =>
     b.status === 'CANCELLED' || b.status === 'COMPLETED' || b.status === 'REJECTED' || b.status === 'TERMINATED');
 
+  // Onglet par défaut : "En attente" s'il y a quelque chose à payer (action
+  // urgente à ne pas rater), sinon le premier onglet non vide. Ne se déclenche
+  // qu'une fois, au tout premier chargement — un rafraîchissement (paiement,
+  // annulation, etc.) ne doit pas faire sauter l'utilisateur d'onglet.
+  const [activeTab, setActiveTab] = useState<'pending' | 'confirmed' | 'archived'>('pending');
+  const tabInitialized = useRef(false);
+  useEffect(() => {
+    if (loading || tabInitialized.current) return;
+    tabInitialized.current = true;
+    if (pending.length > 0) setActiveTab('pending');
+    else if (confirmed.length > 0) setActiveTab('confirmed');
+    else if (archived.length > 0) setActiveTab('archived');
+  }, [loading, pending.length, confirmed.length, archived.length]);
+
+  const tabs = [
+    { key: 'pending' as const,   label: t('sectionPending'),   icon: 'fa-clock',        items: pending },
+    { key: 'confirmed' as const, label: t('sectionConfirmed'), icon: 'fa-circle-check', items: confirmed },
+    { key: 'archived' as const,  label: t('sectionArchived'),  icon: 'fa-archive',      items: archived },
+  ].filter((tab) => tab.items.length > 0);
+  const active = tabs.find((tab) => tab.key === activeTab) ?? tabs[0];
+
+  // Recherche + pagination — propres à chaque onglet (réinitialisées quand on
+  // change d'onglet via switchTab ; le nombre de lignes par page, lui,
+  // persiste d'un onglet à l'autre, c'est une préférence d'affichage).
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<typeof PER_PAGE_OPTIONS[number]>(6);
+
+  const switchTab = (key: 'pending' | 'confirmed' | 'archived') => {
+    setActiveTab(key);
+    setSearch('');
+    setPage(1);
+  };
+
+  const q = search.trim().toLowerCase();
+  const filteredItems = active
+    ? active.items.filter((b) =>
+        !q ||
+        (b.listing?.title ?? '').toLowerCase().includes(q) ||
+        (b.listing?.city ?? '').toLowerCase().includes(q),
+      )
+    : [];
+  const pageCount    = Math.max(1, Math.ceil(filteredItems.length / perPage));
+  const clampedPage  = Math.min(page, pageCount);
+  const visibleItems = filteredItems.slice((clampedPage - 1) * perPage, clampedPage * perPage);
+
+  useEffect(() => {
+    if (page !== clampedPage) setPage(clampedPage);
+  }, [page, clampedPage]);
+
   if (loading) {
     return (
-      <div className="flex flex-col gap-2">
-        {Array.from({ length: 5 }).map((_, i) => <SkeletonListRow key={i} />)}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} height="280px" />)}
       </div>
     );
   }
@@ -117,15 +170,8 @@ export default function LocataireBookingsPage() {
         <h1 className="text-2xl font-bold text-text">{t('bookingsTitle')}</h1>
         <p className="mt-1 text-sm text-sub">
           {t('bookingsCount', { count: bookings.length })}
-          {pending.length > 0 && (
-            <span className="ml-2 inline-flex items-center gap-1 text-gold-dark font-medium">
-              <i className="fa-solid fa-circle text-[8px]" />
-              {t('pendingCount', { count: pending.length })}
-            </span>
-          )}
         </p>
       </div>
-
 
       {bookings.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -135,44 +181,113 @@ export default function LocataireBookingsPage() {
           <p className="font-semibold text-text">{t('noBookings')}</p>
           <p className="mt-1 text-sm text-sub">{t('noBookingsHint')}</p>
         </div>
-      ) : (
-        <div className="space-y-8">
-          {pending.length > 0 && (
-            <Section
-              title={t('sectionPending')}
-              icon="fa-clock"
-              accent="text-gold-dark"
-              bookings={pending}
-              reviewedBookingIds={reviewedBookingIds}
-              onRefresh={fetchData}
-              onReview={(b) => setReviewModal({ booking: b })}
-            />
+      ) : active && (
+        <>
+          {/* Onglets par statut */}
+          <div className="mb-5 flex gap-1 overflow-x-auto border-b border-line">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => switchTab(tab.key)}
+                className={`relative flex shrink-0 items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                  active.key === tab.key ? 'text-gold-dark' : 'text-sub hover:text-text'
+                }`}
+              >
+                <i className={`fa-solid ${tab.icon} text-xs`} />
+                {tab.label}
+                <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
+                  active.key === tab.key ? 'bg-gold-pale text-gold-dark' : 'bg-line text-sub'
+                }`}>
+                  {tab.items.length}
+                </span>
+                {active.key === tab.key && (
+                  <span aria-hidden className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gold" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Recherche + lignes par page */}
+          <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-sm pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                placeholder={t('searchPlaceholder')}
+                className="w-full rounded-xl border border-line bg-card pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition"
+              />
+              {search && (
+                <button
+                  onClick={() => { setSearch(''); setPage(1); }}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
+                >
+                  <i className="fa-solid fa-xmark text-sm" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-xs text-sub whitespace-nowrap">{t('rowsLabel')}</span>
+              <div className="flex gap-1">
+                {PER_PAGE_OPTIONS.map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => { setPerPage(n); setPage(1); }}
+                    className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      perPage === n ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Grille de l'onglet actif */}
+          {filteredItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-sm text-sub">{t('noSearchResults')}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {visibleItems.map((booking) => (
+                <BookingCard
+                  key={booking.id}
+                  booking={booking}
+                  alreadyReviewed={reviewedBookingIds.has(booking.id)}
+                  onRefresh={fetchData}
+                  onReview={(b) => setReviewModal({ booking: b })}
+                  onCancel={active.key === 'confirmed' ? (b) => setCancellationModal({ booking: b }) : undefined}
+                  onDispute={active.key === 'confirmed' ? (b) => setDisputeModal({ booking: b }) : undefined}
+                />
+              ))}
+            </div>
           )}
-          {confirmed.length > 0 && (
-            <Section
-              title={t('sectionConfirmed')}
-              icon="fa-circle-check"
-              accent="text-green-600 dark:text-green-400"
-              bookings={confirmed}
-              reviewedBookingIds={reviewedBookingIds}
-              onRefresh={fetchData}
-              onReview={(b) => setReviewModal({ booking: b })}
-              onCancel={(b) => setCancellationModal({ booking: b })}
-              onDispute={(b) => setDisputeModal({ booking: b })}
-            />
+
+          {/* Pagination */}
+          {pageCount > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-6">
+              <button
+                onClick={() => setPage((p) => p - 1)}
+                disabled={clampedPage === 1}
+                className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
+              >
+                {t('previous')}
+              </button>
+              <span className="text-sm text-sub">{t('pageOf', { page: clampedPage, total: pageCount })}</span>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={clampedPage === pageCount}
+                className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
+              >
+                {t('next')}
+              </button>
+            </div>
           )}
-          {archived.length > 0 && (
-            <Section
-              title={t('sectionArchived')}
-              icon="fa-archive"
-              accent="text-sub"
-              bookings={archived}
-              reviewedBookingIds={reviewedBookingIds}
-              onRefresh={fetchData}
-              onReview={(b) => setReviewModal({ booking: b })}
-            />
-          )}
-        </div>
+        </>
       )}
 
       {/* Modal annulation */}
@@ -205,43 +320,6 @@ export default function LocataireBookingsPage() {
   );
 }
 
-/* ─── Section ─────────────────────────────────────────────── */
-function Section({
-  title, icon, accent, bookings, reviewedBookingIds, onRefresh, onReview, onCancel, onDispute,
-}: {
-  title: string;
-  icon: string;
-  accent: string;
-  bookings: Booking[];
-  reviewedBookingIds: Set<string>;
-  onRefresh: () => void;
-  onReview: (b: Booking) => void;
-  onCancel?: (b: Booking) => void;
-  onDispute?: (b: Booking) => void;
-}) {
-  return (
-    <div>
-      <h2 className={`flex items-center gap-2 text-sm font-semibold mb-3 ${accent}`}>
-        <i className={`fa-solid ${icon} text-xs`} />
-        {title} ({bookings.length})
-      </h2>
-      <div className="flex flex-col gap-3">
-        {bookings.map((booking) => (
-          <BookingCard
-            key={booking.id}
-            booking={booking}
-            alreadyReviewed={reviewedBookingIds.has(booking.id)}
-            onRefresh={onRefresh}
-            onReview={onReview}
-            onCancel={onCancel}
-            onDispute={onDispute}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /* ─── BookingCard ──────────────────────────────────────────── */
 function BookingCard({
   booking, alreadyReviewed, onRefresh, onReview, onCancel, onDispute,
@@ -254,25 +332,47 @@ function BookingCard({
   onDispute?: (b: Booking) => void;
 }) {
   const router = useRouter();
+  const t = useTranslations('locataire');
+  const [showContract, setShowContract] = useState(false);
+  const img = booking.listing?.images?.[0] ?? FALLBACK_IMG;
+  const goToDetail = () => router.push(`/locataire/bookings/${booking.id}`);
+  const hasContract = booking.bookingType === 'MONTHLY' &&
+    (booking.status === 'ACTIVE' || booking.status === 'TERMINATED');
+
   return (
     <div className="flex flex-col gap-3">
-      <div
-        className="group rounded-xl border border-line bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:border-gold/40 transition-colors cursor-pointer"
-        onClick={() => router.push(`/locataire/bookings/${booking.id}`)}
-      >
-        <div className="min-w-0">
+      <div className="listing-card group flex flex-col">
+
+        {/* Photo + statut */}
+        <div className="relative h-40 overflow-hidden rounded-t-2xl cursor-pointer" onClick={goToDetail}>
+          <Image
+            src={img}
+            alt={booking.listing?.title ?? ''}
+            fill
+            className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+            sizes="(max-width:640px) 100vw,(max-width:1024px) 50vw,33vw"
+          />
+          <div aria-hidden className="absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-transparent" />
+          <div className="absolute top-3 left-3">
+            <StatusChip status={booking.status} />
+          </div>
+        </div>
+
+        {/* Bien + dates + prix */}
+        <div className="p-4 cursor-pointer" onClick={goToDetail}>
           <p className="font-semibold text-text truncate group-hover:text-gold-dark transition-colors">
             {booking.listing?.title ?? booking.listingId}
           </p>
-          <p className="text-sm text-sub mt-0.5">
-            <i className="fa-regular fa-calendar text-gold-dark text-xs mr-1" />
+          <p className="text-sm text-sub mt-1 flex items-center gap-1.5">
+            <i className="fa-regular fa-calendar text-gold-dark text-xs" />
             {formatDate(booking.startDate)}
             {booking.endDate ? ` → ${formatDate(booking.endDate)}` : ''}
-            <span className="mx-1.5">·</span>
-            <span className="font-medium text-text">{formatPrice(booking.totalAmount)}</span>
           </p>
+          <p className="text-sm font-semibold text-text mt-1">{formatPrice(booking.totalAmount)}</p>
         </div>
-        <div onClick={(e) => e.stopPropagation()}>
+
+        {/* Actions — même gabarit sur toutes les cartes */}
+        <div className="border-t border-line p-4 pt-3" onClick={(e) => e.stopPropagation()}>
           <LocataireBookingActions
             booking={booking}
             alreadyReviewed={alreadyReviewed}
@@ -281,16 +381,28 @@ function BookingCard({
             onCancel={onCancel}
             onDispute={onDispute}
           />
+          {/* Contrat de bail replié par défaut — garde toutes les cartes de la
+              grille à la même hauteur ; ne s'ouvre que sur demande. */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {hasContract && (
+              <button
+                onClick={() => setShowContract((s) => !s)}
+                className="flex items-center gap-1.5 text-xs font-medium text-gold-dark hover:text-gold transition-colors"
+              >
+                <i className={`fa-solid fa-chevron-${showContract ? 'up' : 'down'} text-[10px]`} />
+                {showContract ? t('hideContractBtn') : t('viewContractBtn')}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Contrat de bail — uniquement une fois le bail mensuel actif */}
-      {booking.bookingType === 'MONTHLY' &&
-        (booking.status === 'ACTIVE' || booking.status === 'TERMINATED') && (
-          <div onClick={(e) => e.stopPropagation()}>
-            <ContractCard bookingId={booking.id} viewerRole="tenant" />
-          </div>
-        )}
+      {/* Contrat de bail — affiché uniquement si l'utilisateur le demande */}
+      {hasContract && showContract && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ContractCard bookingId={booking.id} viewerRole="tenant" />
+        </div>
+      )}
     </div>
   );
 }
@@ -400,8 +512,8 @@ function LocataireBookingActions({
   };
 
   return (
-    <div className="flex flex-col items-end gap-1.5 shrink-0">
-      <div className="flex items-center gap-2 flex-wrap justify-end">
+    <div className="flex flex-col items-start gap-1.5">
+      <div className="flex items-center gap-2 flex-wrap justify-start">
         {status === 'PENDING' && (
           <>
             <button
