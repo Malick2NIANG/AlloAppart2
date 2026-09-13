@@ -5,9 +5,31 @@ import { useTranslations } from 'next-intl';
 import { isClerkRuntimeError } from '@clerk/nextjs/errors';
 import { useToast } from './Toast';
 
-const PROBE_URL = '/favicon.svg';
 const PROBE_INTERVAL_MS = 10_000;
 const PROBE_TIMEOUT_MS = 4_000;
+
+/**
+ * Extrait l'origine de la Frontend API Clerk depuis la clé publique
+ * (`pk_test_<base64>` / `pk_live_<base64>`, où le base64 décode vers
+ * `<host>$`, ex. `diverse-grouper-74.clerk.accounts.dev$`). Toujours un hôte
+ * externe réel — jamais `localhost` — quel que soit l'environnement (dev ou
+ * prod), contrairement à notre propre origine ou à `NEXT_PUBLIC_API_URL`
+ * (qui pointe vers `localhost:4000` en dev). C'est précisément ce qui en fait
+ * une cible de sonde fiable (voir doc du composant ci-dessous).
+ */
+function getClerkFrontendApiOrigin(): string | null {
+  const key = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const match = key ? /^pk_(?:test|live)_(.+)$/.exec(key) : null;
+  if (!match) return null;
+  try {
+    const host = atob(match[1]).replace(/\$+$/, '');
+    return host ? `https://${host}` : null;
+  } catch {
+    return null;
+  }
+}
+
+const PROBE_ORIGIN = getClerkFrontendApiOrigin();
 
 /**
  * Composant sans rendu, monté une seule fois à la racine (voir app/layout.tsx).
@@ -19,9 +41,18 @@ const PROBE_TIMEOUT_MS = 4_000;
  * — `navigator.onLine` continue de répondre `true` même wifi coupé, et
  * l'événement `offline` ne se déclenche jamais. On les garde comme signal
  * rapide quand ils fonctionnent, mais la source de vérité est une **sonde
- * active** : une requête réseau réelle (même origine, `/favicon.svg`),
- * relancée périodiquement, dont l'échec est le seul signal fiable de coupure
- * réelle quel que soit l'OS/navigateur.
+ * active** : une requête réseau réelle vers un hôte externe, relancée
+ * périodiquement, dont l'échec est le seul signal fiable de coupure réelle
+ * quel que soit l'OS/navigateur.
+ *
+ * ⚠️ Piège corrigé : la première version de cette sonde ciblait `/favicon.svg`
+ * (même origine que l'app). En développement, cette origine est `localhost`,
+ * toujours joignable en boucle locale même wifi totalement coupé — la sonde
+ * "réussissait" donc systématiquement, produisant un faux toast "connexion
+ * rétablie" juste après un vrai échec Clerk détecté par ailleurs. La cible
+ * doit être un hôte externe réel ; on utilise ici l'origine de la Frontend
+ * API Clerk elle-même (dérivée de la clé publique, jamais `localhost`, et
+ * directement pertinente puisque c'est cet hôte qu'on cherche à protéger).
  *
  * Trois sources alimentent le même état "hors ligne" (dédupliquées via
  * `offlineRef`, un seul toast par coupure, un seul au retour) :
@@ -74,11 +105,21 @@ export default function ConnectivityWatcher() {
     };
 
     const probeConnectivity = async () => {
+      // Sans origine externe dérivable (clé Clerk absente/malformée — ne
+      // devrait pas arriver en pratique), on ne peut pas sonder de façon
+      // fiable : on n'invente pas de faux positif/négatif, on s'appuie alors
+      // uniquement sur les événements navigateur et la détection Clerk.
+      if (!PROBE_ORIGIN) return;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
       try {
-        await fetch(`${PROBE_URL}?_=${Date.now()}`, {
+        // `no-cors` : on ne lit jamais la réponse (opaque, y compris pour un
+        // 404/403) — seul l'échec réseau (DNS, connexion refusée, timeout)
+        // fait rejeter la promesse, ce qui est le seul signal qui nous
+        // intéresse ici.
+        await fetch(`${PROBE_ORIGIN}/?_=${Date.now()}`, {
           method: 'HEAD',
+          mode: 'no-cors',
           cache: 'no-store',
           signal: controller.signal,
         });
