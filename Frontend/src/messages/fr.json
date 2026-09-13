@@ -791,6 +791,11 @@
     "retry": "Réessayer",
     "home": "Accueil"
   },
+  "redirectPage": {
+    "failedTitle": "Impossible de charger votre espace",
+    "failedMessage": "Vous êtes bien connecté·e, mais nous n’arrivons pas à joindre nos serveurs pour vous rediriger. Vérifiez votre connexion et réessayez.",
+    "retryBtn": "Réessayer"
+  },
   "notFound": {
     "title": "Page introuvable",
     "description": "La page que vous cherchez n’existe pas ou a été déplacée.",

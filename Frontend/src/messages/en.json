@@ -791,6 +791,11 @@
     "retry": "Try again",
     "home": "Home"
   },
+  "redirectPage": {
+    "failedTitle": "Couldn't load your space",
+    "failedMessage": "You're properly signed in, but we can't reach our servers to redirect you. Check your connection and try again.",
+    "retryBtn": "Try again"
+  },
   "notFound": {
     "title": "Page not found",
     "description": "The page you’re looking for doesn’t exist or has been moved.",
