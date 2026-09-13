@@ -2737,7 +2737,7 @@
     "reasonNOT_ACTIVE": "Ce bail n'est pas encore actif."
   },
   "connectivity": {
-    "offline": "Connexion internet perdue. Vérifiez votre connexion — certaines actions peuvent échouer tant qu'elle n'est pas rétablie.",
+    "offline": "Connexion internet instable.",
     "backOnline": "Connexion internet rétablie.",
     "authLoadFailed": "Problème de connexion avec le service d'authentification — vérifiez votre connexion internet et réessayez."
   }
