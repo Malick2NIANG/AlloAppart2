@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { join } from 'path';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PDFDocumentLib = require('pdfkit') as typeof import('pdfkit');
 import { Booking, Listing, User } from '@prisma/client';
@@ -6,12 +7,46 @@ import { Decimal } from '@prisma/client/runtime/client';
 
 type BookingFull = Booking & { listing: Listing; tenant: User };
 
+// Copié depuis Frontend/public/images/LOGO.png. `assets` dans nest-cli.json
+// copie ce dossier vers dist/pdf/assets au build, donc ce chemin relatif à
+// __dirname reste valide en dev (ts-node depuis src/pdf) et en prod (dist/pdf).
+const LOGO_PATH = join(__dirname, 'assets', 'logo.png');
+
 const LISTING_TYPE_LABELS: Record<string, string> = {
   APPARTEMENT: 'Appartement',
   VILLA: 'Villa',
   CHAMBRE: 'Chambre',
   STUDIO: 'Studio',
   BUREAU: 'Bureau',
+};
+
+/**
+ * Formate un montant en FCFA avec une espace ASCII normale comme séparateur
+ * de milliers. `Number.prototype.toLocaleString('fr-FR')` insère une espace
+ * fine insécable (U+202F) que la police Helvetica standard des PDF
+ * (encodage WinAnsi) ne sait pas représenter : elle s'affichait comme un
+ * caractère cassé au milieu du montant (ex. "80/000 FCFA" au lieu de
+ * "80 000 FCFA") dans tous les PDF générés par ce service (reçu, contrat,
+ * rapport mensuel).
+ */
+function formatFcfa(amount: number): string {
+  const rounded = Math.round(amount);
+  const withSpaces = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return `${withSpaces} FCFA`;
+}
+
+// Libellés lisibles pour le statut affiché sur le reçu PDF (au lieu de
+// l'enum brut type "CONFIRMED").
+const RECEIPT_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'En attente de paiement',
+  CONFIRMED: 'Confirmée',
+  CANCELLED: 'Annulée',
+  COMPLETED: 'Terminée',
+  REQUESTED: 'Demande envoyée',
+  APPROVED: 'Approuvée',
+  REJECTED: 'Refusée',
+  ACTIVE: 'Bail actif',
+  TERMINATED: 'Bail résilié',
 };
 
 export type LeaseContractData = {
@@ -89,61 +124,85 @@ export class PdfService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
+      // Document sobre en noir/gris — pas de couleur de marque, juste le
+      // logo (qui garde sa propre couleur, c'est le logo).
+      const LEFT = 50;
+      const RIGHT_EDGE = 545;
+      const CONTENT_WIDTH = RIGHT_EDGE - LEFT;
+      const LOGO_SIZE = 46;
+
+      try {
+        doc.image(LOGO_PATH, LEFT, 44, { width: LOGO_SIZE, height: LOGO_SIZE });
+      } catch {
+        // Logo manquant/illisible : on continue sans bloquer le reçu.
+      }
+      doc
+        .fillColor('#111111')
+        .font('Helvetica-Bold')
+        .fontSize(20)
+        .text('AlloAppart', LEFT + LOGO_SIZE + 14, 48);
+      doc
+        .fillColor('#666666')
+        .font('Helvetica')
+        .fontSize(11)
+        .text('Reçu de réservation', LEFT + LOGO_SIZE + 14, 72);
+
+      let headerBottom = 44 + LOGO_SIZE + 20;
+
       if (qrCodeBuffer) {
         try {
-          doc.image(qrCodeBuffer, 455, 50, { width: 90 });
+          const qrSize = 80;
+          const qrX = RIGHT_EDGE - qrSize;
+          doc.image(qrCodeBuffer, qrX, 40, { width: qrSize });
           doc
             .fontSize(6.5)
             .font('Helvetica')
-            .fillColor('#888888')
-            .text('Verification identite', 455, 143, {
-              width: 90,
+            .fillColor('#999999')
+            .text('Vérification identité', qrX, 40 + qrSize + 3, {
+              width: qrSize,
               align: 'center',
             });
+          headerBottom = Math.max(headerBottom, 40 + qrSize + 16);
         } catch {
           // Image corrompue/illisible : on continue sans bloquer le reçu.
         }
       }
 
-      // Header
+      doc.x = LEFT;
+      doc.y = headerBottom;
       doc
-        .fontSize(22)
-        .font('Helvetica-Bold')
-        .text('AlloAppart', { align: 'center' })
-        .moveDown(0.3)
-        .fontSize(11)
-        .font('Helvetica')
-        .fillColor('#555555')
-        .text('Recu de reservation', { align: 'center' })
-        .moveDown(1.5);
-
-      // Divider
-      doc
-        .moveTo(50, doc.y)
-        .lineTo(545, doc.y)
+        .moveTo(LEFT, doc.y)
+        .lineTo(RIGHT_EDGE, doc.y)
         .strokeColor('#dddddd')
-        .stroke()
-        .moveDown(1);
+        .stroke();
+      doc.moveDown(1.3);
 
-      const left = 50;
+      doc
+        .fontSize(9)
+        .font('Helvetica-Bold')
+        .fillColor('#111111')
+        .text('DÉTAILS DE LA RÉSERVATION', LEFT, doc.y, {
+          characterSpacing: 0.5,
+        });
+      doc.moveDown(0.9);
+
       const right = 300;
-
       const row = (label: string, value: string) => {
         const y = doc.y;
         doc
           .fontSize(10)
           .font('Helvetica-Bold')
           .fillColor('#333333')
-          .text(label, left, y);
+          .text(label, LEFT, y);
         doc
           .fontSize(10)
           .font('Helvetica')
-          .fillColor('#000000')
-          .text(value, right, y);
-        doc.moveDown(0.6);
+          .fillColor('#111111')
+          .text(value, right, y, { width: RIGHT_EDGE - right });
+        doc.moveDown(0.65);
       };
 
-      row('Numero de reservation :', booking.id.slice(0, 8).toUpperCase());
+      row('Numéro de réservation :', booking.id.slice(0, 8).toUpperCase());
       row(
         'Locataire :',
         `${booking.tenant.firstName} ${booking.tenant.lastName}`,
@@ -151,35 +210,83 @@ export class PdfService {
       row('Email :', booking.tenant.email);
       row('Annonce :', booking.listing.title);
       row('Ville :', booking.listing.city);
-      row('Date de debut :', booking.startDate.toLocaleDateString('fr-FR'));
+      row('Date de début :', booking.startDate.toLocaleDateString('fr-FR'));
       row(
         'Date de fin :',
         booking.endDate
           ? booking.endDate.toLocaleDateString('fr-FR')
           : 'Ouvert',
       );
-      row('Statut :', booking.status);
-      row(
-        'Montant total :',
-        `${Number(booking.totalAmount).toLocaleString('fr-FR')} FCFA`,
-      );
-      row('Reference paiement :', booking.paymentRef ?? 'N/A');
-      row("Date d'emission :", new Date().toLocaleDateString('fr-FR'));
+      row('Statut :', RECEIPT_STATUS_LABELS[booking.status] ?? booking.status);
 
-      doc.moveDown(1.5);
+      doc.moveDown(0.5);
       doc
-        .moveTo(50, doc.y)
-        .lineTo(545, doc.y)
+        .moveTo(LEFT, doc.y)
+        .lineTo(RIGHT_EDGE, doc.y)
         .strokeColor('#dddddd')
-        .stroke()
-        .moveDown(1);
+        .stroke();
+      doc.moveDown(1.1);
+
+      // Bloc "montant total" mis en avant par la taille et un simple encadré
+      // (pas de fond coloré).
+      const boxY = doc.y;
+      const boxHeight = 62;
+      doc
+        .roundedRect(LEFT, boxY, CONTENT_WIDTH, boxHeight, 8)
+        .strokeColor('#cccccc')
+        .lineWidth(1)
+        .stroke();
+      doc
+        .fillColor('#666666')
+        .font('Helvetica')
+        .fontSize(9)
+        .text('MONTANT TOTAL', LEFT + 20, boxY + 15, { characterSpacing: 0.5 });
+      doc
+        .fillColor('#111111')
+        .font('Helvetica-Bold')
+        .fontSize(20)
+        .text(formatFcfa(Number(booking.totalAmount)), LEFT + 20, boxY + 30);
+      doc
+        .fillColor('#999999')
+        .font('Helvetica')
+        .fontSize(9)
+        .text(
+          `Réf. paiement : ${booking.paymentRef ?? 'N/A'}`,
+          LEFT + 260,
+          boxY + 26,
+          { width: CONTENT_WIDTH - 280, align: 'right' },
+        );
+
+      doc.x = LEFT;
+      doc.y = boxY + boxHeight + 22;
 
       doc
         .fontSize(9)
-        .fillColor('#888888')
+        .font('Helvetica')
+        .fillColor('#999999')
         .text(
-          'Ce document est genere automatiquement par AlloAppart. Pour toute question, contactez alloappart221@gmail.com',
-          { align: 'center' },
+          `Document émis le ${new Date().toLocaleDateString('fr-FR')}`,
+          LEFT,
+          doc.y,
+        );
+      doc.moveDown(2.2);
+
+      doc
+        .moveTo(LEFT, doc.y)
+        .lineTo(RIGHT_EDGE, doc.y)
+        .strokeColor('#dddddd')
+        .stroke();
+      doc.moveDown(1);
+
+      doc
+        .fontSize(9)
+        .font('Helvetica')
+        .fillColor('#999999')
+        .text(
+          'Ce document est généré automatiquement par AlloAppart. Pour toute question, contactez alloappart221@gmail.com',
+          LEFT,
+          doc.y,
+          { width: CONTENT_WIDTH, align: 'center' },
         );
 
       doc.end();
@@ -306,8 +413,7 @@ export class PdfService {
       };
       doc.on('pageAdded', drawFooter);
 
-      const money = (n: number) =>
-        `${Math.round(n).toLocaleString('fr-FR')} FCFA`;
+      const money = (n: number) => formatFcfa(n);
       const fullName = (p: { firstName: string; lastName: string }) =>
         `${p.firstName} ${p.lastName}`;
 
@@ -634,7 +740,7 @@ export class PdfService {
         40,
         212,
         'REVENUS ENCAISSÉS',
-        `${data.stats.totalRevenue.toLocaleString('fr-FR')} FCFA`,
+        formatFcfa(data.stats.totalRevenue),
       );
       kpiCard(
         315,
@@ -689,11 +795,7 @@ export class PdfService {
           doc.text(truncate(b.listingTitle, 30), 48, rowY + 5);
           doc.text(truncate(b.tenantName, 20), 198, rowY + 5);
           doc.text(b.startDate.toLocaleDateString('fr-FR'), 318, rowY + 5);
-          doc.text(
-            `${Number(b.totalAmount).toLocaleString('fr-FR')} FCFA`,
-            398,
-            rowY + 5,
-          );
+          doc.text(formatFcfa(Number(b.totalAmount)), 398, rowY + 5);
           doc.text(STATUS_LABELS[b.status] ?? b.status, 478, rowY + 5);
         });
 
