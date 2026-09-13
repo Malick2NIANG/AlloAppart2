@@ -493,6 +493,17 @@ function LocataireBookingActions({
         token,
       );
       redirectPaymentTab(paymentTab, payment_url);
+      // Le paiement se termine dans l'autre onglet, pas ici — cette carte n'a
+      // plus rien à "charger" une fois l'onglet redirigé. Avant : le spinner
+      // restait affiché indéfiniment (payLoading jamais remis à false sur ce
+      // chemin), même longtemps après un paiement conclu avec succès dans
+      // l'autre onglet — signalé par l'utilisateur.
+      setPayLoading(false);
+      // Au retour sur cet onglet, on rafraîchit une fois pour refléter un
+      // paiement entretemps terminé côté PayDunya (le webhook peut être en
+      // retard) — sinon la carte restait figée sur "Approuvée" avec le
+      // bouton Payer sans aucune indication que le paiement était déjà passé.
+      window.addEventListener('focus', onRefresh, { once: true });
     } catch (err: unknown) {
       closePaymentTab(paymentTab);
       // Le paiement a pu être finalisé côté PayDunya sans que notre webhook
