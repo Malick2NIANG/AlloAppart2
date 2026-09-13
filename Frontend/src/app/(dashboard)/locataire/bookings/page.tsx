@@ -678,11 +678,11 @@ function LocataireBookingActions({
           <button
             onClick={() => void handleDownloadPdf()}
             disabled={pdfLoading}
-            className="text-xs font-medium text-sub hover:text-gold-dark border border-line hover:border-gold/40 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-gold-dark bg-gold-pale border border-gold/30 hover:border-gold hover:bg-gold/10 rounded-lg py-1.5 px-3 transition-all disabled:opacity-50"
           >
             {pdfLoading
               ? <i className="fa-solid fa-spinner fa-spin" />
-              : <><i className="fa-solid fa-file-pdf mr-1" />{t('receiptBtn')}</>}
+              : <><i className="fa-solid fa-file-pdf text-[10px]" />{t('receiptBtn')}</>}
           </button>
         )}
 
