@@ -2735,5 +2735,10 @@
     "reasonEXPIRED": "Ce QR a expiré — le séjour est terminé depuis trop longtemps.",
     "reasonTERMINATED": "Ce bail a été résilié.",
     "reasonNOT_ACTIVE": "Ce bail n'est pas encore actif."
+  },
+  "connectivity": {
+    "offline": "Connexion internet perdue. Vérifiez votre connexion — certaines actions peuvent échouer tant qu'elle n'est pas rétablie.",
+    "backOnline": "Connexion internet rétablie.",
+    "authLoadFailed": "Impossible de charger l'authentification — vérifiez votre connexion internet et réessayez."
   }
 }

@@ -6,6 +6,7 @@ import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import { cookies } from 'next/headers';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import CookieConsentBanner from '@/components/ui/CookieConsentBanner';
+import ConnectivityWatcher from '@/components/ui/ConnectivityWatcher';
 import './globals.css';
 
 const inter = Inter({
@@ -75,6 +76,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <body className="min-h-screen flex flex-col bg-bg text-text">
           <NextIntlClientProvider locale={locale} messages={messages}>
             <ToastProvider>
+              <ConnectivityWatcher />
               {children}
               <CookieConsentBanner />
             </ToastProvider>

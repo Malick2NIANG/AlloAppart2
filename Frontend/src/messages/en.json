@@ -2735,5 +2735,10 @@
     "reasonEXPIRED": "This QR has expired — the stay ended too long ago.",
     "reasonTERMINATED": "This lease has been terminated.",
     "reasonNOT_ACTIVE": "This lease isn't active yet."
+  },
+  "connectivity": {
+    "offline": "Internet connection lost. Check your connection — some actions may fail until it's restored.",
+    "backOnline": "Internet connection restored.",
+    "authLoadFailed": "Couldn't load authentication — check your internet connection and try again."
   }
 }
