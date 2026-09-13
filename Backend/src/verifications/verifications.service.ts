@@ -265,33 +265,6 @@ export class VerificationsService {
   }
 
   /**
-   * Vérification active du paiement — appelée depuis l'UI de paiement custom
-   * (SOFTPAY) après paiement via Orange Money / Wave / Free Money, cf.
-   * verifyBoost() dans listings.service.ts (même raison : ces flux n'ont pas
-   * de "retour" navigateur déclenchant le webhook).
-   */
-  async verifyPayment(listingId: string, userId: string) {
-    const vp = await this.prisma.verificationPayment.findFirst({
-      where: { listingId, requesterId: userId, status: 'PENDING' },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!vp) return { done: false };
-
-    const tokenPart = vp.paymentRef.replace('PD-', '');
-    const confirm = await this.softpay.confirmInvoiceStatus(tokenPart);
-    if (!confirm || confirm.status !== 'completed') {
-      return { done: false };
-    }
-
-    await this.prisma.verificationPayment.update({
-      where: { id: vp.id },
-      data: { status: 'CONFIRMED' },
-    });
-    const verification = await this.createVerificationFromPayment(vp.id);
-    return { done: true, verification };
-  }
-
-  /**
    * Webhook IPN PayDunya pour AlloVérifié. Comme pour le boost : le payload
    * entrant n'est jamais une source de vérité — `verifyAndParseCallback`
    * vérifie le hash, puis on rappelle `confirmInvoiceStatus` nous-mêmes

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Booking, BookingStatus } from '@/types';
-import { formatDate, formatPrice } from '@/lib/utils';
+import { formatDate, formatPrice, openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
 import { SkeletonListRow } from '@/components/ui/Skeleton';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import ContractCard from '@/components/bookings/ContractCard';
@@ -341,8 +341,13 @@ function LocataireBookingActions({
   };
 
   const handlePay = async () => {
+    // Réservé de façon SYNCHRONE avant tout `await`, sinon le navigateur
+    // bloque le popup. On garde cette page ouverte (au lieu de la faire
+    // naviguer vers PayDunya) pour ne pas rester "coincé" si PayDunya ne
+    // redirige pas automatiquement au retour (observé en sandbox).
+    const paymentTab = openPaymentTab();
     const token = await getToken();
-    if (!token) return;
+    if (!token) { closePaymentTab(paymentTab); return; }
     setPayLoading(true);
     setError(null);
     try {
@@ -351,8 +356,9 @@ function LocataireBookingActions({
         { bookingId },
         token,
       );
-      window.location.href = payment_url;
+      redirectPaymentTab(paymentTab, payment_url);
     } catch (err: unknown) {
+      closePaymentTab(paymentTab);
       // Le paiement a pu être finalisé côté PayDunya sans que notre webhook
       // ne soit jamais arrivé (fréquent en sandbox) — le backend revérifie
       // et débloque le statut au lieu de renvoyer vers un checkout mort.

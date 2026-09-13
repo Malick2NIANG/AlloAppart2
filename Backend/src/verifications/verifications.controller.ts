@@ -22,13 +22,6 @@ export class VerificationsController {
     return this.verificationsService.create(user.id, dto);
   }
 
-  @Throttle({ default: { limit: 20, ttl: 60000 } })
-  @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
-  @Post('payment/:listingId/verify')
-  verifyPayment(@Param('listingId') listingId: string, @CurrentUser() user: User) {
-    return this.verificationsService.verifyPayment(listingId, user.id);
-  }
-
   // Body non typé par un DTO class-validator : voir la note équivalente dans
   // PaymentsController.webhookPaydunya — même raison.
   @Throttle({ default: { limit: 60, ttl: 60000 } })

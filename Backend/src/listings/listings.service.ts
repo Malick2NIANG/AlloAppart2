@@ -752,46 +752,6 @@ export class ListingsService {
   }
 
   /**
-   * Vérification active du boost — appelée depuis l'UI de paiement custom
-   * (SOFTPAY) après paiement via Orange Money / Wave / Free Money, puisque
-   * ces flux n'ont pas de "retour" navigateur déclenchant le webhook.
-   */
-  async verifyBoost(listingId: string, userId: string) {
-    const listing = await this.prisma.listing.findUniqueOrThrow({
-      where: { id: listingId },
-    });
-    if (listing.ownerId !== userId) {
-      throw new ForbiddenException('Not authorized');
-    }
-
-    const now = new Date();
-    if (listing.boostUntil && listing.boostUntil > now) {
-      return { boosted: true };
-    }
-
-    const bp = await this.prisma.boostPayment.findFirst({
-      where: { listingId, status: 'PENDING' },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!bp) return { boosted: false };
-
-    const token = bp.paymentRef.replace('PD-', '');
-    const confirm = await this.softpay.confirmInvoiceStatus(token);
-    if (!confirm || confirm.status !== 'completed') {
-      return { boosted: false };
-    }
-
-    await Promise.all([
-      this.prisma.boostPayment.update({
-        where: { id: bp.id },
-        data: { status: 'CONFIRMED' },
-      }),
-      this.applyBoost(listingId, listing.boostScore),
-    ]);
-    return { boosted: true };
-  }
-
-  /**
    * Webhook IPN PayDunya pour le boost d'annonce. Comme pour les
    * réservations : le payload entrant n'est jamais une source de vérité —
    * `verifyAndParseCallback` vérifie le hash, puis on rappelle

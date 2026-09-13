@@ -5,9 +5,7 @@ import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
-import PaydunyaPaymentModal from '@/components/ui/PaydunyaPaymentModal';
-
-const PLAN_PRICES: Record<'STARTER' | 'PRO', number> = { STARTER: 75_000, PRO: 150_000 };
+import { openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
 
 interface Subscription {
   id: string;
@@ -33,7 +31,6 @@ function AbonnementContent() {
   const [toast, setToast]              = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [polling, setPolling]          = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [subPaymentModal, setSubPaymentModal] = useState<{ plan: 'STARTER' | 'PRO'; paymentToken: string; cardUrl: string } | null>(null);
 
   const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -133,6 +130,11 @@ function AbonnementContent() {
   }, [searchParams]);
 
   const initiate = async (plan: 'STARTER' | 'PRO') => {
+    // Réservé de façon SYNCHRONE avant tout `await`, sinon le navigateur
+    // bloque le popup. On garde cette page ouverte (au lieu de la faire
+    // naviguer vers PayDunya) pour ne pas rester "coincé" si PayDunya ne
+    // redirige pas automatiquement au retour (observé en sandbox).
+    const paymentTab = openPaymentTab();
     setInitiating(plan);
     try {
       const token = await getToken();
@@ -142,39 +144,25 @@ function AbonnementContent() {
         body:    JSON.stringify({ plan }),
       });
       if (!res.ok) {
+        closePaymentTab(paymentTab);
         const err = await res.json() as { message?: string };
         showToast('error', err.message ?? t('abonnementInitError'));
         return;
       }
-      const body = await res.json() as { payment_url?: string; paymentToken?: string };
+      const body = await res.json() as { payment_url?: string };
       if (!body.payment_url) {
+        closePaymentTab(paymentTab);
         showToast('error', t('abonnementPaymentError'));
         return;
       }
-      if (body.paymentToken) {
-        setSubPaymentModal({ plan, paymentToken: body.paymentToken, cardUrl: body.payment_url });
-      } else {
-        window.location.href = body.payment_url; // bypass dev
-      }
+      // PayDunya gère entièrement le choix du mode de paiement sur sa
+      // propre page hébergée ; on ne fait que rediriger.
+      redirectPaymentTab(paymentTab, body.payment_url);
     } catch {
+      closePaymentTab(paymentTab);
       showToast('error', t('abonnementPaymentError2'));
     } finally {
       setInitiating(null);
-    }
-  };
-
-  const verifySubscriptionPayment = async () => {
-    try {
-      const token = await getToken();
-      const res = await fetch(`${API}/subscriptions/verify`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return false;
-      const data = await res.json() as { active: boolean };
-      return data.active;
-    } catch {
-      return false;
     }
   };
 
@@ -377,17 +365,6 @@ function AbonnementContent() {
           </div>
         </div>
       )}
-
-      {/* Modal paiement abonnement (SOFTPAY custom) */}
-      <PaydunyaPaymentModal
-        open={subPaymentModal !== null}
-        onClose={() => setSubPaymentModal(null)}
-        amount={subPaymentModal ? PLAN_PRICES[subPaymentModal.plan] : 0}
-        paymentToken={subPaymentModal?.paymentToken ?? null}
-        cardUrl={subPaymentModal?.cardUrl ?? null}
-        onVerify={verifySubscriptionPayment}
-        onSuccess={() => { showToast('success', t('abonnementPaymentSuccess')); void fetchSubscription(); }}
-      />
     </div>
   );
 }

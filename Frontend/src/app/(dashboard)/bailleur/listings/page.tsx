@@ -7,19 +7,14 @@ import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Listing, PaginatedResponse, ListingStatus } from '@/types';
 import Link from 'next/link';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
-import PaydunyaPaymentModal from '@/components/ui/PaydunyaPaymentModal';
 import { revalidateListingsCache } from './actions';
 
-const BOOST_PRICE_XOF = 5_000;
 // Doit rester synchronisé avec AUDIT_PRICE_XOF côté backend (verifications.service.ts)
 const AUDIT_PRICE_XOF: Record<'BASIC' | 'FULL', number> = { BASIC: 25_000, FULL: 60_000 };
-
-interface BoostPaymentModal { listingId: string; paymentToken: string; cardUrl: string; }
-interface VerifPaymentModal { listingId: string; title: string; paymentToken: string; cardUrl: string; amount: number; }
 
 interface VerifModal { listingId: string; title: string; }
 interface AgentOption { id: string; firstName: string; lastName: string; completedMissions: number; }
@@ -65,8 +60,6 @@ function BailleurListingsContent() {
   const [deleteModal,  setDeleteModal]  = useState<{ listingId: string; title: string } | null>(null);
   const [boostModal,   setBoostModal]   = useState<{ listingId: string; title: string } | null>(null);
   const [boosting,     setBoosting]     = useState<string | null>(null);
-  const [boostPaymentModal, setBoostPaymentModal] = useState<BoostPaymentModal | null>(null);
-  const [verifPaymentModal, setVerifPaymentModal] = useState<VerifPaymentModal | null>(null);
   // Abonnement PRO actif = boost illimité gratuit + AlloVérifié gratuit (cf. isProActive() backend).
   // /subscriptions/me est réservé PRO_AGENCE/ADMIN : un simple BAILLEUR reçoit un 403, traité
   // ici comme "pas PRO" (même schéma défensif que fetchSubscription() dans bailleur/abonnement).
@@ -142,51 +135,39 @@ function BailleurListingsContent() {
 
   const requestVerif = async () => {
     if (!verifModal || !verifForm.scheduledAt) return;
+    // Réservé de façon SYNCHRONE avant tout `await`, sinon le navigateur
+    // bloque le popup — on ne sait pas encore si ce PRO/admin bénéficie de
+    // la vérification gratuite, donc on réserve l'onglet par précaution et
+    // on le referme aussitôt si finalement inutile.
+    const paymentTab = openPaymentTab();
     const token = await getToken();
-    if (!token) return;
+    if (!token) { closePaymentTab(paymentTab); return; }
     setVerifLoading(true);
     try {
-      const res = await api.post<{ payment_url?: string; paymentToken?: string }>('/verifications', {
+      const res = await api.post<{ payment_url?: string }>('/verifications', {
         listingId: verifModal.listingId,
         auditType: verifForm.auditType,
         scheduledAt: new Date(verifForm.scheduledAt).toISOString(),
         ...(verifForm.preferredAgentId ? { preferredAgentId: verifForm.preferredAgentId } : {}),
       }, token);
 
-      if (res.payment_url && res.paymentToken) {
-        // Non-PRO : paiement AlloVérifié requis — ouvre le modal de paiement custom (SOFTPAY)
-        setVerifPaymentModal({
-          listingId: verifModal.listingId,
-          title: verifModal.title,
-          paymentToken: res.paymentToken,
-          cardUrl: res.payment_url,
-          amount: AUDIT_PRICE_XOF[verifForm.auditType as 'BASIC' | 'FULL'],
-        });
-        setVerifModal(null);
-        setVerifForm({ auditType: 'BASIC', scheduledAt: '', preferredAgentId: '' });
-        return;
-      }
       if (res.payment_url) {
-        // Bypass dev — paiement déjà confirmé, redirection directe vers la page de succès
-        window.location.href = res.payment_url;
+        // Non-PRO : paiement AlloVérifié requis — PayDunya gère entièrement
+        // le choix du mode de paiement sur sa propre page hébergée.
+        redirectPaymentTab(paymentTab, res.payment_url);
         return;
       }
       // PRO actif ou admin — gratuit, Verification créée directement
+      closePaymentTab(paymentTab);
       toast.success(t('verifSuccess', { title: verifModal.title }));
       setVerifModal(null);
       setVerifForm({ auditType: 'BASIC', scheduledAt: '', preferredAgentId: '' });
     } catch {
+      closePaymentTab(paymentTab);
       toast.error(t('verifError'));
     } finally {
       setVerifLoading(false);
     }
-  };
-
-  const verifyVerifPayment = async (listingId: string) => {
-    const token = await getToken();
-    if (!token) return false;
-    const res = await api.post<{ done: boolean }>(`/verifications/payment/${listingId}/verify`, {}, token);
-    return res.done;
   };
 
   const patchLocal = (listingId: string, patch: Partial<Listing>) =>
@@ -275,40 +256,38 @@ function BailleurListingsContent() {
     const { listingId } = boostModal;
     setBoostModal(null);
     setBoosting(listingId);
+    // Réservé de façon SYNCHRONE avant tout `await`, sinon le navigateur
+    // bloque le popup — on ne sait pas encore si ce boost sera gratuit
+    // (abonnement PRO) ou payant, donc on réserve l'onglet par précaution et
+    // on le referme aussitôt si finalement inutile.
+    const paymentTab = openPaymentTab();
     try {
       const token = await getToken();
-      if (!token) return;
-      const res = await api.post<{ payment_url?: string; paymentToken?: string; free?: boolean; boosted?: boolean }>(
+      if (!token) { closePaymentTab(paymentTab); return; }
+      const res = await api.post<{ payment_url?: string; free?: boolean; boosted?: boolean }>(
         `/listings/${listingId}/boost`, {}, token,
       );
       if (res.free && res.boosted) {
         // Abonnement PRO actif — boost appliqué directement, pas de paiement.
+        closePaymentTab(paymentTab);
         toast.success(t('boostSuccess'));
         load();
         return;
       }
       if (!res.payment_url) {
+        closePaymentTab(paymentTab);
         toast.error(t('boostServiceError'));
         return;
       }
-      if (res.paymentToken) {
-        setBoostPaymentModal({ listingId, paymentToken: res.paymentToken, cardUrl: res.payment_url });
-      } else {
-        // Bypass dev — redirection directe vers la page de succès
-        window.location.href = res.payment_url;
-      }
+      // PayDunya gère entièrement le choix du mode de paiement sur sa
+      // propre page hébergée ; on ne fait que rediriger.
+      redirectPaymentTab(paymentTab, res.payment_url);
     } catch (err) {
+      closePaymentTab(paymentTab);
       toast.error(err instanceof Error ? err.message : t('boostError'));
     } finally {
       setBoosting(null);
     }
-  };
-
-  const verifyBoostPayment = async (listingId: string) => {
-    const token = await getToken();
-    if (!token) return false;
-    const res = await api.post<{ boosted: boolean }>(`/listings/${listingId}/boost/verify`, {}, token);
-    return res.boosted;
   };
 
   const minDate = new Date();
@@ -617,28 +596,6 @@ function BailleurListingsContent() {
           </div>
         </div>
       )}
-
-      {/* Modal paiement boost (SOFTPAY custom) */}
-      <PaydunyaPaymentModal
-        open={boostPaymentModal !== null}
-        onClose={() => setBoostPaymentModal(null)}
-        amount={BOOST_PRICE_XOF}
-        paymentToken={boostPaymentModal?.paymentToken ?? null}
-        cardUrl={boostPaymentModal?.cardUrl ?? null}
-        onVerify={() => boostPaymentModal ? verifyBoostPayment(boostPaymentModal.listingId) : Promise.resolve(false)}
-        onSuccess={() => { toast.success(t('boostSuccess')); load(); }}
-      />
-
-      {/* Modal paiement AlloVérifié (SOFTPAY custom) — non-PRO uniquement */}
-      <PaydunyaPaymentModal
-        open={verifPaymentModal !== null}
-        onClose={() => setVerifPaymentModal(null)}
-        amount={verifPaymentModal?.amount ?? 0}
-        paymentToken={verifPaymentModal?.paymentToken ?? null}
-        cardUrl={verifPaymentModal?.cardUrl ?? null}
-        onVerify={() => verifPaymentModal ? verifyVerifPayment(verifPaymentModal.listingId) : Promise.resolve(false)}
-        onSuccess={() => { toast.success(t('verifPaySuccess')); load(); }}
-      />
 
       {/* Archive modal */}
       {archiveModal && (

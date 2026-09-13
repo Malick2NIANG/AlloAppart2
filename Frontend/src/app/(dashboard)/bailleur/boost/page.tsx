@@ -7,13 +7,9 @@ import { useTranslations, useLocale } from 'next-intl';
 import Image from 'next/image';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
 import { type Listing, type PaginatedResponse, getListingPriceAmounts } from '@/types';
 import { useToast } from '@/components/ui/Toast';
-import PaydunyaPaymentModal from '@/components/ui/PaydunyaPaymentModal';
-
-const BOOST_PRICE_XOF = 5_000;
-
-interface BoostPaymentModal { listingId: string; paymentToken: string; cardUrl: string; }
 
 const TYPE_LABEL_EN: Record<string, string> = {
   APPARTEMENT: 'Apartment', STUDIO: 'Studio', VILLA: 'Villa',
@@ -68,7 +64,6 @@ export default function BoostPage() {
   const [loading, setLoading] = useState(true);
   const [boosting, setBoosting] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [boostPaymentModal, setBoostPaymentModal] = useState<BoostPaymentModal | null>(null);
 
   // Handle PayDunya return ?status=boost_success|boost_cancel
   useEffect(() => {
@@ -96,33 +91,31 @@ export default function BoostPage() {
   const handleBoost = async (listingId: string) => {
     setConfirmId(null);
     setBoosting(listingId);
+    // Réservé de façon SYNCHRONE avant tout `await`, sinon le navigateur
+    // bloque le popup — on ne sait pas encore à ce stade si ce boost sera
+    // payant ou gratuit (PRO), donc on réserve l'onglet par précaution et on
+    // le referme aussitôt s'il s'avère finalement inutile (boost gratuit).
+    const paymentTab = openPaymentTab();
     const token = await getToken();
     try {
-      const res = await api.post<{ payment_url?: string; paymentToken?: string }>(
+      const res = await api.post<{ payment_url?: string }>(
         `/listings/${listingId}/boost`, {}, token ?? undefined,
       );
       if (!res?.payment_url) {
+        closePaymentTab(paymentTab);
         await load();
         toast.success(t('boostSuccess'));
         return;
       }
-      if (res.paymentToken) {
-        setBoostPaymentModal({ listingId, paymentToken: res.paymentToken, cardUrl: res.payment_url });
-      } else {
-        window.location.href = res.payment_url; // bypass dev
-      }
+      // PayDunya gère entièrement le choix du mode de paiement sur sa
+      // propre page hébergée ; on ne fait que rediriger.
+      redirectPaymentTab(paymentTab, res.payment_url);
     } catch (err) {
+      closePaymentTab(paymentTab);
       toast.error(err instanceof Error ? err.message : t('boostError'));
     } finally {
       setBoosting(null);
     }
-  };
-
-  const verifyBoostPayment = async (listingId: string) => {
-    const token = await getToken();
-    if (!token) return false;
-    const res = await api.post<{ boosted: boolean }>(`/listings/${listingId}/boost/verify`, {}, token);
-    return res.boosted;
   };
 
   const now = new Date();
@@ -269,17 +262,6 @@ export default function BoostPage() {
           </div>
         );
       })()}
-
-      {/* Modal paiement boost (SOFTPAY custom) */}
-      <PaydunyaPaymentModal
-        open={boostPaymentModal !== null}
-        onClose={() => setBoostPaymentModal(null)}
-        amount={BOOST_PRICE_XOF}
-        paymentToken={boostPaymentModal?.paymentToken ?? null}
-        cardUrl={boostPaymentModal?.cardUrl ?? null}
-        onVerify={() => boostPaymentModal ? verifyBoostPayment(boostPaymentModal.listingId) : Promise.resolve(false)}
-        onSuccess={() => { toast.success(t('boostSuccess')); void load(); }}
-      />
 
     </div>
   );

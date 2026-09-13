@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
-import PaydunyaPaymentModal from '@/components/ui/PaydunyaPaymentModal';
+import { openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
 import AvailabilityCalendar, { isBooked, type BookedRange } from '@/components/listings/AvailabilityCalendar';
 import MonthlyBookingRequestForm from './MonthlyBookingRequestForm';
 import type { RentalMode } from '@/types';
@@ -74,9 +75,6 @@ export default function ListingBookingCard({
   const [loading,     setLoading]     = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [error,       setError]       = useState<string | null>(null);
-  const [paymentModal, setPaymentModal] = useState<{
-    bookingId: string; paymentToken: string; cardUrl: string; amount: number;
-  } | null>(null);
   const [ranges,        setRanges]        = useState<BookedRange[]>([]);
   const [rangesLoading, setRangesLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<BookingTab>('nightly');
@@ -172,6 +170,13 @@ export default function ListingBookingCard({
     }
     if (!startDate || !endDate) return;
 
+    // Réservé de façon SYNCHRONE, avant tout `await` — sinon les navigateurs
+    // bloquent le popup car il n'est plus perçu comme le résultat direct du
+    // clic. On garde cette page ouverte (au lieu de la faire naviguer vers
+    // PayDunya) pour ne pas laisser l'utilisateur "coincé" si PayDunya ne
+    // redirige pas automatiquement au retour (observé en sandbox).
+    const paymentTab = openPaymentTab();
+
     setLoading(true);
     setError(null);
     try {
@@ -187,43 +192,25 @@ export default function ListingBookingCard({
         endDate,
       }, token ?? undefined);
 
-      // Étape 2 : initier le paiement PayDunya
-      const res = await api.post<{ payment_url: string; paymentToken?: string }>(
+      // Étape 2 : initier le paiement PayDunya — PayDunya gère entièrement
+      // le choix du mode de paiement (Orange Money, Wave, Mixx by Yas,
+      // carte) sur sa propre page hébergée ; on ne fait que rediriger.
+      const res = await api.post<{ payment_url: string }>(
         '/payments/initiate',
         { bookingId: booking.id },
         token ?? undefined,
       );
 
       setLoading(false);
-
-      if (res.paymentToken) {
-        setPaymentModal({
-          bookingId: booking.id,
-          paymentToken: res.paymentToken,
-          cardUrl: res.payment_url,
-          amount: Number(booking.totalAmount ?? 0),
-        });
-      } else {
-        // Bypass dev — redirection directe vers la page de confirmation
-        setRedirecting(true);
-        window.location.href = res.payment_url;
-      }
+      setRedirecting(true);
+      redirectPaymentTab(paymentTab, res.payment_url);
     } catch (err: unknown) {
+      closePaymentTab(paymentTab);
       setLoading(false);
       setRedirecting(false);
       const msg = err instanceof Error ? err.message : '';
       setError(msg || t('bookingPayError'));
     }
-  };
-
-  const verifyBookingPayment = async () => {
-    if (!paymentModal) return false;
-    const token = await getToken();
-    if (!token) return false;
-    const res = await api.post<{ status: string }>(
-      `/payments/verify/${paymentModal.bookingId}`, {}, token,
-    );
-    return res.status === 'CONFIRMED';
   };
 
   /* ── Bien actuellement loué au mois (bail actif) ─────────────── */
@@ -239,14 +226,17 @@ export default function ListingBookingCard({
     );
   }
 
-  /* ── Redirection PayDunya ───────────────────────────────────── */
+  /* ── Paiement ouvert dans un nouvel onglet ───────────────────── */
   if (redirecting) {
     return (
       <div className="bg-card border border-line rounded-3xl p-6 shadow-sm">
         <div className="flex flex-col items-center text-center gap-3 py-4">
-          <i className="fa-solid fa-spinner fa-spin text-3xl text-gold-dark" />
+          <i className="fa-solid fa-arrow-up-right-from-square text-3xl text-gold-dark" />
           <p className="font-semibold text-text">{t('bookingRedirecting')}</p>
           <p className="text-sm text-sub">{t('bookingRedirectDesc')}</p>
+          <Link href="/locataire/bookings" className="btn-gold mt-2 text-sm">
+            {t('bookingViewMine')}
+          </Link>
         </div>
       </div>
     );
@@ -336,21 +326,6 @@ export default function ListingBookingCard({
       )}
 
       {isMixed ? (activeTab === 'monthly' ? monthlySection : nightlySection) : nightlySection}
-
-      {/* Modal paiement réservation (SOFTPAY custom) */}
-      <PaydunyaPaymentModal
-        open={paymentModal !== null}
-        onClose={() => setPaymentModal(null)}
-        amount={paymentModal?.amount ?? 0}
-        paymentToken={paymentModal?.paymentToken ?? null}
-        cardUrl={paymentModal?.cardUrl ?? null}
-        onVerify={verifyBookingPayment}
-        onSuccess={() => {
-          if (paymentModal) {
-            router.push(`/paiement/confirmation?booking_id=${paymentModal.bookingId}`);
-          }
-        }}
-      />
     </div>
   );
 }
