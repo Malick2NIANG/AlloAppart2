@@ -8,18 +8,30 @@ import { useToast } from './Toast';
 /**
  * Composant sans rendu, monté une seule fois à la racine (voir app/layout.tsx).
  *
- * Deux choses surveillées :
+ * Trois choses surveillées :
  * 1. La connectivité réseau du navigateur (`online`/`offline`) — toast dès
  *    que la connexion tombe, et à la reconnexion.
- * 2. Les échecs de chargement du script Clerk (`ClerkRuntimeError` avec
+ * 2. L'état déjà hors-ligne au montage (ex. page rechargée sans réseau) —
+ *    sans ça, l'événement `offline` ne se déclencherait jamais puisqu'il n'y
+ *    a pas de transition à détecter, et l'utilisateur ne verrait rien tant
+ *    qu'il ne coupe/rétablit pas la connexion une nouvelle fois.
+ * 3. Les échecs de chargement du script Clerk (`ClerkRuntimeError` avec
  *    `code: "failed_to_load_clerk_js"`), qui surviennent typiquement quand
- *    la connexion coupe pendant le chargement initial de l'app. Sans ça,
- *    l'utilisateur se retrouve face à une erreur brute (visible en dev via
- *    l'overlay Next.js "Runtime ClerkRuntimeError") ou une app silencieusement
- *    cassée en prod. On intercepte via les événements globaux `error` /
- *    `unhandledrejection` (le rejet vient d'une promesse interne à Clerk,
- *    pas d'un rendu React — un ErrorBoundary React ne le capturerait pas) et
- *    on affiche un toast clair à la place.
+ *    la connexion coupe pendant le chargement initial de l'app. On intercepte
+ *    via les événements globaux `error`/`unhandledrejection` (le rejet vient
+ *    d'une promesse interne à Clerk, pas d'un rendu React — un ErrorBoundary
+ *    React ne le capturerait pas) et on affiche un toast clair à la place.
+ *
+ *    ⚠️ En dev (`next dev`), l'overlay plein écran "Runtime ClerkRuntimeError"
+ *    de Next.js peut malgré tout s'afficher par-dessus : Next enregistre ses
+ *    propres écouteurs `error`/`unhandledrejection` pour son overlay de
+ *    développement, indépendamment de tout `preventDefault()` posé ici (ça
+ *    n'empêche pas les AUTRES écouteurs de s'exécuter), et ce, sciemment —
+ *    Next ne fournit aucune option pour désactiver cet overlay, précisément
+ *    pour qu'aucune erreur ne puisse être masquée pendant le développement.
+ *    Cet overlay n'existe pas du tout en production (`next build && next
+ *    start`) : c'est uniquement là que le comportement "toast propre, pas
+ *    d'écran d'erreur" doit être vérifié.
  */
 export default function ConnectivityWatcher() {
   const t = useTranslations('connectivity');
@@ -70,6 +82,16 @@ export default function ConnectivityWatcher() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('error', handleError);
     window.addEventListener('unhandledrejection', handleRejection);
+
+    // Si l'app démarre (ou ce composant se monte) alors que la connexion est
+    // déjà coupée — ex. page rechargée sans réseau — l'événement `offline`
+    // ne se déclenchera pas puisqu'il n'y a pas de transition à détecter.
+    // On signale donc l'état immédiatement, sans attendre un rechargement ou
+    // une future coupure. Différé en microtâche (plutôt qu'un appel
+    // synchrone ici) pour rester après la passe de montage de l'effet.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      queueMicrotask(handleOffline);
+    }
 
     return () => {
       window.removeEventListener('offline', handleOffline);
