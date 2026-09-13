@@ -15,12 +15,23 @@ import { useToast } from './Toast';
  *    sans ça, l'événement `offline` ne se déclencherait jamais puisqu'il n'y
  *    a pas de transition à détecter, et l'utilisateur ne verrait rien tant
  *    qu'il ne coupe/rétablit pas la connexion une nouvelle fois.
- * 3. Les échecs de chargement du script Clerk (`ClerkRuntimeError` avec
- *    `code: "failed_to_load_clerk_js"`), qui surviennent typiquement quand
- *    la connexion coupe pendant le chargement initial de l'app. On intercepte
- *    via les événements globaux `error`/`unhandledrejection` (le rejet vient
- *    d'une promesse interne à Clerk, pas d'un rendu React — un ErrorBoundary
- *    React ne le capturerait pas) et on affiche un toast clair à la place.
+ * 3. Les erreurs réseau de Clerk, sous deux formes distinctes selon quand
+ *    elles surviennent :
+ *    - Au chargement initial : `ClerkRuntimeError` avec
+ *      `code: "failed_to_load_clerk_js"` (le script `clerk.browser.js` n'a
+ *      pas pu être récupéré).
+ *    - En cours de session : Clerk fait périodiquement des appels réseau en
+ *      arrière-plan pour maintenir la session active (ex. endpoint
+ *      `.../sessions/.../touch`) ; si l'un échoue (pas de connexion réelle,
+ *      même si le navigateur se croit "en ligne" — ex. wifi connecté mais
+ *      routeur sans accès internet), Clerk lève une `Error` simple au
+ *      message `"ClerkJS: Network error at ... - TypeError: Failed to
+ *      fetch..."` (pas de `code` distinctif ici, contrairement au cas
+ *      précédent — on détecte via le préfixe du message).
+ *    Dans les deux cas on intercepte via les événements globaux
+ *    `error`/`unhandledrejection` (le rejet vient d'une promesse interne à
+ *    Clerk, pas d'un rendu React — un ErrorBoundary React ne le
+ *    capturerait pas) et on affiche un toast clair à la place.
  *
  *    ⚠️ En dev (`next dev`), l'overlay plein écran "Runtime ClerkRuntimeError"
  *    de Next.js peut malgré tout s'afficher par-dessus : Next enregistre ses
@@ -47,7 +58,19 @@ export default function ConnectivityWatcher() {
   });
 
   useEffect(() => {
-    const notifyClerkLoadFailure = () => {
+    // Reconnaît les deux formes d'erreur réseau Clerk (voir doc ci-dessus) :
+    // l'échec de chargement du script (ClerkRuntimeError avec code dédié) et
+    // l'échec d'un appel réseau en cours de session (Error générique, pas de
+    // code — seul le préfixe de message identifie la source Clerk).
+    const isClerkNetworkIssue = (err: unknown): boolean => {
+      if (isClerkRuntimeError(err) && err.code === 'failed_to_load_clerk_js') return true;
+      if (err instanceof Error && err.message.startsWith('ClerkJS:') && /network error/i.test(err.message)) {
+        return true;
+      }
+      return false;
+    };
+
+    const notifyClerkNetworkIssue = () => {
       if (clerkWarnedRef.current) return;
       clerkWarnedRef.current = true;
       latestRef.current.toast.error(latestRef.current.t('authLoadFailed'));
@@ -65,16 +88,16 @@ export default function ConnectivityWatcher() {
     };
 
     const handleError = (event: ErrorEvent) => {
-      if (isClerkRuntimeError(event.error) && event.error.code === 'failed_to_load_clerk_js') {
+      if (isClerkNetworkIssue(event.error)) {
         event.preventDefault();
-        notifyClerkLoadFailure();
+        notifyClerkNetworkIssue();
       }
     };
 
     const handleRejection = (event: PromiseRejectionEvent) => {
-      if (isClerkRuntimeError(event.reason) && event.reason.code === 'failed_to_load_clerk_js') {
+      if (isClerkNetworkIssue(event.reason)) {
         event.preventDefault();
-        notifyClerkLoadFailure();
+        notifyClerkNetworkIssue();
       }
     };
 

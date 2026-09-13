@@ -2739,6 +2739,6 @@
   "connectivity": {
     "offline": "Internet connection lost. Check your connection — some actions may fail until it's restored.",
     "backOnline": "Internet connection restored.",
-    "authLoadFailed": "Couldn't load authentication — check your internet connection and try again."
+    "authLoadFailed": "Connection problem with the authentication service — check your internet connection and try again."
   }
 }

@@ -2739,6 +2739,6 @@
   "connectivity": {
     "offline": "Connexion internet perdue. Vérifiez votre connexion — certaines actions peuvent échouer tant qu'elle n'est pas rétablie.",
     "backOnline": "Connexion internet rétablie.",
-    "authLoadFailed": "Impossible de charger l'authentification — vérifiez votre connexion internet et réessayez."
+    "authLoadFailed": "Problème de connexion avec le service d'authentification — vérifiez votre connexion internet et réessayez."
   }
 }
