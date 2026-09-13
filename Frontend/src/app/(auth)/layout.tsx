@@ -36,8 +36,17 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           </Link>
         </div>
 
-        {/* Contenu centré + scroll de secours */}
-        <div className="flex flex-1 items-center justify-center overflow-y-auto px-6 py-4 sm:px-10">
+        {/* Contenu centré + scroll de secours.
+            Volontairement en grid (et non flex) pour le centrage : avec
+            `overflow-y-auto` + `align-items: center`, un flex row/col classique
+            rend la portion qui déborde AU-DESSUS du centre inaccessible au
+            scroll dans certains navigateurs (bug connu de centrage flexbox +
+            overflow) — la partie haute d'un formulaire un peu long (ex.
+            inscription) se retrouvait alors tronquée sans moyen d'y remonter.
+            Grid + place-items-center n'a pas ce défaut : le contenu reste
+            centré quand il tient dans la hauteur dispo, et devient
+            entièrement accessible au scroll (haut compris) sinon. */}
+        <div className="flex-1 grid place-items-center overflow-y-auto px-6 py-6 sm:px-10">
           <div className="w-full max-w-sm">
             {children}
           </div>
