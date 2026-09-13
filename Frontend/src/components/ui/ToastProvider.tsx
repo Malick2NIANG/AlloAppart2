@@ -52,13 +52,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addToast = useCallback((type: ToastType, message: string) => {
+  const addToast = useCallback((type: ToastType, message: string, durationMs?: number) => {
     const id = `${baseId}-${Date.now()}-${counter++}`;
     setToasts((prev) => {
       const next = [...prev, { id, type, message }];
       return next.length > MAX_TOASTS ? next.slice(next.length - MAX_TOASTS) : next;
     });
-    setTimeout(() => removeToast(id), AUTO_DISMISS_MS);
+    setTimeout(() => removeToast(id), durationMs ?? AUTO_DISMISS_MS);
   }, [baseId, removeToast]);
 
   return (

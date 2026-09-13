@@ -7,6 +7,11 @@ import { useToast } from './Toast';
 
 const PROBE_INTERVAL_MS = 10_000;
 const PROBE_TIMEOUT_MS = 4_000;
+// Plus long que la durée par défaut des toasts (4s, voir ToastProvider) :
+// un souci de connexion mérite de rester visible plus longtemps qu'un toast
+// de confirmation classique, surtout si l'utilisateur ne regarde pas l'écran
+// au moment exact où il coupe/rétablit le réseau.
+const CONNECTIVITY_TOAST_DURATION_MS = 8_000;
 
 /**
  * Extrait l'origine de la Frontend API Clerk depuis la clé publique
@@ -95,13 +100,13 @@ export default function ConnectivityWatcher() {
     const markOffline = (message: string) => {
       if (offlineRef.current) return;
       offlineRef.current = true;
-      latestRef.current.toast.error(message);
+      latestRef.current.toast.error(message, CONNECTIVITY_TOAST_DURATION_MS);
     };
 
     const markOnline = () => {
       if (!offlineRef.current) return;
       offlineRef.current = false;
-      latestRef.current.toast.success(latestRef.current.t('backOnline'));
+      latestRef.current.toast.success(latestRef.current.t('backOnline'), CONNECTIVITY_TOAST_DURATION_MS);
     };
 
     const probeConnectivity = async () => {

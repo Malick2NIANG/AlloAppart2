@@ -11,7 +11,9 @@ export interface ToastItem {
 }
 
 export interface ToastContextValue {
-  addToast: (type: ToastType, message: string) => void;
+  // `durationMs` optionnel : surcharge la durée d'affichage par défaut
+  // (voir AUTO_DISMISS_MS dans ToastProvider) pour ce toast précis.
+  addToast: (type: ToastType, message: string, durationMs?: number) => void;
   removeToast: (id: string) => void;
 }
 
@@ -22,9 +24,9 @@ export function useToast() {
   if (!ctx) throw new Error('useToast must be used inside ToastProvider');
   return {
     toast: {
-      success: (message: string) => ctx.addToast('success', message),
-      error:   (message: string) => ctx.addToast('error',   message),
-      info:    (message: string) => ctx.addToast('info',    message),
+      success: (message: string, durationMs?: number) => ctx.addToast('success', message, durationMs),
+      error:   (message: string, durationMs?: number) => ctx.addToast('error',   message, durationMs),
+      info:    (message: string, durationMs?: number) => ctx.addToast('info',    message, durationMs),
     },
   };
 }
