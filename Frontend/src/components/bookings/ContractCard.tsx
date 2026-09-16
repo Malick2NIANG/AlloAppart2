@@ -16,10 +16,14 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
   const { getToken } = useAuth();
   const t = useTranslations('contract');
 
-  const [contract, setContract]     = useState<Contract | null>(null);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [contract, setContract]         = useState<Contract | null>(null);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState<string | null>(null);
+  const [downloading, setDownloading]   = useState(false);
+  // Distinct de `error` (qui remplace toute la carte par un message) — une
+  // erreur de téléchargement ponctuelle ne doit pas cacher le reste de la
+  // carte, juste s'afficher en ligne sous le bouton.
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const retriedRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -39,29 +43,37 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
 
-  // Avant : simple <a href> vers l'URL Cloudinary brute — le navigateur
-  // l'ouvrait (souvent en visualisation inline dans un nouvel onglet) au
-  // lieu de forcer un vrai téléchargement, contrairement au reçu de
-  // paiement qui, lui, force le téléchargement via fetch+blob. On reproduit
-  // exactement le même comportement ici.
+  // Avant : simple <a href> vers l'URL Cloudinary brute. Ce compte Cloudinary
+  // refuse l'accès public aux ressources raw/PDF (401 constaté par
+  // l'utilisateur dans les devtools réseau) — l'URL stockée n'est donc PAS
+  // appelable directement depuis le navigateur, contrairement à ce qu'une
+  // tentative précédente supposait. Fix : passer par notre propre API
+  // (authentifiée avec le token Clerk), qui signe l'URL Cloudinary côté
+  // serveur et retransmet le PDF — exactement le même mécanisme que le reçu
+  // de paiement (fetch avec Bearer token → blob → téléchargement forcé).
+  const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+
   const handleDownload = async () => {
-    if (!contract?.pdfUrl || downloading) return;
+    if (downloading) return;
     setDownloading(true);
+    setDownloadError(null);
     try {
-      const res = await fetch(contract.pdfUrl);
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch(`${API}/contracts/booking/${bookingId}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!res.ok) throw new Error('error');
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
-      a.download = `contrat-${contract.bookingId.slice(0, 8)}.pdf`;
+      a.download = `contrat-${bookingId.slice(0, 8)}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      // Repli : l'URL Cloudinary reste valide en soi — on ouvre directement
-      // plutôt que de laisser le clic sans aucun effet en cas d'échec du
-      // téléchargement forcé (ex. CORS).
-      window.open(contract.pdfUrl, '_blank', 'noopener,noreferrer');
+      setDownloadError(t('downloadError'));
+      setTimeout(() => setDownloadError(null), 4000);
     } finally {
       setDownloading(false);
     }
@@ -111,15 +123,20 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
       </div>
 
       {contract.pdfUrl && (
-        <button
-          type="button"
-          onClick={() => void handleDownload()}
-          disabled={downloading}
-          className="btn-gold inline-flex items-center gap-2 text-xs py-2 px-4 disabled:opacity-50"
-        >
-          <i className={`fa-solid ${downloading ? 'fa-spinner fa-spin' : 'fa-download'}`} />
-          {t('downloadBtn')}
-        </button>
+        <div>
+          <button
+            type="button"
+            onClick={() => void handleDownload()}
+            disabled={downloading}
+            className="btn-gold inline-flex items-center gap-2 text-xs py-2 px-4 disabled:opacity-50"
+          >
+            <i className={`fa-solid ${downloading ? 'fa-spinner fa-spin' : 'fa-download'}`} />
+            {t('downloadBtn')}
+          </button>
+          {downloadError && (
+            <p className="mt-1.5 text-xs text-red-500">{downloadError}</p>
+          )}
+        </div>
       )}
 
       <div className="rounded-xl border border-gold/30 bg-gold-pale/50 p-3.5 space-y-1.5">

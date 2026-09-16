@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PdfService } from '../pdf/pdf.service';
@@ -152,5 +157,29 @@ export class ContractsService {
     });
     this.assertParty(booking, user);
     return this.prisma.contract.findUnique({ where: { bookingId } });
+  }
+
+  /**
+   * Télécharge le PDF du contrat — passe par le backend (URL Cloudinary
+   * signée côté serveur, voir UploadService.downloadPdfByUrl) au lieu de
+   * laisser le frontend appeler directement l'URL Cloudinary stockée, qui
+   * renvoie 401 sur ce compte (ressources raw/PDF non publiques). Même
+   * principe que BookingsController.getReceipt pour le reçu de paiement.
+   */
+  async downloadPdf(bookingId: string, user: User): Promise<Buffer> {
+    const booking = await this.prisma.booking.findUniqueOrThrow({
+      where: { id: bookingId },
+      include: { listing: { select: { ownerId: true } } },
+    });
+    this.assertParty(booking, user);
+
+    const contract = await this.prisma.contract.findUnique({
+      where: { bookingId },
+    });
+    if (!contract?.pdfUrl) {
+      throw new NotFoundException('Contrat introuvable');
+    }
+
+    return this.upload.downloadPdfByUrl(contract.pdfUrl);
   }
 }

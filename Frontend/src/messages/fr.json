@@ -2656,6 +2656,7 @@
     "loadError": "Impossible de charger le contrat.",
     "generatingContract": "Génération du contrat en cours…",
     "downloadBtn": "Télécharger le contrat",
+    "downloadError": "Impossible de télécharger le contrat. Réessayez.",
     "infoNoteTitle": "À savoir sur ce contrat",
     "infoNoteTenant": "Ce contrat est un modèle qui laisse des espaces libres pour vos informations personnelles (pièce d'identité, etc.). Imprimez-le et signez-le à la main avec le bailleur (ou l'agence) lors de votre rencontre au bien — pensez à apporter une pièce d'identité.",
     "infoNoteLandlord": "Ce contrat est un modèle qui laisse des espaces libres pour les informations personnelles du locataire. Il sera complété et signé à la main avec vous lors de votre rencontre au bien."

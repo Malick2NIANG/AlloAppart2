@@ -84,6 +84,40 @@ export class UploadService {
     });
   }
 
+  /**
+   * Télécharge un PDF déjà stocké sur Cloudinary (contrat de bail) en
+   * générant une URL signée côté serveur. Nécessaire car ce compte
+   * Cloudinary refuse l'accès direct et public aux ressources non-image
+   * (raw/PDF) — y compris à `secure_url`, habituellement publique pour les
+   * images — d'où le 401 constaté quand le navigateur appelait l'URL
+   * Cloudinary stockée directement (comme le faisait `ContractCard.tsx`
+   * avant ce correctif). Seul le backend, qui détient l'API secret, peut
+   * signer l'URL et récupérer le fichier ; le frontend doit toujours passer
+   * par un endpoint de notre API (voir ContractsController.download), comme
+   * pour le reçu de paiement.
+   */
+  async downloadPdfByUrl(url: string): Promise<Buffer> {
+    const match = /\/upload\/v\d+\/(.+?)\.[a-zA-Z0-9]+(?:\?.*)?$/.exec(url);
+    const publicId = match?.[1];
+    if (!publicId) {
+      throw new BadRequestException('URL Cloudinary invalide');
+    }
+
+    const signedUrl = cloudinary.url(publicId, {
+      resource_type: 'raw',
+      type: 'upload',
+      sign_url: true,
+      secure: true,
+    });
+
+    const res = await fetch(signedUrl);
+    if (!res.ok) {
+      throw new BadRequestException('Téléchargement Cloudinary échoué');
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
   async uploadFile(
     file: Express.Multer.File,
   ): Promise<{ url: string; publicId: string }> {
