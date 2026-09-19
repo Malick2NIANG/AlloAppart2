@@ -619,7 +619,11 @@ export default function MessagesShell({ emptyHint, space }: Props) {
             </div>
             {otherParticipants[0] && (
               <Link
-                href={`/bailleur/profil/${otherParticipants[0].id}`}
+                href={
+                  otherParticipants[0].roles?.includes('PRO_AGENCE') && otherParticipants[0].agencySlug
+                    ? `/agences/${otherParticipants[0].agencySlug}`
+                    : `/bailleur/profil/${otherParticipants[0].id}`
+                }
                 className="shrink-0 text-xs text-gold-dark hover:underline hidden sm:block"
               >
                 {t('viewProfile')} <i className="fa-solid fa-arrow-up-right-from-square text-[10px] ml-0.5" />
