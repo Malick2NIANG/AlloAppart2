@@ -7,7 +7,10 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
+import PhotoCropper from '@/components/ui/PhotoCropper';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { AGENCY_COLORS, getAgencyColorOption } from '@/lib/agencyColors';
+import { revalidateVitrineCache } from './actions';
 import type { User, Subscription, Listing, PaginatedResponse } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -39,6 +42,30 @@ export default function MaVitrinePage() {
 
   const avatarRef = useRef<HTMLInputElement>(null);
 
+  // Recadrage carré (1:1) du logo — à la sélection d'un nouveau fichier
+  // (object URL, à révoquer) OU en "Ajuster" a posteriori sur le logo déjà
+  // envoyé (URL distante Cloudinary) : les deux partagent le même cropper,
+  // seul `cropIsObjectUrl` change selon la provenance (cf. ImageUploadZone
+  // pour le même pattern sur les photos d'annonce).
+  const [cropSrc,         setCropSrc]         = useState<string | null>(null);
+  const [cropIsObjectUrl, setCropIsObjectUrl]  = useState(false);
+
+  // Garde-fou "modifications non enregistrées" : snapshot des valeurs telles
+  // qu'elles sont réellement persistées (posé après le chargement initial et
+  // remis à jour après chaque sauvegarde réussie), comparé aux valeurs
+  // actuelles du formulaire pour savoir si l'utilisateur a un brouillon en
+  // cours (état, pas ref : lu pendant le rendu pour calculer `isDirty`).
+  // isDirtyRef, lui, n'est lu que dans des handlers/effets (jamais au
+  // rendu) — il évite de ré-attacher les listeners DOM à chaque frappe.
+  type VitrineSnapshot = {
+    agencyName: string; bio: string; phone: string;
+    avatar: string; agencyAddress: string; agencyColor: string;
+  };
+  const [saved, setSaved] = useState<VitrineSnapshot | null>(null);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [pendingHref,    setPendingHref]    = useState<string | null>(null);
+  const isDirtyRef = useRef(false);
+
   const load = useCallback(async () => {
     const token = await getToken().catch(() => null);
     if (!token) return;
@@ -59,6 +86,14 @@ export default function MaVitrinePage() {
       setAvatar(me.agencyAvatar ?? me.avatar ?? '');
       setAgencyAddress(me.agencyAddress ?? '');
       setAgencyColor(me.agencyColor ?? 'gold');
+      setSaved({
+        agencyName: me.agencyName ?? '',
+        bio: me.agencyBio ?? me.bio ?? '',
+        phone: me.agencyPhone ?? me.phone ?? '',
+        avatar: me.agencyAvatar ?? me.avatar ?? '',
+        agencyAddress: me.agencyAddress ?? '',
+        agencyColor: me.agencyColor ?? 'gold',
+      });
 
       // Aperçu fidèle à /agences/:slug : badge PRO + nombre d'annonces actives.
       const [sub, mine] = await Promise.all([
@@ -73,20 +108,50 @@ export default function MaVitrinePage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Sélection d'un nouveau fichier : passe d'abord par le recadrage carré,
+  // rien n'est envoyé tant que l'utilisateur n'a pas confirmé le cadrage.
+  const handleAvatarFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
+    setCropSrc(URL.createObjectURL(file));
+    setCropIsObjectUrl(true);
+  };
+
+  // "Ajuster" : rouvre le cropper directement sur le logo déjà envoyé
+  // (URL distante), sans repasser par une sélection de fichier.
+  const openAdjustAvatar = () => {
+    if (!avatar) return;
+    setCropSrc(avatar);
+    setCropIsObjectUrl(false);
+  };
+
+  const closeCrop = useCallback(() => {
+    setCropSrc((prev) => {
+      if (cropIsObjectUrl && prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setCropIsObjectUrl(false);
+  }, [cropIsObjectUrl]);
+
+  const handleCropError = useCallback(() => {
+    closeCrop();
+    toastRef.current.error(t('vitrineUploadError'));
+  }, [closeCrop, t]);
+
+  const handleCropConfirm = async (blob: Blob) => {
+    closeCrop();
     const token = await getToken().catch(() => null);
     if (!token) return;
     setUploading(true);
     try {
       const form = new FormData();
-      form.append('file', file);
+      form.append('file', new File([blob], 'logo.jpg', { type: 'image/jpeg' }));
       const res  = await fetch(`${API_URL}/upload`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form });
       const data = await res.json() as { url?: string };
       if (data.url) setAvatar(data.url);
     } catch { toastRef.current.error(t('vitrineUploadError')); }
-    finally { setUploading(false); e.target.value = ''; }
+    finally { setUploading(false); }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -104,11 +169,74 @@ export default function MaVitrinePage() {
         agencyColor,
       }, token);
       setUser(updated);
+      setSaved({ agencyName, bio, phone, avatar, agencyAddress, agencyColor });
       toastRef.current.success(t('vitrineSaved'));
+      // Invalide le cache ISR de /agences et /agences/:slug — sinon la vitrine
+      // publique garde l'ancienne version jusqu'à la prochaine revalidation
+      // programmée (jusqu'à 60s, voire 1h pour le catalogue).
+      if (updated.agencySlug) revalidateVitrineCache(updated.agencySlug).catch(() => {});
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message;
       toastRef.current.error(msg ?? t('vitrineSaveError'));
     } finally { setSaving(false); }
+  };
+
+  // Formulaire modifié depuis le dernier chargement/sauvegarde ?
+  const isDirty = !!saved && (
+    agencyName    !== saved.agencyName ||
+    bio           !== saved.bio ||
+    phone         !== saved.phone ||
+    avatar        !== saved.avatar ||
+    agencyAddress !== saved.agencyAddress ||
+    agencyColor   !== saved.agencyColor
+  );
+
+  useEffect(() => { isDirtyRef.current = isDirty; }, [isDirty]);
+
+  // Navigation "dure" (fermeture d'onglet, rechargement, URL tapée) : seule
+  // l'alerte native du navigateur est possible ici, son texte n'est pas
+  // personnalisable.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!isDirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
+  // Navigation "douce" (clic sur un <Link> interne, ex. Navbar/sidebar) :
+  // interception en phase de capture pour pouvoir stopper la navigation
+  // Next.js avant qu'elle ne démarre, et afficher notre propre confirmation.
+  // Volontairement limité aux clics sur <a href> same-origin — le bouton
+  // précédent/suivant du navigateur (popstate) n'est pas intercepté.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!isDirtyRef.current) return;
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const anchor = (e.target as HTMLElement)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      let url: URL;
+      try { url = new URL(anchor.href, window.location.href); } catch { return; }
+      if (url.origin !== window.location.origin) return;
+      if (anchor.target && anchor.target !== '_self') return;
+      const current = `${window.location.pathname}${window.location.search}`;
+      const target  = `${url.pathname}${url.search}`;
+      if (target === current) return;
+      e.preventDefault();
+      setPendingHref(`${target}${url.hash}`);
+      setShowLeaveModal(true);
+    };
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
+  }, []);
+
+  const confirmLeave = () => {
+    setShowLeaveModal(false);
+    isDirtyRef.current = false; // évite que le beforeunload ne redéclenche pendant la transition
+    if (pendingHref) router.push(pendingHref);
+    setPendingHref(null);
   };
 
   if (loading) return (
@@ -162,7 +290,7 @@ export default function MaVitrinePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start">
 
-        <form onSubmit={(e) => void handleSave(e)} className="space-y-5">
+        <form id="vitrine-form" onSubmit={(e) => void handleSave(e)} className="space-y-5">
 
           {/* Logo / Avatar */}
           <div className="rounded-2xl border border-line bg-card p-5">
@@ -181,14 +309,31 @@ export default function MaVitrinePage() {
                   className="absolute -bottom-1.5 -right-1.5 h-7 w-7 rounded-xl bg-gold-dark text-white flex items-center justify-center hover:bg-gold-dark/90 transition-colors shadow-sm">
                   {uploading ? <i className="fa-solid fa-spinner fa-spin text-[10px]" /> : <i className="fa-solid fa-camera text-[10px]" />}
                 </button>
+                {/* "Ajuster" — recadrer a posteriori le logo déjà envoyé, sans en choisir un nouveau */}
+                {avatar && !uploading && (
+                  <button type="button" onClick={openAdjustAvatar}
+                    className="absolute -top-1.5 -right-1.5 h-7 w-7 rounded-xl bg-card border border-line text-sub flex items-center justify-center hover:text-gold-dark hover:border-gold/40 transition-colors shadow-sm">
+                    <i className="fa-solid fa-crop-simple text-[10px]" />
+                  </button>
+                )}
               </div>
               <div>
                 <p className="text-sm font-semibold text-text">{t('vitrineLogoHint')}</p>
                 <p className="text-xs text-sub mt-0.5">{t('vitrineLogoDesc')}</p>
               </div>
-              <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+              <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFileSelected} />
             </div>
           </div>
+
+          {cropSrc && (
+            <PhotoCropper
+              square
+              src={cropSrc}
+              onConfirm={(blob) => void handleCropConfirm(blob)}
+              onCancel={closeCrop}
+              onError={handleCropError}
+            />
+          )}
 
           {/* Couleur d'accent */}
           <div className="rounded-2xl border border-line bg-card p-5">
@@ -257,13 +402,6 @@ export default function MaVitrinePage() {
               </div>
             </div>
           </div>
-
-          <button type="submit" disabled={saving}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 disabled:opacity-50 transition-colors">
-            {saving
-              ? <><i className="fa-solid fa-spinner fa-spin" /> {t('vitrineSaving')}</>
-              : <><i className="fa-solid fa-floppy-disk text-sm" /> {t('vitrineSave')}</>}
-          </button>
         </form>
 
         {/* Live preview — ce que le client verra sur /agences/:slug */}
@@ -327,8 +465,30 @@ export default function MaVitrinePage() {
               <p className="text-xs text-sub">{t('vitrinePreviewCatalogueNote')}</p>
             </div>
           </div>
+
+          {/* Enregistrer — sous l'aperçu, dans la colonne sticky : reste
+              visible à l'écran pendant qu'on modifie le formulaire à gauche,
+              sans avoir à redescendre tout en bas. `form=` le relie au
+              formulaire bien qu'il en soit sorti dans le DOM. */}
+          <button type="submit" form="vitrine-form" disabled={saving}
+            className="w-full mt-4 flex items-center justify-center gap-2 rounded-2xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 disabled:opacity-50 transition-colors">
+            {saving
+              ? <><i className="fa-solid fa-spinner fa-spin" /> {t('vitrineSaving')}</>
+              : <><i className="fa-solid fa-floppy-disk text-sm" /> {t('vitrineSave')}</>}
+          </button>
         </div>
       </div>
+
+      <ConfirmModal
+        open={showLeaveModal}
+        onClose={() => { setShowLeaveModal(false); setPendingHref(null); }}
+        onConfirm={confirmLeave}
+        title={t('vitrineLeaveTitle')}
+        description={t('vitrineLeaveDesc')}
+        confirmLabel={t('vitrineLeaveConfirm')}
+        cancelLabel={t('vitrineLeaveCancel')}
+        variant="danger"
+      />
 
     </div>
   );
