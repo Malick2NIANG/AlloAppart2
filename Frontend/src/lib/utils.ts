@@ -14,6 +14,24 @@ export function formatDate(dateStr: string): string {
 }
 
 /**
+ * Détecte un email placeholder généré côté backend pour les comptes Clerk
+ * sans email réel (inscription par téléphone seul, ou tout premier appel
+ * authentifié avant que le webhook Clerk n'ait synchronisé le vrai profil —
+ * voir Backend AuthService.handleWebhook / ClerkAuthGuard). Ce placeholder
+ * (`<clerkId>@clerk.local`) est stocké tel quel dans `User.email` mais ne
+ * doit jamais être affiché tel quel à un utilisateur.
+ */
+export function isPlaceholderEmail(email: string | null | undefined): boolean {
+  return !!email && email.toLowerCase().endsWith('@clerk.local');
+}
+
+/** Email à afficher, ou `null` si c'est un placeholder (voir isPlaceholderEmail). */
+export function displayableEmail(email: string | null | undefined): string | null {
+  if (!email || isPlaceholderEmail(email)) return null;
+  return email;
+}
+
+/**
  * Ouvre un onglet vide de façon SYNCHRONE — à appeler tout au début du
  * handler de clic, AVANT tout `await`. L'URL de paiement PayDunya n'est
  * connue qu'après un appel API asynchrone (POST /payments/initiate ou

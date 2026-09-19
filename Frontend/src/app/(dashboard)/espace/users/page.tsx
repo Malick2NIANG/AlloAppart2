@@ -5,7 +5,7 @@ import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { User, PaginatedResponse } from '@/types';
-import { formatDate } from '@/lib/utils';
+import { formatDate, displayableEmail } from '@/lib/utils';
 import { SkeletonListRow } from '@/components/ui/Skeleton';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useToast } from '@/components/ui/Toast';
@@ -308,7 +308,7 @@ export default function AdminUsersPage() {
                       <p className="font-semibold text-text truncate">{user.firstName} {user.lastName}</p>
                       {user.isSuspended && <span className="text-xs bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 px-2 py-0.5 rounded-full font-medium shrink-0">{t('badgeSuspended')}</span>}
                     </div>
-                    <p className="text-sm text-sub truncate">{user.email}</p>
+                    <p className="text-sm text-sub truncate">{displayableEmail(user.email) ?? t('noEmailPhoneSignup')}</p>
                     {user.agencyName && <p className="text-xs text-sub truncate"><i className="fa-solid fa-building text-xs mr-1" />{user.agencyName}</p>}
                   </div>
                 </div>
@@ -398,7 +398,7 @@ export default function AdminUsersPage() {
               </div>
               <div>
                 <p className="text-lg font-bold text-text">{viewModal.firstName} {viewModal.lastName}</p>
-                <p className="text-sm text-sub">{viewModal.email}</p>
+                <p className="text-sm text-sub">{displayableEmail(viewModal.email) ?? t('noEmailPhoneSignup')}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
