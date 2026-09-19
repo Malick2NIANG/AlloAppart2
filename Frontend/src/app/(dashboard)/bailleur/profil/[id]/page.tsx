@@ -89,7 +89,7 @@ export default function ProfilPage() {
   const isAgent    = user.roles.includes('AGENT_TERRAIN');
 
   return (
-    <div className="max-w-lg mx-auto py-8 px-4">
+    <div className="max-w-2xl mx-auto py-10 px-4">
       {/* Back */}
       <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-sub hover:text-text transition-colors mb-6">
         <i className="fa-solid fa-arrow-left text-xs" /> {t('profilBack')}
@@ -97,35 +97,35 @@ export default function ProfilPage() {
 
       <div className="rounded-2xl border border-line bg-card shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="h-24 bg-gradient-to-r from-gold-pale to-gold/20" />
+        <div className="h-32 bg-gradient-to-r from-gold-pale to-gold/20" />
 
-        <div className="px-6 pb-6">
+        <div className="px-8 pb-8">
           {/* Avatar */}
-          <div className="-mt-12 mb-4">
+          <div className="-mt-14 mb-5">
             {user.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={user.avatar}
                 alt={fullName}
-                className="h-20 w-20 rounded-2xl object-cover border-4 border-card shadow-sm"
+                className="h-28 w-28 rounded-2xl object-cover border-4 border-card shadow-sm"
               />
             ) : (
-              <div className="h-20 w-20 rounded-2xl bg-gold-pale flex items-center justify-center text-xl font-bold text-gold-dark border-4 border-card shadow-sm">
+              <div className="h-28 w-28 rounded-2xl bg-gold-pale flex items-center justify-center text-2xl font-bold text-gold-dark border-4 border-card shadow-sm">
                 {initials}
               </div>
             )}
           </div>
 
           {/* Name + roles */}
-          <div className="mb-4">
-            <h1 className="text-xl font-bold text-text">{fullName}</h1>
+          <div className="mb-5">
+            <h1 className="text-2xl font-bold text-text">{fullName}</h1>
             {user.agencyName && (
-              <p className="text-sm text-sub mt-0.5">
+              <p className="text-sm text-sub mt-1">
                 <i className="fa-solid fa-building text-[10px] mr-1 text-gold-dark/60" />
                 {user.agencyName}
               </p>
             )}
-            <div className="flex flex-wrap gap-1.5 mt-2">
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
               {user.roles.map((role) => (
                 <span key={role} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[role] ?? 'bg-gray-100 dark:bg-gray-950/40 text-gray-600 dark:text-gray-400'}`}>
                   {ROLE_LABELS[role] ?? role}
@@ -136,25 +136,24 @@ export default function ProfilPage() {
 
           {/* Bio */}
           {user.bio && (
-            <div className="mb-4">
+            <div className="mb-5">
               <p className="text-sm text-text leading-relaxed">{user.bio}</p>
             </div>
           )}
 
-          {/* Info */}
-          <div className="space-y-2.5 border-t border-line pt-4">
+          {/* Info — pas de téléphone ici : tout contact direct doit passer par
+              la messagerie interne (anti-contournement, cf. Article 12 des
+              CGU et Task #123/#124). Même si le backend le renvoie pour un
+              viewer qualifiant, cette page ne l'affiche volontairement jamais. */}
+          <div className="space-y-2.5 border-t border-line pt-5">
             <div className="flex items-center gap-3 text-sm text-sub">
               <i className="fa-regular fa-calendar w-4 text-center text-gold-dark/60" />
               {t('profilMemberSince', { date: memberSince })}
             </div>
-            {user.phone && (
-              <div className="flex items-center gap-3 text-sm text-sub">
-                <i className="fa-solid fa-phone w-4 text-center text-gold-dark/60" />
-                <a href={`tel:${user.phone}`} className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors">
-                  {user.phone}
-                </a>
-              </div>
-            )}
+            <div className="flex items-center gap-3 text-sm text-sub">
+              <i className="fa-solid fa-comment-dots w-4 text-center text-gold-dark/60" />
+              {t('profilContactViaMessaging')}
+            </div>
           </div>
 
           {/* CTA agent */}

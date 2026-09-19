@@ -8,6 +8,9 @@ interface Props {
   onConfirm: (blob: Blob) => void;
   onCancel: () => void;
   onError?: () => void;  // ex : image distante non chargeable (CORS)
+  // Cadre carré (1:1, 400×400 min. recommandé) — utilisé pour un logo
+  // d'agence par ex. Par défaut : cadre rectangulaire 4:3 (photos d'annonce).
+  square?: boolean;
 }
 
 // Cadre 4:3 — même ratio que les vignettes de la grille d'upload
@@ -17,13 +20,21 @@ const SIZE_H  = 360;
 const OUTPUT_W = 1440;
 const OUTPUT_H = 1080;
 
+// Cadre carré — logo d'agence ("carré, 400×400 px minimum").
+const SQUARE_SIZE   = 320;
+const SQUARE_OUTPUT = 400;
+
 /**
- * Variante rectangulaire (4:3) du recadrage utilisé pour la photo de profil
- * (AvatarCropper) — même interaction (glisser pour repositionner, curseur
- * pour zoomer), sans le clip circulaire puisqu'ici tout le cadre est la
- * zone recadrée.
+ * Variante rectangulaire (4:3, par défaut) ou carrée (1:1, via `square`) du
+ * recadrage utilisé pour la photo de profil (AvatarCropper) — même
+ * interaction (glisser pour repositionner, curseur pour zoomer), sans le
+ * clip circulaire puisqu'ici tout le cadre est la zone recadrée.
  */
-export default function PhotoCropper({ src, onConfirm, onCancel, onError }: Props) {
+export default function PhotoCropper({ src, onConfirm, onCancel, onError, square = false }: Props) {
+  const sizeW   = square ? SQUARE_SIZE   : SIZE_W;
+  const sizeH   = square ? SQUARE_SIZE   : SIZE_H;
+  const outputW = square ? SQUARE_OUTPUT : OUTPUT_W;
+  const outputH = square ? SQUARE_OUTPUT : OUTPUT_H;
   const t         = useTranslations('cropper');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef    = useRef<HTMLImageElement | null>(null);
@@ -43,15 +54,15 @@ export default function PhotoCropper({ src, onConfirm, onCancel, onError }: Prop
     img.onload = () => {
       imgRef.current = img;
       // centrer + ajuster le zoom initial pour couvrir tout le cadre (object-cover)
-      const base = Math.max(SIZE_W / img.naturalWidth, SIZE_H / img.naturalHeight);
+      const base = Math.max(sizeW / img.naturalWidth, sizeH / img.naturalHeight);
       setScale(base);
       setMinScale(base);
-      setOffset({ x: SIZE_W / 2, y: SIZE_H / 2 });
+      setOffset({ x: sizeW / 2, y: sizeH / 2 });
       setReady(true);
     };
     img.onerror = () => onError?.();
     img.src = src;
-  }, [src, onError]);
+  }, [src, onError, sizeW, sizeH]);
 
   /* ── Dessiner ─────────────────────────────────────────────── */
   const draw = useCallback(() => {
@@ -61,7 +72,7 @@ export default function PhotoCropper({ src, onConfirm, onCancel, onError }: Prop
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, SIZE_W, SIZE_H);
+    ctx.clearRect(0, 0, sizeW, sizeH);
     const w = img.naturalWidth  * scale;
     const h = img.naturalHeight * scale;
     ctx.drawImage(img, offset.x - w / 2, offset.y - h / 2, w, h);
@@ -69,8 +80,8 @@ export default function PhotoCropper({ src, onConfirm, onCancel, onError }: Prop
     // cadre
     ctx.strokeStyle = 'rgba(255,255,255,0.8)';
     ctx.lineWidth   = 2;
-    ctx.strokeRect(1, 1, SIZE_W - 2, SIZE_H - 2);
-  }, [offset, scale]);
+    ctx.strokeRect(1, 1, sizeW - 2, sizeH - 2);
+  }, [offset, scale, sizeW, sizeH]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -114,18 +125,18 @@ export default function PhotoCropper({ src, onConfirm, onCancel, onError }: Prop
     };
   }, [onMouseMove, onMouseUp, onTouchMove]);
 
-  /* ── Confirmer → rendre sur canvas OUTPUT_W×OUTPUT_H ───────── */
+  /* ── Confirmer → rendre sur canvas outputW×outputH ─────────── */
   const handleConfirm = () => {
     const img = imgRef.current;
     if (!img) return;
 
     const out  = document.createElement('canvas');
-    out.width  = OUTPUT_W;
-    out.height = OUTPUT_H;
+    out.width  = outputW;
+    out.height = outputH;
     const ctx  = out.getContext('2d');
     if (!ctx) return;
 
-    const ratio = OUTPUT_W / SIZE_W; // SIZE_W/SIZE_H et OUTPUT_W/OUTPUT_H ont le même ratio 4:3
+    const ratio = outputW / sizeW; // sizeW/sizeH et outputW/outputH ont toujours le même ratio
     const w  = img.naturalWidth  * scale * ratio;
     const h  = img.naturalHeight * scale * ratio;
     const ox = offset.x * ratio;
@@ -151,16 +162,16 @@ export default function PhotoCropper({ src, onConfirm, onCancel, onError }: Prop
         <p className="text-xs text-sub -mt-3">{t('hint')}</p>
 
         {!ready ? (
-          <div className="flex items-center justify-center" style={{ width: SIZE_W, height: SIZE_H }}>
+          <div className="flex items-center justify-center" style={{ width: sizeW, height: sizeH }}>
             <i className="fa-solid fa-spinner fa-spin text-gold-dark text-xl" />
           </div>
         ) : (
           <canvas
             ref={canvasRef}
-            width={SIZE_W}
-            height={SIZE_H}
+            width={sizeW}
+            height={sizeH}
             className="rounded-xl cursor-grab active:cursor-grabbing select-none"
-            style={{ width: SIZE_W, height: SIZE_H }}
+            style={{ width: sizeW, height: sizeH }}
             onMouseDown={onMouseDown}
             onTouchStart={onTouchStart}
           />
