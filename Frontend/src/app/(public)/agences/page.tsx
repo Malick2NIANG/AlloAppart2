@@ -125,13 +125,10 @@ export default async function AgencesPage() {
                       </span>
                     </div>
 
-                    {/* Téléphone */}
-                    {agency.phone && (
-                      <p className="text-[11px] text-sub flex items-center gap-1.5 mb-4">
-                        <i className="fa-solid fa-phone text-gold-dark text-[10px]" />
-                        {agency.phone}
-                      </p>
-                    )}
+                    {/* Le téléphone n'est plus exposé sur l'annuaire public : jamais
+                        renvoyé par GET /agences (Task #120, anti-contournement).
+                        Révélé uniquement sur la vitrine, après vérification d'une
+                        réservation confirmée (voir AgenceClientShell.tsx). */}
 
                     {/* CTA */}
                     {href ? (

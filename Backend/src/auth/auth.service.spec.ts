@@ -41,11 +41,13 @@ describe('AuthService', () => {
     user: {
       findUnique: jest.Mock;
       findUniqueOrThrow: jest.Mock;
+      findFirst: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
       updateMany: jest.Mock;
       deleteMany: jest.Mock;
     };
+    booking: { findFirst: jest.Mock };
   };
 
   beforeEach(async () => {
@@ -53,11 +55,13 @@ describe('AuthService', () => {
       user: {
         findUnique: jest.fn(),
         findUniqueOrThrow: jest.fn(),
+        findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         updateMany: jest.fn(),
         deleteMany: jest.fn(),
       },
+      booking: { findFirst: jest.fn() },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -401,6 +405,71 @@ describe('AuthService', () => {
         }),
       );
       expect(result.agencySlug).toBe('immo-dakar-plus');
+    });
+  });
+
+  // Task #123 — le téléphone renvoyé par ce endpoint générique ne doit être
+  // visible que si le viewer a une réservation qualifiante avec la cible (ou
+  // consulte son propre profil, ou est ADMIN) — même logique anti-
+  // contournement que AgencesService.getPhoneForViewer (Task #120), mais ici
+  // pour n'importe quel utilisateur (bailleur individuel y compris).
+  describe('findUserProfile', () => {
+    const targetProfile = {
+      id: 'target1',
+      firstName: 'Madické',
+      lastName: 'Kane',
+      avatar: null,
+      bio: null,
+      phone: '+221775278980',
+      roles: [Role.LOCATAIRE, Role.BAILLEUR],
+      agencyName: null,
+      createdAt: new Date(),
+    };
+
+    it('révèle le téléphone si le viewer a une réservation qualifiante avec la cible', async () => {
+      prismaMock.user.findFirst.mockResolvedValueOnce(targetProfile);
+      prismaMock.booking.findFirst.mockResolvedValueOnce({ id: 'booking1' });
+
+      const result = await service.findUserProfile('target1', 'viewer1', false);
+
+      expect(result.phone).toBe('+221775278980');
+      expect(prismaMock.booking.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              { tenantId: 'viewer1', listing: { ownerId: 'target1' } },
+              { tenantId: 'target1', listing: { ownerId: 'viewer1' } },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it("masque le téléphone si aucune réservation qualifiante n'existe", async () => {
+      prismaMock.user.findFirst.mockResolvedValueOnce(targetProfile);
+      prismaMock.booking.findFirst.mockResolvedValueOnce(null);
+
+      const result = await service.findUserProfile('target1', 'viewer1', false);
+
+      expect(result.phone).toBeNull();
+    });
+
+    it('révèle toujours le téléphone pour un viewer ADMIN, sans vérifier de réservation', async () => {
+      prismaMock.user.findFirst.mockResolvedValueOnce(targetProfile);
+
+      const result = await service.findUserProfile('target1', 'admin1', true);
+
+      expect(result.phone).toBe('+221775278980');
+      expect(prismaMock.booking.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('révèle toujours le téléphone quand le viewer consulte son propre profil', async () => {
+      prismaMock.user.findFirst.mockResolvedValueOnce(targetProfile);
+
+      const result = await service.findUserProfile('target1', 'target1', false);
+
+      expect(result.phone).toBe('+221775278980');
+      expect(prismaMock.booking.findFirst).not.toHaveBeenCalled();
     });
   });
 });

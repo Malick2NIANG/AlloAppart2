@@ -11,7 +11,7 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { type User, Role } from '@prisma/client';
+import { type User, BookingStatus, Role } from '@prisma/client';
 import { createClerkClient } from '@clerk/backend';
 import { ConfigService } from '@nestjs/config';
 import { Webhook } from 'svix';
@@ -538,7 +538,15 @@ export class AuthService {
     };
   }
 
-  async findUserProfile(id: string) {
+  // Profil générique (n'importe quel utilisateur, bailleur simple ou non).
+  // Le téléphone n'est révélé au viewer que s'il a une réservation qualifiante
+  // (CONFIRMED/ACTIVE/COMPLETED) avec la cible — dans un sens ou l'autre —, ou
+  // s'il consulte son propre profil, ou s'il est ADMIN. Même logique
+  // anti-contournement que AgencesService.getPhoneForViewer (Task #120), mais
+  // ici sur le endpoint générique qui couvre aussi les bailleurs individuels
+  // (la vitrine d'agence, elle, ne fuite déjà plus jamais le téléphone —
+  // Task #123).
+  async findUserProfile(id: string, viewerId: string, viewerIsAdmin: boolean) {
     const user = await this.prisma.user.findFirst({
       where: { id, isSuspended: false },
       select: {
@@ -554,7 +562,27 @@ export class AuthService {
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    return user;
+
+    if (viewerIsAdmin || viewerId === id) return user;
+
+    const qualifyingBooking = await this.prisma.booking.findFirst({
+      where: {
+        status: {
+          in: [
+            BookingStatus.CONFIRMED,
+            BookingStatus.ACTIVE,
+            BookingStatus.COMPLETED,
+          ],
+        },
+        OR: [
+          { tenantId: viewerId, listing: { ownerId: id } },
+          { tenantId: id, listing: { ownerId: viewerId } },
+        ],
+      },
+      select: { id: true },
+    });
+
+    return { ...user, phone: qualifyingBooking ? user.phone : null };
   }
 
   async updateUser(

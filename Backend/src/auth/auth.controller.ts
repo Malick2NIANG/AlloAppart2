@@ -120,14 +120,19 @@ export class AuthController {
     return this.authService.findAgentById(id);
   }
 
-  // Profil générique (n'importe quel utilisateur) — expose le téléphone,
-  // donc réservé aux utilisateurs authentifiés (pas de @Public()) pour
-  // empêcher le moissonnage anonyme de numéros via les IDs exposés
-  // publiquement (annonces, avis...). Toute personne connectée, quel que
-  // soit son rôle, peut consulter un profil (aucun @Roles nécessaire).
+  // Profil générique (n'importe quel utilisateur) — réservé aux utilisateurs
+  // authentifiés (pas de @Public()) pour empêcher le moissonnage anonyme de
+  // numéros via les IDs exposés publiquement (annonces, avis...). Toute
+  // personne connectée, quel que soit son rôle, peut consulter le profil,
+  // mais le téléphone n'est révélé que sous conditions (réservation
+  // qualifiante, ADMIN, ou son propre profil) — voir findUserProfile.
   @Get('profile/:id')
-  findUserProfile(@Param('id') id: string) {
-    return this.authService.findUserProfile(id);
+  findUserProfile(@Param('id') id: string, @CurrentUser() viewer: User) {
+    return this.authService.findUserProfile(
+      id,
+      viewer.id,
+      viewer.roles.includes(Role.ADMIN),
+    );
   }
 
   @Roles(Role.ADMIN)

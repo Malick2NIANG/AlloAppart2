@@ -41,6 +41,10 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
   const [rentalFilter, setRentalFilter] = useState<RentalFilter>('ALL');
   const [pageSize,     setPageSize]    = useState<number>(PAGE_SIZE_OPTIONS[1]);
   const [page,         setPage]        = useState(1);
+  // Le vrai téléphone n'est jamais dans les props `agency` (retiré côté
+  // backend, cf. AGENCY_PUBLIC_SELECT) — révélé uniquement si le visiteur
+  // connecté a une réservation confirmée avec cette agence (Task #120).
+  const [revealedPhone, setRevealedPhone] = useState<string | null>(null);
 
   // La barre de recherche globale (Navbar) — localité + budget min/max —
   // fonctionne aussi sur la vitrine : elle pousse q/minPrice/maxPrice dans
@@ -63,6 +67,25 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
   // le hero (identité de marque) ; la grille catalogue en dessous reste en
   // gold standard AlloAppart, cf. décision produit du 2026-09-11.
   const color      = getAgencyColorOption(agency.agencyColor);
+
+  // Tente de révéler le vrai téléphone si le visiteur est connecté — sans
+  // effet si aucune réservation qualifiante n'existe (le backend renvoie
+  // alors { phone: null }, silencieusement, pas une erreur).
+  useEffect(() => {
+    if (!isSignedIn || !agency.agencySlug) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const data = await api.get<{ phone: string | null }>(`/agences/${agency.agencySlug}/phone`, token);
+        if (!cancelled) setRevealedPhone(data.phone);
+      } catch {
+        // Silencieux : reste sur le CTA "Contacter via la messagerie".
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isSignedIn, agency.agencySlug, getToken]);
 
   // Tracker la vue vitrine (fire-and-forget)
   useEffect(() => {
@@ -188,11 +211,16 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
                     {agency.agencyAddress}
                   </span>
                 )}
-                {agency.phone && (
-                  <a href={`tel:${agency.phone}`} className="flex items-center gap-1.5 hover:text-white transition-colors">
+                {revealedPhone ? (
+                  <a href={`tel:${revealedPhone}`} className="flex items-center gap-1.5 hover:text-white transition-colors">
                     <i className="fa-solid fa-phone text-xs" style={{ color: color.hex }} />
-                    {agency.phone}
+                    {revealedPhone}
                   </a>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-gray-500">
+                    <i className="fa-solid fa-comment-dots text-xs" style={{ color: color.hex }} />
+                    {t('contactViaMessaging')}
+                  </span>
                 )}
               </div>
             </div>
