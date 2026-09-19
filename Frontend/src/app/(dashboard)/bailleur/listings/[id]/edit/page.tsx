@@ -21,6 +21,15 @@ const SENEGAL_REGIONS = [
   'Sédhiou', 'Kédougou', 'Louga', 'Diourbel',
 ];
 
+// Icônes de type — mêmes valeurs que publier/page.tsx (icon-chips au lieu d'un <select>).
+const TYPE_ICONS: Record<string, string> = {
+  APPARTEMENT: 'fa-building',
+  VILLA:       'fa-house-chimney',
+  STUDIO:      'fa-door-open',
+  CHAMBRE:     'fa-bed',
+  BUREAU:      'fa-briefcase',
+};
+
 const AMENITY_KEYS = [
   { key: 'wifi',       icon: 'fa-wifi',         tKey: 'amenityWifi'      },
   { key: 'clim',       icon: 'fa-snowflake',     tKey: 'amenityAirCon'   },
@@ -35,11 +44,6 @@ const AMENITY_KEYS = [
 ] as const;
 
 const asNumberOrUndefined = (v: unknown) => (v === '' || v === null || v === undefined ? undefined : Number(v));
-
-const inputCls = (hasError: boolean) =>
-  `w-full rounded-xl border bg-bg px-3 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:ring-1 transition ${
-    hasError ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : 'border-line focus:border-gold focus:ring-gold'
-  }`;
 
 export default function EditListingPage() {
   const { id } = useParams<{ id: string }>();
@@ -131,13 +135,22 @@ export default function EditListingPage() {
   }), [t]);
 
   const STEPS = useMemo(() => [
-    { label: t('stepBasicInfo'),       fields: ['title', 'description', 'type', 'rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'] },
-    { label: t('stepLocation'),         fields: ['address', 'city', 'region', 'lat', 'lng'] },
-    { label: t('stepDetails'),          fields: ['surface', 'rooms', 'beds', 'baths'] },
-    { label: t('stepAmenitiesPhotos'),  fields: ['amenities', 'images'] },
-  ] as { label: string; fields: string[] }[], [t]);
+    { label: t('stepBasicInfo'),       fields: ['title', 'description', 'type', 'rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'], icon: 'fa-tag' },
+    { label: t('stepLocation'),         fields: ['address', 'city', 'region', 'lat', 'lng'], icon: 'fa-location-dot' },
+    { label: t('stepDetails'),          fields: ['surface', 'rooms', 'beds', 'baths'], icon: 'fa-list-check' },
+    { label: t('stepAmenitiesPhotos'),  fields: ['amenities', 'images'], icon: 'fa-images' },
+    { label: t('stepReview'),           fields: [], icon: 'fa-eye' },
+  ] as { label: string; fields: string[]; icon: string }[], [t]);
 
   const AMENITIES = useMemo(() => AMENITY_KEYS.map((a) => ({ key: a.key, icon: a.icon, label: t(a.tKey as Parameters<typeof t>[0]) })), [t]);
+
+  const TYPE_META = useMemo(() => ({
+    APPARTEMENT: { icon: TYPE_ICONS.APPARTEMENT, label: t('typeAppartement') },
+    VILLA:       { icon: TYPE_ICONS.VILLA,       label: t('typeVilla')       },
+    STUDIO:      { icon: TYPE_ICONS.STUDIO,      label: t('typeStudio')      },
+    CHAMBRE:     { icon: TYPE_ICONS.CHAMBRE,     label: t('typeChambre')     },
+    BUREAU:      { icon: TYPE_ICONS.BUREAU,      label: t('typeBureau')      },
+  }), [t]);
 
   const {
     register, handleSubmit, reset, setValue, watch, trigger,
@@ -156,10 +169,14 @@ export default function EditListingPage() {
   const amenities   = watch('amenities') ?? [];
   const images      = watch('images') ?? [];
   const description = watch('description') ?? '';
+  const type        = watch('type');
   const rentalMode  = watch('rentalMode');
   const priceWatch  = watch('price');
   const depositMonthsWatch = watch('depositMonths');
   const minLeaseMonthsWatch = watch('minLeaseMonths');
+  // Snapshot complet du formulaire — uniquement pour l'étape Récapitulatif
+  // (les watch() ciblés ci-dessus restent la source pour le reste du form).
+  const allValues = watch();
 
   const RENTAL_MODE_META = useMemo(() => ({
     NIGHTLY: { icon: 'fa-moon',          label: t('rentalModeNightly'), desc: t('rentalModeNightlyDesc') },
@@ -296,22 +313,37 @@ export default function EditListingPage() {
         {step === 0 && (
           <>
             <Field label={t('fieldTitle')} error={errors.title?.message}>
-              <input {...register('title')} placeholder={t('fieldTitlePh')} className={inputCls(!!errors.title)} />
+              <input {...register('title')} placeholder={t('fieldTitlePh')} className="input-field" />
             </Field>
 
             <Field label={t('fieldDescription')} error={errors.description?.message}>
-              <textarea {...register('description')} rows={4} placeholder={t('fieldDescPh')} className={inputCls(!!errors.description)} />
+              <textarea {...register('description')} rows={4} placeholder={t('fieldDescPh')} className="input-field resize-none" />
               <p className="mt-1 text-right text-xs text-sub">{t('fieldCharCount', { count: description.length })}</p>
             </Field>
 
-            <Field label={t('fieldType')} error={errors.type?.message}>
-              <select {...register('type')} className={inputCls(!!errors.type)}>
-                {LISTING_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
-              </select>
-            </Field>
+            <div>
+              <FieldLabel label={t('fieldType')} />
+              <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+                {LISTING_TYPES.map((tp) => {
+                  const active = type === tp;
+                  const meta   = TYPE_META[tp];
+                  return (
+                    <button key={tp} type="button" onClick={() => setValue('type', tp)}
+                      className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-all ${
+                        active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
+                      }`}>
+                      <i className={`fa-solid ${TYPE_ICONS[tp]} text-xl ${active ? 'text-gold-dark' : 'text-sub'}`} />
+                      <span className={`text-[11px] font-semibold ${active ? 'text-gold-dark' : 'text-sub'}`}>
+                        {meta.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-text">{t('rentalModeLabel')}</label>
+              <FieldLabel label={t('rentalModeLabel')} />
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 {RENTAL_MODES.map((mode) => {
                   const active = rentalMode === mode;
@@ -351,7 +383,7 @@ export default function EditListingPage() {
                       type="number"
                       {...register('price', { setValueAs: asNumberOrUndefined })}
                       placeholder="350000"
-                      className={`${inputCls(!!errors.price)} pr-24`}
+                      className="input-field pr-24"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">{t('fcfaPerMonth')}</span>
                   </div>
@@ -359,11 +391,11 @@ export default function EditListingPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label={t('fieldDepositMonths')} error={errors.depositMonths?.message}>
                     <input type="number" min={0} {...register('depositMonths', { setValueAs: asNumberOrUndefined })}
-                      placeholder="2" className={inputCls(!!errors.depositMonths)} />
+                      placeholder="2" className="input-field" />
                   </Field>
                   <Field label={t('fieldMinLeaseMonths')} error={errors.minLeaseMonths?.message} required={rentalMode === 'MIXED'}>
                     <input type="number" min={1} {...register('minLeaseMonths', { setValueAs: asNumberOrUndefined })}
-                      placeholder="12" className={inputCls(!!errors.minLeaseMonths)} />
+                      placeholder="12" className="input-field" />
                   </Field>
                 </div>
 
@@ -405,7 +437,7 @@ export default function EditListingPage() {
                         type="number"
                         {...register('pricePerNight', { setValueAs: asNumberOrUndefined })}
                         placeholder="15000"
-                        className={`${inputCls(!!errors.pricePerNight)} pr-24`}
+                        className="input-field pr-24"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">{t('fcfaPerNight')}</span>
                     </div>
@@ -416,7 +448,7 @@ export default function EditListingPage() {
                       min={1}
                       {...register('minimumNights', { setValueAs: asNumberOrUndefined })}
                       placeholder="2"
-                      className={inputCls(!!errors.minimumNights)}
+                      className="input-field"
                     />
                   </Field>
                 </div>
@@ -429,7 +461,7 @@ export default function EditListingPage() {
                         min={1}
                         {...register('maximumNights', { setValueAs: asNumberOrUndefined })}
                         placeholder="30"
-                        className={inputCls(!!errors.maximumNights)}
+                        className="input-field"
                       />
                     </Field>
                     <p className="mt-1.5 text-xs text-sub">{t('fieldMaxNightsDesc')}</p>
@@ -439,7 +471,7 @@ export default function EditListingPage() {
                 <Field label={t('fieldCleaningFee')} error={errors.cleaningFee?.message}>
                   <div className="relative">
                     <input type="number" min={0} {...register('cleaningFee', { setValueAs: asNumberOrUndefined })}
-                      placeholder="5000" className={`${inputCls(!!errors.cleaningFee)} pr-16`} />
+                      placeholder="5000" className="input-field pr-16" />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">FCFA</span>
                   </div>
                 </Field>
@@ -451,15 +483,15 @@ export default function EditListingPage() {
         {step === 1 && (
           <>
             <Field label={t('fieldAddress')} error={errors.address?.message}>
-              <input {...register('address')} placeholder={t('fieldAddressPh')} className={inputCls(!!errors.address)} />
+              <input {...register('address')} placeholder={t('fieldAddressPh')} className="input-field" />
             </Field>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label={t('fieldCity')} error={errors.city?.message}>
-                <input {...register('city')} placeholder={t('fieldCityPh')} className={inputCls(!!errors.city)} />
+                <input {...register('city')} placeholder={t('fieldCityPh')} className="input-field" />
               </Field>
               <Field label={t('fieldRegion')} error={errors.region?.message}>
-                <select {...register('region')} className={inputCls(!!errors.region)}>
+                <select {...register('region')} className="input-field">
                   <option value="">{t('fieldRegionDefault')}</option>
                   {SENEGAL_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
                 </select>
@@ -467,7 +499,7 @@ export default function EditListingPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-text">{t('fieldMapPosition')}</label>
+              <FieldLabel label={t('fieldMapPosition')} />
               <div className="h-64 overflow-hidden rounded-xl border border-line">
                 {mapReady && lat != null && lng != null ? (
                   <LocationPicker
@@ -492,16 +524,16 @@ export default function EditListingPage() {
         {step === 2 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Field label={t('fieldSurface')} error={errors.surface?.message}>
-              <input type="number" {...register('surface', { setValueAs: asNumberOrUndefined })} placeholder="85" className={inputCls(!!errors.surface)} />
+              <input type="number" {...register('surface', { setValueAs: asNumberOrUndefined })} placeholder="85" className="input-field" />
             </Field>
             <Field label={t('fieldRooms')} error={errors.rooms?.message}>
-              <input type="number" {...register('rooms', { setValueAs: asNumberOrUndefined })} placeholder="3" className={inputCls(!!errors.rooms)} />
+              <input type="number" {...register('rooms', { setValueAs: asNumberOrUndefined })} placeholder="3" className="input-field" />
             </Field>
             <Field label={t('fieldBeds')} error={errors.beds?.message}>
-              <input type="number" {...register('beds', { setValueAs: asNumberOrUndefined })} placeholder="2" className={inputCls(!!errors.beds)} />
+              <input type="number" {...register('beds', { setValueAs: asNumberOrUndefined })} placeholder="2" className="input-field" />
             </Field>
             <Field label={t('fieldBaths')} error={errors.baths?.message}>
-              <input type="number" {...register('baths', { setValueAs: asNumberOrUndefined })} placeholder="1" className={inputCls(!!errors.baths)} />
+              <input type="number" {...register('baths', { setValueAs: asNumberOrUndefined })} placeholder="1" className="input-field" />
             </Field>
           </div>
         )}
@@ -509,7 +541,7 @@ export default function EditListingPage() {
         {step === 3 && (
           <>
             <div>
-              <label className="mb-2 block text-sm font-medium text-text">{t('fieldAmenities')}</label>
+              <FieldLabel label={t('fieldAmenities')} />
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {AMENITIES.map(({ key, icon, label }) => {
                   const active = amenities.includes(key);
@@ -539,7 +571,7 @@ export default function EditListingPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-text">{t('fieldImages')}</label>
+              <FieldLabel label={t('fieldImages')} />
               <ImageUploadZone
                 images={images}
                 onChange={(imgs) => setValue('images', imgs, { shouldValidate: true })}
@@ -551,6 +583,14 @@ export default function EditListingPage() {
                 </p>
               )}
             </div>
+          </>
+        )}
+
+        {/* ── Étape 4 : Récapitulatif ── */}
+        {step === 4 && (
+          <>
+            <StepHeader title={t('reviewTitle')} sub={t('reviewSubtitle')} />
+            <RecapCard values={allValues} typeMeta={TYPE_META} amenitiesList={AMENITIES} />
           </>
         )}
 
@@ -594,43 +634,187 @@ export default function EditListingPage() {
   );
 }
 
-function StepIndicator({ current, steps }: { current: number; steps: { label: string; fields: string[] }[] }) {
+// Même pattern visuel que publier/page.tsx (chips numérotées + libellé,
+// défilement horizontal) — le champ `icon` n'est pas rendu ici non plus
+// (gardé pour la même raison que côté création : cohérence de forme des
+// deux tableaux STEPS/STEP_LABELS, pas un oubli).
+function StepIndicator({
+  current,
+  steps,
+}: {
+  current: number;
+  steps: { icon: string; label: string }[];
+}) {
   return (
-    <div className="mb-8 flex items-center">
-      {steps.map((step, i) => (
-        <div key={step.label} className={`flex items-center ${i < steps.length - 1 ? 'flex-1' : ''}`}>
-          <div className="flex flex-col items-center">
-            <div className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors ${
-              i < current ? 'border-gold-dark bg-gold-dark text-white' :
-              i === current ? 'border-gold-dark bg-gold-pale text-gold-dark' :
-              'border-line bg-card text-sub'
+    <div className="mb-8 flex items-center overflow-x-auto pb-1">
+      {steps.map((s, i) => {
+        const done   = i < current;
+        const active = i === current;
+        return (
+          <div key={i} className="flex shrink-0 items-center">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
+              done   ? 'bg-emerald-500 text-white'      :
+              active ? 'bg-gold text-gray-900 shadow-md' :
+                       'border border-line bg-bg text-sub'
             }`}>
-              {i < current ? <i className="fa-solid fa-check text-xs" /> : i + 1}
+              {done ? <i className="fa-solid fa-check text-[10px]" /> : i + 1}
             </div>
-            <span className={`mt-1.5 max-w-20 text-center text-[11px] ${i === current ? 'font-medium text-gold-dark' : 'text-sub'}`}>
-              {step.label}
+            <span className={`ml-1.5 mr-1 hidden text-xs font-medium sm:block ${active ? 'text-text' : 'text-sub'}`}>
+              {s.label}
             </span>
+            {i < steps.length - 1 && (
+              <div className={`mx-1 h-px w-5 transition-all ${done ? 'bg-emerald-400' : 'bg-line'}`} />
+            )}
           </div>
-          {i < steps.length - 1 && (
-            <div className={`mx-2 h-0.5 flex-1 ${i < current ? 'bg-gold-dark' : 'bg-line'}`} />
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function Field({ label, error, required, children }: { label: string; error?: string; required?: boolean; children: React.ReactNode }) {
+function StepHeader({ title, sub }: { title: string; sub: string }) {
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-medium text-text">
-        {label}{required && <span className="ml-1 text-red-400">*</span>}
-      </label>
+      <h2 className="text-base font-bold text-text">{title}</h2>
+      <p className="text-sm text-sub">{sub}</p>
+    </div>
+  );
+}
+
+function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+  return (
+    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-sub">
+      {label}{required && <span className="ml-1 text-red-400">*</span>}
+    </label>
+  );
+}
+
+function Field({ label, error, required, children }: {
+  label: string; error?: string; required?: boolean; children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <FieldLabel label={label} required={required} />
       {children}
       {error && (
         <p className="mt-1 flex items-center gap-1 text-xs text-red-500">
           <i className="fa-solid fa-circle-exclamation" /> {error}
         </p>
+      )}
+    </div>
+  );
+}
+
+/* ── Récapitulatif (parité avec publier/page.tsx) ────────────────────── */
+
+function RecapCard({
+  values,
+  typeMeta,
+  amenitiesList,
+}: {
+  values: {
+    type: string; title: string; description: string;
+    surface?: number; rooms?: number; beds?: number; baths?: number;
+    city: string; region: string; address: string;
+    rentalMode: string; price?: number; pricePerNight?: number;
+    depositMonths?: number; amenities?: string[]; images?: string[];
+  };
+  typeMeta: Record<string, { icon: string; label: string }>;
+  amenitiesList: { key: string; icon: string; label: string }[];
+}) {
+  const t = useTranslations('bailleur');
+  const amenityLabels = (values.amenities || []).map(
+    (a) => amenitiesList.find((am) => am.key === a)?.label ?? a,
+  );
+  const meta = typeMeta[values.type];
+
+  const recapItems = [
+    { icon: 'fa-ruler-combined', label: t('fieldSurface'), value: values.surface ? `${values.surface} m²` : '—' },
+    { icon: 'fa-door-open',      label: t('fieldRooms'),   value: values.rooms?.toString() || '—'            },
+    { icon: 'fa-bed',            label: t('fieldBeds'),    value: values.beds?.toString() || '—'             },
+    { icon: 'fa-shower',         label: t('fieldBaths'),   value: values.baths?.toString() || '—'            },
+    { icon: 'fa-location-dot',   label: t('fieldCity'),    value: values.city || '—'                         },
+    { icon: 'fa-map',            label: t('fieldRegion'),  value: values.region || '—'                       },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {values.images?.[0] && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={values.images[0]} alt=""
+          className="h-52 w-full rounded-xl object-cover border border-line" />
+      )}
+
+      <div className="flex items-center justify-between">
+        <span className="inline-flex items-center gap-2 rounded-full border border-line bg-bg px-3 py-1.5 text-sm font-semibold text-text">
+          <i className={`fa-solid ${meta.icon} text-gold-dark`} /> {meta.label}
+        </span>
+        <span className="text-right">
+          {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && Number(values.price) > 0 && (
+            <span className="block text-xl font-extrabold text-gold-dark">
+              {Number(values.price).toLocaleString('fr-FR')}
+              <span className="ml-1 text-sm font-semibold text-sub"> {t('fcfaPerMonth')}</span>
+            </span>
+          )}
+          {(values.rentalMode === 'NIGHTLY' || values.rentalMode === 'MIXED') && Number(values.pricePerNight) > 0 && (
+            <span className="block text-xs font-semibold text-sub">
+              {Number(values.pricePerNight).toLocaleString('fr-FR')} {t('fcfaPerNight')}
+            </span>
+          )}
+          {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && values.depositMonths !== undefined && (
+            <span className="block text-xs font-semibold text-sub">
+              {t('fieldDepositMonths')} : {values.depositMonths} {t('monthsShort')}
+            </span>
+          )}
+        </span>
+      </div>
+
+      <div>
+        <p className="text-base font-bold text-text">{values.title}</p>
+        <p className="mt-1 text-sm text-sub line-clamp-2">{values.description}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+        {recapItems.map(({ icon, label, value }) => (
+          <div key={label} className="rounded-xl border border-line bg-bg px-3 py-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-sub">{label}</p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-text">
+              <i className={`fa-solid ${icon} text-gold-dark text-xs`} /> {value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-start gap-2 rounded-xl border border-line bg-bg px-3 py-2.5">
+        <i className="fa-solid fa-location-dot mt-0.5 text-gold-dark text-xs shrink-0" />
+        <p className="text-sm text-text">{values.address}{values.city ? `, ${values.city}` : ''}</p>
+      </div>
+
+      {amenityLabels.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-sub">{t('fieldAmenities')}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {amenityLabels.map((a) => (
+              <span key={a} className="rounded-full bg-gold-pale px-2.5 py-1 text-xs font-medium text-gold-dark">
+                {a}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(values.images || []).length > 1 && (
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-sub">{t('fieldImages')}</p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {values.images!.map((url, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={i} src={url} alt=""
+                className="h-14 w-20 shrink-0 rounded-lg border border-line object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
