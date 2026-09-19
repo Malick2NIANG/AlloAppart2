@@ -11,6 +11,87 @@ import { api } from '@/lib/api';
 import type { MessageRoom } from '@/types';
 import SubscriptionAlert from '@/components/ui/SubscriptionAlert';
 import NotificationBell from '@/components/ui/NotificationBell';
+import ThemeToggle from '@/components/ui/ThemeToggle';
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import { useLocaleTransition } from '@/components/ui/LocaleTransition';
+import { SkeletonStatCard } from '@/components/ui/Skeleton';
+import type { Locale } from '@/i18n/config';
+
+/**
+ * Skeleton fidèle à la mise en page du dashboard (sidebar + header + zone de
+ * travail) — affiché pendant le changement de langue à la place du skeleton
+ * générique de la racine (cf. LocaleTransitionOverlay), pour que la
+ * transition ne "coupe" pas visuellement le tableau de bord.
+ */
+function DashboardSkeletonOverlay({ collapsed }: { collapsed: boolean }) {
+  return (
+    <div role="status" aria-live="polite" className="fixed inset-0 z-[999] flex bg-bg">
+      {/* Sidebar */}
+      <div className={`hidden lg:flex shrink-0 flex-col border-r border-line bg-card ${collapsed ? 'w-16' : 'w-64'}`}>
+        <div className="flex h-14 shrink-0 items-center border-b border-line px-5">
+          {!collapsed && <div className="h-3 w-24 rounded-full bg-line animate-pulse" />}
+        </div>
+        <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+          <div className="h-9 w-9 shrink-0 rounded-full bg-line animate-pulse" />
+          {!collapsed && (
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="h-3 w-24 rounded-full bg-line animate-pulse" />
+              <div className="h-2.5 w-16 rounded-full bg-line animate-pulse" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 space-y-1 px-2 py-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-2.5 py-2">
+              <div className="h-8 w-8 shrink-0 rounded-lg bg-line animate-pulse" />
+              {!collapsed && <div className="h-3 flex-1 max-w-[70%] rounded-full bg-line animate-pulse" />}
+            </div>
+          ))}
+        </div>
+        <div className="space-y-1 border-t border-line px-2 py-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-2.5 py-2">
+              <div className="h-8 w-8 shrink-0 rounded-lg bg-line animate-pulse" />
+              {!collapsed && <div className="h-3 w-20 rounded-full bg-line animate-pulse" />}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Header mobile */}
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-line bg-card px-4 lg:hidden">
+          <div className="h-11 w-11 rounded-xl bg-line animate-pulse" />
+          <div className="h-8 w-28 rounded-full bg-line animate-pulse" />
+          <div className="h-9 w-9 rounded-full bg-line animate-pulse" />
+        </div>
+        {/* Header desktop */}
+        <div className="hidden h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-card px-6 lg:flex">
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-40 rounded-full bg-line animate-pulse" />
+            <div className="h-3 w-16 rounded-full bg-line animate-pulse" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-16 rounded-full bg-line animate-pulse" />
+            <div className="h-9 w-9 rounded-full bg-line animate-pulse" />
+            <div className="h-9 w-9 rounded-full bg-line animate-pulse" />
+          </div>
+        </div>
+
+        {/* Zone de travail */}
+        <div className="flex-1 space-y-6 overflow-hidden p-4 sm:p-6 lg:p-8">
+          <div className="space-y-2">
+            <div className="h-6 w-56 rounded-full bg-line animate-pulse" />
+            <div className="h-3 w-80 max-w-full rounded-full bg-line animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => <SkeletonStatCard key={i} />)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export interface NavItem {
   label: string;
@@ -86,6 +167,15 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
   const { signOut } = useClerk();
   const { getToken } = useAuth();
   const { user } = useUser();
+  const { pending: localePending, setHasCustomOverlay } = useLocaleTransition();
+
+  /* ── Déclare un skeleton dédié (sidebar+header+contenu) auprès du
+     provider global, pour que l'overlay générique de la racine s'efface
+     pendant qu'on est dans le dashboard. ── */
+  useEffect(() => {
+    setHasCustomOverlay(true);
+    return () => setHasCustomOverlay(false);
+  }, [setHasCustomOverlay]);
 
   /* ── Horloge (mise à jour chaque minute) ── */
   useEffect(() => {
@@ -135,6 +225,10 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
+
+      {/* Skeleton pleine page (sidebar + header + zone de travail) pendant
+          un changement de langue — cf. DashboardSkeletonOverlay plus haut. */}
+      {localePending && <DashboardSkeletonOverlay collapsed={collapsed} />}
 
       {/* Overlay mobile */}
       {open && (
@@ -412,7 +506,11 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
           <Link href="/">
             <Image src="/images/LOGO.png" alt="AlloAppart" width={120} height={34} className="h-8 w-auto" />
           </Link>
-          <NotificationBell userId={userId} />
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher currentLocale={locale as Locale} />
+            <ThemeToggle />
+            <NotificationBell userId={userId} />
+          </div>
         </header>
 
         {/* Top bar desktop */}
@@ -437,8 +535,12 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
               </p>
             )}
           </div>
-          {/* ── Droite : cloche ── */}
-          <NotificationBell userId={userId} />
+          {/* ── Droite : langue, thème, cloche ── */}
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher currentLocale={locale as Locale} />
+            <ThemeToggle />
+            <NotificationBell userId={userId} />
+          </div>
         </header>
 
         {isProAgence && <SubscriptionAlert />}

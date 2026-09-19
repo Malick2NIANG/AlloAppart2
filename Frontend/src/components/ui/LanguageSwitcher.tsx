@@ -1,11 +1,12 @@
 'use client';
 
-import { useTransition, useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, Check } from 'lucide-react';
 import { setLocale } from '@/i18n/actions';
 import { locales, localeLabels, type Locale } from '@/i18n/config';
+import { useLocaleTransition } from './LocaleTransition';
 
 interface Props {
   currentLocale: Locale;
@@ -41,7 +42,7 @@ function FlagIcon({ countryCode }: { countryCode: string }) {
 
 export default function LanguageSwitcher({ currentLocale }: Props) {
   const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const { pending, run } = useLocaleTransition();
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -56,7 +57,7 @@ export default function LanguageSwitcher({ currentLocale }: Props) {
   const handleSelect = (locale: Locale) => {
     if (locale === currentLocale) { setOpen(false); return; }
     setOpen(false);
-    startTransition(async () => {
+    run(async () => {
       await setLocale(locale);
       router.refresh();
     });

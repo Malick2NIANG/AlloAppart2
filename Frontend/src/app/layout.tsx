@@ -7,6 +7,8 @@ import { cookies } from 'next/headers';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import CookieConsentBanner from '@/components/ui/CookieConsentBanner';
 import ConnectivityWatcher from '@/components/ui/ConnectivityWatcher';
+import { LocaleTransitionProvider } from '@/components/ui/LocaleTransition';
+import LocaleTransitionOverlay from '@/components/ui/LocaleTransitionOverlay';
 import './globals.css';
 
 const inter = Inter({
@@ -75,11 +77,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </head>
         <body className="min-h-screen flex flex-col bg-bg text-text">
           <NextIntlClientProvider locale={locale} messages={messages}>
-            <ToastProvider>
-              <ConnectivityWatcher />
-              {children}
-              <CookieConsentBanner />
-            </ToastProvider>
+            <LocaleTransitionProvider>
+              <ToastProvider>
+                <ConnectivityWatcher />
+                {children}
+                <CookieConsentBanner />
+                <LocaleTransitionOverlay />
+              </ToastProvider>
+            </LocaleTransitionProvider>
           </NextIntlClientProvider>
         </body>
       </html>
