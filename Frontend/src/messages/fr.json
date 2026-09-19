@@ -348,9 +348,13 @@
     "moreFromAgencyDesc": "Découvrez tout le catalogue de cette agence sur sa vitrine.",
     "shareBtn": "Partager",
     "viewAllPhotos": "Voir les {count} photos",
+    "viewAllMedia": "Voir les {count} médias",
     "allPhotosBtn": "Toutes ({count})",
+    "allMediaBtn": "Tous ({count})",
     "shareEmailBody": "Regarde cette annonce sur AlloAppart :\n{url}",
     "photoTab": "Photo",
+    "mediaTab": "Média",
+    "playVideo": "Lire la vidéo",
     "reviewToday": "Aujourd'hui",
     "reviewDayAgo": "Il y a 1 jour",
     "reviewDaysAgo": "Il y a {count} jours",
@@ -503,6 +507,7 @@
     "agencesPartner": "agences partenaires",
     "proBadge": "Agence PRO",
     "memberSince": "Membre depuis",
+    "contactViaMessaging": "Contacter via la messagerie",
     "disponible": "disponible",
     "disponibles": "disponibles",
     "catalogueAvailableCount": "{count, plural, one {# bien disponible} other {# biens disponibles}}",
@@ -1741,6 +1746,10 @@
     "vitrineSaved": "Vitrine mise à jour !",
     "vitrineUploadError": "Erreur upload logo",
     "vitrineSaveError": "Erreur lors de la sauvegarde.",
+    "vitrineLeaveTitle": "Modifications non enregistrées",
+    "vitrineLeaveDesc": "Vous avez des changements qui n'ont pas été sauvegardés. Si vous quittez maintenant, ils seront perdus.",
+    "vitrineLeaveConfirm": "Quitter sans enregistrer",
+    "vitrineLeaveCancel": "Rester sur la page",
     "vitrinePreviewLabel": "Aperçu — ce que voient vos clients",
     "vitrinePreviewFallbackName": "Votre agence",
     "vitrinePreviewProBadge": "PRO",
@@ -1750,6 +1759,7 @@
     "profilNotFound": "Profil introuvable",
     "profilBack": "Retour",
     "profilMemberSince": "Membre depuis {date}",
+    "profilContactViaMessaging": "Contacter via la messagerie",
     "profilAgentCta": "Voir le profil agent complet",
     "roleLocataire": "Locataire",
     "roleBailleur": "Bailleur",
@@ -1773,10 +1783,19 @@
     "stepLocation": "Localisation",
     "stepDetails": "Détails du bien",
     "stepAmenitiesPhotos": "Équipements & Photos",
+    "stepReview": "Récapitulatif",
+    "reviewTitle": "Vérifiez avant d'enregistrer",
+    "reviewSubtitle": "Relisez les informations avant de valider les modifications.",
+    "monthsShort": "mois",
     "stepErrorsTitle": "Veuillez corriger les champs suivants avant de continuer :",
     "fieldTitle": "Titre",
     "fieldDescription": "Description",
     "fieldType": "Type de bien",
+    "typeAppartement": "Appartement",
+    "typeVilla": "Villa",
+    "typeStudio": "Studio",
+    "typeChambre": "Chambre",
+    "typeBureau": "Bureau",
     "fieldPrice": "Tarif mensuel",
     "fieldPriceNight": "Tarif par nuit",
     "fieldMinNights": "Séjour minimum (nuits)",
@@ -2141,6 +2160,7 @@
     "accTotalCertifications": "Certifications totales"
   },
   "admin": {
+    "noEmailPhoneSignup": "Pas d'email (inscription par téléphone)",
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "save": "Enregistrer",
@@ -2522,7 +2542,7 @@
     "title": "Conditions Générales d'Utilisation",
     "subtitle": "Conformément au Code des Obligations Civiles et Commerciales (COCC) sénégalais et à la loi n° 2008-11 sur la cybercriminalité.",
     "lastUpdated": "Dernière mise à jour :",
-    "lastUpdatedDate": "12 septembre 2026",
+    "lastUpdatedDate": "17 septembre 2026",
     "footnote": "Ces CGU peuvent être mises à jour. Les utilisateurs seront informés des modifications significatives par e-mail avec un préavis minimum de 15 jours. Elles sont complémentaires à notre Politique de confidentialité et à notre Politique des cookies.",
     "prevalence": "Version française faisant foi. La traduction anglaise est fournie à titre indicatif ; en cas de divergence d'interprétation, la version française prévaut.",
     "sections": {
@@ -2552,7 +2572,7 @@
       },
       "tarifs": {
         "title": "7. Réservation, séquestre et commissions",
-        "body": "• Publication d'annonces : gratuite pour les bailleurs particuliers ; soumise à abonnement pour les agences (PRO_AGENCE).\n• Toute réservation confirmée donne lieu au paiement intégral du montant par le locataire. Les fonds sont conservés en séquestre par AlloAppart et ne sont reversés au bailleur (déduction faite de la commission de la Plateforme) qu'à l'issue de la période de signalement décrite à l'Article 9.\n• Commission — réservation à la nuitée : 10 % du montant de la réservation, prélevée sur les fonds séquestrés avant reversement au bailleur.\n• Commission — location au mois : l'équivalent d'un (1) mois de loyer, prélevé sur la caution encaissée à l'entrée du locataire. Le bailleur perçoit le loyer du premier mois ainsi que le solde de la caution.\n• Les tarifs peuvent être modifiés avec un préavis de 30 jours communiqué par e-mail aux utilisateurs enregistrés."
+        "body": "• Publication d'annonces : gratuite pour les bailleurs particuliers ; soumise à abonnement pour les agences (PRO_AGENCE).\n• Toute réservation confirmée donne lieu au paiement intégral du montant par le locataire. Les fonds sont conservés en séquestre par AlloAppart et ne sont reversés au bailleur (déduction faite de la commission de la Plateforme) qu'à l'issue de la période de signalement décrite à l'Article 9.\n• Commission — réservation à la nuitée : 10 % du montant de la réservation, prélevée sur les fonds séquestrés avant reversement au bailleur.\n• Commission — location au mois : l'équivalent d'un (1) mois de loyer, prélevé sur la caution encaissée à l'entrée du locataire. Le bailleur perçoit le loyer du premier mois ainsi que le solde de la caution.\n• Cette commission demeure due à AlloAppart même lorsque la location ou la vente du bien se conclut finalement hors Plateforme, dans les conditions et délais prévus à l'Article 12 (contournement de la mise en relation).\n• Les tarifs peuvent être modifiés avec un préavis de 30 jours communiqué par e-mail aux utilisateurs enregistrés."
       },
       "annulation": {
         "title": "8. Politique d'annulation",
@@ -2571,8 +2591,8 @@
         "body": "AlloAppart agit en qualité d'intermédiaire technique et de mise en relation. AlloAppart n'est pas partie au contrat de bail conclu entre bailleur et locataire et ne peut être tenu responsable des litiges survenant dans le cadre de cette relation, sous réserve des engagements pris aux Articles 6 et 9.\n\nAlloAppart s'engage à assurer la disponibilité de la Plateforme dans des conditions normales, mais ne peut garantir une disponibilité ininterrompue."
       },
       "messagerie": {
-        "title": "12. Usage de la messagerie interne",
-        "body": "Les échanges entre bailleurs et locataires doivent avoir lieu exclusivement via la messagerie interne de la Plateforme jusqu'à la confirmation de la réservation. Il est interdit de solliciter ou de transmettre des coordonnées personnelles dans le but de contourner la Plateforme et ses garanties (séquestre, mécanisme de signalement). AlloAppart se réserve le droit de masquer automatiquement ce type de contenu et de suspendre tout compte contrevenant de manière répétée."
+        "title": "12. Usage de la messagerie interne et contournement commercial",
+        "body": "Les échanges entre bailleurs et locataires doivent avoir lieu exclusivement via la messagerie interne de la Plateforme jusqu'à la confirmation de la réservation. Il est interdit de solliciter ou de transmettre des coordonnées personnelles dans le but de contourner la Plateforme et ses garanties (séquestre, mécanisme de signalement). AlloAppart se réserve le droit de masquer automatiquement ce type de contenu et de suspendre tout compte contrevenant de manière répétée.\n\nLorsqu'une mise en relation entre un bailleur (ou une agence) et un locataire a eu lieu grâce à la Plateforme — consultation d'une annonce, échange de messages ou visite organisée par l'intermédiaire d'AlloAppart —, la commission prévue à l'Article 7 reste due à AlloAppart si la location ou la vente de ce bien à cet utilisateur se conclut finalement hors Plateforme dans un délai de douze (12) mois suivant cette mise en relation, quelle qu'en soit la forme (paiement direct, autre plateforme, accord verbal ou écrit). Le bailleur ou l'agence concerné s'engage à déclarer une telle conclusion à AlloAppart dans un délai de quinze (15) jours et à s'acquitter de la commission correspondante. Cette obligation commerciale s'ajoute, sans s'y substituer, aux mesures de suspension ou de résiliation de compte prévues à l'Article 13."
       },
       "suspension": {
         "title": "13. Suspension et résiliation de compte",

@@ -348,9 +348,13 @@
     "moreFromAgencyDesc": "Discover this agency's full catalog on their showcase page.",
     "shareBtn": "Share",
     "viewAllPhotos": "View all {count} photos",
+    "viewAllMedia": "View all {count} media",
     "allPhotosBtn": "All ({count})",
+    "allMediaBtn": "All ({count})",
     "shareEmailBody": "Check out this listing on AlloAppart:\n{url}",
     "photoTab": "Photo",
+    "mediaTab": "Media",
+    "playVideo": "Play video",
     "reviewToday": "Today",
     "reviewDayAgo": "1 day ago",
     "reviewDaysAgo": "{count} days ago",
@@ -503,6 +507,7 @@
     "agencesPartner": "partner agencies",
     "proBadge": "PRO Agency",
     "memberSince": "Member since",
+    "contactViaMessaging": "Contact via messaging",
     "disponible": "available",
     "disponibles": "available",
     "catalogueAvailableCount": "{count, plural, one {# property available} other {# properties available}}",
@@ -1741,6 +1746,10 @@
     "vitrineSaved": "Showcase updated!",
     "vitrineUploadError": "Logo upload error",
     "vitrineSaveError": "Error saving.",
+    "vitrineLeaveTitle": "Unsaved changes",
+    "vitrineLeaveDesc": "You have changes that haven't been saved. If you leave now, they will be lost.",
+    "vitrineLeaveConfirm": "Leave without saving",
+    "vitrineLeaveCancel": "Stay on this page",
     "vitrinePreviewLabel": "Preview — what your clients see",
     "vitrinePreviewFallbackName": "Your agency",
     "vitrinePreviewProBadge": "PRO",
@@ -1750,6 +1759,7 @@
     "profilNotFound": "Profile not found",
     "profilBack": "Back",
     "profilMemberSince": "Member since {date}",
+    "profilContactViaMessaging": "Contact via messaging",
     "profilAgentCta": "View full agent profile",
     "roleLocataire": "Tenant",
     "roleBailleur": "Landlord",
@@ -1773,10 +1783,19 @@
     "stepLocation": "Location",
     "stepDetails": "Property details",
     "stepAmenitiesPhotos": "Amenities & Photos",
+    "stepReview": "Summary",
+    "reviewTitle": "Review before saving",
+    "reviewSubtitle": "Check the information before confirming the changes.",
+    "monthsShort": "months",
     "stepErrorsTitle": "Please fix the following fields before continuing:",
     "fieldTitle": "Title",
     "fieldDescription": "Description",
     "fieldType": "Property type",
+    "typeAppartement": "Apartment",
+    "typeVilla": "Villa",
+    "typeStudio": "Studio",
+    "typeChambre": "Room",
+    "typeBureau": "Office",
     "fieldPrice": "Monthly rent",
     "fieldPriceNight": "Nightly rate",
     "fieldMinNights": "Minimum stay (nights)",
@@ -2141,6 +2160,7 @@
     "accTotalCertifications": "Total certifications"
   },
   "admin": {
+    "noEmailPhoneSignup": "No email (signed up by phone)",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "save": "Save",
@@ -2522,7 +2542,7 @@
     "title": "Terms of Service",
     "subtitle": "In accordance with the Senegalese Code of Civil and Commercial Obligations (COCC) and Law No. 2008-11 on cybercrime.",
     "lastUpdated": "Last updated:",
-    "lastUpdatedDate": "12 September 2026",
+    "lastUpdatedDate": "17 September 2026",
     "footnote": "These Terms of Service may be updated. Users will be notified of significant changes by email with a minimum 15-day notice period. They are complementary to our Privacy Policy and our Cookie Policy.",
     "prevalence": "The French version is the legally binding text. This English translation is provided for convenience only; in the event of any discrepancy in interpretation, the French version prevails.",
     "sections": {
@@ -2552,7 +2572,7 @@
       },
       "tarifs": {
         "title": "7. Booking, escrow and commissions",
-        "body": "• Publishing listings: free for individual landlords; subject to a subscription for agencies (PRO_AGENCE).\n• Any confirmed booking requires full payment of the amount by the tenant. Funds are held in escrow by AlloAppart and are only released to the landlord (less the Platform's commission) once the reporting period described in Article 9 has elapsed.\n• Commission — nightly booking: 10% of the booking amount, deducted from the escrowed funds before release to the landlord.\n• Commission — monthly lease: the equivalent of one (1) month's rent, deducted from the deposit collected when the tenant moves in. The landlord receives the first month's rent plus the remaining deposit balance.\n• Fees may be amended with 30 days' notice sent by email to registered users."
+        "body": "• Publishing listings: free for individual landlords; subject to a subscription for agencies (PRO_AGENCE).\n• Any confirmed booking requires full payment of the amount by the tenant. Funds are held in escrow by AlloAppart and are only released to the landlord (less the Platform's commission) once the reporting period described in Article 9 has elapsed.\n• Commission — nightly booking: 10% of the booking amount, deducted from the escrowed funds before release to the landlord.\n• Commission — monthly lease: the equivalent of one (1) month's rent, deducted from the deposit collected when the tenant moves in. The landlord receives the first month's rent plus the remaining deposit balance.\n• This commission remains due to AlloAppart even where the lease or sale of the property is ultimately concluded off-Platform, under the conditions and time limits set out in Article 12 (circumvention of the introduction).\n• Fees may be amended with 30 days' notice sent by email to registered users."
       },
       "annulation": {
         "title": "8. Cancellation policy",
@@ -2571,8 +2591,8 @@
         "body": "AlloAppart acts as a technical intermediary and introduction service. AlloAppart is not a party to the lease agreement concluded between landlord and tenant and cannot be held liable for disputes arising within that relationship, subject to the commitments made in Articles 6 and 9.\n\nAlloAppart undertakes to keep the Platform available under normal conditions but cannot guarantee uninterrupted availability."
       },
       "messagerie": {
-        "title": "12. Use of the internal messaging system",
-        "body": "Exchanges between landlords and tenants must take place exclusively through the Platform's internal messaging system until the booking is confirmed. It is prohibited to request or share personal contact details in order to circumvent the Platform and its safeguards (escrow, reporting mechanism). AlloAppart reserves the right to automatically mask this type of content and to suspend any account that repeatedly breaches this rule."
+        "title": "12. Use of the internal messaging system and commercial circumvention",
+        "body": "Exchanges between landlords and tenants must take place exclusively through the Platform's internal messaging system until the booking is confirmed. It is prohibited to request or share personal contact details in order to circumvent the Platform and its safeguards (escrow, reporting mechanism). AlloAppart reserves the right to automatically mask this type of content and to suspend any account that repeatedly breaches this rule.\n\nWhere an introduction between a landlord (or agency) and a tenant took place thanks to the Platform — viewing a listing, exchanging messages, or a visit arranged through AlloAppart — the commission set out in Article 7 remains due to AlloAppart if the lease or sale of that property to that user is ultimately concluded off-Platform within twelve (12) months of that introduction, regardless of its form (direct payment, another platform, verbal or written agreement). The landlord or agency concerned undertakes to declare any such conclusion to AlloAppart within fifteen (15) days and to pay the corresponding commission. This commercial obligation is in addition to, and does not replace, the account suspension or termination measures set out in Article 13."
       },
       "suspension": {
         "title": "13. Account suspension and termination",
