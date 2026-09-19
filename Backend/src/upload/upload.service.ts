@@ -50,84 +50,20 @@ export class UploadService {
     return false;
   }
 
-  /**
-   * Upload d'un buffer PDF déjà en mémoire (contrats de bail) — utilisé à la
-   * fois côté serveur (PDF généré par PdfService, aucun fichier client) et
-   * côté client (PDF signé re-téléversé par le locataire/bailleur, après
-   * validation des magic bytes en amont par l'appelant).
-   * resource_type 'raw' : Cloudinary ne transforme pas un PDF comme une image.
-   */
-  async uploadPdfBuffer(
-    buffer: Buffer,
-    filename: string,
-  ): Promise<{ url: string; publicId: string }> {
-    const cloudName = this.config.get<string>('CLOUDINARY_CLOUD_NAME');
-    if (!cloudName) throw new BadRequestException('Cloudinary not configured');
-
-    return new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'allo-appart/contracts',
-          resource_type: 'raw' as const,
-          public_id: filename.replace(/\.pdf$/i, ''),
-          format: 'pdf',
-        },
-        (error, result) => {
-          if (error || !result)
-            return reject(
-              error instanceof Error ? error : new Error('Upload échoué'),
-            );
-          resolve({ url: result.secure_url, publicId: result.public_id });
-        },
-      );
-      stream.end(buffer);
-    });
-  }
-
-  /**
-   * Télécharge un PDF déjà stocké sur Cloudinary (contrat de bail) en
-   * générant une URL signée côté serveur. Nécessaire car ce compte
-   * Cloudinary refuse l'accès direct et public aux ressources non-image
-   * (raw/PDF) — y compris à `secure_url`, habituellement publique pour les
-   * images — d'où le 401 constaté quand le navigateur appelait l'URL
-   * Cloudinary stockée directement (comme le faisait `ContractCard.tsx`
-   * avant ce correctif). Seul le backend, qui détient l'API secret, peut
-   * signer l'URL et récupérer le fichier ; le frontend doit toujours passer
-   * par un endpoint de notre API (voir ContractsController.download), comme
-   * pour le reçu de paiement.
-   */
-  async downloadPdfByUrl(url: string): Promise<Buffer> {
-    const match = /\/upload\/v\d+\/(.+?)\.[a-zA-Z0-9]+(?:\?.*)?$/.exec(url);
-    const publicId = match?.[1];
-    if (!publicId) {
-      throw new BadRequestException('URL Cloudinary invalide');
-    }
-
-    const signedUrl = cloudinary.url(publicId, {
-      resource_type: 'raw',
-      type: 'upload',
-      sign_url: true,
-      secure: true,
-    });
-
-    const res = await fetch(signedUrl);
-    if (!res.ok) {
-      throw new BadRequestException('Téléchargement Cloudinary échoué');
-    }
-    const arrayBuffer = await res.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  }
-
   async uploadFile(
     file: Express.Multer.File,
   ): Promise<{ url: string; publicId: string }> {
     if (!file) throw new BadRequestException('No file provided');
 
     const isAudio = file.mimetype.startsWith('audio/');
+    const isVideo = file.mimetype.startsWith('video/');
 
-    // La vérification des magic bytes n'est pertinente que pour les images.
-    // Les fichiers audio sont déjà filtrés par le MIME dans fileFilter.
-    if (!isAudio && !this.hasMagicBytes(file.buffer)) {
+    // La vérification des magic bytes n'est pertinente que pour les images :
+    // les fichiers audio et vidéo sont déjà filtrés par le MIME dans
+    // fileFilter (liste blanche stricte), et une détection fiable de
+    // signature pour tous les conteneurs vidéo (mp4/webm/mov/avi) serait
+    // fragile à maintenir pour un bénéfice de sécurité marginal ici.
+    if (!isAudio && !isVideo && !this.hasMagicBytes(file.buffer)) {
       throw new BadRequestException(
         'Fichier invalide : signature non reconnue',
       );
@@ -138,7 +74,13 @@ export class UploadService {
 
     return new Promise((resolve, reject) => {
       // Cloudinary utilise resource_type 'video' pour les fichiers audio aussi.
-      const uploadOptions = isAudio
+      const uploadOptions = isVideo
+        ? {
+            folder: 'allo-appart/listings',
+            resource_type: 'video' as const,
+            transformation: [{ quality: 'auto:good' }],
+          }
+        : isAudio
         ? {
             folder: 'allo-appart/audio',
             resource_type: 'video' as const,

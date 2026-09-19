@@ -37,13 +37,13 @@ function mp4Buf(): Buffer {
   return heicBuf('mp42');
 }
 
-function multerFile(buffer: Buffer): Express.Multer.File {
+function multerFile(buffer: Buffer, mimetype = 'image/jpeg'): Express.Multer.File {
   return {
     buffer,
     fieldname: 'file',
     originalname: 'test.jpg',
     encoding: '7bit',
-    mimetype: 'image/jpeg',
+    mimetype,
     size: buffer.length,
     stream: null as unknown as Readable,
     destination: '',
@@ -119,10 +119,24 @@ describe('UploadService — hasMagicBytes', () => {
     ).resolves.toBeDefined();
   });
 
-  it('rejette un MP4 (ftyp brand mp42)', async () => {
+  it('rejette un MP4 (ftyp brand mp42) déclaré comme image/jpeg — spoofing', async () => {
     await expect(service.uploadFile(multerFile(mp4Buf()))).rejects.toThrow(
       BadRequestException,
     );
+  });
+
+  it('accepte une vidéo MP4 déclarée video/mp4 (pas de vérif magic bytes, upload en resource_type video)', async () => {
+    const result = await service.uploadFile(multerFile(mp4Buf(), 'video/mp4'));
+    expect(result.url).toContain('cloudinary.com');
+  });
+
+  it('accepte une vidéo WebM déclarée video/webm (pas de vérif magic bytes)', async () => {
+    // Un WebM réel commence par l'en-tête EBML (1A 45 DF A3…), mais peu importe
+    // ici : les vidéos sont déjà filtrées par le MIME dans le controller, donc
+    // hasMagicBytes est volontairement sauté pour elles (cf. isVideo).
+    await expect(
+      service.uploadFile(multerFile(Buffer.alloc(20), 'video/webm')),
+    ).resolves.toBeDefined();
   });
 
   it('rejette un buffer trop court (< 12 octets)', async () => {

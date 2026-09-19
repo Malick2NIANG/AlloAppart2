@@ -14,8 +14,15 @@ const ALLOWED_MIME = [
   'image/jpeg', 'image/png', 'image/webp', 'image/heic',
   // Messages vocaux
   'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav',
+  // Vidéos d'annonce (cf. ImageUploadZone.tsx VIDEO_TYPES — même liste,
+  // sinon le front laisse l'utilisateur déposer une vidéo qui se fait
+  // systématiquement refuser ici).
+  'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo',
 ];
-const MAX_SIZE_BYTES = 16 * 1024 * 1024; // 16 MB (vocaux inclus)
+// 200 MB pour couvrir les vidéos (cf. ImageUploadZone.tsx MAX_VIDEO_SIZE) —
+// les images/audio restent bien plus légers en pratique, cette limite n'est
+// qu'un plafond de sécurité côté serveur.
+const MAX_SIZE_BYTES = 200 * 1024 * 1024;
 
 // Tout utilisateur authentifié peut uploader des images.
 // La restriction BAILLEUR s'applique à la création d'annonce (ListingsController).
@@ -35,7 +42,7 @@ export class UploadController {
         const baseType = file.mimetype.split(';')[0].trim();
         if (!ALLOWED_MIME.includes(baseType)) {
           return cb(
-            new BadRequestException('Format non supporté (jpg, png, webp, audio)'),
+            new BadRequestException('Format non supporté (jpg, png, webp, audio, vidéo)'),
             false,
           );
         }
