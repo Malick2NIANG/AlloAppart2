@@ -17,8 +17,9 @@ interface Props {
 }
 
 export default function ListingHeroCarousel({ images, title, city, price }: Props) {
-  const t    = useTranslations('detail');
-  const imgs = images.length > 0 ? images : [PLACEHOLDER];
+  const t        = useTranslations('detail');
+  const imgs     = images.length > 0 ? images : [PLACEHOLDER];
+  const hasVideo = imgs.some(isVideo);
 
   const [current, setCurrent]     = useState(0);
   const [lightbox, setLightbox]   = useState(false);
@@ -82,14 +83,31 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
 
         {/* Image ou Vidéo */}
         {isVideo(imgs[current]) ? (
-          <video
-            key={imgs[current]}
-            src={imgs[current]}
-            className="absolute inset-0 h-full w-full object-cover cursor-pointer"
-            controls
-            playsInline
+          // Pas de `controls` natif ici : la barre de lecture du navigateur
+          // se superposait au titre/prix/pastille affichés par-dessus (cf.
+          // capture utilisateur). On affiche un aperçu statique + bouton
+          // play, comme les vignettes — la vraie lecture se fait dans la
+          // lightbox (qui n'a pas ce chevauchement).
+          <button
+            type="button"
             onClick={() => setLightbox(true)}
-          />
+            aria-label={t('playVideo')}
+            className="absolute inset-0 h-full w-full cursor-pointer"
+          >
+            <video
+              key={imgs[current]}
+              src={imgs[current]}
+              className="h-full w-full object-cover"
+              muted
+              playsInline
+              preload="metadata"
+            />
+            <span className="absolute inset-0 flex items-center justify-center">
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 shadow-lg transition group-hover:scale-105">
+                <i className="fa-solid fa-play text-gray-800 text-xl ml-1" />
+              </span>
+            </span>
+          </button>
         ) : (
           <Image
             src={imgs[current]}
@@ -102,8 +120,13 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
           />
         )}
 
-        {/* Overlay */}
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        {/* Overlay — purement décoratif (assombrit le bas pour la lisibilité
+            du titre). `pointer-events-none` est indispensable : sans ça, ce
+            calque (posé par-dessus la photo/vidéo dans le DOM) intercepte
+            tous les clics sur la zone média et empêche l'ouverture de la
+            lightbox — seuls les boutons z-10 au-dessus (flèches, pastille)
+            restaient cliquables. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 
         {/* Arrows */}
         {imgs.length > 1 && (
@@ -176,14 +199,16 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
           </div>
         )}
 
-        {/* Voir toutes les photos */}
+        {/* Voir tous les médias — même point d'entrée que le clic direct sur
+            la photo/vidéo : ouvre en mode carousel (pas la grille), pour une
+            expérience identique quel que soit l'endroit où on clique. */}
         {imgs.length > 1 && (
           <button
-            onClick={() => { setGridMode(true); setLightbox(true); }}
+            onClick={() => setLightbox(true)}
             className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 rounded-full bg-white/90 hover:bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-lg transition"
           >
             <i className="fa-solid fa-grid-2 text-[10px]" />
-            {t('viewAllPhotos', { count: imgs.length })}
+            {t(hasVideo ? 'viewAllMedia' : 'viewAllPhotos', { count: imgs.length })}
           </button>
         )}
       </div>
@@ -199,13 +224,13 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
                 onClick={() => setGridMode(false)}
                 className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${!gridMode ? 'bg-white text-gray-900' : 'bg-white/10 text-white hover:bg-white/20'}`}
               >
-                <i className="fa-solid fa-image text-[10px]" /> {t('photoTab')}
+                <i className="fa-solid fa-image text-[10px]" /> {t(hasVideo ? 'mediaTab' : 'photoTab')}
               </button>
               <button
                 onClick={() => setGridMode(true)}
                 className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${gridMode ? 'bg-white text-gray-900' : 'bg-white/10 text-white hover:bg-white/20'}`}
               >
-                <i className="fa-solid fa-grid-2 text-[10px]" /> {t('allPhotosBtn', { count: imgs.length })}
+                <i className="fa-solid fa-grid-2 text-[10px]" /> {t(hasVideo ? 'allMediaBtn' : 'allPhotosBtn', { count: imgs.length })}
               </button>
             </div>
             {!gridMode && (
@@ -229,9 +254,12 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
                   >
                     {isVideo(img) ? (
                       <>
+                        {/* Pas de hauteur/ratio fixe : chaque média garde ses
+                            propres proportions au lieu d'être recadré dans
+                            une case uniforme (cf. retour utilisateur). */}
                         <video
                           src={img}
-                          className="w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                          className="w-full h-auto block group-hover:scale-[1.02] transition-transform duration-300"
                           muted
                           playsInline
                           preload="metadata"
@@ -243,12 +271,12 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
                         </div>
                       </>
                     ) : (
-                      <Image
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
                         src={img}
                         alt={`${title} — photo ${i + 1}`}
-                        width={600}
-                        height={400}
-                        className="w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                        loading="lazy"
+                        className="w-full h-auto block group-hover:scale-[1.02] transition-transform duration-300"
                       />
                     )}
                   </button>
@@ -258,20 +286,37 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
           ) : (
             /* ── Mode carousel ── */
             <>
-              <div className="relative flex-1 flex items-center justify-center">
-                <div className="relative w-full h-full max-w-5xl mx-auto flex items-center justify-center">
-                  {isVideo(imgs[current]) ? (
-                    <video
-                      key={imgs[current]}
-                      src={imgs[current]}
-                      controls
-                      playsInline
-                      autoPlay
-                      className="max-h-full max-w-full rounded-xl"
-                    />
-                  ) : (
-                    <Image src={imgs[current]} alt={title} fill className="object-contain" />
-                  )}
+              {/* `min-h-0` est indispensable ici : un enfant flex garde par
+                  défaut `min-height: auto`, donc sans ça une vidéo portrait
+                  haute forçait ce conteneur à grandir au-delà de l'espace
+                  réellement disponible (au lieu d'être contrainte par lui),
+                  ce qui repoussait la bande de vignettes et une partie des
+                  contrôles vidéo hors de l'écran visible. Les flèches restent
+                  enfants de CE conteneur (non paddé) pour ne pas bouger. */}
+              <div className="relative min-h-0 flex-1 flex items-center justify-center overflow-hidden">
+                {/* Le padding vit sur ce niveau intermédiaire, pas sur celui
+                    juste au-dessus de l'image : un <Image fill> se positionne
+                    en `inset-0` par rapport au bord du padding de son propre
+                    ancêtre direct, donc un padding posé au même niveau que
+                    lui serait ignoré côté photo (elle irait quand même
+                    jusqu'au bord). En le mettant un cran plus haut, la marge
+                    s'applique bien aux deux — plus rien ne touche les bords
+                    de l'écran (impression de "coupé"). */}
+                <div className="w-full h-full max-w-5xl mx-auto flex items-center justify-center p-4 sm:p-8">
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    {isVideo(imgs[current]) ? (
+                      <video
+                        key={imgs[current]}
+                        src={imgs[current]}
+                        controls
+                        playsInline
+                        autoPlay
+                        className="max-h-full max-w-full rounded-xl"
+                      />
+                    ) : (
+                      <Image src={imgs[current]} alt={title} fill className="object-contain" />
+                    )}
+                  </div>
                 </div>
                 {imgs.length > 1 && (
                   <>
