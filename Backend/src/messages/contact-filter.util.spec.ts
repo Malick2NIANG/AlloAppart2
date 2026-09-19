@@ -37,4 +37,17 @@ describe('sanitizeContactInfo', () => {
     expect(wasFiltered).toBe(false);
     expect(content).toBe('Bonjour, l\'appartement est-il toujours disponible ?');
   });
+
+  it('masque une adresse email', () => {
+    const { content, wasFiltered } = sanitizeContactInfo('Ecris-moi à mamadou.diop@gmail.com plutôt');
+    expect(wasFiltered).toBe(true);
+    expect(content).toContain('[email masqué]');
+    expect(content).not.toContain('mamadou.diop@gmail.com');
+  });
+
+  it('masque plusieurs adresses email dans le même message', () => {
+    const { content, wasFiltered } = sanitizeContactInfo('contact1@yahoo.fr ou contact2@outlook.com');
+    expect(wasFiltered).toBe(true);
+    expect(content).toBe('[email masqué] ou [email masqué]');
+  });
 });

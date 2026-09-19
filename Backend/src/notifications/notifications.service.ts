@@ -5,6 +5,7 @@ import { Prisma, Role } from '@prisma/client';
 import { OnesignalService } from '../onesignal/onesignal.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PusherService } from '../pusher/pusher.service';
+import { isPlaceholderEmail } from '../common/user-display.util';
 import {
   t,
   toLocale,
@@ -99,6 +100,18 @@ export class NotificationsService {
   private async send(to: string, subject: string, html: string): Promise<void> {
     if (!this.config.get<string>('SMTP_USER')) {
       this.logger.warn('Notification skipped (SMTP non configure)');
+      return;
+    }
+    // Compte sans email réel (ex. inscription par téléphone seul — voir
+    // user-display.util) : envoyer à cette adresse échouerait de toute façon
+    // (domaine inexistant). On l'évite pour ne pas polluer les logs d'un
+    // échec SMTP attendu ; l'utilisateur reste joignable via notification
+    // in-app / push (voir pushInApp, déjà déclenché en parallèle pour la
+    // plupart des événements).
+    if (isPlaceholderEmail(to)) {
+      this.logger.debug(
+        `Email transactionnel ignoré (compte sans email réel) : ${to}`,
+      );
       return;
     }
     try {
@@ -712,6 +725,33 @@ export class NotificationsService {
   }
 
   // Admin : nouveau signalement d'annonce
+  // Admin : un même expéditeur dépasse le seuil de tentatives de
+  // contournement filtrées (numéro/email/app externe) sur 24h glissantes —
+  // voir MessagesService.logAndMaybeAlertCircumvention (Task #121).
+  async notifyContactFilterAlert(
+    senderId: string,
+    senderName: string,
+    roomId: string,
+    count: number,
+  ) {
+    const admins = await this.prisma.user.findMany({
+      where: { roles: { has: Role.ADMIN } },
+      select: { id: true },
+    });
+    await Promise.all(
+      admins.map((admin) =>
+        this.pushInApp(
+          admin.id,
+          'CONTACT_FILTER_ALERT',
+          'pushContactFilterAlertTitle',
+          'pushContactFilterAlertBody',
+          { senderName, count, roomId },
+          { senderId, roomId, count },
+        ),
+      ),
+    );
+  }
+
   async notifyAdminReport(
     listingId: string,
     listingTitle: string,

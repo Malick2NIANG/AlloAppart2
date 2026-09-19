@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -15,8 +16,19 @@ import { PusherService } from '../pusher/pusher.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { sanitizeContactInfo } from './contact-filter.util';
 
+// Marqueurs posés par sanitizeContactInfo() sur le contenu stocké — sert à
+// recompter, a posteriori, les tentatives de contournement d'un expéditeur
+// sans avoir besoin d'une table/colonne dédiée (Task #121).
+const CIRCUMVENTION_MARKERS = ['[numéro masqué]', '[application masquée]', '[email masqué]'];
+// Nombre de tentatives filtrées, sur 24h glissantes, à partir duquel les
+// admins sont alertés. Renotifié tous les N dépassements supplémentaires
+// (pas à chaque message) pour ne pas spammer les admins d'un récidiviste.
+const CIRCUMVENTION_ALERT_THRESHOLD = 3;
+
 @Injectable()
 export class MessagesService {
+  private readonly logger = new Logger(MessagesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly pusher: PusherService,
@@ -28,7 +40,7 @@ export class MessagesService {
       where: { participants: { some: { id: userId } } },
       include: {
         listing: { select: { id: true, title: true, images: true } },
-        participants: { select: { id: true, firstName: true, lastName: true, avatar: true, agencyName: true, roles: true } },
+        participants: { select: { id: true, firstName: true, lastName: true, avatar: true, agencyName: true, agencySlug: true, roles: true } },
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
       orderBy: { createdAt: 'desc' },
@@ -88,9 +100,9 @@ export class MessagesService {
     // Les messages vocaux stockent une URL (Cloudinary) dans `content`, jamais
     // du texte libre — on ne les fait pas passer par le filtre anti-contournement
     // pour ne pas masquer par erreur les chiffres de l'URL.
-    const safeContent = content.startsWith('[AUDIO]:')
-      ? content
-      : sanitizeContactInfo(content).content;
+    const isVoice = content.startsWith('[AUDIO]:');
+    const filtered = isVoice ? null : sanitizeContactInfo(content);
+    const safeContent = isVoice ? content : filtered!.content;
     const message = await this.prisma.message.create({
       data: { roomId, senderId, content: safeContent, ...(replyToId ? { replyToId } : {}) },
       include: {
@@ -98,6 +110,11 @@ export class MessagesService {
         replyTo: { select: REPLY_TO_SELECT },
       },
     });
+    const senderName =
+      message.sender.firstName + ' ' + message.sender.lastName;
+    if (filtered?.wasFiltered) {
+      void this.logAndMaybeAlertCircumvention(senderId, senderName, roomId);
+    }
     void this.pusher.trigger('room-' + roomId, 'new-message', {
       id: message.id,
       roomId: message.roomId,
@@ -114,8 +131,6 @@ export class MessagesService {
       const recipients = room.participants
         .filter((p) => p.id !== senderId)
         .map((p) => p.id);
-      const senderName =
-        message.sender.firstName + ' ' + message.sender.lastName;
       for (const recipientId of recipients) {
         void this.notifications.notifyNewMessage(
           recipientId,
@@ -145,12 +160,16 @@ export class MessagesService {
     if (msg.content.startsWith('[AUDIO]:'))
       throw new BadRequestException('Voice messages cannot be edited');
 
-    const safeContent = sanitizeContactInfo(content).content;
+    const filtered = sanitizeContactInfo(content);
     const updated = await this.prisma.message.update({
       where: { id: messageId },
-      data: { content: safeContent, editedAt: new Date() },
+      data: { content: filtered.content, editedAt: new Date() },
       include: { sender: { select: SENDER_SELECT } },
     });
+    if (filtered.wasFiltered) {
+      const editorName = updated.sender.firstName + ' ' + updated.sender.lastName;
+      void this.logAndMaybeAlertCircumvention(userId, editorName, msg.roomId);
+    }
     void this.pusher.trigger('room-' + msg.roomId, 'message-edited', {
       id: updated.id,
       content: updated.content,
@@ -186,6 +205,51 @@ export class MessagesService {
     const isParticipant = room.participants.some((p) => p.id === userId);
     if (!isParticipant) {
       throw new ForbiddenException('Access denied');
+    }
+  }
+
+  // Journalise chaque tentative filtrée (numéro/email/app externe) et, si un
+  // même expéditeur en cumule plusieurs sur 24h glissantes, alerte les admins.
+  // Recompte directement dans les messages déjà stockés (marqueurs
+  // CIRCUMVENTION_MARKERS) — pas de table de compteur dédiée (Task #121).
+  private async logAndMaybeAlertCircumvention(
+    senderId: string,
+    senderName: string,
+    roomId: string,
+  ): Promise<void> {
+    this.logger.warn(
+      `Tentative de contournement filtrée — expéditeur=${senderId} conversation=${roomId}`,
+    );
+
+    try {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const count = await this.prisma.message.count({
+        where: {
+          senderId,
+          createdAt: { gte: since },
+          OR: CIRCUMVENTION_MARKERS.map((marker) => ({
+            content: { contains: marker },
+          })),
+        },
+      });
+
+      if (
+        count >= CIRCUMVENTION_ALERT_THRESHOLD &&
+        count % CIRCUMVENTION_ALERT_THRESHOLD === 0
+      ) {
+        void this.notifications.notifyContactFilterAlert(
+          senderId,
+          senderName,
+          roomId,
+          count,
+        );
+      }
+    } catch (err) {
+      // Le comptage/l'alerte ne doit jamais faire échouer l'envoi du message.
+      this.logger.error(
+        'Échec du contrôle anti-contournement (non bloquant)',
+        err as Error,
+      );
     }
   }
 }

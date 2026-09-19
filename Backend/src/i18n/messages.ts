@@ -147,6 +147,7 @@ const fr = {
   pushListingReportedUrgentTitle: '🚨 Annonce signalée plusieurs fois',
   pushDeclineRequestTitle: 'Demande de déclin à approuver',
   pushNewMessageTitle: 'Nouveau message',
+  pushContactFilterAlertTitle: '🚩 Tentative de contournement détectée',
   pushDisputeReportedLandlordTitle: '⚠️ Signalement de non-conformité',
   pushDisputeReportedAdminTitle: '⚠️ Nouveau litige à arbitrer',
   pushDisputeResolvedReleaseTenantTitle: 'Litige tranché',
@@ -189,6 +190,8 @@ const fr = {
   pushDeclineRequestBody:
     'Un agent demande à décliner la mission « {listingTitle} ». Approbation requise.',
   pushNewMessageBody: '{senderName} vous a envoyé un message.',
+  pushContactFilterAlertBody:
+    '{senderName} a tenté de partager des coordonnées de contact hors plateforme {count} fois au cours des dernières 24h (conversation {roomId}).',
   pushBookingRequestOneSignal: '{tenantName} — {listingTitle}',
   pushDisputeReportedLandlordBody:
     'Le locataire a signalé une non-conformité pour « {listingTitle} ». Les fonds sont gelés le temps de l’examen.',
@@ -341,6 +344,7 @@ const en: Record<MessageKey, string> = {
   pushListingReportedUrgentTitle: '🚨 Listing reported multiple times',
   pushDeclineRequestTitle: 'Decline request to approve',
   pushNewMessageTitle: 'New message',
+  pushContactFilterAlertTitle: '🚩 Circumvention attempt detected',
   pushDisputeReportedLandlordTitle: '⚠️ Non-conformity report',
   pushDisputeReportedAdminTitle: '⚠️ New dispute to arbitrate',
   pushDisputeResolvedReleaseTenantTitle: 'Dispute resolved',
@@ -378,6 +382,8 @@ const en: Record<MessageKey, string> = {
   pushDeclineRequestBody:
     'An agent is requesting to decline the mission “{listingTitle}”. Approval required.',
   pushNewMessageBody: '{senderName} sent you a message.',
+  pushContactFilterAlertBody:
+    '{senderName} attempted to share off-platform contact info {count} times over the last 24h (conversation {roomId}).',
   pushBookingRequestOneSignal: '{tenantName} — {listingTitle}',
   pushDisputeReportedLandlordBody:
     'The tenant has reported a non-conformity for “{listingTitle}”. Funds are frozen pending review.',
