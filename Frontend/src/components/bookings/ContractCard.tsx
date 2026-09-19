@@ -43,14 +43,11 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
 
-  // Avant : simple <a href> vers l'URL Cloudinary brute. Ce compte Cloudinary
-  // refuse l'accès public aux ressources raw/PDF (401 constaté par
-  // l'utilisateur dans les devtools réseau) — l'URL stockée n'est donc PAS
-  // appelable directement depuis le navigateur, contrairement à ce qu'une
-  // tentative précédente supposait. Fix : passer par notre propre API
-  // (authentifiée avec le token Clerk), qui signe l'URL Cloudinary côté
-  // serveur et retransmet le PDF — exactement le même mécanisme que le reçu
-  // de paiement (fetch avec Bearer token → blob → téléchargement forcé).
+  // Le PDF n'est jamais stocké : le backend le regénère à la volée à chaque
+  // téléchargement à partir des données de la réservation (voir
+  // ContractsService.buildContractPdf) et le retransmet — exactement le même
+  // mécanisme que le reçu de paiement (fetch avec Bearer token → blob →
+  // téléchargement forcé). Évite toute dépendance à un stockage tiers.
   const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
   const handleDownload = async () => {
@@ -62,6 +59,7 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
       if (!token) return;
       const res = await fetch(`${API}/contracts/booking/${bookingId}/download`, {
         headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store', // le PDF est régénéré à chaque appel, jamais de version en cache à réutiliser
       });
       if (!res.ok) throw new Error('error');
       const blob = await res.blob();
@@ -122,22 +120,20 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
         </h3>
       </div>
 
-      {contract.pdfUrl && (
-        <div>
-          <button
-            type="button"
-            onClick={() => void handleDownload()}
-            disabled={downloading}
-            className="btn-gold inline-flex items-center gap-2 text-xs py-2 px-4 disabled:opacity-50"
-          >
-            <i className={`fa-solid ${downloading ? 'fa-spinner fa-spin' : 'fa-download'}`} />
-            {t('downloadBtn')}
-          </button>
-          {downloadError && (
-            <p className="mt-1.5 text-xs text-red-500">{downloadError}</p>
-          )}
-        </div>
-      )}
+      <div>
+        <button
+          type="button"
+          onClick={() => void handleDownload()}
+          disabled={downloading}
+          className="btn-gold inline-flex items-center gap-2 text-xs py-2 px-4 disabled:opacity-50"
+        >
+          <i className={`fa-solid ${downloading ? 'fa-spinner fa-spin' : 'fa-download'}`} />
+          {t('downloadBtn')}
+        </button>
+        {downloadError && (
+          <p className="mt-1.5 text-xs text-red-500">{downloadError}</p>
+        )}
+      </div>
 
       <div className="rounded-xl border border-gold/30 bg-gold-pale/50 p-3.5 space-y-1.5">
         <p className="text-xs text-gold-dark font-medium flex items-center gap-1.5">

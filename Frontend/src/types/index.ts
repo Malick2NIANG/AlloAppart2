@@ -167,7 +167,7 @@ export interface Contract {
   id: string;
   bookingId: string;
   type: ContractType;
-  pdfUrl?: string | null;   // PDF généré, à compléter et signer manuscritement en personne
+  pdfUrl?: string | null;   // Toujours null désormais : le PDF est regénéré à la volée au téléchargement (voir ContractsService.buildContractPdf), jamais stocké
   createdAt: string;
   updatedAt: string;
 }

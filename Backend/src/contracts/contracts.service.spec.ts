@@ -1,10 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ContractsService } from './contracts.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PdfService } from '../pdf/pdf.service';
-import { UploadService } from '../upload/upload.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Role, type User } from '@prisma/client';
 
@@ -103,6 +102,7 @@ const contract = {
   bookingId: 'booking1',
   type: 'HABITATION' as const,
   pdfUrl: 'https://res.cloudinary.com/x/raw/upload/contrat-draft.pdf',
+  createdAt: new Date('2026-08-15'),
 };
 
 describe('ContractsService', () => {
@@ -117,7 +117,6 @@ describe('ContractsService', () => {
     booking: { findUniqueOrThrow: jest.Mock };
   };
   let pdfMock: { generateLeaseContract: jest.Mock };
-  let uploadMock: { uploadPdfBuffer: jest.Mock };
   let notifMock: { notifyContractReady: jest.Mock };
 
   beforeEach(async () => {
@@ -135,12 +134,6 @@ describe('ContractsService', () => {
         .fn()
         .mockResolvedValue(Buffer.from('%PDF-fake')),
     };
-    uploadMock = {
-      uploadPdfBuffer: jest.fn().mockResolvedValue({
-        url: 'https://res.cloudinary.com/x/raw/upload/f.pdf',
-        publicId: 'f',
-      }),
-    };
     notifMock = {
       notifyContractReady: jest.fn().mockResolvedValue(undefined),
     };
@@ -150,7 +143,6 @@ describe('ContractsService', () => {
         ContractsService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: PdfService, useValue: pdfMock },
-        { provide: UploadService, useValue: uploadMock },
         { provide: NotificationsService, useValue: notifMock },
         {
           provide: ConfigService,
@@ -171,15 +163,34 @@ describe('ContractsService', () => {
 
       expect(result).toEqual(contract);
       expect(pdfMock.generateLeaseContract).not.toHaveBeenCalled();
-      expect(uploadMock.uploadPdfBuffer).not.toHaveBeenCalled();
     });
 
-    it('génère le PDF, le téléverse et crée le contrat', async () => {
+    it('crée le contrat et notifie les parties, sans générer le PDF (regénéré à la demande au téléchargement)', async () => {
       prismaMock.contract.findUnique.mockResolvedValueOnce(null);
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(bookingFull);
       prismaMock.contract.create.mockResolvedValueOnce(contract);
 
       const result = await service.generateForBooking('booking1');
+
+      expect(pdfMock.generateLeaseContract).not.toHaveBeenCalled();
+      expect(prismaMock.contract.create).toHaveBeenCalledWith({
+        data: {
+          bookingId: 'booking1',
+          type: 'HABITATION',
+        },
+      });
+      expect(notifMock.notifyContractReady).toHaveBeenCalled();
+      expect(result).toEqual(contract);
+    });
+  });
+
+  // --- downloadPdf ---
+  describe('downloadPdf', () => {
+    it('régénère le PDF à la volée à partir des données de la réservation', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(bookingFull);
+      prismaMock.contract.findUnique.mockResolvedValueOnce(contract);
+
+      const result = await service.downloadPdf('booking1', tenant);
 
       expect(pdfMock.generateLeaseContract).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -190,25 +201,34 @@ describe('ContractsService', () => {
           minLeaseMonths: 3,
           totalDueAtSigning: 600000,
           platformFee: 200000,
+          // La date d'émission affichée dans le PDF doit rester figée à la
+          // date de création du contrat, pas à la date de téléchargement.
+          issuedAt: contract.createdAt,
         }),
         // QR de vérification d'identité locataire (incrusté dans le PDF) —
         // généré à la volée, on vérifie juste qu'un buffer a bien été passé.
         expect.any(Buffer),
       );
-      expect(uploadMock.uploadPdfBuffer).toHaveBeenCalledWith(
-        expect.any(Buffer),
-        expect.stringContaining('booking1'),
+      expect(result).toEqual(Buffer.from('%PDF-fake'));
+    });
+
+    it("lève NotFoundException si aucun contrat n'existe encore pour cette réservation", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(bookingFull);
+      prismaMock.contract.findUnique.mockResolvedValueOnce(null);
+
+      await expect(service.downloadPdf('booking1', tenant)).rejects.toThrow(
+        NotFoundException,
       );
-      expect(prismaMock.contract.create).toHaveBeenCalledWith({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        data: expect.objectContaining({
-          bookingId: 'booking1',
-          type: 'HABITATION',
-          pdfUrl: 'https://res.cloudinary.com/x/raw/upload/f.pdf',
-        }),
-      });
-      expect(notifMock.notifyContractReady).toHaveBeenCalled();
-      expect(result).toEqual(contract);
+      expect(pdfMock.generateLeaseContract).not.toHaveBeenCalled();
+    });
+
+    it("lève ForbiddenException si l'utilisateur n'est ni locataire, ni bailleur, ni admin", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(bookingFull);
+
+      await expect(service.downloadPdf('booking1', stranger)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(pdfMock.generateLeaseContract).not.toHaveBeenCalled();
     });
   });
 

@@ -7,16 +7,33 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PdfService } from '../pdf/pdf.service';
-import { UploadService } from '../upload/upload.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   signVerificationToken,
   generateVerificationQrPng,
   resolveVerificationSecret,
 } from '../common/verification-token.util';
-import { type Contract, type User, ContractType, Role } from '@prisma/client';
+import {
+  type Contract,
+  type Prisma,
+  type User,
+  ContractType,
+  Role,
+} from '@prisma/client';
 
 type BookingParty = { tenantId: string; listing: { ownerId: string } };
+
+// Include Prisma partagé entre generateForBooking et downloadPdf : les deux
+// ont besoin des mêmes relations (bailleur + locataire) pour, respectivement,
+// notifier les parties et regénérer le PDF à la volée.
+const bookingWithPartiesInclude = {
+  listing: { include: { owner: true } },
+  tenant: true,
+} satisfies Prisma.BookingInclude;
+
+type BookingWithParties = Prisma.BookingGetPayload<{
+  include: typeof bookingWithPartiesInclude;
+}>;
 
 @Injectable()
 export class ContractsService {
@@ -25,7 +42,6 @@ export class ContractsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pdf: PdfService,
-    private readonly upload: UploadService,
     private readonly notifications: NotificationsService,
     private readonly config: ConfigService,
   ) {}
@@ -39,25 +55,23 @@ export class ContractsService {
   }
 
   /**
-   * Génère le contrat de bail (PDF avec espaces libres pour les informations
-   * privées, à compléter et signer manuscritement en personne) pour une
-   * réservation mensuelle qui vient de démarrer. Idempotent : si un contrat
-   * existe déjà pour cette réservation, le retourne tel quel sans le
-   * régénérer. Appelée depuis PaymentsService.markBookingPaid — ne doit
-   * jamais faire échouer la confirmation de paiement ; l'appelant doit
-   * encapsuler l'appel dans un try/catch.
+   * Construit le PDF du contrat de bail à la volée à partir des données de
+   * la réservation — jamais stocké : régénéré à chaque téléchargement, comme
+   * le reçu de paiement (voir BookingsController.getReceipt). Ce choix évite
+   * toute dépendance à un stockage tiers (l'ancienne version passait par
+   * Cloudinary, dont le plan gratuit bloque la livraison des fichiers
+   * PDF/ZIP — voir historique). Comme la génération est déterministe à
+   * partir des données de la réservation (aucune signature électronique
+   * n'est appliquée au fichier : le contrat est signé à la main en
+   * personne), regénérer à chaque téléchargement produit un document
+   * équivalent — `issuedAt` (la date de création du contrat, voir
+   * `downloadPdf`) est passée explicitement pour que les mentions de date
+   * d'émission restent figées, indépendamment de la date de téléchargement.
    */
-  async generateForBooking(bookingId: string): Promise<Contract> {
-    const existing = await this.prisma.contract.findUnique({
-      where: { bookingId },
-    });
-    if (existing) return existing;
-
-    const booking = await this.prisma.booking.findUniqueOrThrow({
-      where: { id: bookingId },
-      include: { listing: { include: { owner: true } }, tenant: true },
-    });
-
+  private async buildContractPdf(
+    booking: BookingWithParties,
+    issuedAt: Date,
+  ): Promise<Buffer> {
     // QR de vérification d'identité locataire (voir verification-token.util
     // et BookingsService.verifyPublic) — incrusté dans le contrat pour que
     // le bailleur puisse en scanner l'authenticité en personne. Ne doit
@@ -78,7 +92,7 @@ export class ContractsService {
       );
     }
 
-    const pdfBuffer = await this.pdf.generateLeaseContract(
+    return this.pdf.generateLeaseContract(
       {
         bookingId: booking.id,
         landlord: {
@@ -110,20 +124,37 @@ export class ContractsService {
         moveInDate: booking.startDate,
         totalDueAtSigning: Number(booking.totalAmount),
         platformFee: Number(booking.platformFee ?? 0),
+        issuedAt,
       },
       qrCodeBuffer,
     );
+  }
 
-    const { url } = await this.upload.uploadPdfBuffer(
-      pdfBuffer,
-      `contrat-${booking.id}-draft-${Date.now()}.pdf`,
-    );
+  /**
+   * Marque le contrat de bail comme prêt (et notifie les deux parties) pour
+   * une réservation mensuelle qui vient de démarrer. Idempotent : si un
+   * contrat existe déjà pour cette réservation, le retourne tel quel sans
+   * rien régénérer. N'écrit plus de PDF nulle part : le fichier est
+   * regénéré à la demande dans `downloadPdf` (voir `buildContractPdf`).
+   * Appelée depuis PaymentsService.markBookingPaid — ne doit jamais faire
+   * échouer la confirmation de paiement ; l'appelant doit encapsuler
+   * l'appel dans un try/catch.
+   */
+  async generateForBooking(bookingId: string): Promise<Contract> {
+    const existing = await this.prisma.contract.findUnique({
+      where: { bookingId },
+    });
+    if (existing) return existing;
+
+    const booking = await this.prisma.booking.findUniqueOrThrow({
+      where: { id: bookingId },
+      include: bookingWithPartiesInclude,
+    });
 
     const contract = await this.prisma.contract.create({
       data: {
         bookingId: booking.id,
         type: ContractType.HABITATION,
-        pdfUrl: url,
       },
     });
 
@@ -160,26 +191,25 @@ export class ContractsService {
   }
 
   /**
-   * Télécharge le PDF du contrat — passe par le backend (URL Cloudinary
-   * signée côté serveur, voir UploadService.downloadPdfByUrl) au lieu de
-   * laisser le frontend appeler directement l'URL Cloudinary stockée, qui
-   * renvoie 401 sur ce compte (ressources raw/PDF non publiques). Même
-   * principe que BookingsController.getReceipt pour le reçu de paiement.
+   * Télécharge le PDF du contrat — regénéré à la volée à partir des données
+   * de la réservation (voir `buildContractPdf`) et retransmis directement,
+   * exactement comme BookingsController.getReceipt pour le reçu de paiement.
+   * Aucun aller-retour vers un stockage tiers.
    */
   async downloadPdf(bookingId: string, user: User): Promise<Buffer> {
     const booking = await this.prisma.booking.findUniqueOrThrow({
       where: { id: bookingId },
-      include: { listing: { select: { ownerId: true } } },
+      include: bookingWithPartiesInclude,
     });
     this.assertParty(booking, user);
 
     const contract = await this.prisma.contract.findUnique({
       where: { bookingId },
     });
-    if (!contract?.pdfUrl) {
+    if (!contract) {
       throw new NotFoundException('Contrat introuvable');
     }
 
-    return this.upload.downloadPdfByUrl(contract.pdfUrl);
+    return this.buildContractPdf(booking, contract.createdAt);
   }
 }

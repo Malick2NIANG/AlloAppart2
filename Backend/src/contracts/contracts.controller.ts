@@ -38,6 +38,11 @@ export class ContractsController {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${filename}"`,
       'Content-Length': buffer.length,
+      // Le PDF est régénéré à chaque appel (voir ContractsService) : sans
+      // ceci, un navigateur peut réutiliser une réponse mise en cache pour
+      // cette même URL (ex. après une correction de contenu déployée côté
+      // serveur) et afficher une version périmée du contrat.
+      'Cache-Control': 'no-store',
     });
     res.end(buffer);
   }

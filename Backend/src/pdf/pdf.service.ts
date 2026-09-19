@@ -4,6 +4,7 @@ import { join } from 'path';
 const PDFDocumentLib = require('pdfkit') as typeof import('pdfkit');
 import { Booking, Listing, User } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/client';
+import { displayableEmail } from '../common/user-display.util';
 
 type BookingFull = Booking & { listing: Listing; tenant: User };
 
@@ -80,6 +81,16 @@ export type LeaseContractData = {
   moveInDate: Date;
   totalDueAtSigning: number;
   platformFee: number;
+  /**
+   * Date de création du contrat (`Contract.createdAt`) — affichée dans
+   * l'en-tête et le pied de page ("Émis le...", "généré le..."). Le PDF
+   * étant regénéré à la volée à chaque téléchargement (voir
+   * ContractsService.buildContractPdf), on passe explicitement cette date
+   * plutôt que d'utiliser `new Date()` au moment du rendu : sans ça, ces
+   * mentions changeraient à chaque téléchargement au lieu de rester figées
+   * à la date d'émission réelle du contrat.
+   */
+  issuedAt: Date;
 };
 
 type MonthlyReportData = {
@@ -207,7 +218,13 @@ export class PdfService {
         'Locataire :',
         `${booking.tenant.firstName} ${booking.tenant.lastName}`,
       );
-      row('Email :', booking.tenant.email);
+      // Omise si c'est un email placeholder Clerk (`<id>@clerk.local`,
+      // compte sans email réel — voir user-display.util) : l'afficher tel
+      // quel n'apporterait rien au locataire.
+      const receiptTenantEmail = displayableEmail(booking.tenant.email);
+      if (receiptTenantEmail) {
+        row('Email :', receiptTenantEmail);
+      }
       row('Annonce :', booking.listing.title);
       row('Ville :', booking.listing.city);
       row('Date de début :', booking.startDate.toLocaleDateString('fr-FR'));
@@ -298,8 +315,9 @@ export class PdfService {
    * données de la réservation. AlloAppart n'est pas partie au contrat
    * (cf. Article 11 des CGU) — le document est établi entre le Bailleur et
    * le Locataire, AlloAppart agissant en simple intermédiaire technique.
-   * Les parties le signent ensuite séquentiellement (locataire puis
-   * bailleur) en le re-téléversant signé via leur espace AlloAppart.
+   * Pas de signature électronique : le document (avec espaces libres pour
+   * les informations privées) est signé à la main par les deux parties
+   * lors de leur rencontre en personne — voir ContractsController.
    */
   /**
    * @param qrCodeBuffer PNG du QR de vérification (voir generateReceipt) —
@@ -361,6 +379,7 @@ export class PdfService {
         Math.round(finite(rawData.minLeaseMonths, 1)),
       ),
       moveInDate: validDate(rawData.moveInDate),
+      issuedAt: validDate(rawData.issuedAt),
     };
 
     return new Promise<Buffer>((resolve, reject) => {
@@ -402,7 +421,7 @@ export class PdfService {
           .font('Helvetica')
           .fontSize(7.5)
           .text(
-            `Contrat genere automatiquement par AlloAppart le ${new Date().toLocaleDateString('fr-FR')} - Reservation ${data.bookingId.slice(0, 8).toUpperCase()} - alloappart221@gmail.com`,
+            `Contrat généré automatiquement par AlloAppart le ${data.issuedAt.toLocaleDateString('fr-FR')} - Réservation ${data.bookingId.slice(0, 8).toUpperCase()} - alloappart221@gmail.com`,
             50,
             bottom + 6,
             { width: 495, align: 'center' },
@@ -449,6 +468,10 @@ export class PdfService {
           phone: string | null;
         },
       ) => {
+        // Email placeholder Clerk (`<id>@clerk.local`, compte sans email
+        // réel — voir user-display.util) : on l'omet plutôt que de l'écrire
+        // tel quel sur un document légal, ça n'apporte rien au lecteur.
+        const email = displayableEmail(p.email);
         doc
           .fontSize(9.5)
           .font('Helvetica-Bold')
@@ -456,10 +479,13 @@ export class PdfService {
           .text(label, { width: 495 })
           .font('Helvetica')
           .fillColor(SLATE)
-          .text(fullName(p), { width: 495 })
-          .text(p.email, { width: 495 })
+          .text(fullName(p), { width: 495 });
+        if (email) {
+          doc.text(email, { width: 495 });
+        }
+        doc
           .text(
-            p.phone ?? 'Telephone communique via la messagerie AlloAppart',
+            p.phone ?? 'Téléphone communiqué via la messagerie AlloAppart',
             { width: 495 },
           )
           .moveDown(0.6);
@@ -472,6 +498,14 @@ export class PdfService {
         .strokeColor(GOLD)
         .lineWidth(2)
         .stroke();
+      // Logo en haut à gauche (même asset que le reçu, voir generateReceipt)
+      // — le titre "AlloAppart" reste centré sur toute la largeur, le logo
+      // vient simplement s'ajouter à sa gauche sans perturber cet alignement.
+      try {
+        doc.image(LOGO_PATH, 50, 46, { width: 28, height: 28 });
+      } catch {
+        // Logo manquant/illisible : on continue sans bloquer le contrat.
+      }
       doc
         .fillColor(INK)
         .font('Helvetica-Bold')
@@ -490,7 +524,7 @@ export class PdfService {
         .font('Helvetica')
         .fontSize(9)
         .text(
-          `Reservation ${data.bookingId.slice(0, 8).toUpperCase()} - Emis le ${new Date().toLocaleDateString('fr-FR')}`,
+          `Réservation ${data.bookingId.slice(0, 8).toUpperCase()} - Émis le ${data.issuedAt.toLocaleDateString('fr-FR')}`,
           50,
           98,
           { width: 495, align: 'center' },
@@ -504,73 +538,73 @@ export class PdfService {
       doc.y = 128;
 
       paragraph(
-        "AlloAppart agit en qualite d'intermediaire technique et de mise en relation entre le Bailleur et le Locataire. AlloAppart n'est pas partie au present contrat de bail (Article 11 des Conditions Generales d'Utilisation AlloAppart) et n'engage sa responsabilite que dans les limites prevues auxdites CGU, notamment le mecanisme de signalement de non-conformite de l'Article 9.",
+        "AlloAppart agit en qualité d'intermédiaire technique et de mise en relation entre le Bailleur et le Locataire. AlloAppart n'est pas partie au présent contrat de bail (Article 11 des Conditions Générales d'Utilisation AlloAppart) et n'engage sa responsabilité que dans les limites prévues auxdites CGU, notamment le mécanisme de signalement de non-conformité de l'Article 9.",
       );
 
-      sectionTitle('ENTRE LES SOUSSIGNES');
+      sectionTitle('ENTRE LES SOUSSIGNÉS');
       identityBlock(
-        'LE BAILLEUR, ci-apres "le Bailleur", d\'une part :',
+        'LE BAILLEUR, ci-après "le Bailleur", d\'une part :',
         data.landlord,
       );
       identityBlock(
-        'ET LE LOCATAIRE, ci-apres "le Locataire", d\'autre part :',
+        'ET LE LOCATAIRE, ci-après "le Locataire", d\'autre part :',
         data.tenant,
       );
-      paragraph('IL A ETE CONVENU CE QUI SUIT :');
+      paragraph('IL A ÉTÉ CONVENU CE QUI SUIT :');
 
       sectionTitle('Article 1 - Objet du contrat');
       paragraph(
         `Le Bailleur donne en location au Locataire, qui accepte, le bien suivant : ${LISTING_TYPE_LABELS[data.listing.type] ?? data.listing.type} "${data.listing.title}", ` +
           `${data.listing.address ? data.listing.address + ', ' : ''}${data.listing.city}, ${data.listing.region}` +
-          `${data.listing.rooms ? ` - ${data.listing.rooms} piece(s)` : ''}${data.listing.surface ? ` - ${data.listing.surface} m2` : ''}.`,
+          `${data.listing.rooms ? ` - ${data.listing.rooms} pièce(s)` : ''}${data.listing.surface ? ` - ${data.listing.surface} m2` : ''}.`,
       );
 
-      sectionTitle('Article 2 - Duree du bail');
+      sectionTitle('Article 2 - Durée du bail');
       paragraph(
-        `Le present bail prend effet a compter du ${data.moveInDate.toLocaleDateString('fr-FR')}, pour une duree minimale de ${data.minLeaseMonths} mois. ` +
-          `Passe ce delai, il se poursuit tacitement, sans limitation de duree, jusqu'a resiliation par l'une des parties dans les conditions de l'Article 6 ci-dessous.`,
+        `Le présent bail prend effet à compter du ${data.moveInDate.toLocaleDateString('fr-FR')}, pour une durée minimale de ${data.minLeaseMonths} mois. ` +
+          `Passé ce délai, il se poursuit tacitement, sans limitation de durée, jusqu'à résiliation par l'une des parties dans les conditions de l'Article 6 ci-dessous.`,
       );
 
       sectionTitle('Article 3 - Loyer et charges');
       paragraph(
-        `Le loyer mensuel est fixe a ${money(data.monthlyRent)}. ` +
+        `Le loyer mensuel est fixé à ${money(data.monthlyRent)}. ` +
           (data.chargesIncluded
-            ? 'Les charges (eau, electricite) sont incluses dans ce montant.'
-            : 'Les charges (eau, electricite) ne sont pas incluses et restent a la charge du Locataire, a regler directement au Bailleur ou aux fournisseurs concernes.'),
+            ? 'Les charges (eau, électricité) sont incluses dans ce montant.'
+            : 'Les charges (eau, électricité) ne sont pas incluses et restent à la charge du Locataire, à régler directement au Bailleur ou aux fournisseurs concernés.'),
       );
 
-      sectionTitle('Article 4 - Depot de garantie (caution)');
+      sectionTitle('Article 4 - Dépôt de garantie (caution)');
       paragraph(
-        `Un depot de garantie de ${money(data.depositAmount)} (equivalent a ${data.depositMonths} mois de loyer) est verse par le Locataire a la signature. ` +
-          `Conformement a l'Article 7 des CGU AlloAppart, ce depot inclut la commission de courtage d'AlloAppart, equivalente a un (1) mois de loyer, prelevee avant reversement au Bailleur ; le solde constitue la garantie proprement dite, restituable au Locataire en fin de bail sous deduction des sommes dues au titre de degradations locatives eventuelles.`,
+        `Un dépôt de garantie de ${money(data.depositAmount)} (équivalent à ${data.depositMonths} mois de loyer) est versé par le Locataire à la signature. ` +
+          `Conformément à l'Article 7 des CGU AlloAppart, ce dépôt inclut la commission de courtage d'AlloAppart, équivalente à un (1) mois de loyer, prélevée avant reversement au Bailleur ; le solde constitue la garantie proprement dite, restituable au Locataire en fin de bail sous déduction des sommes dues au titre de dégradations locatives éventuelles.`,
       );
 
-      sectionTitle('Article 5 - Modalites de paiement');
+      sectionTitle('Article 5 - Modalités de paiement');
       paragraph(
-        `Le montant du au titre du 1er loyer et du depot de garantie, soit ${money(data.totalDueAtSigning)}, est regle par le Locataire via la plateforme AlloAppart au moment de la signature. ` +
-          `Les loyers des mois suivants sont regles directement entre le Bailleur et le Locataire, selon les modalites qu'ils conviennent entre eux (hors intermediation d'AlloAppart).`,
+        `Le montant dû au titre du 1er loyer et du dépôt de garantie, soit ${money(data.totalDueAtSigning)}, est réglé par le Locataire via la plateforme AlloAppart au moment de la signature. ` +
+          `Les loyers des mois suivants sont réglés directement entre le Bailleur et le Locataire, selon les modalités qu'ils conviennent entre eux (hors intermédiation d'AlloAppart).`,
       );
 
-      sectionTitle('Article 6 - Resiliation');
+      sectionTitle('Article 6 - Résiliation');
       paragraph(
-        "Le present bail peut etre resilie a tout moment, a l'initiative du Bailleur comme du Locataire, via l'espace AlloAppart de la partie concernee. La resiliation remet le logement a disposition a la location des sa prise d'effet.",
+        "Le présent bail peut être résilié à tout moment, à l'initiative du Bailleur comme du Locataire, via l'espace AlloAppart de la partie concernée. La résiliation remet le logement à disposition à la location dès sa prise d'effet.",
       );
 
-      sectionTitle('Article 7 - Litiges et responsabilite');
+      sectionTitle('Article 7 - Litiges et responsabilité');
       paragraph(
-        "Le Locataire dispose d'un delai de vingt-quatre (24) heures a compter de son entree effective dans les lieux pour signaler toute non-conformite substantielle, conformement a l'Article 9 des CGU AlloAppart. Pour tout differend relatif a l'execution du present bail, les parties s'efforceront de trouver une solution amiable ; a defaut, le litige releve du droit commun, AlloAppart n'etant pas partie au contrat (Article 11 des CGU).",
+        "Le Locataire dispose d'un délai de vingt-quatre (24) heures à compter de son entrée effective dans les lieux pour signaler toute non-conformité substantielle, conformément à l'Article 9 des CGU AlloAppart. Pour tout différend relatif à l'exécution du présent bail, les parties s'efforceront de trouver une solution amiable ; à défaut, le litige relève du droit commun, AlloAppart n'étant pas partie au contrat (Article 11 des CGU).",
       );
 
       sectionTitle('Article 8 - Droit applicable');
       paragraph(
-        'Le present contrat est regi par le droit de la Republique du Senegal, notamment le Code des Obligations Civiles et Commerciales (COCC). En cas de litige et a defaut de resolution amiable, competence exclusive est attribuee au Tribunal de Grande Instance de Dakar.',
+        'Le présent contrat est régi par le droit de la République du Sénégal, notamment le Code des Obligations Civiles et Commerciales (COCC). En cas de litige et à défaut de résolution amiable, compétence exclusive est attribuée au Tribunal de Grande Instance de Dakar.',
       );
 
       if (doc.y > doc.page.height - (qrCodeBuffer ? 260 : 220)) doc.addPage();
 
       sectionTitle('Signatures');
       paragraph(
-        'Ce contrat est signe de maniere sequentielle : le Locataire signe en premier et le re-televerse sur AlloAppart, puis le Bailleur le signe a son tour pour finaliser le bail. Chaque partie peut apposer sa signature electroniquement (ex. Adobe Acrobat / Adobe Fill & Sign) avant re-televersement.',
+        'Ce contrat est complété avec les informations ci-dessus puis signé à la main par le Locataire et le Bailleur lors de leur rencontre en personne, en deux exemplaires originaux (un par partie).',
       );
 
       if (qrCodeBuffer) {
@@ -584,7 +618,7 @@ export class PdfService {
             .font('Helvetica')
             .fillColor(GREY)
             .text(
-              "Scanner pour verifier ce bail et l'identite du locataire",
+              "Scanner pour vérifier ce bail et l'identité du locataire",
               qrX - 130,
               qrY + qrSize + 2,
               {
