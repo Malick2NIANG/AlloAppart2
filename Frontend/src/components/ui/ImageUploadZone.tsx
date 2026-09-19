@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, DragEvent } from 'react';
+import { useState, useRef, useEffect, DragEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import PhotoCropper from './PhotoCropper';
 
@@ -60,10 +60,6 @@ async function compressImage(file: File, maxDim = 1920, quality = 0.82): Promise
   }
 }
 
-function syncUrls(items: UploadItem[], onChange: (imgs: string[]) => void) {
-  onChange(items.filter((it) => it.status === 'done').map((it) => it.url));
-}
-
 export default function ImageUploadZone({ images, onChange, getToken, enableCrop = true }: Props) {
   const t = useTranslations('upload');
   const [items, setItems] = useState<UploadItem[]>(
@@ -73,6 +69,22 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
   const [sizeError, setSizeError] = useState(false);
   const [adjustError, setAdjustError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // `onChange` (ex. react-hook-form setValue) est recréé à chaque rendu du
+  // parent — capturée dans une ref (mise à jour après le rendu, jamais
+  // pendant) pour que l'effet de synchro ci-dessous n'ait besoin de
+  // dépendre que de `items`.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; });
+
+  // Remonte au parent la liste des URLs "prêtes" à chaque changement de
+  // `items` — jamais depuis l'intérieur d'un updater `setItems(prev => ...)`
+  // (appeler le setState d'un composant parent pendant le calcul du nouvel
+  // état d'un autre composant déclenche justement l'avertissement React
+  // "Cannot update a component while rendering a different component").
+  useEffect(() => {
+    onChangeRef.current(items.filter((it) => it.status === 'done').map((it) => it.url));
+  }, [items]);
 
   // File d'attente de recadrage : chaque photo (pas vidéo) fraîchement
   // sélectionnée/déposée passe par PhotoCropper avant d'être compressée et
@@ -95,17 +107,13 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
       });
       if (!res.ok) throw new Error(await res.text());
       const { url } = await res.json() as { url: string };
-      setItems((prev) => {
-        const next = prev.map((it) => it.id === itemId ? { ...it, url, status: 'done' as const } : it);
-        syncUrls(next, onChange);
-        return next;
-      });
+      setItems((prev) =>
+        prev.map((it) => it.id === itemId ? { ...it, url, status: 'done' as const } : it)
+      );
     } catch {
-      setItems((prev) => {
-        const next = prev.map((it) => it.id === itemId ? { ...it, status: 'error' as const } : it);
-        syncUrls(next, onChange);
-        return next;
-      });
+      setItems((prev) =>
+        prev.map((it) => it.id === itemId ? { ...it, status: 'error' as const } : it)
+      );
     }
   };
 
@@ -128,11 +136,7 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
       id: genId(), url: '', status: 'uploading' as const, name: f.name,
     }));
 
-    setItems((prev) => {
-      const next = [...prev, ...pending];
-      syncUrls(next, onChange);
-      return next;
-    });
+    setItems((prev) => [...prev, ...pending]);
 
     // Vidéos : jamais de recadrage, upload direct.
     const videoUploads = fileArr
@@ -182,11 +186,9 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
     if (!adjustTarget) return;
     const { id, oldUrl } = adjustTarget;
     setAdjustTarget(null);
-    setItems((prev) => {
-      const next = prev.map((it) => it.id === id ? { ...it, status: 'uploading' as const } : it);
-      syncUrls(next, onChange);
-      return next;
-    });
+    setItems((prev) =>
+      prev.map((it) => it.id === id ? { ...it, status: 'uploading' as const } : it)
+    );
     const token = await getToken();
     const fd = new FormData();
     fd.append('file', new File([blob], 'photo.jpg', { type: 'image/jpeg' }));
@@ -198,18 +200,14 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
       });
       if (!res.ok) throw new Error(await res.text());
       const { url } = await res.json() as { url: string };
-      setItems((prev) => {
-        const next = prev.map((it) => it.id === id ? { ...it, url, status: 'done' as const } : it);
-        syncUrls(next, onChange);
-        return next;
-      });
+      setItems((prev) =>
+        prev.map((it) => it.id === id ? { ...it, url, status: 'done' as const } : it)
+      );
     } catch {
       // On garde la photo d'origine plutôt que de la marquer en erreur.
-      setItems((prev) => {
-        const next = prev.map((it) => it.id === id ? { ...it, url: oldUrl, status: 'done' as const } : it);
-        syncUrls(next, onChange);
-        return next;
-      });
+      setItems((prev) =>
+        prev.map((it) => it.id === id ? { ...it, url: oldUrl, status: 'done' as const } : it)
+      );
       setAdjustError(true);
       setTimeout(() => setAdjustError(false), 4000);
     }
@@ -227,11 +225,7 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
   };
 
   const remove = (id: string) => {
-    setItems((prev) => {
-      const next = prev.filter((it) => it.id !== id);
-      syncUrls(next, onChange);
-      return next;
-    });
+    setItems((prev) => prev.filter((it) => it.id !== id));
   };
 
   const setPrimary = (id: string) => {
@@ -241,7 +235,6 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
       const next = [...prev];
       const [item] = next.splice(idx, 1);
       next.unshift(item);
-      syncUrls(next, onChange);
       return next;
     });
   };
