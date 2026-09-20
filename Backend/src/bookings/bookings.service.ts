@@ -19,6 +19,7 @@ import {
 } from '../common/verification-token.util';
 import {
   type User,
+  type Prisma,
   BookingStatus,
   BookingType,
   EscrowStatus,
@@ -771,13 +772,33 @@ export class BookingsService {
     return updated;
   }
 
-  async findAll(page = 1, limit = 20, status?: BookingStatus) {
-    const where = status ? { status } : {};
+  async findAll(
+    page = 1,
+    limit = 20,
+    statuses?: BookingStatus[],
+    search?: string,
+  ) {
+    const q = search?.trim();
+    const where: Prisma.BookingWhereInput = {
+      ...(statuses && statuses.length > 0 ? { status: { in: statuses } } : {}),
+      ...(q
+        ? {
+            OR: [
+              { listing: { title: { contains: q, mode: 'insensitive' } } },
+              { listing: { city: { contains: q, mode: 'insensitive' } } },
+              { tenant: { firstName: { contains: q, mode: 'insensitive' } } },
+              { tenant: { lastName: { contains: q, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    };
     const [data, total] = await Promise.all([
       this.prisma.booking.findMany({
         where,
         include: {
-          listing: { select: { id: true, title: true, city: true } },
+          // `images` : la page admin affiche désormais la même carte photo
+          // que locataire/bailleur (avant ce lot : simples lignes de texte).
+          listing: { select: { id: true, title: true, city: true, images: true } },
           tenant: {
             select: { id: true, firstName: true, lastName: true, email: true },
           },

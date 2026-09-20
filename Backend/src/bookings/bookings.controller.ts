@@ -35,16 +35,22 @@ export class BookingsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('status') status?: string,
+    @Query('search') search?: string,
   ) {
-    const bookingStatus = Object.values(BookingStatus).includes(
-      status as BookingStatus,
-    )
-      ? (status as BookingStatus)
-      : undefined;
+    // `status` accepte une liste séparée par des virgules (ex.
+    // "PENDING,REQUESTED" pour l'onglet "En attente" du dashboard admin, qui
+    // regroupe les statuts des deux flux nuitée/mensuel) — les valeurs
+    // invalides sont silencieusement ignorées plutôt que de faire échouer
+    // toute la requête.
+    const statuses = status
+      ?.split(',')
+      .map((s) => s.trim())
+      .filter((s): s is BookingStatus => Object.values(BookingStatus).includes(s as BookingStatus));
     return this.bookingsService.findAll(
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,
-      bookingStatus,
+      statuses,
+      search,
     );
   }
 
