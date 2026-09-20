@@ -465,21 +465,21 @@ export default function VitrineAnalyticsPage() {
               <label htmlFor="report-month" className="text-[11px] font-medium text-sub">
                 {t('analyticsReportMonthLabel')}
               </label>
-              <div className="relative">
-                <input
-                  id="report-month"
-                  type="month"
-                  value={reportMonth}
-                  onChange={(e) => setReportMonth(e.target.value)}
-                  max={currentMonth}
-                  className="rounded-xl border border-line bg-bg px-3 py-2 pr-9 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold/40 [&::-webkit-calendar-picker-indicator]:opacity-0"
-                />
-                {/* L'icône native du sélecteur de mois est quasi invisible sur
-                    fond sombre (icône noire du navigateur) — masquée
-                    (opacity-0, reste cliquable) et remplacée par une icône du
-                    design system, en rouge pour qu'elle se voie vraiment. */}
-                <i className="fa-regular fa-calendar pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-sm" />
-              </div>
+              {/* L'icône native du sélecteur de mois est noire (donc quasi
+                  invisible sur fond sombre) — on la teinte en rouge avec un
+                  filtre CSS plutôt que de la masquer : la masquer + poser une
+                  icône factice par-dessus cassait le clic (la vraie zone
+                  cliquable du navigateur ne correspond pas forcément à la
+                  position de l'icône factice). Ici l'élément réellement
+                  cliquable reste natif, juste recoloré. */}
+              <input
+                id="report-month"
+                type="month"
+                value={reportMonth}
+                onChange={(e) => setReportMonth(e.target.value)}
+                max={currentMonth}
+                className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold/40 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:[filter:invert(23%)_sepia(94%)_saturate(7414%)_hue-rotate(357deg)_brightness(93%)_contrast(89%)]"
+              />
             </div>
             <div className="flex items-end pb-0.5">
               <button
