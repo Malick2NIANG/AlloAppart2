@@ -10,6 +10,19 @@ import {
   VerifStatus,
 } from '@prisma/client';
 
+// Statuts représentant un paiement réellement capturé (escrow HELD ou déjà
+// libéré) — communs aux deux types de réservation : CONFIRMED/COMPLETED pour
+// le flux nuitée, ACTIVE/TERMINATED pour un bail mensuel (cf. la même liste
+// dans PaymentsService.alreadyPaidStatuses). Les statuts intermédiaires
+// (PENDING, REQUESTED, APPROVED, REJECTED, CANCELLED) ne correspondent à
+// aucun encaissement et doivent rester hors des calculs de revenu.
+const PAID_BOOKING_STATUSES: BookingStatus[] = [
+  BookingStatus.CONFIRMED,
+  BookingStatus.COMPLETED,
+  BookingStatus.ACTIVE,
+  BookingStatus.TERMINATED,
+];
+
 @Injectable()
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -63,11 +76,11 @@ export class AnalyticsService {
       this.prisma.booking.count({
         where: {
           listing: { ownerId },
-          status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
+          status: { in: PAID_BOOKING_STATUSES },
         },
       }),
       this.prisma.booking.aggregate({
-        where: { listing: { ownerId }, status: BookingStatus.COMPLETED },
+        where: { listing: { ownerId }, status: { in: PAID_BOOKING_STATUSES } },
         _sum: { totalAmount: true },
       }),
       this.prisma.review.aggregate({
@@ -109,7 +122,7 @@ export class AnalyticsService {
       this.prisma.listing.count({ where: { status: ListingStatus.ACTIVE } }),
       this.prisma.booking.count(),
       this.prisma.booking.aggregate({
-        where: { status: BookingStatus.COMPLETED },
+        where: { status: { in: PAID_BOOKING_STATUSES } },
         _sum: { totalAmount: true },
       }),
       this.prisma.verification.count({
@@ -119,7 +132,7 @@ export class AnalyticsService {
       }),
       this.prisma.booking.count({
         where: {
-          status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] },
+          status: { in: PAID_BOOKING_STATUSES },
         },
       }),
       this.prisma.verification.count({ where: { status: VerifStatus.DONE } }),
@@ -266,7 +279,7 @@ export class AnalyticsService {
           this.prisma.booking.aggregate({
             where: {
               listing: { ownerId },
-              status: BookingStatus.COMPLETED,
+              status: { in: PAID_BOOKING_STATUSES },
               createdAt: { gte: start, lt: end },
             },
             _sum: { totalAmount: true },
@@ -364,7 +377,7 @@ export class AnalyticsService {
           id: true, title: true, city: true, type: true, status: true, isVerified: true,
           _count: { select: { bookings: true, reviews: true, favoritedBy: true } },
           bookings: {
-            where: { status: { in: [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] } },
+            where: { status: { in: PAID_BOOKING_STATUSES } },
             select: { totalAmount: true },
           },
         },
