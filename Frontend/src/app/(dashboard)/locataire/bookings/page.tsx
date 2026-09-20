@@ -3,18 +3,21 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Booking, BookingStatus } from '@/types';
-import { formatDate, formatPrice, openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
+import { openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import ContractCard from '@/components/bookings/ContractCard';
 import { VerificationQrModal } from '@/components/bookings/VerificationQrModal';
+import { BookingCard } from '@/components/bookings/BookingCard';
+import { StatusChip } from '@/components/bookings/StatusChip';
+import { BookingTabs } from '@/components/bookings/BookingTabs';
+import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
+import { BookingPagination } from '@/components/bookings/BookingPagination';
 
 const DISPUTE_WINDOW_HOURS = 24;
-const FALLBACK_IMG = 'https://via.placeholder.com/600x400?text=AlloAppart';
 const PER_PAGE_OPTIONS = [6, 12, 24] as const;
 
 interface MyReview {
@@ -185,67 +188,22 @@ export default function LocataireBookingsPage() {
       ) : active && (
         <>
           {/* Onglets par statut */}
-          <div className="mb-5 flex gap-1 overflow-x-auto border-b border-line">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => switchTab(tab.key)}
-                className={`relative flex shrink-0 items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
-                  active.key === tab.key ? 'text-gold-dark' : 'text-sub hover:text-text'
-                }`}
-              >
-                <i className={`fa-solid ${tab.icon} text-xs`} />
-                {tab.label}
-                <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
-                  active.key === tab.key ? 'bg-gold-pale text-gold-dark' : 'bg-line text-sub'
-                }`}>
-                  {tab.items.length}
-                </span>
-                {active.key === tab.key && (
-                  <span aria-hidden className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-gold" />
-                )}
-              </button>
-            ))}
-          </div>
+          <BookingTabs
+            tabs={tabs.map((tab) => ({ key: tab.key, label: tab.label, icon: tab.icon, count: tab.items.length }))}
+            active={active.key}
+            onChange={switchTab}
+          />
 
           {/* Recherche + lignes par page */}
-          <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="relative flex-1 max-w-sm">
-              <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-sm pointer-events-none" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                placeholder={t('searchPlaceholder')}
-                className="w-full rounded-xl border border-line bg-card pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition"
-              />
-              {search && (
-                <button
-                  onClick={() => { setSearch(''); setPage(1); }}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
-                >
-                  <i className="fa-solid fa-xmark text-sm" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-xs text-sub whitespace-nowrap">{t('rowsLabel')}</span>
-              <div className="flex gap-1">
-                {PER_PAGE_OPTIONS.map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => { setPerPage(n); setPage(1); }}
-                    className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                      perPage === n ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <BookingSearchRow
+            search={search}
+            onSearchChange={(v) => { setSearch(v); setPage(1); }}
+            searchPlaceholder={t('searchPlaceholder')}
+            perPage={perPage}
+            onPerPageChange={(n) => { setPerPage(n as typeof PER_PAGE_OPTIONS[number]); setPage(1); }}
+            perPageOptions={PER_PAGE_OPTIONS}
+            rowsLabel={t('rowsLabel')}
+          />
 
           {/* Grille de l'onglet actif */}
           {filteredItems.length === 0 ? (
@@ -255,7 +213,7 @@ export default function LocataireBookingsPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {visibleItems.map((booking) => (
-                <BookingCard
+                <TenantBookingCard
                   key={booking.id}
                   booking={booking}
                   alreadyReviewed={reviewedBookingIds.has(booking.id)}
@@ -269,25 +227,14 @@ export default function LocataireBookingsPage() {
           )}
 
           {/* Pagination */}
-          {pageCount > 1 && (
-            <div className="flex items-center justify-center gap-4 mt-6">
-              <button
-                onClick={() => setPage((p) => p - 1)}
-                disabled={clampedPage === 1}
-                className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
-              >
-                {t('previous')}
-              </button>
-              <span className="text-sm text-sub">{t('pageOf', { page: clampedPage, total: pageCount })}</span>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={clampedPage === pageCount}
-                className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
-              >
-                {t('next')}
-              </button>
-            </div>
-          )}
+          <BookingPagination
+            page={clampedPage}
+            pageCount={pageCount}
+            onPageChange={setPage}
+            previousLabel={t('previous')}
+            nextLabel={t('next')}
+            pageOfLabel={t('pageOf', { page: clampedPage, total: pageCount })}
+          />
         </>
       )}
 
@@ -321,8 +268,8 @@ export default function LocataireBookingsPage() {
   );
 }
 
-/* ─── BookingCard ──────────────────────────────────────────── */
-function BookingCard({
+/* ─── Carte réservation locataire (coquille partagée + slots locataire) ── */
+function TenantBookingCard({
   booking, alreadyReviewed, onRefresh, onReview, onCancel, onDispute,
 }: {
   booking: Booking;
@@ -337,7 +284,6 @@ function BookingCard({
   const tVerif = useTranslations('verification');
   const [showContract, setShowContract] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
-  const img = booking.listing?.images?.[0] ?? FALLBACK_IMG;
   const goToDetail = () => router.push(`/locataire/bookings/${booking.id}`);
   const hasContract = booking.bookingType === 'MONTHLY' &&
     (booking.status === 'ACTIVE' || booking.status === 'TERMINATED');
@@ -349,39 +295,11 @@ function BookingCard({
     (booking.bookingType === 'MONTHLY' && booking.status === 'ACTIVE');
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="listing-card group flex flex-col">
-
-        {/* Photo + statut */}
-        <div className="relative h-40 overflow-hidden rounded-t-2xl cursor-pointer" onClick={goToDetail}>
-          <Image
-            src={img}
-            alt={booking.listing?.title ?? ''}
-            fill
-            className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
-            sizes="(max-width:640px) 100vw,(max-width:1024px) 50vw,33vw"
-          />
-          <div aria-hidden className="absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-transparent" />
-          <div className="absolute top-3 left-3">
-            <StatusChip status={booking.status} />
-          </div>
-        </div>
-
-        {/* Bien + dates + prix */}
-        <div className="p-4 cursor-pointer" onClick={goToDetail}>
-          <p className="font-semibold text-text truncate group-hover:text-gold-dark transition-colors">
-            {booking.listing?.title ?? booking.listingId}
-          </p>
-          <p className="text-sm text-sub mt-1 flex items-center gap-1.5">
-            <i className="fa-regular fa-calendar text-gold-dark text-xs" />
-            {formatDate(booking.startDate)}
-            {booking.endDate ? ` → ${formatDate(booking.endDate)}` : ''}
-          </p>
-          <p className="text-sm font-semibold text-text mt-1">{formatPrice(booking.totalAmount)}</p>
-        </div>
-
-        {/* Actions — même gabarit sur toutes les cartes */}
-        <div className="border-t border-line p-4 pt-3" onClick={(e) => e.stopPropagation()}>
+    <BookingCard
+      booking={booking}
+      onClick={goToDetail}
+      actions={
+        <>
           <LocataireBookingActions
             booking={booking}
             alreadyReviewed={alreadyReviewed}
@@ -412,22 +330,24 @@ function BookingCard({
               </button>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Contrat de bail — affiché uniquement si l'utilisateur le demande */}
-      {hasContract && showContract && (
-        <div onClick={(e) => e.stopPropagation()}>
-          <ContractCard bookingId={booking.id} viewerRole="tenant" />
-        </div>
-      )}
-
-      <VerificationQrModal
-        open={showQrModal}
-        onClose={() => setShowQrModal(false)}
-        bookingId={booking.id}
-      />
-    </div>
+        </>
+      }
+      footer={
+        <>
+          {/* Contrat de bail — affiché uniquement si l'utilisateur le demande */}
+          {hasContract && showContract && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <ContractCard bookingId={booking.id} viewerRole="tenant" />
+            </div>
+          )}
+          <VerificationQrModal
+            open={showQrModal}
+            onClose={() => setShowQrModal(false)}
+            bookingId={booking.id}
+          />
+        </>
+      }
+    />
   );
 }
 
@@ -717,39 +637,6 @@ function LocataireBookingActions({
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
-  );
-}
-
-/* ─── StatusChip ────────────────────────────────────────────── */
-function StatusChip({ status }: { status: BookingStatus }) {
-  const t = useTranslations('locataire');
-  const styles: Record<BookingStatus, string> = {
-    CONFIRMED:  'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
-    PENDING:    'bg-gold-pale text-gold-dark',
-    CANCELLED:  'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
-    COMPLETED:  'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
-    // Cycle de vie du bail mensuel (location hybride)
-    REQUESTED:  'bg-gold-pale text-gold-dark',
-    APPROVED:   'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
-    REJECTED:   'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
-    ACTIVE:     'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
-    TERMINATED: 'bg-gray-100 dark:bg-gray-950/40 text-gray-600 dark:text-gray-400',
-  };
-  const labels: Record<BookingStatus, string> = {
-    CONFIRMED:  t('statusConfirmed'),
-    PENDING:    t('statusPending'),
-    CANCELLED:  t('statusCancelled'),
-    COMPLETED:  t('statusCompleted'),
-    REQUESTED:  t('statusRequested'),
-    APPROVED:   t('statusApproved'),
-    REJECTED:   t('statusRejected'),
-    ACTIVE:     t('statusActive'),
-    TERMINATED: t('statusTerminated'),
-  };
-  return (
-    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${styles[status]}`}>
-      {labels[status]}
-    </span>
   );
 }
 
