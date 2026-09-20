@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { BookingStatus } from '@/types';
 import { useToast } from '@/components/ui/Toast';
+import { StatusChip } from '@/components/bookings/StatusChip';
 
 interface Props {
   bookingId: string;
@@ -131,40 +132,5 @@ export default function BookingActions({ bookingId, status, onActionDone, toast 
         <StatusChip status={status} />
       )}
     </div>
-  );
-}
-
-function StatusChip({ status }: { status: BookingStatus }) {
-  const t = useTranslations('bailleur');
-
-  const map: Record<BookingStatus, string> = {
-    CONFIRMED:  'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
-    PENDING:    'bg-gold-pale text-gold-dark',
-    CANCELLED:  'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
-    COMPLETED:  'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
-    // Cycle de vie du bail mensuel (location hybride)
-    REQUESTED:  'bg-gold-pale text-gold-dark',
-    APPROVED:   'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
-    REJECTED:   'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
-    ACTIVE:     'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
-    TERMINATED: 'bg-gray-100 dark:bg-gray-950/40 text-gray-600 dark:text-gray-400',
-  };
-
-  const labels: Record<BookingStatus, string> = {
-    CONFIRMED:  t('chipConfirmed'),
-    PENDING:    t('chipPending'),
-    CANCELLED:  t('chipCancelled'),
-    COMPLETED:  t('chipCompleted'),
-    REQUESTED:  t('chipRequested'),
-    APPROVED:   t('chipApproved'),
-    REJECTED:   t('chipRejected'),
-    ACTIVE:     t('chipActive'),
-    TERMINATED: t('chipTerminated'),
-  };
-
-  return (
-    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${map[status]}`}>
-      {labels[status]}
-    </span>
   );
 }
