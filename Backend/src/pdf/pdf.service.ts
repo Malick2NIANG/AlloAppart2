@@ -96,14 +96,20 @@ export type LeaseContractData = {
 type MonthlyReportData = {
   ownerName: string;
   month: string; // ex: "juin 2026"
+  previousMonthLabel: string; // ex: "mai" — pour le texte de tendance des KPI
   stats: {
     totalListings: number;
     publishedListings: number;
     totalBookings: number;
-    confirmedBookings: number;
     totalRevenue: number;
     avgRating: number | null;
   };
+  previousMonth: {
+    totalRevenue: number;
+    totalBookings: number;
+  };
+  statusBreakdown: Array<{ status: string; count: number }>;
+  listingBreakdown: Array<{ title: string; revenue: number; bookings: number }>;
   bookings: Array<{
     id: string;
     listingTitle: string;
@@ -681,18 +687,44 @@ export class PdfService {
       const ROW_BORDER = '#e5e7eb';
       const TABLE_HEAD_BG = '#f3f4f6';
       const DARK_TEXT = '#111827';
+      const GREEN = '#15803d';
+      const RED = '#b91c1c';
 
       const STATUS_LABELS: Record<string, string> = {
-        CONFIRMED: 'Confirmée',
-        COMPLETED: 'Terminée',
         PENDING: 'En attente',
+        CONFIRMED: 'Confirmée',
         CANCELLED: 'Annulée',
+        COMPLETED: 'Terminée',
+        REQUESTED: 'Demandée',
+        APPROVED: 'Approuvée',
+        REJECTED: 'Refusée',
+        ACTIVE: 'Bail actif',
+        TERMINATED: 'Bail terminé',
       };
 
       const truncate = (s: string, max: number) =>
         s.length > max ? s.slice(0, max - 1) + '…' : s;
 
       const spaced = (s: string) => s.split('').join(' ');
+
+      // Tendance vs mois précédent affichée sous une valeur de KPI. Retourne
+      // null quand il n'y a rien de significatif à comparer (les deux valeurs
+      // sont à 0) plutôt que d'afficher un "+0%" trompeur.
+      const trendOf = (
+        current: number,
+        previous: number,
+      ): { text: string; color: string } | null => {
+        if (previous === 0) {
+          if (current === 0) return null;
+          return { text: 'Nouveau ce mois', color: GREY };
+        }
+        const pct = ((current - previous) / previous) * 100;
+        const sign = pct >= 0 ? '+' : '';
+        return {
+          text: `${sign}${pct.toFixed(0)}% vs ${data.previousMonthLabel}`,
+          color: pct >= 0 ? GREEN : RED,
+        };
+      };
 
       const drawFooter = () => {
         doc
@@ -749,8 +781,14 @@ export class PdfService {
         .stroke();
 
       // ── KPI grid (2x2) — cartes bordurées, pas de fond ──
-      const kpiCard = (x: number, y: number, label: string, value: string) => {
-        doc.roundedRect(x, y, 240, 68, 4).stroke(BORDER);
+      const kpiCard = (
+        x: number,
+        y: number,
+        label: string,
+        value: string,
+        trend?: { text: string; color: string } | null,
+      ) => {
+        doc.roundedRect(x, y, 240, 78, 4).stroke(BORDER);
         doc
           .fillColor(GREY)
           .font('Helvetica')
@@ -761,80 +799,163 @@ export class PdfService {
           .font('Helvetica-Bold')
           .fontSize(20)
           .text(value, x + 12, y + 30);
+        if (trend) {
+          doc
+            .fillColor(trend.color)
+            .font('Helvetica')
+            .fontSize(7.5)
+            .text(trend.text, x + 12, y + 58);
+        }
       };
 
+      const revenueTrend = trendOf(data.stats.totalRevenue, data.previousMonth.totalRevenue);
+      const bookingsTrend = trendOf(data.stats.totalBookings, data.previousMonth.totalBookings);
+
+      let y = 130;
       kpiCard(
         40,
-        130,
+        y,
         'ANNONCES ACTIVES',
         `${data.stats.publishedListings} / ${data.stats.totalListings}`,
       );
-      kpiCard(315, 130, 'RÉSERVATIONS', `${data.stats.totalBookings}`);
-      kpiCard(
-        40,
-        212,
-        'REVENUS ENCAISSÉS',
-        formatFcfa(data.stats.totalRevenue),
-      );
+      kpiCard(315, y, 'RÉSERVATIONS', `${data.stats.totalBookings}`, bookingsTrend);
+      y += 92;
+      kpiCard(40, y, 'REVENUS ENCAISSÉS', formatFcfa(data.stats.totalRevenue), revenueTrend);
       kpiCard(
         315,
-        212,
+        y,
         'NOTE MOYENNE',
         data.stats.avgRating ? `${data.stats.avgRating.toFixed(1)}/5` : 'N/A',
       );
+      y += 92;
 
-      // ── Section réservations ──
-      doc
-        .moveTo(40, 295)
-        .lineTo(555, 295)
-        .strokeColor(BORDER)
-        .lineWidth(0.5)
-        .stroke();
+      // Ajoute une nouvelle page (avec pied de page sur celle qui se termine)
+      // quand il ne reste plus assez de place pour la prochaine section.
+      const ensureRoom = (needed: number) => {
+        if (y + needed > 762) {
+          drawFooter();
+          doc.addPage();
+          y = 50;
+        }
+      };
+
+      // ── Répartition par statut ──
+      ensureRoom(45);
+      doc.moveTo(40, y).lineTo(555, y).strokeColor(BORDER).lineWidth(0.5).stroke();
+      y += 10;
       doc
         .fillColor(GREY)
         .font('Helvetica-Bold')
         .fontSize(9)
-        .text(spaced('RÉSERVATIONS DU MOIS'), 40, 302);
+        .text(spaced('RÉPARTITION DES RÉSERVATIONS'), 40, y);
+      y += 17;
+      if (data.statusBreakdown.length === 0) {
+        doc
+          .fillColor(LIGHT_GREY)
+          .font('Helvetica')
+          .fontSize(9)
+          .text('Aucune réservation ce mois.', 40, y);
+        y += 20;
+      } else {
+        const breakdownText = data.statusBreakdown
+          .map((s) => `${STATUS_LABELS[s.status] ?? s.status} : ${s.count}`)
+          .join('      ');
+        doc
+          .fillColor(DARK_TEXT)
+          .font('Helvetica')
+          .fontSize(9)
+          .text(breakdownText, 40, y, { width: 515 });
+        y += 24;
+      }
+
+      // ── Revenu par annonce ──
+      ensureRoom(55 + Math.min(data.listingBreakdown.length, 5) * 18);
+      doc.moveTo(40, y).lineTo(555, y).strokeColor(BORDER).lineWidth(0.5).stroke();
+      y += 10;
+      doc
+        .fillColor(GREY)
+        .font('Helvetica-Bold')
+        .fontSize(9)
+        .text(spaced('REVENU PAR ANNONCE'), 40, y);
+      y += 17;
+      if (data.listingBreakdown.length === 0) {
+        doc
+          .fillColor(LIGHT_GREY)
+          .font('Helvetica')
+          .fontSize(9)
+          .text('Aucun revenu par annonce ce mois.', 40, y);
+        y += 20;
+      } else {
+        doc.rect(40, y, 515, 18).fill(TABLE_HEAD_BG);
+        doc.fillColor(SLATE).font('Helvetica-Bold').fontSize(8);
+        doc.text('ANNONCE', 48, y + 5);
+        doc.text('RÉSERVATIONS', 390, y + 5);
+        doc.text('REVENU', 478, y + 5);
+        y += 18;
+        data.listingBreakdown.forEach((l) => {
+          doc
+            .moveTo(40, y + 18)
+            .lineTo(555, y + 18)
+            .strokeColor(ROW_BORDER)
+            .lineWidth(0.3)
+            .stroke();
+          doc.fillColor(DARK_TEXT).font('Helvetica').fontSize(8.5);
+          doc.text(truncate(l.title, 44), 48, y + 5);
+          doc.text(`${l.bookings}`, 410, y + 5);
+          doc.text(formatFcfa(l.revenue), 478, y + 5);
+          y += 18;
+        });
+        y += 8;
+      }
+
+      // ── Section réservations détaillées ──
+      ensureRoom(45);
+      doc.moveTo(40, y).lineTo(555, y).strokeColor(BORDER).lineWidth(0.5).stroke();
+      y += 10;
+      doc
+        .fillColor(GREY)
+        .font('Helvetica-Bold')
+        .fontSize(9)
+        .text(spaced('RÉSERVATIONS DU MOIS'), 40, y);
+      y += 18;
 
       if (data.bookings.length === 0) {
         doc
           .fillColor(LIGHT_GREY)
           .font('Helvetica')
           .fontSize(10)
-          .text('Aucune réservation pour ce mois.', 0, 330, {
+          .text('Aucune réservation pour ce mois.', 0, y + 10, {
             width: PAGE_WIDTH,
             align: 'center',
           });
         drawFooter();
       } else {
-        const startY = 320;
-
-        doc.rect(40, startY, 515, 18).fill(TABLE_HEAD_BG);
+        doc.rect(40, y, 515, 18).fill(TABLE_HEAD_BG);
         doc.fillColor(SLATE).font('Helvetica-Bold').fontSize(8);
-        doc.text('ANNONCE', 48, startY + 5);
-        doc.text('LOCATAIRE', 198, startY + 5);
-        doc.text('DATE', 318, startY + 5);
-        doc.text('MONTANT', 398, startY + 5);
-        doc.text('STATUT', 478, startY + 5);
+        doc.text('ANNONCE', 48, y + 5);
+        doc.text('LOCATAIRE', 198, y + 5);
+        doc.text('DATE', 318, y + 5);
+        doc.text('MONTANT', 398, y + 5);
+        doc.text('STATUT', 478, y + 5);
+        y += 18;
 
-        data.bookings.forEach((b, i) => {
-          const rowY = startY + 18 + i * 18;
+        data.bookings.forEach((b) => {
+          ensureRoom(18);
           doc
-            .moveTo(40, rowY + 18)
-            .lineTo(555, rowY + 18)
+            .moveTo(40, y + 18)
+            .lineTo(555, y + 18)
             .strokeColor(ROW_BORDER)
             .lineWidth(0.3)
             .stroke();
           doc.fillColor(DARK_TEXT).font('Helvetica').fontSize(8.5);
-          doc.text(truncate(b.listingTitle, 30), 48, rowY + 5);
-          doc.text(truncate(b.tenantName, 20), 198, rowY + 5);
-          doc.text(b.startDate.toLocaleDateString('fr-FR'), 318, rowY + 5);
-          doc.text(formatFcfa(Number(b.totalAmount)), 398, rowY + 5);
-          doc.text(STATUS_LABELS[b.status] ?? b.status, 478, rowY + 5);
+          doc.text(truncate(b.listingTitle, 30), 48, y + 5);
+          doc.text(truncate(b.tenantName, 20), 198, y + 5);
+          doc.text(b.startDate.toLocaleDateString('fr-FR'), 318, y + 5);
+          doc.text(formatFcfa(Number(b.totalAmount)), 398, y + 5);
+          doc.text(STATUS_LABELS[b.status] ?? b.status, 478, y + 5);
+          y += 18;
         });
 
-        const tableBottomY = startY + 18 + data.bookings.length * 18;
-        if (tableBottomY > 770) doc.addPage();
         drawFooter();
       }
 

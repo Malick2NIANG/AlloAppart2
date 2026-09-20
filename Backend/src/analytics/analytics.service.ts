@@ -308,6 +308,10 @@ export class AnalyticsService {
 
     const start = new Date(year, month - 1, 1);
     const end   = new Date(year, month, 1);
+    // Mois précédent, uniquement pour la tendance affichée sur les KPI du PDF
+    // (ex. "+12% vs juillet") — jamais mélangé aux chiffres du mois affiché.
+    const prevStart = new Date(year, month - 2, 1);
+    const prevEnd   = start;
 
     const owner = await this.prisma.user.findUniqueOrThrow({
       where: { id: ownerId },
@@ -334,8 +338,23 @@ export class AnalyticsService {
       }
     }
 
-    const [stats, bookings] = await Promise.all([
-      this.getOwnerStats(ownerId),
+    // Toutes les statistiques ci-dessous sont calculées sur la fenêtre
+    // [start, end) du mois demandé — contrairement à l'ancienne version qui
+    // réutilisait getOwnerStats() (des totaux TOUS MOIS CONFONDUS) pour les
+    // KPI, alors que le tableau détaillé, lui, était déjà filtré sur le mois.
+    // Ça produisait des incohérences visibles (ex. "3 réservations" en KPI
+    // mais "Aucune réservation pour ce mois" dans le tableau).
+    const [
+      totalListings,
+      publishedListings,
+      bookings,
+      ratingAgg,
+      prevRevenueAgg,
+      prevBookingsCount,
+      listingBreakdownRaw,
+    ] = await Promise.all([
+      this.prisma.listing.count({ where: { ownerId } }),
+      this.prisma.listing.count({ where: { ownerId, status: ListingStatus.ACTIVE } }),
       this.prisma.booking.findMany({
         where: {
           listing: { ownerId },
@@ -347,12 +366,79 @@ export class AnalyticsService {
         },
         orderBy: { createdAt: 'desc' },
       }),
+      this.prisma.review.aggregate({
+        where: { listing: { ownerId }, createdAt: { gte: start, lt: end } },
+        _avg: { rating: true },
+      }),
+      this.prisma.booking.aggregate({
+        where: {
+          listing: { ownerId },
+          status: { in: PAID_BOOKING_STATUSES },
+          createdAt: { gte: prevStart, lt: prevEnd },
+        },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.booking.count({
+        where: { listing: { ownerId }, createdAt: { gte: prevStart, lt: prevEnd } },
+      }),
+      this.prisma.listing.findMany({
+        where: { ownerId },
+        select: {
+          title: true,
+          bookings: {
+            where: {
+              status: { in: PAID_BOOKING_STATUSES },
+              createdAt: { gte: start, lt: end },
+            },
+            select: { totalAmount: true },
+          },
+        },
+      }),
     ]);
+
+    // Revenu et répartition par statut recalculés depuis la MÊME liste de
+    // réservations que celle affichée dans le tableau détaillé plus bas (pas
+    // une deuxième requête séparée) — pour être certain que les chiffres ne
+    // divergent jamais entre les deux endroits du rapport.
+    const totalRevenue = bookings
+      .filter((b) => PAID_BOOKING_STATUSES.includes(b.status))
+      .reduce((sum, b) => sum + Number(b.totalAmount), 0);
+
+    const statusBreakdown = Object.values(
+      bookings.reduce<Record<string, { status: string; count: number }>>((acc, b) => {
+        acc[b.status] ??= { status: b.status, count: 0 };
+        acc[b.status]!.count += 1;
+        return acc;
+      }, {}),
+    );
+
+    const listingBreakdown = listingBreakdownRaw
+      .map((l) => ({
+        title: l.title,
+        revenue: l.bookings.reduce((s, b) => s + Number(b.totalAmount), 0),
+        bookings: l.bookings.length,
+      }))
+      .filter((l) => l.bookings > 0)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
 
     return {
       ownerName: owner.agencyName ?? `${owner.firstName} ${owner.lastName}`,
       month: start.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
-      stats,
+      previousMonthLabel: prevStart.toLocaleDateString('fr-FR', { month: 'long' }),
+      stats: {
+        totalListings,
+        publishedListings,
+        totalBookings: bookings.length,
+        totalRevenue,
+        avgRating: ratingAgg._avg.rating,
+      },
+      previousMonth: {
+        totalRevenue: Number(prevRevenueAgg._sum.totalAmount ?? 0),
+        totalBookings: prevBookingsCount,
+      },
+      statusBreakdown,
+      listingBreakdown,
       bookings: bookings.map((b) => ({
         id: b.id,
         listingTitle: b.listing.title,
