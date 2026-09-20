@@ -79,6 +79,13 @@ export default function VitrineAnalyticsPage() {
     d.setMonth(d.getMonth() - 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   })();
+  // Le mois en cours reste sélectionnable (rapport "à date", données
+  // partielles jusqu'à aujourd'hui) — seul le futur est bloqué. Le mois
+  // précédent reste la sélection par défaut à l'ouverture (mois complet).
+  const currentMonth = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  })();
   const [reportMonth,       setReportMonth]       = useState(defaultMonth);
   const [downloadingReport, setDownloadingReport] = useState(false);
 
@@ -458,14 +465,21 @@ export default function VitrineAnalyticsPage() {
               <label htmlFor="report-month" className="text-[11px] font-medium text-sub">
                 {t('analyticsReportMonthLabel')}
               </label>
-              <input
-                id="report-month"
-                type="month"
-                value={reportMonth}
-                onChange={(e) => setReportMonth(e.target.value)}
-                max={defaultMonth}
-                className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold/40"
-              />
+              <div className="relative">
+                <input
+                  id="report-month"
+                  type="month"
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(e.target.value)}
+                  max={currentMonth}
+                  className="rounded-xl border border-line bg-bg px-3 py-2 pr-9 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold/40 [&::-webkit-calendar-picker-indicator]:opacity-0"
+                />
+                {/* L'icône native du sélecteur de mois est quasi invisible sur
+                    fond sombre (icône noire du navigateur) — masquée
+                    (opacity-0, reste cliquable) et remplacée par une icône du
+                    design system, en rouge pour qu'elle se voie vraiment. */}
+                <i className="fa-regular fa-calendar pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-sm" />
+              </div>
             </div>
             <div className="flex items-end pb-0.5">
               <button
