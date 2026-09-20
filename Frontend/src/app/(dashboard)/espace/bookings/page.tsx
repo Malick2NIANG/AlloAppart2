@@ -1,22 +1,31 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
-import type { Booking, PaginatedResponse } from '@/types';
+import type { Booking, BookingStatus, PaginatedResponse } from '@/types';
 import { formatDate, formatPrice } from '@/lib/utils';
-import { SkeletonListRow } from '@/components/ui/Skeleton';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useToast } from '@/components/ui/Toast';
+import { BookingCard } from '@/components/bookings/BookingCard';
+import { BookingTabs } from '@/components/bookings/BookingTabs';
+import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
+import { BookingPagination } from '@/components/bookings/BookingPagination';
+import { PENDING_STATUSES, ACTIVE_STATUSES, ARCHIVED_STATUSES } from '@/lib/bookingStatus';
 
-type StatusFilter = 'ALL' | 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+type Group = 'pending' | 'confirmed' | 'archived';
 
-const STATUS_COLORS: Record<string, string> = {
-  PENDING:   'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40',
-  CONFIRMED: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
-  CANCELLED: 'bg-card text-sub border border-line',
-  COMPLETED: 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
+// Même regroupement que les pages locataire/bailleur, envoyé au backend en
+// param `status` (liste séparée par des virgules) — la pagination reste
+// côté serveur ici (contrairement aux 2 autres rôles) car cette page couvre
+// TOUTES les réservations de la plateforme, un volume potentiellement bien
+// plus grand qu'un seul locataire ou bailleur.
+const GROUP_STATUSES: Record<Group, BookingStatus[]> = {
+  pending: PENDING_STATUSES,
+  confirmed: ACTIVE_STATUSES,
+  archived: ARCHIVED_STATUSES,
 };
 
 const ESCROW_COLORS: Record<string, string> = {
@@ -34,6 +43,8 @@ const ESCROW_ICONS: Record<string, string> = {
   REFUNDED:         'fa-rotate-left',
 };
 
+const LIMIT_OPTIONS = [10, 20, 50] as const;
+
 type PaymentModal = { id: string; action: 'release' | 'refund'; amount: string | number };
 type DisputeModal  = { id: string; decision: 'RELEASE' | 'REFUND'; amount: string | number };
 
@@ -41,55 +52,77 @@ export default function AdminBookingsPage() {
   const { getToken } = useAuth();
   const { toast }    = useToast();
   const t            = useTranslations('admin');
-  const tRef         = useRef(t);
-  tRef.current       = t;
 
   const [bookings, setBookings]         = useState<Booking[]>([]);
   const [total, setTotal]               = useState(0);
+  // Total tous statuts confondus (respecte la recherche, pas l'onglet) —
+  // uniquement pour l'en-tête, où les 2 autres rôles affichent un total
+  // global et laissent les onglets montrer le sous-total de chacun.
+  const [grandTotal, setGrandTotal]     = useState(0);
   const [page, setPage]                 = useState(1);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [group, setGroup]               = useState<Group>('pending');
+  const [search, setSearch]             = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState<string | null>(null);
   const [actionId, setActionId]         = useState<string | null>(null);
   const [cancelModal, setCancelModal]   = useState<string | null>(null);
   const [paymentModal, setPaymentModal] = useState<PaymentModal | null>(null);
   const [disputeModal, setDisputeModal] = useState<DisputeModal | null>(null);
-  const [limit, setLimit]               = useState(20);
-  const LIMIT_OPTIONS = [10, 20, 50] as const;
+  const [limit, setLimit]               = useState<typeof LIMIT_OPTIONS[number]>(20);
 
-  const STATUS_LABELS: Record<string, string> = {
-    PENDING:   t('bookingStatusPending'),
-    CONFIRMED: t('bookingStatusConfirmed'),
-    CANCELLED: t('bookingStatusCancelled'),
-    COMPLETED: t('bookingStatusCompleted'),
-  };
-  const ESCROW_LABELS: Record<string, string> = {
-    AWAITING_PAYMENT: t('escrowAwaiting'),
-    HELD:             t('escrowHeld'),
-    DISPUTED:         t('escrowDisputed'),
-    RELEASED:         t('escrowReleased'),
-    REFUNDED:         t('escrowRefunded'),
-  };
+  // Débounce de la recherche — évite une requête serveur à chaque frappe.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(id);
+  }, [search]);
 
-  const fetchData = useCallback(async (p: number, s: StatusFilter, lim = limit) => {
+  const fetchData = useCallback(async (p: number, g: Group, s: string, lim: number) => {
     const token = await getToken();
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ page: String(p), limit: String(lim) });
-      if (s !== 'ALL') params.set('status', s);
+      const params = new URLSearchParams({
+        page: String(p),
+        limit: String(lim),
+        status: GROUP_STATUSES[g].join(','),
+      });
+      if (s) params.set('search', s);
       const res = await api.get<PaginatedResponse<Booking>>(`/bookings/all?${params}`, token);
       setBookings(res.data);
       setTotal(res.total);
     } catch {
-      setError(tRef.current('bookingsLoadError'));
+      setError(t('bookingsLoadError'));
     } finally {
       setLoading(false);
     }
-  }, [getToken, limit]);
+  }, [getToken, t]);
 
-  useEffect(() => { fetchData(page, statusFilter); }, [fetchData, page, statusFilter]);
+  useEffect(() => { fetchData(page, group, debouncedSearch, limit); }, [fetchData, page, group, debouncedSearch, limit]);
+
+  useEffect(() => {
+    (async () => {
+      const token = await getToken();
+      if (!token) return;
+      try {
+        const params = new URLSearchParams({ page: '1', limit: '1' });
+        if (debouncedSearch) params.set('search', debouncedSearch);
+        const res = await api.get<PaginatedResponse<Booking>>(`/bookings/all?${params}`, token);
+        setGrandTotal(res.total);
+      } catch {
+        // Purement informatif (en-tête) — une erreur ici ne doit pas bloquer
+        // le reste de la page, déjà couvert par le fetchData principal.
+      }
+    })();
+  }, [getToken, debouncedSearch]);
+
+  const switchGroup = (g: Group) => {
+    setGroup(g);
+    setSearch('');
+    setDebouncedSearch('');
+    setPage(1);
+  };
 
   const handleCancel = async () => {
     if (!cancelModal) return;
@@ -147,50 +180,47 @@ export default function AdminBookingsPage() {
   };
 
   const totalPages = Math.ceil(total / limit);
+  const tabs: { key: Group; label: string; icon: string }[] = [
+    { key: 'pending',   label: t('sectionPending'),   icon: 'fa-clock' },
+    { key: 'confirmed', label: t('sectionConfirmed'), icon: 'fa-circle-check' },
+    { key: 'archived',  label: t('sectionArchived'),  icon: 'fa-archive' },
+  ];
 
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-text">{t('bookingsTitle')}</h1>
-        <p className="mt-1 text-sm text-sub">{t('bookingsCount', { count: total })}</p>
+        <p className="mt-1 text-sm text-sub">{t('bookingsCount', { count: grandTotal })}</p>
       </div>
 
-      {/* Filtres */}
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <select
-          value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value as StatusFilter); setPage(1); }}
-          className="rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-gold"
-        >
-          <option value="ALL">{t('allStatuses')}</option>
-          <option value="PENDING">{t('bookingPending')}</option>
-          <option value="CONFIRMED">{t('bookingConfirmed')}</option>
-          <option value="COMPLETED">{t('bookingCompleted')}</option>
-          <option value="CANCELLED">{t('bookingCancelled')}</option>
-        </select>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-xs text-sub whitespace-nowrap">{t('rowsLabel')}</span>
-          <div className="flex gap-1">
-            {LIMIT_OPTIONS.map((l) => (
-              <button key={l} onClick={() => { setLimit(l); setPage(1); void fetchData(1, statusFilter, l); }}
-                className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${limit === l ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}>
-                {l}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* Onglets par statut (regroupement identique aux pages locataire/bailleur) */}
+      <BookingTabs
+        tabs={tabs.map((tab) => ({ ...tab, count: tab.key === group ? total : undefined }))}
+        active={group}
+        onChange={switchGroup}
+      />
+
+      {/* Recherche + lignes par page */}
+      <BookingSearchRow
+        search={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1); }}
+        searchPlaceholder={t('searchPlaceholder')}
+        perPage={limit}
+        onPerPageChange={(n) => { setLimit(n as typeof LIMIT_OPTIONS[number]); setPage(1); }}
+        perPageOptions={LIMIT_OPTIONS}
+        rowsLabel={t('rowsLabel')}
+      />
 
       {/* Liste */}
       {loading ? (
-        <div className="flex flex-col gap-2">
-          {Array.from({ length: 8 }).map((_, i) => <SkeletonListRow key={i} />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} height="280px" />)}
         </div>
       ) : error ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
           <p className="text-sm text-sub">{error}</p>
-          <button onClick={() => void fetchData(page, statusFilter)} className="mt-4 btn-gold text-sm">
+          <button onClick={() => void fetchData(page, group, debouncedSearch, limit)} className="mt-4 btn-gold text-sm">
             <i className="fa-solid fa-rotate-right mr-1.5" />{t('retry')}
           </button>
         </div>
@@ -199,175 +229,35 @@ export default function AdminBookingsPage() {
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
             <i className="fa-solid fa-calendar-check text-2xl text-gold-dark" />
           </div>
-          <p className="text-sub">{t('bookingsEmpty')}</p>
+          <p className="text-sub">{debouncedSearch ? t('noSearchResults') : t('bookingsEmpty')}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
-          {bookings.map((booking) => {
-            const escrow = booking.escrowStatus ?? 'AWAITING_PAYMENT';
-            const isHeld = escrow === 'HELD';
-            const isDisputed = escrow === 'DISPUTED';
-            return (
-              <div key={booking.id} className="rounded-xl border border-line bg-card p-4 flex flex-col gap-3">
-                {/* Ligne principale */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-text truncate">
-                      {booking.listing?.title ?? booking.listingId}
-                    </p>
-                    <p className="text-sm text-sub mt-0.5">
-                      <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
-                      {booking.listing?.city}
-                      <span className="mx-1.5">·</span>
-                      <i className="fa-solid fa-user text-xs mr-1" />
-                      {booking.tenant?.firstName} {booking.tenant?.lastName}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap text-xs text-sub">
-                      <span>
-                        <i className="fa-regular fa-calendar mr-1" />
-                        {formatDate(booking.startDate)}
-                        {booking.endDate && <> → {formatDate(booking.endDate)}</>}
-                      </span>
-                      <span className="font-semibold text-text">{formatPrice(booking.totalAmount)}</span>
-                      {booking.paymentRef && (
-                        <span className="font-mono text-[10px] text-sub">{booking.paymentRef}</span>
-                      )}
-                    </div>
-                  </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {bookings.map((booking) => (
+              <AdminBookingCard
+                key={booking.id}
+                booking={booking}
+                actionId={actionId}
+                onCancel={() => setCancelModal(booking.id)}
+                onRelease={() => setPaymentModal({ id: booking.id, action: 'release', amount: booking.totalAmount })}
+                onRefund={() => setPaymentModal({ id: booking.id, action: 'refund', amount: booking.totalAmount })}
+                onResolveRelease={() => setDisputeModal({ id: booking.id, decision: 'RELEASE', amount: booking.totalAmount })}
+                onResolveRefund={() => setDisputeModal({ id: booking.id, decision: 'REFUND', amount: booking.totalAmount })}
+              />
+            ))}
+          </div>
 
-                  {/* Badges statuts */}
-                  <div className="flex items-center gap-2 flex-wrap shrink-0">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[booking.status] ?? 'bg-card text-sub'}`}>
-                      {STATUS_LABELS[booking.status] ?? booking.status}
-                    </span>
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1 ${ESCROW_COLORS[escrow] ?? 'bg-card text-sub border border-line'}`}>
-                      <i className={`fa-solid ${ESCROW_ICONS[escrow] ?? 'fa-circle'} text-[10px]`} />
-                      {ESCROW_LABELS[escrow] ?? escrow}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Détail du litige */}
-                {isDisputed && (
-                  <div className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30/60 p-3 flex flex-col gap-2">
-                    {booking.disputedAt && (
-                      <p className="text-xs text-red-700 dark:text-red-400 font-medium">
-                        <i className="fa-solid fa-triangle-exclamation mr-1" />
-                        {t('disputedSince', { date: formatDate(booking.disputedAt) })}
-                      </p>
-                    )}
-                    {booking.disputeReason && (
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-400">
-                          {t('disputeReasonLabel')}
-                        </p>
-                        <p className="text-sm text-text mt-0.5 whitespace-pre-wrap">{booking.disputeReason}</p>
-                      </div>
-                    )}
-                    {booking.disputeEvidence && booking.disputeEvidence.length > 0 && (
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-400 mb-1">
-                          {t('disputeEvidenceLabel')}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {booking.disputeEvidence.map((url, i) => (
-                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                              className="block h-16 w-16 overflow-hidden rounded-lg border border-line bg-bg">
-                              <img src={url} alt="" className="h-full w-full object-cover" />
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Actions */}
-                {((booking.status === 'PENDING' || booking.status === 'CONFIRMED') || isHeld || isDisputed) && (
-                  <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-line">
-                    {/* Annuler réservation */}
-                    {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && !isDisputed && (
-                      <button
-                        onClick={() => setCancelModal(booking.id)}
-                        disabled={actionId !== null}
-                        className="text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
-                      >
-                        {actionId === booking.id + 'cancel'
-                          ? <i className="fa-solid fa-spinner fa-spin" />
-                          : <><i className="fa-solid fa-xmark text-xs mr-1" />{t('cancelBooking')}</>}
-                      </button>
-                    )}
-
-                    {/* Résoudre le litige — séquestre DISPUTED */}
-                    {isDisputed && (
-                      <>
-                        <button
-                          onClick={() => setDisputeModal({ id: booking.id, decision: 'RELEASE', amount: booking.totalAmount })}
-                          disabled={actionId !== null}
-                          className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
-                        >
-                          {actionId === booking.id + 'dispute'
-                            ? <i className="fa-solid fa-spinner fa-spin" />
-                            : <><i className="fa-solid fa-lock-open text-xs mr-1" />{t('resolveDisputeRelease')}</>}
-                        </button>
-                        <button
-                          onClick={() => setDisputeModal({ id: booking.id, decision: 'REFUND', amount: booking.totalAmount })}
-                          disabled={actionId !== null}
-                          className="text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-3 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors"
-                        >
-                          {actionId === booking.id + 'dispute'
-                            ? <i className="fa-solid fa-spinner fa-spin" />
-                            : <><i className="fa-solid fa-rotate-left text-xs mr-1" />{t('resolveDisputeRefund')}</>}
-                        </button>
-                      </>
-                    )}
-
-                    {/* Libérer les fonds — séquestre HELD */}
-                    {isHeld && (
-                      <button
-                        onClick={() => setPaymentModal({ id: booking.id, action: 'release', amount: booking.totalAmount })}
-                        disabled={actionId !== null}
-                        className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
-                      >
-                        {actionId === booking.id + 'release'
-                          ? <i className="fa-solid fa-spinner fa-spin" />
-                          : <><i className="fa-solid fa-lock-open text-xs mr-1" />{t('releaseFunds')}</>}
-                      </button>
-                    )}
-
-                    {/* Rembourser le locataire — séquestre HELD */}
-                    {isHeld && (
-                      <button
-                        onClick={() => setPaymentModal({ id: booking.id, action: 'refund', amount: booking.totalAmount })}
-                        disabled={actionId !== null}
-                        className="text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-3 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors"
-                      >
-                        {actionId === booking.id + 'refund'
-                          ? <i className="fa-solid fa-spinner fa-spin" />
-                          : <><i className="fa-solid fa-rotate-left text-xs mr-1" />{t('refundTenant')}</>}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6">
-          <button onClick={() => setPage((p) => p - 1)} disabled={page <= 1}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
-            <i className="fa-solid fa-chevron-left text-xs" /> {t('previous')}
-          </button>
-          <span className="text-sm text-sub">{t('pageOf', { page, total: totalPages })}</span>
-          <button onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
-            {t('next')} <i className="fa-solid fa-chevron-right text-xs" />
-          </button>
-        </div>
+          {/* Pagination */}
+          <BookingPagination
+            page={page}
+            pageCount={totalPages}
+            onPageChange={setPage}
+            previousLabel={t('previous')}
+            nextLabel={t('next')}
+            pageOfLabel={t('pageOf', { page, total: totalPages })}
+          />
+        </>
       )}
 
       {/* Modal annulation réservation */}
@@ -425,5 +315,159 @@ export default function AdminBookingsPage() {
         variant="danger"
       />
     </div>
+  );
+}
+
+/* ─── Carte réservation admin (coquille partagée + slots admin) ── */
+function AdminBookingCard({
+  booking, actionId, onCancel, onRelease, onRefund, onResolveRelease, onResolveRefund,
+}: {
+  booking: Booking;
+  actionId: string | null;
+  onCancel: () => void;
+  onRelease: () => void;
+  onRefund: () => void;
+  onResolveRelease: () => void;
+  onResolveRefund: () => void;
+}) {
+  const t = useTranslations('admin');
+  const escrow = booking.escrowStatus ?? 'AWAITING_PAYMENT';
+  const isHeld = escrow === 'HELD';
+  const isDisputed = escrow === 'DISPUTED';
+
+  const ESCROW_LABELS: Record<string, string> = {
+    AWAITING_PAYMENT: t('escrowAwaiting'),
+    HELD:             t('escrowHeld'),
+    DISPUTED:         t('escrowDisputed'),
+    RELEASED:         t('escrowReleased'),
+    REFUNDED:         t('escrowRefunded'),
+  };
+
+  return (
+    <BookingCard
+      booking={booking}
+      subtitle={
+        <>
+          <p className="text-sm text-sub mt-1">
+            <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
+            {booking.listing?.city}
+            <span className="mx-1.5">·</span>
+            <i className="fa-solid fa-user text-xs mr-1" />
+            {booking.tenant?.firstName} {booking.tenant?.lastName}
+          </p>
+          {booking.paymentRef && (
+            <p className="font-mono text-[10px] text-sub mt-1">{booking.paymentRef}</p>
+          )}
+          <div className="mt-2">
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium inline-flex items-center gap-1 ${ESCROW_COLORS[escrow] ?? 'bg-card text-sub border border-line'}`}>
+              <i className={`fa-solid ${ESCROW_ICONS[escrow] ?? 'fa-circle'} text-[10px]`} />
+              {ESCROW_LABELS[escrow] ?? escrow}
+            </span>
+          </div>
+        </>
+      }
+      actions={
+        ((booking.status === 'PENDING' || booking.status === 'CONFIRMED') || isHeld || isDisputed) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Annuler réservation */}
+            {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && !isDisputed && (
+              <button
+                onClick={onCancel}
+                disabled={actionId !== null}
+                className="text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
+              >
+                {actionId === booking.id + 'cancel'
+                  ? <i className="fa-solid fa-spinner fa-spin" />
+                  : <><i className="fa-solid fa-xmark text-xs mr-1" />{t('cancelBooking')}</>}
+              </button>
+            )}
+
+            {/* Résoudre le litige — séquestre DISPUTED */}
+            {isDisputed && (
+              <>
+                <button
+                  onClick={onResolveRelease}
+                  disabled={actionId !== null}
+                  className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
+                >
+                  {actionId === booking.id + 'dispute'
+                    ? <i className="fa-solid fa-spinner fa-spin" />
+                    : <><i className="fa-solid fa-lock-open text-xs mr-1" />{t('resolveDisputeRelease')}</>}
+                </button>
+                <button
+                  onClick={onResolveRefund}
+                  disabled={actionId !== null}
+                  className="text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-3 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors"
+                >
+                  {actionId === booking.id + 'dispute'
+                    ? <i className="fa-solid fa-spinner fa-spin" />
+                    : <><i className="fa-solid fa-rotate-left text-xs mr-1" />{t('resolveDisputeRefund')}</>}
+                </button>
+              </>
+            )}
+
+            {/* Libérer les fonds / rembourser — séquestre HELD */}
+            {isHeld && (
+              <>
+                <button
+                  onClick={onRelease}
+                  disabled={actionId !== null}
+                  className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
+                >
+                  {actionId === booking.id + 'release'
+                    ? <i className="fa-solid fa-spinner fa-spin" />
+                    : <><i className="fa-solid fa-lock-open text-xs mr-1" />{t('releaseFunds')}</>}
+                </button>
+                <button
+                  onClick={onRefund}
+                  disabled={actionId !== null}
+                  className="text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-3 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors"
+                >
+                  {actionId === booking.id + 'refund'
+                    ? <i className="fa-solid fa-spinner fa-spin" />
+                    : <><i className="fa-solid fa-rotate-left text-xs mr-1" />{t('refundTenant')}</>}
+                </button>
+              </>
+            )}
+          </div>
+        )
+      }
+      footer={
+        isDisputed && (
+          <div className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 p-3 flex flex-col gap-2">
+            {booking.disputedAt && (
+              <p className="text-xs text-red-700 dark:text-red-400 font-medium">
+                <i className="fa-solid fa-triangle-exclamation mr-1" />
+                {t('disputedSince', { date: formatDate(booking.disputedAt) })}
+              </p>
+            )}
+            {booking.disputeReason && (
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-400">
+                  {t('disputeReasonLabel')}
+                </p>
+                <p className="text-sm text-text mt-0.5 whitespace-pre-wrap">{booking.disputeReason}</p>
+              </div>
+            )}
+            {booking.disputeEvidence && booking.disputeEvidence.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-400 mb-1">
+                  {t('disputeEvidenceLabel')}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {booking.disputeEvidence.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                      className="block h-16 w-16 overflow-hidden rounded-lg border border-line bg-bg">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" className="h-full w-full object-cover" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      }
+    />
   );
 }
