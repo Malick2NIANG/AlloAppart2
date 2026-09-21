@@ -5,7 +5,7 @@ import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 
-type Segment = 'ALL' | 'BAILLEURS' | 'LOCATAIRES' | 'PRO_AGENCES';
+type Segment = 'ALL' | 'BAILLEURS' | 'LOCATAIRES' | 'PRO_AGENCES' | 'AGENTS_TERRAIN';
 
 export default function AdminCommunicationsPage() {
   const { getToken } = useAuth();
@@ -18,10 +18,11 @@ export default function AdminCommunicationsPage() {
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const SEGMENT_OPTIONS: { value: Segment; label: string }[] = useMemo(() => [
-    { value: 'ALL',         label: t('commsSegmentAll')         },
-    { value: 'LOCATAIRES',  label: t('commsSegmentLocataires')  },
-    { value: 'BAILLEURS',   label: t('commsSegmentBailleurs')   },
-    { value: 'PRO_AGENCES', label: t('commsSegmentProAgences')  },
+    { value: 'ALL',            label: t('commsSegmentAll')          },
+    { value: 'LOCATAIRES',     label: t('commsSegmentLocataires')   },
+    { value: 'BAILLEURS',      label: t('commsSegmentBailleurs')    },
+    { value: 'PRO_AGENCES',    label: t('commsSegmentProAgences')   },
+    { value: 'AGENTS_TERRAIN', label: t('commsSegmentAgentsTerrain')},
   ], [t]);
 
   const AUTO_NOTIFICATIONS = useMemo(() => [

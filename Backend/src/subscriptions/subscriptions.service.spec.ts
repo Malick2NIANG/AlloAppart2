@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
+import { PlatformConfigService } from '../platform-config/platform-config.service';
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionStatus } from '@prisma/client';
 
@@ -31,6 +32,20 @@ describe('SubscriptionsService', () => {
         { provide: PrismaService, useValue: prismaMock },
         { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: PaydunyaSoftpayService, useValue: softpayMock },
+        {
+          provide: PlatformConfigService,
+          useValue: {
+            getPricing: jest.fn().mockResolvedValue({
+              starterPriceFcfa: 75_000,
+              proPriceFcfaMonthly: 150_000,
+              nightlyCommissionRate: 0.1,
+              monthlyCommissionMonths: 1,
+              auditBasicPriceFcfa: 25_000,
+              auditFullPriceFcfa: 60_000,
+              boostPriceFcfa: 5_000,
+            }),
+          },
+        },
       ],
     }).compile();
 

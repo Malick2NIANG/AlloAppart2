@@ -23,8 +23,8 @@ import { CreateReportDto } from './dto/create-report.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import axios from 'axios';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
+import { PlatformConfigService } from '../platform-config/platform-config.service';
 
-const BOOST_PRICE_XOF = 5_000;
 const BOOST_DAYS = 7;
 const BOOST_SCORE_GAIN = 10;
 const BOOST_SCORE_MAX = 100;
@@ -40,6 +40,7 @@ export class ListingsService {
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
     private readonly softpay: PaydunyaSoftpayService,
+    private readonly platformConfig: PlatformConfigService,
   ) {}
 
   /**
@@ -621,12 +622,13 @@ export class ListingsService {
   }
 
   private async initiateBoostWithPayDunya(listingId: string) {
+    const { boostPriceFcfa } = await this.platformConfig.getPricing();
     const isDev = this.config.get<string>('NODE_ENV') !== 'production';
 
     // ── Mode bypass dev : simule le paiement sans appeler PayDunya ──────────
     if (isDev && this.config.get<string>('PAYDUNYA_DEV_BYPASS') === 'true') {
       this.logger.warn(
-        `[DEV BYPASS] Boost direct de l'annonce ${listingId} (${BOOST_PRICE_XOF} FCFA — ${BOOST_DAYS}j)`,
+        `[DEV BYPASS] Boost direct de l'annonce ${listingId} (${boostPriceFcfa} FCFA — ${BOOST_DAYS}j)`,
       );
       const boostUntil = new Date();
       boostUntil.setDate(boostUntil.getDate() + BOOST_DAYS);
@@ -669,7 +671,7 @@ export class ListingsService {
         baseUrl + '/checkout-invoice/create',
         {
           invoice: {
-            total_amount: BOOST_PRICE_XOF,
+            total_amount: boostPriceFcfa,
             description: 'Boost annonce ' + BOOST_DAYS + 'j -- AlloAppart',
             return_url:
               this.config.get<string>('FRONTEND_URL') +
@@ -928,6 +930,19 @@ export class ListingsService {
     return report;
   }
 
+  // Annonces signalées non encore traitées — une annonce SUSPENDED est
+  // considérée traitée (l'admin a déjà agi), donc exclue du compteur. Alimente
+  // le badge sidebar "Signalements" (cf. DashboardShell / layout.tsx).
+  async pendingReportsCount(): Promise<{ count: number }> {
+    const count = await this.prisma.listing.count({
+      where: {
+        reports: { some: {} },
+        status: { not: ListingStatus.SUSPENDED },
+      },
+    });
+    return { count };
+  }
+
   async findAllReports() {
     const listings = await this.prisma.listing.findMany({
       where: { reports: { some: {} } },
@@ -957,6 +972,7 @@ export class ListingsService {
       title: l.title,
       city: l.city,
       status: l.status,
+      images: l.images,
       ownerName:
         [l.owner.firstName, l.owner.lastName].filter(Boolean).join(' ') ||
         l.owner.email,

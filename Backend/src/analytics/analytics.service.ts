@@ -251,6 +251,58 @@ export class AnalyticsService {
     return { overdueVerifications, expiringSubscriptions, suspendedListings };
   }
 
+  // Tendance plateforme sur 12 mois — alimente les graphes de la page
+  // Analytiques admin (revenus/réservations/nouveaux utilisateurs). Même
+  // principe que getOwnerMonthlyStats (une fenêtre par mois, en parallèle),
+  // étendu à 12 mois au lieu de 6 pour donner une vraie profondeur de
+  // tendance à l'échelle de toute la plateforme.
+  async getAdminMonthlyTrend(admin: User) {
+    if (!admin.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Admin only');
+    }
+
+    const months: { year: number; month: number; label: string }[] = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        year: d.getFullYear(),
+        month: d.getMonth() + 1,
+        label: d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
+      });
+    }
+
+    const results = await Promise.all(
+      months.map(async ({ year, month, label }) => {
+        const start = new Date(year, month - 1, 1);
+        const end = new Date(year, month, 1);
+
+        const [newUsers, newListings, newBookings, revenueAgg] = await Promise.all([
+          this.prisma.user.count({ where: { createdAt: { gte: start, lt: end } } }),
+          this.prisma.listing.count({ where: { createdAt: { gte: start, lt: end } } }),
+          this.prisma.booking.count({ where: { createdAt: { gte: start, lt: end } } }),
+          this.prisma.booking.aggregate({
+            where: {
+              status: { in: PAID_BOOKING_STATUSES },
+              createdAt: { gte: start, lt: end },
+            },
+            _sum: { totalAmount: true },
+          }),
+        ]);
+
+        return {
+          label,
+          newUsers,
+          newListings,
+          newBookings,
+          revenue: Number(revenueAgg._sum.totalAmount ?? 0),
+        };
+      }),
+    );
+
+    return results;
+  }
+
   async getOwnerMonthlyStats(ownerId: string) {
     // 6 derniers mois (mois courant inclus)
     const months: { year: number; month: number; label: string }[] = [];

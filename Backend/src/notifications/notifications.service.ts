@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
 import * as nodemailer from 'nodemailer';
 import { Prisma, Role } from '@prisma/client';
 import { OnesignalService } from '../onesignal/onesignal.service';
@@ -27,6 +28,41 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;');
 }
+
+/** Champs tarifaires de PlatformConfig pouvant faire l'objet d'une notification. */
+export type ConfigFieldKey =
+  | 'starterPriceFcfa'
+  | 'proPriceFcfaMonthly'
+  | 'nightlyCommissionRate'
+  | 'monthlyCommissionMonths'
+  | 'auditBasicPriceFcfa'
+  | 'auditFullPriceFcfa'
+  | 'boostPriceFcfa';
+
+export interface ConfigFieldChange {
+  field: ConfigFieldKey;
+  oldValue: number;
+  newValue: number;
+}
+
+const CONFIG_FIELD_LABELS: Record<ConfigFieldKey, MessageKey> = {
+  starterPriceFcfa: 'configFieldStarterPrice',
+  proPriceFcfaMonthly: 'configFieldProPrice',
+  nightlyCommissionRate: 'configFieldNightlyCommission',
+  monthlyCommissionMonths: 'configFieldMonthlyCommission',
+  auditBasicPriceFcfa: 'configFieldAuditBasic',
+  auditFullPriceFcfa: 'configFieldAuditFull',
+  boostPriceFcfa: 'configFieldBoost',
+};
+
+/** Champs exprimés en FCFA (les autres ont un format dédié). */
+const FCFA_FIELDS: ReadonlySet<ConfigFieldKey> = new Set([
+  'starterPriceFcfa',
+  'proPriceFcfaMonthly',
+  'auditBasicPriceFcfa',
+  'auditFullPriceFcfa',
+  'boostPriceFcfa',
+]);
 
 export interface BookingNotificationData {
   tenantEmail: string;
@@ -607,6 +643,11 @@ export class NotificationsService {
         { roomId },
       ),
     );
+    /* Signal léger pour le badge Messages de la sidebar (DashboardShell) —
+     * pas d'écriture en base ni d'entrée dans la cloche (déjà couvert par le
+     * push OneSignal + la messagerie elle-même) : juste de quoi déclencher un
+     * refetch du compteur non-lus, même si /messages n'est pas ouvert. */
+    void this.pusher.trigger(`user-${recipientId}`, 'unread-badge', {});
   }
 
   /* ── In-app notifications (DB + Pusher) ─────────────────────────────────
@@ -795,6 +836,34 @@ export class NotificationsService {
     );
   }
 
+  // Admin : nouvelle demande AlloVérifié (statut REQUESTED) — aucun agent
+  // n'est encore assigné, une action admin (assignAgent) est requise. Appelée
+  // depuis VerificationsService.create() (chemin gratuit admin/PRO) et
+  // createVerificationFromPayment() (chemin payant, une fois le paiement
+  // confirmé).
+  async notifyAdminNewVerificationRequest(
+    listingTitle: string,
+    verificationId: string,
+    listingId: string,
+  ) {
+    const admins = await this.prisma.user.findMany({
+      where: { roles: { has: Role.ADMIN } },
+      select: { id: true },
+    });
+    await Promise.all(
+      admins.map((admin) =>
+        this.pushInApp(
+          admin.id,
+          'VERIF_REQUESTED',
+          'pushVerifRequestedTitle',
+          'pushVerifRequestedBody',
+          { listingTitle },
+          { verificationId, listingTitle, listingId },
+        ),
+      ),
+    );
+  }
+
   // Admin : l'agent demande à décliner une mission (en attente approbation)
   async notifyAdminDeclineRequest(
     listingTitle: string,
@@ -940,7 +1009,21 @@ export class NotificationsService {
   }
 
   /* Broadcast admin : le titre et le message sont saisis à la main par
-   * l'administrateur, donc envoyés tels quels sans traduction. */
+   * l'administrateur, donc envoyés tels quels sans traduction.
+   *
+   * Contrairement aux autres notifications (transactionnelles, déclenchées
+   * par un événement), un broadcast doit être immédiatement identifiable
+   * comme venant de la Direction et non de la plateforme elle-même — d'où le
+   * préfixe "👑 De la part d'AlloAppart" sur le push OneSignal, et le type
+   * dédié ADMIN_BROADCAST côté cloche in-app (NotificationBell lui applique
+   * un style doré + couronne distinct des notifications automatiques).
+   *
+   * Jusqu'ici seul le push OneSignal était envoyé (rien dans la cloche) : on
+   * a donc désormais besoin des ids de chaque destinataire — y compris pour
+   * le segment ALL, qui se contentait auparavant d'un count() — pour créer
+   * la ligne Notification correspondante. `createMany` + ids générés côté
+   * code (plutôt que laissés au défaut Prisma) permet un insert en lot tout
+   * en gardant un id stable à transmettre immédiatement via Pusher. */
   async broadcastPush(
     title: string,
     message: string,
@@ -950,27 +1033,268 @@ export class NotificationsService {
       BAILLEURS: Role.BAILLEUR,
       LOCATAIRES: Role.LOCATAIRE,
       PRO_AGENCES: Role.PRO_AGENCE,
+      AGENTS_TERRAIN: Role.AGENT_TERRAIN,
     };
 
-    let externalIds: string[] | undefined;
-    let recipients: number;
+    const users =
+      segment === 'ALL'
+        ? await this.prisma.user.findMany({ select: { id: true, clerkId: true } })
+        : await this.prisma.user.findMany({
+            where: { roles: { has: roleMap[segment] } },
+            select: { id: true, clerkId: true },
+          });
 
-    if (segment === 'ALL') {
-      recipients = await this.prisma.user.count();
-    } else {
-      const role = roleMap[segment];
-      const users = await this.prisma.user.findMany({
-        where: { roles: { has: role } },
-        select: { clerkId: true },
-      });
-      externalIds = users.map((u) => u.clerkId);
-      recipients = externalIds.length;
+    const externalIds = users.map((u) => u.clerkId);
+    const recipients = users.length;
+
+    const brandedTitle = `👑 De la part d'AlloAppart — ${title}`;
+    await this.onesignal.sendBroadcast(
+      brandedTitle,
+      message,
+      segment === 'ALL' ? undefined : externalIds,
+    );
+
+    if (recipients > 0) {
+      const rows = users.map((u) => ({
+        id: randomUUID(),
+        userId: u.id,
+        type: 'ADMIN_BROADCAST',
+        title,
+        body: message,
+      }));
+      await this.prisma.notification.createMany({ data: rows });
+      const createdAt = new Date().toISOString();
+      for (const row of rows) {
+        void this.pusher.trigger(`user-${row.userId}`, 'notification', {
+          ...row,
+          isRead: false,
+          createdAt,
+        });
+      }
     }
 
-    await this.onesignal.sendBroadcast(title, message, externalIds);
     this.logger.log(
       `broadcastPush segment=${segment} recipients=${recipients}`,
     );
     return { sent: true, recipients };
+  }
+
+  /** Formate une valeur de champ tarifaire pour affichage dans une langue donnée. */
+  private formatConfigFieldValue(
+    field: ConfigFieldKey,
+    value: number,
+    loc: Locale,
+  ): string {
+    if (field === 'nightlyCommissionRate') {
+      return `${Math.round(value * 1000) / 10}%`;
+    }
+    if (field === 'monthlyCommissionMonths') {
+      return t(loc, 'configMonthsUnitCount', { count: value });
+    }
+    return FCFA_FIELDS.has(field)
+      ? `${formatNumber(loc, value)} FCFA`
+      : String(value);
+  }
+
+  /* Bailleurs/agences PRO : notifiés (in-app + push + email) quand l'admin
+   * modifie la tarification de la plateforme (plans, commission, AlloVérifié,
+   * boost) depuis espace/config — ce sont les seuls rôles concernés par ces
+   * tarifs (les locataires ne voient ni commission ni prix d'abonnement).
+   * L'email est requis par les CGU (Article 7 : préavis de 30 jours
+   * "communiqué par e-mail aux utilisateurs enregistrés"). `effectiveAt` est
+   * la date de prise d'effet programmée, ou null si le changement s'applique
+   * immédiatement (correctif urgent, effectiveInDays = 0). */
+  async notifyPlatformConfigChanged(
+    changes: ConfigFieldChange[],
+    effectiveAt: Date | null,
+  ): Promise<void> {
+    if (changes.length === 0) return;
+
+    const users = await this.prisma.user.findMany({
+      where: { roles: { hasSome: [Role.BAILLEUR, Role.PRO_AGENCE] } },
+      select: { id: true, clerkId: true, email: true, locale: true },
+    });
+    if (users.length === 0) return;
+
+    const byLocale = new Map<
+      Locale,
+      { userId: string; clerkId: string; email: string }[]
+    >();
+    for (const u of users) {
+      const loc = toLocale(u.locale);
+      const group = byLocale.get(loc) ?? [];
+      group.push({ userId: u.id, clerkId: u.clerkId, email: u.email });
+      byLocale.set(loc, group);
+    }
+
+    await Promise.all(
+      Array.from(byLocale.entries()).map(async ([loc, group]) => {
+        const summary = changes
+          .map((c) => {
+            const label = t(loc, CONFIG_FIELD_LABELS[c.field]);
+            const from = this.formatConfigFieldValue(c.field, c.oldValue, loc);
+            const to = this.formatConfigFieldValue(c.field, c.newValue, loc);
+            return `${label} : ${from} → ${to}`;
+          })
+          .join(' · ');
+        const dateStr = effectiveAt
+          ? effectiveAt.toLocaleDateString(loc === 'en' ? 'en-US' : 'fr-SN', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })
+          : null;
+
+        const title = t(loc, 'pushConfigChangedTitle');
+        const when = effectiveAt
+          ? t(loc, 'pushConfigChangedEffectiveAt', { date: dateStr! })
+          : t(loc, 'pushConfigChangedEffectiveNow');
+        const body = t(loc, 'pushConfigChangedBody', {
+          changes: summary,
+          when,
+        });
+
+        await Promise.all(
+          group.map((u) =>
+            this.prisma.notification
+              .create({
+                data: {
+                  userId: u.userId,
+                  type: 'PLATFORM_CONFIG_CHANGED',
+                  title,
+                  body,
+                  metadata: {
+                    changes,
+                    effectiveAt: effectiveAt?.toISOString() ?? null,
+                  } as unknown as Prisma.InputJsonValue,
+                },
+              })
+              .then((notif) => {
+                void this.pusher.trigger(
+                  `user-${u.userId}`,
+                  'notification',
+                  notif,
+                );
+              }),
+          ),
+        );
+
+        const externalIds = group.map((u) => u.clerkId).filter(Boolean);
+        if (externalIds.length) {
+          void this.onesignal.sendToExternalIds(externalIds, title, body, {
+            type: 'PLATFORM_CONFIG_CHANGED',
+          });
+        }
+
+        // Email — requis par les CGU (Article 7 : préavis communiqué par
+        // e-mail). Un email par destinataire réel (send() ignore déjà les
+        // comptes sans adresse réelle, ex. inscription par téléphone seul).
+        const emailSubject = t(loc, 'mailConfigChangedSubject');
+        const emailBody =
+          `<p>${t(loc, 'mailConfigChangedIntro')}</p>` +
+          `<ul>${changes
+            .map((c) => {
+              const label = t(loc, CONFIG_FIELD_LABELS[c.field]);
+              const from = this.formatConfigFieldValue(
+                c.field,
+                c.oldValue,
+                loc,
+              );
+              const to = this.formatConfigFieldValue(c.field, c.newValue, loc);
+              return `<li>${label} : ${from} → ${to}</li>`;
+            })
+            .join('')}</ul>` +
+          `<p>${
+            effectiveAt
+              ? t(loc, 'mailConfigChangedEffectiveAt', { date: dateStr! })
+              : t(loc, 'mailConfigChangedEffectiveNow')
+          }</p>` +
+          this.signature(loc);
+
+        await Promise.all(
+          group.map((u) => this.send(u.email, emailSubject, emailBody)),
+        );
+      }),
+    );
+
+    this.logger.log(
+      `notifyPlatformConfigChanged: ${users.length} destinataire(s) (BAILLEUR/PRO_AGENCE), ${changes.length} champ(s) modifié(s), effectiveAt=${effectiveAt?.toISOString() ?? 'immédiat'}`,
+    );
+  }
+
+  /* Annulation d'un changement tarifaire programmé, avant son échéance —
+   * mêmes destinataires que notifyPlatformConfigChanged. */
+  async notifyPlatformConfigChangeCancelled(
+    cancelledEffectiveAt: Date,
+  ): Promise<void> {
+    const users = await this.prisma.user.findMany({
+      where: { roles: { hasSome: [Role.BAILLEUR, Role.PRO_AGENCE] } },
+      select: { id: true, clerkId: true, email: true, locale: true },
+    });
+    if (users.length === 0) return;
+
+    const byLocale = new Map<
+      Locale,
+      { userId: string; clerkId: string; email: string }[]
+    >();
+    for (const u of users) {
+      const loc = toLocale(u.locale);
+      const group = byLocale.get(loc) ?? [];
+      group.push({ userId: u.id, clerkId: u.clerkId, email: u.email });
+      byLocale.set(loc, group);
+    }
+
+    await Promise.all(
+      Array.from(byLocale.entries()).map(async ([loc, group]) => {
+        const dateStr = cancelledEffectiveAt.toLocaleDateString(
+          loc === 'en' ? 'en-US' : 'fr-SN',
+          { year: 'numeric', month: 'long', day: 'numeric' },
+        );
+        const title = t(loc, 'pushConfigChangeCancelledTitle');
+        const body = t(loc, 'pushConfigChangeCancelledBody', {
+          date: dateStr,
+        });
+
+        await Promise.all(
+          group.map((u) =>
+            this.prisma.notification
+              .create({
+                data: {
+                  userId: u.userId,
+                  type: 'PLATFORM_CONFIG_CHANGE_CANCELLED',
+                  title,
+                  body,
+                },
+              })
+              .then((notif) => {
+                void this.pusher.trigger(
+                  `user-${u.userId}`,
+                  'notification',
+                  notif,
+                );
+              }),
+          ),
+        );
+
+        const externalIds = group.map((u) => u.clerkId).filter(Boolean);
+        if (externalIds.length) {
+          void this.onesignal.sendToExternalIds(externalIds, title, body, {
+            type: 'PLATFORM_CONFIG_CHANGE_CANCELLED',
+          });
+        }
+
+        const emailSubject = t(loc, 'mailConfigCancelledSubject');
+        const emailBody =
+          `<p>${t(loc, 'mailConfigCancelledBody', { date: dateStr })}</p>` +
+          this.signature(loc);
+        await Promise.all(
+          group.map((u) => this.send(u.email, emailSubject, emailBody)),
+        );
+      }),
+    );
+
+    this.logger.log(
+      `notifyPlatformConfigChangeCancelled: ${users.length} destinataire(s)`,
+    );
   }
 }

@@ -464,3 +464,64 @@ model VerificationPayment {
   @@index([listingId])
   @@map("verification_payments")
 }
+
+/**
+ * Configuration tarifaire de la plateforme, éditable par un admin depuis
+ * espace/config. Ligne unique ("singleton") — créée à la volée avec les
+ * valeurs par défaut (celles historiquement codées en dur dans les services)
+ * si elle n'existe pas encore. pinHash/pinSalt protègent la validation des
+ * modifications (code PIN, par défaut 2002) ; voir aussi AdminConfigOtp pour
+ * l'alternative "code reçu par email".
+ */
+model PlatformConfig {
+  id                      String   @id @default("singleton")
+  starterPriceFcfa        Int      @default(75000)
+  proPriceFcfaMonthly     Int      @default(150000)
+  nightlyCommissionRate   Float    @default(0.10)
+  monthlyCommissionMonths Float    @default(1)
+  auditBasicPriceFcfa     Int      @default(25000)
+  auditFullPriceFcfa      Int      @default(60000)
+  boostPriceFcfa          Int      @default(5000)
+
+  // Modification tarifaire en attente — préavis CGU Article 7 (30 jours par
+  // défaut, ajustable par l'admin). Tant que pendingEffectiveAt n'est pas
+  // atteint, les valeurs ci-dessus restent en vigueur ; à l'échéance, la
+  // prochaine lecture (getOrCreateRow) promeut pending* → valeurs live et
+  // efface ces champs.
+  pendingStarterPriceFcfa        Int?
+  pendingProPriceFcfaMonthly     Int?
+  pendingNightlyCommissionRate   Float?
+  pendingMonthlyCommissionMonths Float?
+  pendingAuditBasicPriceFcfa     Int?
+  pendingAuditFullPriceFcfa      Int?
+  pendingBoostPriceFcfa          Int?
+  pendingEffectiveAt             DateTime?
+  pendingSetByEmail              String?
+  pendingSetAt                   DateTime?
+
+  pinHash                 String
+  pinSalt                 String
+  updatedAt               DateTime @updatedAt
+  updatedByEmail          String?
+
+  @@map("platform_config")
+}
+
+/**
+ * Code de confirmation à usage unique envoyé par email à un admin qui
+ * souhaite valider un changement de configuration (alternative au code PIN).
+ * Expire après quelques minutes ; `consumedAt` empêche la réutilisation.
+ */
+model AdminConfigOtp {
+  id         String    @id @default(uuid())
+  adminId    String
+  adminEmail String
+  codeHash   String
+  codeSalt   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([adminId])
+  @@map("admin_config_otps")
+}

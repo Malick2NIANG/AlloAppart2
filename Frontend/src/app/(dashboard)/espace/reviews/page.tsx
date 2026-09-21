@@ -9,6 +9,20 @@ import { formatDate } from '@/lib/utils';
 import Link from 'next/link';
 import { SkeletonListRow } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
+import { StatFilterCard } from '@/components/bookings/StatFilterCard';
+
+type RatingFilter = 'ALL' | '5' | '4' | '3' | '2' | '1';
+
+const RATING_FILTERS: RatingFilter[] = ['ALL', '5', '4', '3', '2', '1'];
+
+const STAT_CARD_COLORS: Record<RatingFilter, { color: string; bg: string }> = {
+  ALL: { color: 'text-gold-dark',                                bg: 'bg-gold-pale' },
+  '5': { color: 'text-emerald-600 dark:text-emerald-400',        bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+  '4': { color: 'text-blue-600 dark:text-blue-400',              bg: 'bg-blue-50 dark:bg-blue-950/30' },
+  '3': { color: 'text-amber-600 dark:text-amber-400',            bg: 'bg-amber-50 dark:bg-amber-950/30' },
+  '2': { color: 'text-purple-600 dark:text-purple-400',          bg: 'bg-purple-50 dark:bg-purple-950/30' },
+  '1': { color: 'text-red-600 dark:text-red-400',                bg: 'bg-red-50 dark:bg-red-950/30' },
+};
 
 export default function AdminReviewsPage() {
   const { getToken } = useAuth();
@@ -25,15 +39,40 @@ export default function AdminReviewsPage() {
   const [actionId, setActionId] = useState<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<Review | null>(null);
   const [limit, setLimit]       = useState(20);
+  const [ratingFilter, setRatingFilter] = useState<RatingFilter>('ALL');
+  const [ratingCounts, setRatingCounts] = useState<Record<RatingFilter, number>>({
+    ALL: 0, '5': 0, '4': 0, '3': 0, '2': 0, '1': 0,
+  });
   const LIMIT_OPTIONS = [10, 20, 50] as const;
 
-  const fetchData = useCallback(async (p: number, lim = limit) => {
+  const fetchRatingCounts = useCallback(async () => {
+    const token = await getToken();
+    if (!token) return;
+    try {
+      const results = await Promise.all(
+        RATING_FILTERS.map((r) =>
+          api.get<PaginatedResponse<Review>>(
+            `/reviews/all?page=1&limit=1${r === 'ALL' ? '' : `&rating=${r}`}`,
+            token,
+          ),
+        ),
+      );
+      const next = {} as Record<RatingFilter, number>;
+      RATING_FILTERS.forEach((r, i) => { next[r] = results[i]!.total; });
+      setRatingCounts(next);
+    } catch {
+      // silencieux — les compteurs ne sont qu'indicatifs
+    }
+  }, [getToken]);
+
+  const fetchData = useCallback(async (p: number, lim = limit, rf = ratingFilter) => {
     const token = await getToken();
     if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<PaginatedResponse<Review>>(`/reviews/all?page=${p}&limit=${lim}`, token);
+      const ratingQs = rf === 'ALL' ? '' : `&rating=${rf}`;
+      const res = await api.get<PaginatedResponse<Review>>(`/reviews/all?page=${p}&limit=${lim}${ratingQs}`, token);
       setReviews(res.data);
       setTotal(res.total);
     } catch {
@@ -41,9 +80,16 @@ export default function AdminReviewsPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, limit]);
+  }, [getToken, limit, ratingFilter]);
 
   useEffect(() => { fetchData(page); }, [fetchData, page]);
+  useEffect(() => { void fetchRatingCounts(); }, [fetchRatingCounts]);
+
+  const handleFilterChange = (rf: RatingFilter) => {
+    setRatingFilter(rf);
+    setPage(1);
+    fetchData(1, limit, rf);
+  };
 
   const handleDelete = async () => {
     if (!deleteModal) return;
@@ -54,7 +100,7 @@ export default function AdminReviewsPage() {
       await api.delete(`/reviews/${deleteModal.id}`, token);
       setDeleteModal(null);
       toast.success(t('toastReviewDeleted'));
-      await fetchData(page);
+      await Promise.all([fetchData(page), fetchRatingCounts()]);
     } catch {
       toast.error(t('errDelete'));
     } finally {
@@ -63,6 +109,18 @@ export default function AdminReviewsPage() {
   };
 
   const totalPages = Math.ceil(total / limit);
+
+  const FILTER_LABELS: Record<RatingFilter, string> = {
+    ALL: t('reviewsFilterAll'),
+    '5': t('reviewsRating5'),
+    '4': t('reviewsRating4'),
+    '3': t('reviewsRating3'),
+    '2': t('reviewsRating2'),
+    '1': t('reviewsRating1'),
+  };
+  const FILTER_ICONS: Record<RatingFilter, string> = {
+    ALL: 'fa-star', '5': 'fa-star', '4': 'fa-star', '3': 'fa-star', '2': 'fa-star', '1': 'fa-star',
+  };
 
   return (
     <div>
@@ -84,9 +142,26 @@ export default function AdminReviewsPage() {
         </div>
       </div>
 
+      {/* Cartes stat/filtre par note */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+        {RATING_FILTERS.map((r) => (
+          <StatFilterCard
+            key={r}
+            icon={FILTER_ICONS[r]}
+            label={FILTER_LABELS[r]}
+            value={ratingCounts[r]}
+            color={STAT_CARD_COLORS[r].color}
+            bg={STAT_CARD_COLORS[r].bg}
+            active={ratingFilter === r}
+            onClick={() => handleFilterChange(r)}
+            selectedLabel={t('filterSelected')}
+          />
+        ))}
+      </div>
+
       {loading ? (
-        <div className="flex flex-col gap-2">
-          {Array.from({ length: 8 }).map((_, i) => <SkeletonListRow key={i} />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonListRow key={i} />)}
         </div>
       ) : error ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -104,32 +179,35 @@ export default function AdminReviewsPage() {
           <p className="text-sub">{t('reviewsEmpty')}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {reviews.map((review) => (
-            <div key={review.id} className="rounded-xl border border-line bg-card p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <p className="text-sm font-semibold text-text">
+            <div key={review.id} className="rounded-2xl border border-line bg-card p-5 flex flex-col gap-3 transition-shadow hover:shadow-md">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-text truncate">
                     {review.author?.firstName} {review.author?.lastName}
                   </p>
-                  <Stars rating={review.rating} />
-                  <span className="text-xs text-sub">{formatDate(review.createdAt)}</span>
+                  <p className="text-xs text-sub">{formatDate(review.createdAt)}</p>
                 </div>
-                {review.listing && (
-                  <Link href={`/listings/${review.listingId}`} target="_blank"
-                    className="text-xs text-gold-dark hover:underline">
-                    <i className="fa-solid fa-house text-xs mr-1" />
-                    {review.listing.title} — {review.listing.city}
-                  </Link>
-                )}
-                {review.comment && (
-                  <p className="mt-2 text-sm text-sub line-clamp-2">{review.comment}</p>
-                )}
+                <Stars rating={review.rating} />
               </div>
+
+              {review.listing && (
+                <Link href={`/listings/${review.listingId}`} target="_blank"
+                  className="text-xs text-gold-dark hover:underline truncate">
+                  <i className="fa-solid fa-house text-xs mr-1" />
+                  {review.listing.title} — {review.listing.city}
+                </Link>
+              )}
+
+              <p className="text-sm text-sub line-clamp-3 flex-1 italic">
+                {review.comment ? `“${review.comment}”` : t('reviewsNoComment')}
+              </p>
+
               <button
                 onClick={() => setDeleteModal(review)}
                 disabled={actionId !== null}
-                className="shrink-0 text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
+                className="self-start text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
               >
                 <i className="fa-solid fa-trash text-xs mr-1" />{t('delete')}
               </button>
@@ -184,7 +262,7 @@ export default function AdminReviewsPage() {
 
 function Stars({ rating }: { rating: number }) {
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-0.5 shrink-0">
       {[1, 2, 3, 4, 5].map((s) => (
         <i
           key={s}

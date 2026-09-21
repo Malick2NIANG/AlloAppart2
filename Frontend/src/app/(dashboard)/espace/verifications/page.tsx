@@ -3,11 +3,13 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { api } from '@/lib/api';
 import type { Verification, User, PaginatedResponse } from '@/types';
 import { formatDate } from '@/lib/utils';
-import { SkeletonListRow } from '@/components/ui/Skeleton';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
+import { StatFilterCard } from '@/components/bookings/StatFilterCard';
 
 type TabMode = 'pending' | 'all';
 type StatusFilter = 'ALL' | 'REQUESTED' | 'SCHEDULED' | 'IN_PROGRESS' | 'DONE' | 'REJECTED';
@@ -24,6 +26,29 @@ const STATUS_STYLES: Record<string, string> = {
   DONE:            'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
   REJECTED:        'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
   DECLINE_PENDING: 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400',
+};
+
+const STATUS_TAB_ICONS: Record<StatusFilter, string> = {
+  ALL:         'fa-layer-group',
+  REQUESTED:   'fa-clock',
+  SCHEDULED:   'fa-calendar-check',
+  IN_PROGRESS: 'fa-person-walking-arrow-right',
+  DONE:        'fa-circle-check',
+  REJECTED:    'fa-xmark',
+};
+
+const FALLBACK_IMG = 'https://via.placeholder.com/600x400?text=AlloAppart';
+
+// Couleurs des chips icône des StatFilterCard (onglet 'all') — mêmes teintes
+// sémantiques que STATUS_STYLES (badges), sauf SCHEDULED réassigné au violet
+// pour ne pas se confondre visuellement avec le doré réservé à "Tous".
+const STAT_CARD_COLORS: Record<StatusFilter, { color: string; bg: string }> = {
+  ALL:         { color: 'text-gold-dark',                        bg: 'bg-gold-pale' },
+  REQUESTED:   { color: 'text-amber-600 dark:text-amber-400',    bg: 'bg-amber-50 dark:bg-amber-950/30' },
+  SCHEDULED:   { color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-50 dark:bg-purple-950/30' },
+  IN_PROGRESS: { color: 'text-blue-600 dark:text-blue-400',      bg: 'bg-blue-50 dark:bg-blue-950/30' },
+  DONE:        { color: 'text-green-600 dark:text-green-400',    bg: 'bg-green-50 dark:bg-green-950/30' },
+  REJECTED:    { color: 'text-red-600 dark:text-red-400',        bg: 'bg-red-50 dark:bg-red-950/30' },
 };
 
 export default function AdminVerificationsPage() {
@@ -52,6 +77,12 @@ export default function AdminVerificationsPage() {
   const [limit, setLimit]                 = useState(20);
   const LIMIT_OPTIONS = [10, 20, 50] as const;
   const LIMIT = limit;
+  // Compte par statut (onglet 'all' uniquement) — alimente les StatFilterCard,
+  // qui doublent de filtre cliquable (même pattern que Signalements/
+  // Réservations/Annonces). Rafraîchi avec la liste à chaque fetchData.
+  const [statusCounts, setStatusCounts] = useState<Record<StatusFilter, number>>({
+    ALL: 0, REQUESTED: 0, SCHEDULED: 0, IN_PROGRESS: 0, DONE: 0, REJECTED: 0,
+  });
 
   const STATUS_LABELS: Record<string, string> = {
     REQUESTED:       t('verifStatusRequested'),
@@ -61,6 +92,15 @@ export default function AdminVerificationsPage() {
     REJECTED:        t('verifStatusRejected'),
     DECLINE_PENDING: t('verifStatusDeclinePending'),
   };
+
+  const STATUS_TABS: { key: StatusFilter; label: string; icon: string }[] = [
+    { key: 'ALL',         label: t('allStatuses'),      icon: STATUS_TAB_ICONS.ALL         },
+    { key: 'REQUESTED',   label: t('filterRequested'),  icon: STATUS_TAB_ICONS.REQUESTED   },
+    { key: 'SCHEDULED',   label: t('filterScheduled'),  icon: STATUS_TAB_ICONS.SCHEDULED   },
+    { key: 'IN_PROGRESS', label: t('filterInProgress'), icon: STATUS_TAB_ICONS.IN_PROGRESS },
+    { key: 'DONE',        label: t('filterDone'),       icon: STATUS_TAB_ICONS.DONE        },
+    { key: 'REJECTED',    label: t('filterRejected'),   icon: STATUS_TAB_ICONS.REJECTED    },
+  ];
 
   const fetchData = useCallback(async (tb: TabMode, s: StatusFilter, p: number) => {
     const token = await getToken();
@@ -87,6 +127,27 @@ export default function AdminVerificationsPage() {
         setTotal(verifs.total);
         setAgents(usersRes.data.filter((u) => u.roles.includes('AGENT_TERRAIN')));
       }
+
+      // Comptes par statut — alimentent à la fois les 6 StatFilterCard de
+      // l'onglet "Toutes" et les 2 cartes "En attente"/"Toutes" du switcher
+      // de tête (dérivées de ces mêmes comptes, voir plus bas). Toujours
+      // rafraîchis, quel que soit l'onglet actif, pour rester exacts ;
+      // non bloquant pour l'affichage de la liste.
+      void (async () => {
+        try {
+          const statuses: StatusFilter[] = ['ALL', 'REQUESTED', 'SCHEDULED', 'IN_PROGRESS', 'DONE', 'REJECTED'];
+          const entries = await Promise.all(statuses.map(async (st) => {
+            const cParams = new URLSearchParams({ page: '1', limit: '1' });
+            if (st !== 'ALL') cParams.set('status', st);
+            const res = await api.get<PaginatedResponse<Verification>>(`/verifications/all?${cParams}`, token);
+            return [st, res.total] as const;
+          }));
+          setStatusCounts(Object.fromEntries(entries) as Record<StatusFilter, number>);
+        } catch {
+          // Purement informatif (cartes stats) — une erreur ici ne bloque
+          // pas le reste de la page, déjà couvert par le fetchData principal.
+        }
+      })();
     } catch {
       setError(tRef.current('verifsLoadError'));
     } finally {
@@ -99,6 +160,11 @@ export default function AdminVerificationsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, statusFilter, page]);
 
+  // Rafraîchit immédiatement le badge sidebar "Vérifications" (DashboardShell)
+  // sans attendre un reload — même onglet uniquement, cf. sa doc interne.
+  const notifyVerifBadge = () =>
+    window.dispatchEvent(new CustomEvent('aa-badges-updated', { detail: { kind: 'VERIFICATIONS' } }));
+
   const handleAssign = async () => {
     if (!assignModal || !selectedAgent) return;
     const token = await getToken();
@@ -107,6 +173,7 @@ export default function AdminVerificationsPage() {
     try {
       await api.patch(`/verifications/${assignModal.verificationId}/assign`, { agentId: selectedAgent }, token);
       await fetchData(tab, statusFilter, page);
+      notifyVerifBadge();
       setAssignModal(null);
       setSelectedAgent('');
       toast.success(t('toastAgentAssigned'));
@@ -140,6 +207,7 @@ export default function AdminVerificationsPage() {
       await api.patch(`/verifications/${id}/approve-decline`, {}, token);
       toast.success(t('toastDeclineApproved'));
       await fetchData(tab, statusFilter, page);
+      notifyVerifBadge();
     } catch { toast.error(t('errApprove')); }
     finally { setActionLoading(null); }
   };
@@ -152,6 +220,7 @@ export default function AdminVerificationsPage() {
       await api.patch(`/verifications/${id}/refuse-decline`, {}, token);
       toast.success(t('toastDeclineRefused'));
       await fetchData(tab, statusFilter, page);
+      notifyVerifBadge();
     } catch { toast.error(t('errRefuse')); }
     finally { setActionLoading(null); }
   };
@@ -164,6 +233,7 @@ export default function AdminVerificationsPage() {
     try {
       await api.patch(`/verifications/${rejectModal.id}/reject`, { reason: rejectReason }, token);
       await fetchData(tab, statusFilter, page);
+      notifyVerifBadge();
       setRejectModal(null);
       setRejectReason('');
       toast.success(t('toastVerifRejected'));
@@ -175,6 +245,11 @@ export default function AdminVerificationsPage() {
   };
 
   const totalPages = Math.ceil(total / LIMIT);
+  // Dérivés des comptes par statut déjà chargés pour les StatFilterCard du
+  // sous-filtre — "En attente" = mêmes 3 statuts que /verifications/pending
+  // côté back (REQUESTED+SCHEDULED+IN_PROGRESS), "Toutes" = statusCounts.ALL.
+  const pendingCount = statusCounts.REQUESTED + statusCounts.SCHEDULED + statusCounts.IN_PROGRESS;
+  const allCount     = statusCounts.ALL;
 
   return (
     <div>
@@ -185,41 +260,51 @@ export default function AdminVerificationsPage() {
         </p>
       </div>
 
-      {/* Tab switcher */}
-      <div className="mb-5 flex gap-1 rounded-xl border border-line bg-card p-1 w-fit">
-        <button
+      {/* Tab switcher — même pattern StatFilterCard que les sous-filtres et
+          les autres pages admin (cartes cliquables doublant de stats). */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <StatFilterCard
+          icon="fa-clock"
+          label={t('tabPending')}
+          value={pendingCount}
+          color="text-amber-600 dark:text-amber-400"
+          bg="bg-amber-50 dark:bg-amber-950/30"
+          active={tab === 'pending'}
           onClick={() => { setTab('pending'); setPage(1); }}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-            tab === 'pending' ? 'bg-gold text-gray-900' : 'text-sub hover:text-text'
-          }`}
-        >
-          <i className="fa-solid fa-clock text-xs mr-1.5" />{t('tabPending')}
-        </button>
-        <button
+          selectedLabel={t('filterSelected')}
+        />
+        <StatFilterCard
+          icon="fa-list"
+          label={t('tabAll')}
+          value={allCount}
+          color="text-gold-dark"
+          bg="bg-gold-pale"
+          active={tab === 'all'}
           onClick={() => { setTab('all'); setPage(1); }}
-          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-            tab === 'all' ? 'bg-gold text-gray-900' : 'text-sub hover:text-text'
-          }`}
-        >
-          <i className="fa-solid fa-list text-xs mr-1.5" />{t('tabAll')}
-        </button>
+          selectedLabel={t('filterSelected')}
+        />
       </div>
 
       {tab === 'all' && (
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value as StatusFilter); setPage(1); }}
-            className="rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-gold"
-          >
-            <option value="ALL">{t('allStatuses')}</option>
-            <option value="REQUESTED">{t('filterRequested')}</option>
-            <option value="SCHEDULED">{t('filterScheduled')}</option>
-            <option value="IN_PROGRESS">{t('filterInProgress')}</option>
-            <option value="DONE">{t('filterDone')}</option>
-            <option value="REJECTED">{t('filterRejected')}</option>
-          </select>
-          <div className="flex items-center gap-1.5 shrink-0">
+        <>
+          {/* Stats par statut — doublent aussi de filtre cliquable (même
+              pattern que Signalements/Réservations/Annonces). */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+            {STATUS_TABS.map((tb) => (
+              <StatFilterCard
+                key={tb.key}
+                icon={tb.icon}
+                label={tb.label}
+                value={statusCounts[tb.key]}
+                color={STAT_CARD_COLORS[tb.key].color}
+                bg={STAT_CARD_COLORS[tb.key].bg}
+                active={statusFilter === tb.key}
+                onClick={() => { setStatusFilter(tb.key); setPage(1); }}
+                selectedLabel={t('filterSelected')}
+              />
+            ))}
+          </div>
+          <div className="mb-4 flex items-center justify-end gap-1.5">
             <span className="text-xs text-sub whitespace-nowrap">{t('rowsLabel')}</span>
             <div className="flex gap-1">
               {LIMIT_OPTIONS.map((l) => (
@@ -230,12 +315,12 @@ export default function AdminVerificationsPage() {
               ))}
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {loading ? (
-        <div className="flex flex-col gap-2">
-          {Array.from({ length: 8 }).map((_, i) => <SkeletonListRow key={i} />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} height="320px" />)}
         </div>
       ) : error ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -256,143 +341,23 @@ export default function AdminVerificationsPage() {
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {verifications.map((v) => (
-            <div key={v.id} className="rounded-xl border border-line bg-card p-4">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-text truncate">{v.listing?.title ?? v.listingId}</p>
-                  <p className="text-sm text-sub mt-0.5">
-                    <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
-                    {v.listing?.city}
-                    <span className="mx-1.5">·</span>
-                    <span className="uppercase text-xs tracking-wide">{v.auditType}</span>
-                  </p>
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLES[v.status] ?? 'bg-card text-sub'}`}>
-                      {STATUS_LABELS[v.status] ?? v.status}
-                    </span>
-                    {v.scheduledAt && (
-                      <span className="text-xs text-sub">
-                        <i className="fa-regular fa-clock text-xs mr-1" />
-                        {formatDate(v.scheduledAt)}
-                      </span>
-                    )}
-                    {v.agent ? (
-                      <span className="text-xs text-sub">
-                        <i className="fa-solid fa-user-shield text-xs mr-1 text-gold-dark" />
-                        {v.agent.firstName} {v.agent.lastName}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-red-500 font-medium">
-                        <i className="fa-solid fa-triangle-exclamation text-xs mr-1" />{t('verifNotAssigned')}
-                      </span>
-                    )}
-                    {/* Badge agent préféré par le bailleur */}
-                    {(() => {
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const preferred = (v as any).preferredAgent as { firstName: string; lastName: string } | undefined;
-                      if (!preferred) return null;
-                      return (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-gold-pale text-gold-dark font-medium border border-gold/30">
-                          <i className="fa-solid fa-star text-[9px] mr-1" />
-                          {t('verifRequestedAgent', { name: `${preferred.firstName} ${preferred.lastName}` })}
-                        </span>
-                      );
-                    })()}
-                  </div>
-                  {/* Contact bailleur */}
-                  {(() => {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const owner = (v.listing as any)?.owner as { firstName?: string; lastName?: string; phone?: string; email?: string } | undefined;
-                    if (!owner) return null;
-                    return (
-                      <div className="mt-2 flex items-center gap-3 flex-wrap text-xs text-sub border-t border-line pt-2">
-                        <i className="fa-solid fa-user text-[10px] text-gold-dark" />
-                        <span className="font-medium text-text">{owner.firstName} {owner.lastName}</span>
-                        {owner.phone && (
-                          <a href={`tel:${owner.phone}`} className="flex items-center gap-1 hover:text-gold-dark transition-colors">
-                            <i className="fa-solid fa-phone text-[10px]" />{owner.phone}
-                          </a>
-                        )}
-                        {owner.email && (
-                          <a href={`mailto:${owner.email}`} className="flex items-center gap-1 hover:text-gold-dark transition-colors truncate max-w-[160px]">
-                            <i className="fa-solid fa-envelope text-[10px]" />{owner.email}
-                          </a>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  {(v.status !== 'DONE' && v.status !== 'REJECTED') && (
-                    <button
-                      onClick={() => {
-                        setAssignModal({ verificationId: v.id, listingTitle: v.listing?.title ?? v.listingId });
-                        setSelectedAgent(v.agentId ?? '');
-                      }}
-                      className="btn-gold text-xs py-1.5 px-3"
-                    >
-                      <i className="fa-solid fa-user-plus text-xs mr-1" />
-                      {v.agent ? t('reassign') : t('assign')}
-                    </button>
-                  )}
-                  {v.status === 'DONE' && (
-                    <button
-                      onClick={() => handleValidate(v.id)}
-                      disabled={actionLoading !== null}
-                      className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg py-1.5 px-3 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-50"
-                    >
-                      {actionLoading === v.id + 'validate'
-                        ? <i className="fa-solid fa-spinner fa-spin" />
-                        : <><i className="fa-solid fa-shield-halved text-xs mr-1" />{t('validateBadge')}</>}
-                    </button>
-                  )}
-                  {/* Déclin en attente — approbation admin */}
-                  {v.status === 'DECLINE_PENDING' && (() => {
-                    const declineReason = (v as unknown as { declineReason?: string }).declineReason;
-                    return (
-                      <div className="flex flex-col gap-1.5 w-full">
-                        {declineReason && (
-                          <div className="rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/40 px-3 py-1.5 text-xs text-orange-700 dark:text-orange-400">
-                            <span className="font-semibold">{t('declineReasonPrefix')}</span>{declineReason}
-                          </div>
-                        )}
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => void handleApproveDecline(v.id)}
-                            disabled={actionLoading !== null}
-                            className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg py-1.5 px-3 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-50"
-                          >
-                            {actionLoading === v.id + 'approve-decline'
-                              ? <i className="fa-solid fa-spinner fa-spin" />
-                              : <><i className="fa-solid fa-check mr-1" />{t('approveDecline')}</>}
-                          </button>
-                          <button
-                            onClick={() => void handleRefuseDecline(v.id)}
-                            disabled={actionLoading !== null}
-                            className="text-xs font-medium border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 rounded-lg py-1.5 px-3 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
-                          >
-                            {actionLoading === v.id + 'refuse-decline'
-                              ? <i className="fa-solid fa-spinner fa-spin" />
-                              : <><i className="fa-solid fa-xmark mr-1" />{t('refuseDecline')}</>}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  {v.status !== 'REJECTED' && v.status !== 'DONE' && v.status !== 'DECLINE_PENDING' && (
-                    <button
-                      onClick={() => setRejectModal({ id: v.id })}
-                      className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors"
-                    >
-                      <i className="fa-solid fa-xmark text-xs mr-1" />{t('reject')}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+            <AdminVerificationCard
+              key={v.id}
+              v={v}
+              statusLabel={STATUS_LABELS[v.status] ?? v.status}
+              statusColor={STATUS_STYLES[v.status] ?? 'bg-card text-sub'}
+              actionLoading={actionLoading}
+              onAssign={() => {
+                setAssignModal({ verificationId: v.id, listingTitle: v.listing?.title ?? v.listingId });
+                setSelectedAgent(v.agentId ?? '');
+              }}
+              onValidate={() => handleValidate(v.id)}
+              onApproveDecline={() => void handleApproveDecline(v.id)}
+              onRefuseDecline={() => void handleRefuseDecline(v.id)}
+              onReject={() => setRejectModal({ id: v.id })}
+            />
           ))}
         </div>
       )}
@@ -542,6 +507,181 @@ export default function AdminVerificationsPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Carte vérification — même coquille visuelle (photo + statut en overlay)
+ * que AdminListingCard/BookingCard, corps + actions repris tels quels du
+ * rendu en liste précédent (préserve toute la logique conditionnelle et les
+ * casts existants, y compris les eslint-disable qui les accompagnaient).
+ */
+function AdminVerificationCard({
+  v, statusLabel, statusColor, actionLoading,
+  onAssign, onValidate, onApproveDecline, onRefuseDecline, onReject,
+}: {
+  v: Verification;
+  statusLabel: string;
+  statusColor: string;
+  actionLoading: string | null;
+  onAssign: () => void;
+  onValidate: () => void;
+  onApproveDecline: () => void;
+  onRefuseDecline: () => void;
+  onReject: () => void;
+}) {
+  const t = useTranslations('admin');
+  const img = v.listing?.images?.[0] ?? FALLBACK_IMG;
+
+  return (
+    <div className="listing-card group flex flex-col">
+      {/* Photo + statut */}
+      <div className="relative h-40 overflow-hidden rounded-t-2xl">
+        <Image
+          src={img}
+          alt={v.listing?.title ?? ''}
+          fill
+          className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+          sizes="(max-width:640px) 100vw,(max-width:1024px) 50vw,33vw"
+        />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-transparent" />
+        <div className="absolute top-3 left-3">
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusColor}`}>
+            {statusLabel}
+          </span>
+        </div>
+      </div>
+
+      {/* Bien + infos */}
+      <div className="p-4 flex-1">
+        <p className="font-semibold text-text truncate">{v.listing?.title ?? v.listingId}</p>
+        <p className="text-sm text-sub mt-0.5">
+          <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
+          {v.listing?.city}
+          <span className="mx-1.5">·</span>
+          <span className="uppercase text-xs tracking-wide">{v.auditType}</span>
+        </p>
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          {v.scheduledAt && (
+            <span className="text-xs text-sub">
+              <i className="fa-regular fa-clock text-xs mr-1" />
+              {formatDate(v.scheduledAt)}
+            </span>
+          )}
+          {v.agent ? (
+            <span className="text-xs text-sub">
+              <i className="fa-solid fa-user-shield text-xs mr-1 text-gold-dark" />
+              {v.agent.firstName} {v.agent.lastName}
+            </span>
+          ) : (
+            <span className="text-xs text-red-500 font-medium">
+              <i className="fa-solid fa-triangle-exclamation text-xs mr-1" />{t('verifNotAssigned')}
+            </span>
+          )}
+          {/* Badge agent préféré par le bailleur */}
+          {(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const preferred = (v as any).preferredAgent as { firstName: string; lastName: string } | undefined;
+            if (!preferred) return null;
+            return (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-gold-pale text-gold-dark font-medium border border-gold/30">
+                <i className="fa-solid fa-star text-[9px] mr-1" />
+                {t('verifRequestedAgent', { name: `${preferred.firstName} ${preferred.lastName}` })}
+              </span>
+            );
+          })()}
+        </div>
+        {/* Contact bailleur */}
+        {(() => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const owner = (v.listing as any)?.owner as { firstName?: string; lastName?: string; phone?: string; email?: string } | undefined;
+          if (!owner) return null;
+          return (
+            <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-sub border-t border-line pt-2">
+              <i className="fa-solid fa-user text-[10px] text-gold-dark" />
+              <span className="font-medium text-text truncate">{owner.firstName} {owner.lastName}</span>
+              {owner.phone && (
+                <a href={`tel:${owner.phone}`} onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1 hover:text-gold-dark transition-colors">
+                  <i className="fa-solid fa-phone text-[10px]" />{owner.phone}
+                </a>
+              )}
+              {owner.email && (
+                <a href={`mailto:${owner.email}`} onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1 hover:text-gold-dark transition-colors truncate max-w-[160px]">
+                  <i className="fa-solid fa-envelope text-[10px]" />{owner.email}
+                </a>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Actions */}
+      <div className="border-t border-line p-4 pt-3 flex flex-wrap items-center gap-2">
+        {(v.status !== 'DONE' && v.status !== 'REJECTED') && (
+          <button
+            onClick={onAssign}
+            className="btn-gold text-xs py-1.5 px-3"
+          >
+            <i className="fa-solid fa-user-plus text-xs mr-1" />
+            {v.agent ? t('reassign') : t('assign')}
+          </button>
+        )}
+        {v.status === 'DONE' && (
+          <button
+            onClick={onValidate}
+            disabled={actionLoading !== null}
+            className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg py-1.5 px-3 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-50"
+          >
+            {actionLoading === v.id + 'validate'
+              ? <i className="fa-solid fa-spinner fa-spin" />
+              : <><i className="fa-solid fa-shield-halved text-xs mr-1" />{t('validateBadge')}</>}
+          </button>
+        )}
+        {/* Déclin en attente — approbation admin */}
+        {v.status === 'DECLINE_PENDING' && (() => {
+          const declineReason = (v as unknown as { declineReason?: string }).declineReason;
+          return (
+            <div className="flex flex-col gap-1.5 w-full">
+              {declineReason && (
+                <div className="rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/40 px-3 py-1.5 text-xs text-orange-700 dark:text-orange-400">
+                  <span className="font-semibold">{t('declineReasonPrefix')}</span>{declineReason}
+                </div>
+              )}
+              <div className="flex gap-1.5">
+                <button
+                  onClick={onApproveDecline}
+                  disabled={actionLoading !== null}
+                  className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg py-1.5 px-3 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-50"
+                >
+                  {actionLoading === v.id + 'approve-decline'
+                    ? <i className="fa-solid fa-spinner fa-spin" />
+                    : <><i className="fa-solid fa-check mr-1" />{t('approveDecline')}</>}
+                </button>
+                <button
+                  onClick={onRefuseDecline}
+                  disabled={actionLoading !== null}
+                  className="text-xs font-medium border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 rounded-lg py-1.5 px-3 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
+                >
+                  {actionLoading === v.id + 'refuse-decline'
+                    ? <i className="fa-solid fa-spinner fa-spin" />
+                    : <><i className="fa-solid fa-xmark mr-1" />{t('refuseDecline')}</>}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+        {v.status !== 'REJECTED' && v.status !== 'DONE' && v.status !== 'DECLINE_PENDING' && (
+          <button
+            onClick={onReject}
+            className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors"
+          >
+            <i className="fa-solid fa-xmark text-xs mr-1" />{t('reject')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -57,6 +57,27 @@ const fr = {
   mailReactivatedBody:
     'Bonne nouvelle ! Votre compte AlloAppart a été réactivé. Vous pouvez à nouveau vous connecter et utiliser la plateforme.',
 
+  /* Email — code de confirmation pour la config plateforme (espace/config) */
+  mailConfigOtpSubject: 'Votre code de confirmation AlloAppart',
+  mailConfigOtpTitle: 'Code de confirmation',
+  mailConfigOtpBody:
+    'Un administrateur a demandé à modifier la configuration tarifaire de la plateforme. Utilisez ce code pour confirmer ce changement :',
+  mailConfigOtpExpiry: 'Ce code expire dans 10 minutes.',
+  mailConfigOtpIgnore:
+    'Si vous n’êtes pas à l’origine de cette demande, ignorez cet email et vérifiez l’accès à votre compte admin.',
+
+  /* Email — changement de tarification (préavis CGU Article 7) */
+  mailConfigChangedSubject: 'Mise à jour de la tarification AlloAppart',
+  mailConfigChangedIntro:
+    'Conformément à nos Conditions Générales d’Utilisation (Article 7), nous vous informons d’une modification de la tarification de la plateforme :',
+  mailConfigChangedEffectiveNow: 'Ces nouveaux tarifs sont déjà en vigueur.',
+  mailConfigChangedEffectiveAt:
+    'Ces nouveaux tarifs entreront en vigueur le {date}.',
+  mailConfigCancelledSubject:
+    'Annulation d’un changement de tarification programmé',
+  mailConfigCancelledBody:
+    'Le changement de tarification qui devait entrer en vigueur le {date} a été annulé par l’administrateur. Les tarifs actuels restent inchangés.',
+
   /* Email — paiement confirmé */
   mailPaymentTenantSubject: 'Paiement confirmé — {listingTitle}',
   mailPaymentTenantAmount:
@@ -146,6 +167,7 @@ const fr = {
   pushListingReportedTitle: 'Nouveau signalement d’annonce',
   pushListingReportedUrgentTitle: '🚨 Annonce signalée plusieurs fois',
   pushDeclineRequestTitle: 'Demande de déclin à approuver',
+  pushVerifRequestedTitle: 'Nouvelle demande AlloVérifié',
   pushNewMessageTitle: 'Nouveau message',
   pushContactFilterAlertTitle: '🚩 Tentative de contournement détectée',
   pushDisputeReportedLandlordTitle: '⚠️ Signalement de non-conformité',
@@ -160,6 +182,8 @@ const fr = {
   pushMonthlyRejectedTitle: 'Demande refusée',
   pushLeaseTerminatedTitle: 'Bail résilié',
   pushContractReadyTitle: 'Contrat de bail prêt',
+  pushConfigChangedTitle: 'Tarification mise à jour',
+  pushConfigChangeCancelledTitle: 'Changement de tarification annulé',
 
   /* Notifications in-app — corps */
   pushPaymentConfirmedBody:
@@ -189,6 +213,8 @@ const fr = {
     '« {listingTitle} » signalée par {reporterName}. Motif : {reason}. ({count} signalement(s) au total)',
   pushDeclineRequestBody:
     'Un agent demande à décliner la mission « {listingTitle} ». Approbation requise.',
+  pushVerifRequestedBody:
+    'Nouvelle demande de vérification pour « {listingTitle} ». Assignation d\'un agent requise.',
   pushNewMessageBody: '{senderName} vous a envoyé un message.',
   pushContactFilterAlertBody:
     '{senderName} a tenté de partager des coordonnées de contact hors plateforme {count} fois au cours des dernières 24h (conversation {roomId}).',
@@ -213,6 +239,24 @@ const fr = {
   pushLeaseTerminatedBody: 'Le bail pour « {listingTitle} » a été résilié.',
   pushContractReadyBody:
     'Le contrat de bail pour « {listingTitle} » est prêt à télécharger.',
+  pushConfigChangedBody:
+    "L'administrateur a mis à jour la tarification de la plateforme : {changes}. {when}",
+  pushConfigChangedEffectiveNow: 'Ces nouveaux tarifs sont déjà en vigueur.',
+  pushConfigChangedEffectiveAt:
+    'Ces nouveaux tarifs entreront en vigueur le {date}.',
+  pushConfigChangeCancelledBody:
+    'Le changement de tarification prévu pour le {date} a été annulé. Les tarifs actuels restent inchangés.',
+
+  /* Libellés de champs — utilisés pour composer pushConfigChangedBody */
+  configFieldStarterPrice: 'Prix du plan Starter',
+  configFieldProPrice: 'Prix du plan Pro (mensuel)',
+  configFieldNightlyCommission: 'Commission sur les réservations à la nuitée',
+  configFieldMonthlyCommission:
+    'Commission sur les baux mensuels (mois prélevés)',
+  configFieldAuditBasic: 'Prix AlloVérifié — Basique',
+  configFieldAuditFull: 'Prix AlloVérifié — Complet',
+  configFieldBoost: 'Prix du boost d’annonce',
+  configMonthsUnitCount: '{count} mois',
 
   /* Motifs de signalement (utilisés dans les notifications admin) */
   reasonFRAUD: 'Arnaque / fraude',
@@ -257,6 +301,26 @@ const en: Record<MessageKey, string> = {
   mailReactivatedTitle: 'Your account has been reactivated',
   mailReactivatedBody:
     'Good news! Your AlloAppart account has been reactivated. You can sign in and use the platform again.',
+
+  /* Email — confirmation code for platform config (espace/config) */
+  mailConfigOtpSubject: 'Your AlloAppart confirmation code',
+  mailConfigOtpTitle: 'Confirmation code',
+  mailConfigOtpBody:
+    'An administrator requested a change to the platform’s pricing configuration. Use this code to confirm the change:',
+  mailConfigOtpExpiry: 'This code expires in 10 minutes.',
+  mailConfigOtpIgnore:
+    'If you didn’t request this, ignore this email and check access to your admin account.',
+
+  /* Email — pricing change (notice period, Terms Article 7) */
+  mailConfigChangedSubject: 'AlloAppart pricing update',
+  mailConfigChangedIntro:
+    'In accordance with our Terms of Service (Article 7), we are informing you of a change to the platform’s pricing:',
+  mailConfigChangedEffectiveNow: 'These new rates are already in effect.',
+  mailConfigChangedEffectiveAt:
+    'These new rates will take effect on {date}.',
+  mailConfigCancelledSubject: 'Scheduled pricing change cancelled',
+  mailConfigCancelledBody:
+    'The pricing change that was scheduled to take effect on {date} has been cancelled by the administrator. Current rates remain unchanged.',
 
   /* Email — payment confirmed */
   mailPaymentTenantSubject: 'Payment confirmed — {listingTitle}',
@@ -343,6 +407,7 @@ const en: Record<MessageKey, string> = {
   pushListingReportedTitle: 'New listing report',
   pushListingReportedUrgentTitle: '🚨 Listing reported multiple times',
   pushDeclineRequestTitle: 'Decline request to approve',
+  pushVerifRequestedTitle: 'New AlloVerified request',
   pushNewMessageTitle: 'New message',
   pushContactFilterAlertTitle: '🚩 Circumvention attempt detected',
   pushDisputeReportedLandlordTitle: '⚠️ Non-conformity report',
@@ -356,6 +421,8 @@ const en: Record<MessageKey, string> = {
   pushMonthlyRejectedTitle: 'Request declined',
   pushLeaseTerminatedTitle: 'Lease ended',
   pushContractReadyTitle: 'Lease contract ready',
+  pushConfigChangedTitle: 'Pricing updated',
+  pushConfigChangeCancelledTitle: 'Pricing change cancelled',
 
   /* In-app notifications — bodies */
   pushPaymentConfirmedBody: 'Your booking for “{listingTitle}” is confirmed.',
@@ -381,6 +448,8 @@ const en: Record<MessageKey, string> = {
     '“{listingTitle}” reported by {reporterName}. Reason: {reason}. ({count} report(s) in total)',
   pushDeclineRequestBody:
     'An agent is requesting to decline the mission “{listingTitle}”. Approval required.',
+  pushVerifRequestedBody:
+    'New verification request for “{listingTitle}”. An agent needs to be assigned.',
   pushNewMessageBody: '{senderName} sent you a message.',
   pushContactFilterAlertBody:
     '{senderName} attempted to share off-platform contact info {count} times over the last 24h (conversation {roomId}).',
@@ -405,6 +474,23 @@ const en: Record<MessageKey, string> = {
   pushLeaseTerminatedBody: 'The lease for “{listingTitle}” has ended.',
   pushContractReadyBody:
     'The lease contract for “{listingTitle}” is ready to download.',
+  pushConfigChangedBody:
+    'The administrator updated the platform pricing: {changes}. {when}',
+  pushConfigChangedEffectiveNow: 'These new rates are already in effect.',
+  pushConfigChangedEffectiveAt:
+    'These new rates will take effect on {date}.',
+  pushConfigChangeCancelledBody:
+    'The pricing change scheduled for {date} has been cancelled. Current rates remain unchanged.',
+
+  /* Field labels — used to compose pushConfigChangedBody */
+  configFieldStarterPrice: 'Starter plan price',
+  configFieldProPrice: 'Pro plan price (monthly)',
+  configFieldNightlyCommission: 'Commission on nightly bookings',
+  configFieldMonthlyCommission: 'Commission on monthly leases (months charged)',
+  configFieldAuditBasic: 'AlloVerified price — Basic',
+  configFieldAuditFull: 'AlloVerified price — Full',
+  configFieldBoost: 'Listing boost price',
+  configMonthsUnitCount: '{count} month(s)',
 
   /* Report reasons (used in admin notifications) */
   reasonFRAUD: 'Scam / fraud',

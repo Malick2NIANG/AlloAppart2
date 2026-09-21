@@ -39,6 +39,27 @@
   --aa-text: #1C1C1C;
   --aa-sub:  #6B7280;
   --aa-line: #E5E7EB;
+  /* Piloté par CookieConsentBanner.tsx tant que la bannière est visible —
+     voir la règle `.dashboard-viewport` juste en dessous. */
+  --cookie-banner-h: 0px;
+}
+
+/* DashboardShell (become-bailleur, publier, bookings, etc.) utilise une
+   coquille `h-screen overflow-hidden` avec un scroll interne sur <main> —
+   <body> lui-même ne scrolle jamais dans le dashboard. Ajouter un simple
+   padding/spacer en fin de contenu n'aurait aucun effet : sur une page
+   courte qui tient déjà entièrement dans <main> sans avoir besoin de
+   scroller, le bouton de fin de page reste rendu exactement là où il est
+   (rien après lui ne peut le "pousser" plus haut). La seule façon fiable de
+   garantir qu'il ne se retrouve jamais sous la bannière fixe est de réduire
+   la hauteur RÉELLE de la coquille elle-même de la hauteur de la bannière :
+   <main> (flex-1) hérite alors d'un espace utilisable plus petit, ce qui
+   force un vrai scroll (revélé par scrollIntoView) qui s'arrête pile à la
+   limite haute de la bannière. Voir DashboardShell.tsx (classe
+   `.dashboard-viewport`, remplace l'utilitaire Tailwind `h-screen`). */
+.dashboard-viewport {
+  height: 100vh;
+  height: calc(100vh - var(--cookie-banner-h));
 }
 .dark {
   --aa-bg:   #0f172a;

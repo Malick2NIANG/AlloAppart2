@@ -5,6 +5,7 @@ import { VerificationsService, AUDIT_PRICE_XOF } from './verifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
+import { PlatformConfigService } from '../platform-config/platform-config.service';
 import { Role, VerifStatus, SubscriptionPlan, SubscriptionStatus, type User } from '@prisma/client';
 
 // Ce fichier couvre create() (gratuité PRO/admin vs paiement PayDunya
@@ -67,9 +68,26 @@ describe('VerificationsService', () => {
       providers: [
         VerificationsService,
         { provide: PrismaService, useValue: prismaMock },
-        { provide: NotificationsService, useValue: {} },
+        {
+          provide: NotificationsService,
+          useValue: { notifyAdminNewVerificationRequest: jest.fn() },
+        },
         { provide: ConfigService, useValue: configMock },
         { provide: PaydunyaSoftpayService, useValue: softpayMock },
+        {
+          provide: PlatformConfigService,
+          useValue: {
+            getPricing: jest.fn().mockResolvedValue({
+              starterPriceFcfa: 75_000,
+              proPriceFcfaMonthly: 150_000,
+              nightlyCommissionRate: 0.1,
+              monthlyCommissionMonths: 1,
+              auditBasicPriceFcfa: AUDIT_PRICE_XOF.BASIC,
+              auditFullPriceFcfa: AUDIT_PRICE_XOF.FULL,
+              boostPriceFcfa: 5_000,
+            }),
+          },
+        },
       ],
     }).compile();
 
@@ -159,6 +177,7 @@ describe('VerificationsService', () => {
         scheduledAt: new Date(dto.scheduledAt),
         preferredAgentId: null,
         verificationId: null,
+        listing: { id: 'listing1', title: 'Test listing' },
       });
       prismaMock.verification.create.mockResolvedValueOnce({ id: 'v1', ...dto });
       prismaMock.verificationPayment.update.mockResolvedValueOnce({});
@@ -202,6 +221,7 @@ describe('VerificationsService', () => {
         scheduledAt: new Date(dto.scheduledAt),
         preferredAgentId: null,
         verificationId: null,
+        listing: { id: 'listing1', title: 'Test listing' },
       });
       prismaMock.verification.create.mockResolvedValueOnce({ id: 'v2', ...dto });
       prismaMock.verificationPayment.update.mockResolvedValueOnce({});
@@ -280,6 +300,7 @@ describe('VerificationsService', () => {
         scheduledAt: new Date(),
         preferredAgentId: null,
         verificationId: null,
+        listing: { id: 'listing1', title: 'Test listing' },
       });
       prismaMock.verification.create.mockResolvedValueOnce({ id: 'v1' });
 

@@ -79,9 +79,11 @@ export class ReviewsService {
     });
   }
 
-  async findAll(page = 1, limit = 20) {
+  async findAll(page = 1, limit = 20, rating?: number) {
+    const where = rating ? { rating } : {};
     const [data, total] = await Promise.all([
       this.prisma.review.findMany({
+        where,
         include: {
           author: { select: { id: true, firstName: true, lastName: true } },
           listing: { select: { id: true, title: true, city: true } },
@@ -90,7 +92,7 @@ export class ReviewsService {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.review.count(),
+      this.prisma.review.count({ where }),
     ]);
     return { data, total, page, limit };
   }

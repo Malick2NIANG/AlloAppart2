@@ -12,6 +12,7 @@ import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
+import { PlatformConfigService } from '../platform-config/platform-config.service';
 import { CreateVerificationDto } from './dto/create-verification.dto';
 import { CompleteVerificationDto } from './dto/complete-verification.dto';
 import { RateVerificationDto } from './dto/rate-verification.dto';
@@ -26,10 +27,13 @@ import {
 // Durée de validité du badge AlloVérifié — Article 6 des CGU (6 mois)
 const BADGE_VALIDITY_MONTHS = 6;
 
-// Tarifs AlloVérifié pour les demandeurs non couverts par un abonnement PRO
-// actif (STARTER, bailleur individuel) — gratuit et illimité pour PRO actif
-// et pour les admins. Cf. confirmation utilisateur du 2026-09-10 : même
-// logique que le boost, "PRO gratuit, reste payant 25k/60k".
+// Tarifs AlloVérifié par défaut pour les demandeurs non couverts par un
+// abonnement PRO actif (STARTER, bailleur individuel) — gratuit et illimité
+// pour PRO actif et pour les admins. Cf. confirmation utilisateur du
+// 2026-09-10 : même logique que le boost, "PRO gratuit, reste payant
+// 25k/60k". Ces valeurs ne sont plus utilisées au runtime (remplacées par
+// PlatformConfigService.getPricing(), éditable depuis espace/config) — cet
+// export ne sert plus que de valeur de référence pour les tests.
 export const AUDIT_PRICE_XOF: Record<'BASIC' | 'FULL', number> = {
   BASIC: 25_000,
   FULL: 60_000,
@@ -44,6 +48,7 @@ export class VerificationsService {
     private readonly notif: NotificationsService,
     private readonly config: ConfigService,
     private readonly softpay: PaydunyaSoftpayService,
+    private readonly platformConfig: PlatformConfigService,
   ) {}
 
   /** Abonnement PRO_AGENCE + plan PRO + statut ACTIVE — cf. isProActive() dans listings.service.ts. */
@@ -89,7 +94,7 @@ export class VerificationsService {
 
     // Gratuit et illimité : admin ou abonnement PRO actif (cf. AUDIT_PRICE_XOF ci-dessus).
     if (isAdmin || this.isProActive(requester)) {
-      return this.prisma.verification.create({
+      const verification = await this.prisma.verification.create({
         data: {
           listingId: dto.listingId,
           auditType: dto.auditType,
@@ -98,6 +103,12 @@ export class VerificationsService {
           ...(dto.preferredAgentId ? { preferredAgentId: dto.preferredAgentId } : {}),
         },
       });
+      void this.notif.notifyAdminNewVerificationRequest(
+        listing.title,
+        verification.id,
+        listing.id,
+      );
+      return verification;
     }
 
     // Tout le reste (STARTER, bailleur individuel) : paiement PayDunya requis
@@ -118,7 +129,9 @@ export class VerificationsService {
     requesterId: string,
     dto: CreateVerificationDto,
   ) {
-    const amount = AUDIT_PRICE_XOF[dto.auditType];
+    const pricing = await this.platformConfig.getPricing();
+    const amount =
+      dto.auditType === 'BASIC' ? pricing.auditBasicPriceFcfa : pricing.auditFullPriceFcfa;
     const isDev = this.config.get<string>('NODE_ENV') !== 'production';
 
     // ── Mode bypass dev : simule le paiement sans appeler PayDunya ──────────
@@ -241,6 +254,7 @@ export class VerificationsService {
   private async createVerificationFromPayment(paymentId: string) {
     const payment = await this.prisma.verificationPayment.findUniqueOrThrow({
       where: { id: paymentId },
+      include: { listing: { select: { id: true, title: true } } },
     });
     if (payment.verificationId) {
       // Déjà traité (idempotence — double webhook/vérif active)
@@ -261,6 +275,11 @@ export class VerificationsService {
       where: { id: payment.id },
       data: { verificationId: verification.id },
     });
+    void this.notif.notifyAdminNewVerificationRequest(
+      payment.listing.title,
+      verification.id,
+      payment.listing.id,
+    );
     return verification;
   }
 
@@ -456,9 +475,15 @@ export class VerificationsService {
     });
   }
 
+  // Compte les missions nécessitant une action admin : nouvelles demandes
+  // (REQUESTED, à assigner) et demandes de déclin en attente d'approbation
+  // (DECLINE_PENDING) — les deux apparaissent dans l'onglet "En attente" de
+  // espace/verifications et alimentent le badge sidebar (cf. DashboardShell).
   async pendingCount(): Promise<{ count: number }> {
     const count = await this.prisma.verification.count({
-      where: { status: VerifStatus.REQUESTED },
+      where: {
+        status: { in: [VerifStatus.REQUESTED, VerifStatus.DECLINE_PENDING] },
+      },
     });
     return { count };
   }

@@ -72,4 +72,10 @@ export class AnalyticsController {
   getAdminAlerts(@CurrentUser() user: User) {
     return this.analyticsService.getAdminAlerts(user);
   }
+
+  @Roles(Role.ADMIN)
+  @Get('admin/monthly')
+  getAdminMonthlyTrend(@CurrentUser() user: User) {
+    return this.analyticsService.getAdminMonthlyTrend(user);
+  }
 }

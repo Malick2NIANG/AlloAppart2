@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useId } from 'react';
+import { useState, useCallback, useId, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ToastContext, type ToastItem, type ToastType } from './Toast';
 
@@ -61,8 +61,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => removeToast(id), durationMs ?? AUTO_DISMISS_MS);
   }, [baseId, removeToast]);
 
+  // addToast/removeToast sont déjà stables (useCallback), mais `{ addToast, removeToast }`
+  // était recréé en tant que littéral objet à CHAQUE rendu de ToastProvider (donc à
+  // chaque toast affiché/masqué n'importe où dans l'app, puisque `toasts` change) —
+  // un consommateur de useToast() récupérait alors une valeur de contexte différente à
+  // chaque fois, cassant toute mémoïsation (useCallback/useEffect) qui en dépendait
+  // ailleurs dans l'app. Voir le memo équivalent dans Toast.tsx::useToast().
+  const value = useMemo(() => ({ addToast, removeToast }), [addToast, removeToast]);
+
   return (
-    <ToastContext.Provider value={{ addToast, removeToast }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div
         className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2 w-80 max-w-[calc(100vw-2.5rem)]"

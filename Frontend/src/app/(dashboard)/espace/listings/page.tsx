@@ -4,13 +4,15 @@ import { useEffect, useState, useCallback, useMemo, useRef, Suspense } from 'rea
 import { useAuth } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import Image from 'next/image';
 import { api } from '@/lib/api';
 import { getListingPriceAmounts, type Listing, type PaginatedResponse } from '@/types';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/utils';
-import { SkeletonListRow } from '@/components/ui/Skeleton';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useToast } from '@/components/ui/Toast';
+import { StatFilterCard } from '@/components/bookings/StatFilterCard';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'DRAFT' | 'RENTED' | 'SUSPENDED';
 
@@ -21,9 +23,30 @@ const STATUS_COLORS: Record<string, string> = {
   SUSPENDED: 'bg-card text-sub border border-line',
 };
 
+const STATUS_ICONS: Record<StatusFilter, string> = {
+  ALL:       'fa-layer-group',
+  ACTIVE:    'fa-circle-check',
+  DRAFT:     'fa-pen-to-square',
+  RENTED:    'fa-key',
+  SUSPENDED: 'fa-box-archive',
+};
+
+// Couleurs des chips icône des StatFilterCard — mêmes teintes que STATUS_COLORS
+// (badges) mais en version "chip clair" (bg-*-50/950 + texte 600/400) pour
+// rester lisible sur un fond de carte plutôt qu'en overlay sur une photo.
+const STAT_CARD_COLORS: Record<StatusFilter, { color: string; bg: string }> = {
+  ALL:       { color: 'text-gold-dark',                          bg: 'bg-gold-pale' },
+  ACTIVE:    { color: 'text-green-600 dark:text-green-400',      bg: 'bg-green-50 dark:bg-green-950/30' },
+  DRAFT:     { color: 'text-amber-600 dark:text-amber-400',      bg: 'bg-amber-50 dark:bg-amber-950/30' },
+  RENTED:    { color: 'text-blue-600 dark:text-blue-400',        bg: 'bg-blue-50 dark:bg-blue-950/30' },
+  SUSPENDED: { color: 'text-sub',                                bg: 'bg-card' },
+};
+
+const FALLBACK_IMG = 'https://via.placeholder.com/600x400?text=AlloAppart';
+
 const SkeletonFallback = () => (
-  <div className="flex flex-col gap-2">
-    {Array.from({ length: 8 }).map((_, i) => <SkeletonListRow key={i} />)}
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} height="280px" />)}
   </div>
 );
 
@@ -54,14 +77,20 @@ function AdminListingsContent() {
   const [error, setError]         = useState<string | null>(null);
   const [actionId, setActionId]   = useState<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<string | null>(null);
+  // Compte par statut (respecte la recherche ville, pas l'onglet actif) —
+  // alimente les StatFilterCard, qui doublent de filtre cliquable (même
+  // pattern que les pages Signalements/Réservations). Rafraîchi à chaque
+  // recherche explicite (Entrée/loupe/croix) et après toute action qui
+  // change le statut d'une annonce (activer/suspendre/supprimer).
+  const [statusCounts, setStatusCounts] = useState<Record<StatusFilter, number>>({ ALL: 0, ACTIVE: 0, DRAFT: 0, RENTED: 0, SUSPENDED: 0 });
   const LIMIT_OPTIONS = [10, 20, 50] as const;
 
-  const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = useMemo(() => [
-    { value: 'ALL',       label: t('allStatuses')      },
-    { value: 'ACTIVE',    label: t('listingActive')    },
-    { value: 'DRAFT',     label: t('listingDraft')     },
-    { value: 'RENTED',    label: t('listingRented')    },
-    { value: 'SUSPENDED', label: t('listingSuspended') },
+  const STATUS_TABS: { key: StatusFilter; label: string; icon: string }[] = useMemo(() => [
+    { key: 'ALL',       label: t('allStatuses'),      icon: STATUS_ICONS.ALL       },
+    { key: 'ACTIVE',    label: t('listingActive'),    icon: STATUS_ICONS.ACTIVE    },
+    { key: 'DRAFT',     label: t('listingDraft'),     icon: STATUS_ICONS.DRAFT     },
+    { key: 'RENTED',    label: t('listingRented'),    icon: STATUS_ICONS.RENTED    },
+    { key: 'SUSPENDED', label: t('listingSuspended'), icon: STATUS_ICONS.SUSPENDED },
   ], [t]);
 
   const STATUS_LABELS: Record<string, string> = {
@@ -95,6 +124,30 @@ function AdminListingsContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, status]);
 
+  const fetchStatusCounts = useCallback(async (c: string) => {
+    const token = await getToken();
+    if (!token) return;
+    try {
+      const statuses: StatusFilter[] = ['ALL', 'ACTIVE', 'DRAFT', 'RENTED', 'SUSPENDED'];
+      const entries = await Promise.all(statuses.map(async (s) => {
+        const params = new URLSearchParams({ page: '1', limit: '1' });
+        if (s !== 'ALL') params.set('status', s);
+        if (c) params.set('city', c);
+        const res = await api.get<PaginatedResponse<Listing>>(`/listings/all?${params}`, token);
+        return [s, res.total] as const;
+      }));
+      setStatusCounts(Object.fromEntries(entries) as Record<StatusFilter, number>);
+    } catch {
+      // Purement informatif (cartes stats) — une erreur ici ne bloque pas
+      // le reste de la page, déjà couvert par fetchListings.
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    fetchStatusCounts(city);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleStatusChange = (s: StatusFilter) => {
     setStatus(s);
     setPage(1);
@@ -104,6 +157,7 @@ function AdminListingsContent() {
     if (e.key === 'Enter') {
       setPage(1);
       fetchListings(1, status, city);
+      fetchStatusCounts(city);
     }
   };
 
@@ -114,6 +168,7 @@ function AdminListingsContent() {
     try {
       await api.patch(`/listings/${id}/${action}`, {}, token);
       await fetchListings(page, status, city);
+      await fetchStatusCounts(city);
       toast.success(action === 'activate' ? t('toastListingActivated') : t('toastListingSuspended'));
     } catch {
       toast.error(t('errGeneric'));
@@ -133,6 +188,7 @@ function AdminListingsContent() {
       await api.delete(`/listings/${id}`, token);
       setListings((prev) => prev.filter((l) => l.id !== id));
       setTotal((prev) => prev - 1);
+      await fetchStatusCounts(city);
       toast.success(t('toastListingDeleted'));
     } catch {
       toast.error(t('errDelete'));
@@ -151,7 +207,25 @@ function AdminListingsContent() {
         <p className="mt-1 text-sm text-sub">{t('listingsCount', { count: total })}</p>
       </div>
 
-      {/* Filters */}
+      {/* Stats par statut — doublent aussi de filtre cliquable (même pattern
+          que les pages Signalements/Réservations). */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
+        {STATUS_TABS.map((tab) => (
+          <StatFilterCard
+            key={tab.key}
+            icon={tab.icon}
+            label={tab.label}
+            value={statusCounts[tab.key]}
+            color={STAT_CARD_COLORS[tab.key].color}
+            bg={STAT_CARD_COLORS[tab.key].bg}
+            active={status === tab.key}
+            onClick={() => handleStatusChange(tab.key)}
+            selectedLabel={t('filterSelected')}
+          />
+        ))}
+      </div>
+
+      {/* Recherche + lignes par page */}
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex flex-1 gap-2">
           <div className="relative flex-1">
@@ -165,7 +239,7 @@ function AdminListingsContent() {
             />
             {city && (
               <button
-                onClick={() => { setCity(''); setPage(1); fetchListings(1, status, ''); }}
+                onClick={() => { setCity(''); setPage(1); fetchListings(1, status, ''); fetchStatusCounts(''); }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-sub hover:text-text transition-colors"
                 title={t('listingsClearSearch')}
               >
@@ -174,22 +248,13 @@ function AdminListingsContent() {
             )}
           </div>
           <button
-            onClick={() => { setPage(1); fetchListings(1, status, city); }}
+            onClick={() => { setPage(1); fetchListings(1, status, city); fetchStatusCounts(city); }}
             className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-sub hover:text-text hover:border-gold transition-colors shrink-0"
             title={t('listingsSearch')}
           >
             <i className="fa-solid fa-magnifying-glass text-sm" />
           </button>
         </div>
-        <select
-          value={status}
-          onChange={(e) => handleStatusChange(e.target.value as StatusFilter)}
-          className="rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-gold"
-        >
-          {STATUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="text-xs text-sub whitespace-nowrap">{t('rowsLabel')}</span>
           <div className="flex gap-1">
@@ -204,8 +269,8 @@ function AdminListingsContent() {
       </div>
 
       {loading ? (
-        <div className="flex flex-col gap-2">
-          {Array.from({ length: 8 }).map((_, i) => <SkeletonListRow key={i} />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} height="280px" />)}
         </div>
       ) : error ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -223,68 +288,18 @@ function AdminListingsContent() {
           <p className="text-sub">{t('listingsEmpty')}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {listings.map((listing) => (
-            <div key={listing.id} className="rounded-xl border border-line bg-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-text truncate">{listing.title}</p>
-                <p className="text-sm text-sub mt-0.5">
-                  <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
-                  {listing.city} ·{' '}
-                  {getListingPriceAmounts(listing)
-                    .map((e) => `${formatPrice(e.amount)}${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`)
-                    .join(' · ')}
-                </p>
-                <p className="text-xs text-sub mt-0.5">
-                  <i className="fa-solid fa-user text-xs mr-1" />
-                  {listing.owner?.firstName} {listing.owner?.lastName}
-                  {listing.isVerified && (
-                    <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-medium">
-                      <i className="fa-solid fa-shield-halved text-xs mr-0.5" />{t('alloVerifie')}
-                    </span>
-                  )}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[listing.status] ?? 'bg-card text-sub'}`}>
-                  {STATUS_LABELS[listing.status] ?? listing.status}
-                </span>
-                <Link href={`/listings/${listing.id}`} target="_blank"
-                  className="text-xs font-medium text-gold-dark hover:underline">
-                  {t('view')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
-                </Link>
-                {listing.status === 'SUSPENDED' || listing.status === 'DRAFT' ? (
-                  <button
-                    onClick={() => handleAction(listing.id, 'activate')}
-                    disabled={actionId !== null}
-                    className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-2.5 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
-                  >
-                    {actionId === listing.id + 'activate'
-                      ? <i className="fa-solid fa-spinner fa-spin" />
-                      : <><i className="fa-solid fa-circle-check text-xs mr-1" />{t('activate')}</>}
-                  </button>
-                ) : listing.status === 'ACTIVE' ? (
-                  <button
-                    onClick={() => handleAction(listing.id, 'suspend')}
-                    disabled={actionId !== null}
-                    className="text-xs font-medium border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 dark:hover:bg-amber-950/40 disabled:opacity-50 transition-colors"
-                  >
-                    {actionId === listing.id + 'suspend'
-                      ? <i className="fa-solid fa-spinner fa-spin" />
-                      : <><i className="fa-solid fa-ban text-xs mr-1" />{t('suspend')}</>}
-                  </button>
-                ) : null}
-                <button
-                  onClick={() => setDeleteModal(listing.id)}
-                  disabled={actionId !== null}
-                  className="text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-2.5 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
-                >
-                  {actionId === listing.id + 'delete'
-                    ? <i className="fa-solid fa-spinner fa-spin" />
-                    : <i className="fa-solid fa-trash text-xs" />}
-                </button>
-              </div>
-            </div>
+            <AdminListingCard
+              key={listing.id}
+              listing={listing}
+              statusLabel={STATUS_LABELS[listing.status] ?? listing.status}
+              statusColor={STATUS_COLORS[listing.status] ?? 'bg-card text-sub'}
+              actionId={actionId}
+              onActivate={() => handleAction(listing.id, 'activate')}
+              onSuspend={() => handleAction(listing.id, 'suspend')}
+              onDelete={() => setDeleteModal(listing.id)}
+            />
           ))}
         </div>
       )}
@@ -318,6 +333,105 @@ function AdminListingsContent() {
         confirmLabel={t('delete')}
         variant="danger"
       />
+    </div>
+  );
+}
+
+// ── AdminListingCard ─────────────────────────────────────────────────────────
+// Même coquille visuelle que BookingCard (photo + statut en overlay, actions
+// dans une zone séparée par un séparateur) — uniformise cette page avec les 3
+// pages "réservations" déjà converties en cartes, sans toucher aux actions
+// admin propres à cette page (activer/suspendre/supprimer/voir).
+
+function AdminListingCard({
+  listing, statusLabel, statusColor, actionId, onActivate, onSuspend, onDelete,
+}: {
+  listing: Listing;
+  statusLabel: string;
+  statusColor: string;
+  actionId: string | null;
+  onActivate: () => void;
+  onSuspend: () => void;
+  onDelete: () => void;
+}) {
+  const t = useTranslations('admin');
+  const img = listing.images?.[0] ?? FALLBACK_IMG;
+
+  return (
+    <div className="listing-card group flex flex-col">
+      {/* Photo + statut */}
+      <div className="relative h-40 overflow-hidden rounded-t-2xl">
+        <Image
+          src={img}
+          alt={listing.title}
+          fill
+          className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+          sizes="(max-width:640px) 100vw,(max-width:1024px) 50vw,33vw"
+        />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-transparent" />
+        <div className="absolute top-3 left-3">
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusColor}`}>{statusLabel}</span>
+        </div>
+      </div>
+
+      {/* Bien + prix + propriétaire */}
+      <div className="p-4 flex-1">
+        <p className="font-semibold text-text truncate">{listing.title}</p>
+        <p className="text-sm text-sub mt-1">
+          <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
+          {listing.city} ·{' '}
+          {getListingPriceAmounts(listing)
+            .map((e) => `${formatPrice(e.amount)}${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`)
+            .join(' · ')}
+        </p>
+        <p className="text-xs text-sub mt-1">
+          <i className="fa-solid fa-user text-xs mr-1" />
+          {listing.owner?.firstName} {listing.owner?.lastName}
+          {listing.isVerified && (
+            <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-medium">
+              <i className="fa-solid fa-shield-halved text-xs mr-0.5" />{t('alloVerifie')}
+            </span>
+          )}
+        </p>
+      </div>
+
+      {/* Actions — même gabarit que BookingCard */}
+      <div className="border-t border-line p-4 pt-3 flex items-center gap-2 flex-wrap">
+        <Link href={`/listings/${listing.id}`} target="_blank" rel="noopener noreferrer"
+          className="text-xs font-medium text-gold-dark hover:underline">
+          {t('view')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
+        </Link>
+        {listing.status === 'SUSPENDED' || listing.status === 'DRAFT' ? (
+          <button
+            onClick={onActivate}
+            disabled={actionId !== null}
+            className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-2.5 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
+          >
+            {actionId === listing.id + 'activate'
+              ? <i className="fa-solid fa-spinner fa-spin" />
+              : <><i className="fa-solid fa-circle-check text-xs mr-1" />{t('activate')}</>}
+          </button>
+        ) : listing.status === 'ACTIVE' ? (
+          <button
+            onClick={onSuspend}
+            disabled={actionId !== null}
+            className="text-xs font-medium border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 dark:hover:bg-amber-950/40 disabled:opacity-50 transition-colors"
+          >
+            {actionId === listing.id + 'suspend'
+              ? <i className="fa-solid fa-spinner fa-spin" />
+              : <><i className="fa-solid fa-ban text-xs mr-1" />{t('suspend')}</>}
+          </button>
+        ) : null}
+        <button
+          onClick={onDelete}
+          disabled={actionId !== null}
+          className="ml-auto text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-2.5 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
+        >
+          {actionId === listing.id + 'delete'
+            ? <i className="fa-solid fa-spinner fa-spin" />
+            : <i className="fa-solid fa-trash text-xs" />}
+        </button>
+      </div>
     </div>
   );
 }

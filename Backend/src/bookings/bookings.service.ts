@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PlatformConfigService } from '../platform-config/platform-config.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateMonthlyBookingDto } from './dto/create-monthly-booking.dto';
 import { ReportDisputeDto } from './dto/report-dispute.dto';
@@ -51,6 +52,7 @@ export class BookingsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly config: ConfigService,
+    private readonly platformConfig: PlatformConfigService,
   ) {}
 
   private getVerificationSecret(): string {
@@ -162,8 +164,8 @@ export class BookingsService {
       ? Math.round(nightlyPrice * days)
       : Math.round((monthlyPrice / DAYS_PER_MONTH) * days);
     // ────────────────────────────────────────────────────────────────────────
-    const commissionRate = Number(process.env.COMMISSION_RATE ?? '0.10');
-    const platformFee = Math.round(totalAmount * commissionRate);
+    const { nightlyCommissionRate } = await this.platformConfig.getPricing();
+    const platformFee = Math.round(totalAmount * nightlyCommissionRate);
     const landlordAmount = totalAmount - platformFee;
     const booking = await this.prisma.booking.create({
       data: {
@@ -275,10 +277,12 @@ export class BookingsService {
     );
     const totalAmount = Math.round(monthlyPrice + depositAmount);
     // Commission courtier (location au mois) : pratique standard au Sénégal —
-    // sur la caution encaissée, AlloAppart prélève l'équivalent d'1 mois de
-    // loyer ; le bailleur perçoit le 1er loyer + le reste de la caution.
-    // (Différent du taux COMMISSION_RATE appliqué aux réservations nuitée.)
-    const platformFee = Math.round(monthlyPrice);
+    // sur la caution encaissée, AlloAppart prélève l'équivalent de
+    // `monthlyCommissionMonths` mois de loyer (1 par défaut, éditable depuis
+    // espace/config) ; le bailleur perçoit le reste. Différent du taux
+    // nightlyCommissionRate appliqué aux réservations nuitée.
+    const { monthlyCommissionMonths } = await this.platformConfig.getPricing();
+    const platformFee = Math.round(monthlyPrice * monthlyCommissionMonths);
     const landlordAmount = Math.max(0, totalAmount - platformFee);
 
     const booking = await this.prisma.booking.create({
@@ -918,6 +922,15 @@ export class BookingsService {
    * Résolution d'un litige par un ADMIN — décide de la libération ou du
    * remboursement des fonds séquestrés (Article 9 des CGU).
    */
+  // Réservations en litige en attente d'arbitrage admin — alimente le badge
+  // sidebar "Réservations / Litiges" (cf. DashboardShell / layout.tsx).
+  async pendingDisputesCount(): Promise<{ count: number }> {
+    const count = await this.prisma.booking.count({
+      where: { escrowStatus: EscrowStatus.DISPUTED },
+    });
+    return { count };
+  }
+
   async resolveDispute(id: string, admin: User, dto: ResolveDisputeDto) {
     if (!admin.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Admin only');

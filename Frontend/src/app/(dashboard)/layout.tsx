@@ -94,7 +94,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
       { label: td('navBookings'),       href: '/espace/bookings',       icon: 'fa-solid fa-calendar-check' },
       { label: td('navReviews'),        href: '/espace/reviews',        icon: 'fa-solid fa-star'           },
       { label: td('navReports'),        href: '/espace/reports',        icon: 'fa-solid fa-flag'           },
-      { label: td('navAnalytics'),      href: '/espace/analytics',      icon: 'fa-solid fa-chart-bar'      },
       { label: td('navCommunications'), href: '/espace/communications', icon: 'fa-solid fa-bell'           },
       { label: td('navConfig'),         href: '/espace/config',         icon: 'fa-solid fa-sliders'        },
     ] : []),
@@ -104,13 +103,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const userAvatar = me.avatar ?? null;
   const initials   = [me.firstName?.[0], me.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
 
-  // Badge compteur vérifications en attente — admin uniquement (non bloquant)
+  // Badges compteurs "action requise" — admin uniquement (non bloquant).
+  // Valeurs de départ seedées côté serveur ; DashboardShell les rend ensuite
+  // vivantes (Pusher + events auto-provoqués), cf. sa doc interne.
   let pendingVerifCount = 0;
+  let pendingReportsCount = 0;
+  let pendingDisputesCount = 0;
   if (isAdmin) {
-    try {
-      const vc = await api.get<{ count: number }>('/verifications/pending-count', token ?? undefined);
-      pendingVerifCount = vc.count;
-    } catch { /* non bloquant */ }
+    const [vc, rc, dc] = await Promise.allSettled([
+      api.get<{ count: number }>('/verifications/pending-count', token ?? undefined),
+      api.get<{ count: number }>('/listings/reports/pending-count', token ?? undefined),
+      api.get<{ count: number }>('/bookings/disputes/pending-count', token ?? undefined),
+    ]);
+    if (vc.status === 'fulfilled') pendingVerifCount = vc.value.count;
+    if (rc.status === 'fulfilled') pendingReportsCount = rc.value.count;
+    if (dc.status === 'fulfilled') pendingDisputesCount = dc.value.count;
   }
 
   return (
@@ -124,6 +131,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       userAvatar={userAvatar}
       userInitials={initials}
       pendingVerifCount={pendingVerifCount}
+      pendingReportsCount={pendingReportsCount}
+      pendingDisputesCount={pendingDisputesCount}
     >
       {children}
     </DashboardShell>

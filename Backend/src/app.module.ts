@@ -23,6 +23,7 @@ import { MailModule } from './mail/mail.module';
 import { SmsModule } from './sms/sms.module';
 import { AgencesModule } from './agences/agences.module';
 import { ContractsModule } from './contracts/contracts.module';
+import { PlatformConfigModule } from './platform-config/platform-config.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { ContractsModule } from './contracts/contracts.module';
     SmsModule,
     AgencesModule,
     ContractsModule,
+    PlatformConfigModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

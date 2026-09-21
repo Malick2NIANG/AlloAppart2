@@ -10,7 +10,7 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useToast } from '@/components/ui/Toast';
 import { BookingCard } from '@/components/bookings/BookingCard';
-import { BookingTabs } from '@/components/bookings/BookingTabs';
+import { StatFilterCard } from '@/components/bookings/StatFilterCard';
 import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
 import { BookingPagination } from '@/components/bookings/BookingPagination';
 import { PENDING_STATUSES, ACTIVE_STATUSES, ARCHIVED_STATUSES } from '@/lib/bookingStatus';
@@ -55,10 +55,11 @@ export default function AdminBookingsPage() {
 
   const [bookings, setBookings]         = useState<Booking[]>([]);
   const [total, setTotal]               = useState(0);
-  // Total tous statuts confondus (respecte la recherche, pas l'onglet) —
-  // uniquement pour l'en-tête, où les 2 autres rôles affichent un total
-  // global et laissent les onglets montrer le sous-total de chacun.
-  const [grandTotal, setGrandTotal]     = useState(0);
+  // Compte par groupe (respecte la recherche, pas l'onglet actif) — alimente
+  // à la fois le total de l'en-tête et la valeur affichée sur chaque
+  // StatFilterCard, qui sert aussi de bouton de filtre (pattern introduit
+  // sur la page Signalements, repris ici pour les 3 groupes de statuts).
+  const [groupCounts, setGroupCounts]   = useState<Record<Group, number>>({ pending: 0, confirmed: 0, archived: 0 });
   const [page, setPage]                 = useState(1);
   const [group, setGroup]               = useState<Group>('pending');
   const [search, setSearch]             = useState('');
@@ -106,13 +107,17 @@ export default function AdminBookingsPage() {
       const token = await getToken();
       if (!token) return;
       try {
-        const params = new URLSearchParams({ page: '1', limit: '1' });
-        if (debouncedSearch) params.set('search', debouncedSearch);
-        const res = await api.get<PaginatedResponse<Booking>>(`/bookings/all?${params}`, token);
-        setGrandTotal(res.total);
+        const groups = Object.keys(GROUP_STATUSES) as Group[];
+        const entries = await Promise.all(groups.map(async (g) => {
+          const params = new URLSearchParams({ page: '1', limit: '1', status: GROUP_STATUSES[g].join(',') });
+          if (debouncedSearch) params.set('search', debouncedSearch);
+          const res = await api.get<PaginatedResponse<Booking>>(`/bookings/all?${params}`, token);
+          return [g, res.total] as const;
+        }));
+        setGroupCounts(Object.fromEntries(entries) as Record<Group, number>);
       } catch {
-        // Purement informatif (en-tête) — une erreur ici ne doit pas bloquer
-        // le reste de la page, déjà couvert par le fetchData principal.
+        // Purement informatif (cartes stats + en-tête) — une erreur ici ne
+        // doit pas bloquer le reste de la page, déjà couvert par fetchData.
       }
     })();
   }, [getToken, debouncedSearch]);
@@ -174,16 +179,20 @@ export default function AdminBookingsPage() {
         : b));
       setDisputeModal(null);
       toast.success(t('toastDisputeResolved'));
+      // Rafraîchit immédiatement le badge sidebar "Réservations / Litiges"
+      // (DashboardShell) sans attendre un reload — même onglet uniquement.
+      window.dispatchEvent(new CustomEvent('aa-badges-updated', { detail: { kind: 'DISPUTES' } }));
     } catch {
       toast.error(t('errResolveDispute'));
     } finally { setActionId(null); }
   };
 
   const totalPages = Math.ceil(total / limit);
-  const tabs: { key: Group; label: string; icon: string }[] = [
-    { key: 'pending',   label: t('sectionPending'),   icon: 'fa-clock' },
-    { key: 'confirmed', label: t('sectionConfirmed'), icon: 'fa-circle-check' },
-    { key: 'archived',  label: t('sectionArchived'),  icon: 'fa-archive' },
+  const grandTotal = groupCounts.pending + groupCounts.confirmed + groupCounts.archived;
+  const GROUP_CARDS: { key: Group; label: string; icon: string; color: string; bg: string }[] = [
+    { key: 'pending',   label: t('sectionPending'),   icon: 'fa-clock',         color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-50 dark:bg-amber-950/30' },
+    { key: 'confirmed', label: t('sectionConfirmed'), icon: 'fa-circle-check', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+    { key: 'archived',  label: t('sectionArchived'),  icon: 'fa-box-archive',  color: 'text-sub',                              bg: 'bg-card' },
   ];
 
   return (
@@ -193,12 +202,23 @@ export default function AdminBookingsPage() {
         <p className="mt-1 text-sm text-sub">{t('bookingsCount', { count: grandTotal })}</p>
       </div>
 
-      {/* Onglets par statut (regroupement identique aux pages locataire/bailleur) */}
-      <BookingTabs
-        tabs={tabs.map((tab) => ({ ...tab, count: tab.key === group ? total : undefined }))}
-        active={group}
-        onChange={switchGroup}
-      />
+      {/* Stats par statut — doublent aussi de filtre cliquable (même pattern
+          que les 3 cartes de la page Signalements). */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+        {GROUP_CARDS.map((card) => (
+          <StatFilterCard
+            key={card.key}
+            icon={card.icon}
+            label={card.label}
+            value={groupCounts[card.key]}
+            color={card.color}
+            bg={card.bg}
+            active={group === card.key}
+            onClick={() => switchGroup(card.key)}
+            selectedLabel={t('filterSelected')}
+          />
+        ))}
+      </div>
 
       {/* Recherche + lignes par page */}
       <BookingSearchRow

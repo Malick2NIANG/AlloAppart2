@@ -20,10 +20,15 @@ export class ReviewsController {
 
   @Roles(Role.ADMIN)
   @Get('all')
-  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('rating') rating?: string,
+  ) {
     return this.reviewsService.findAll(
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 20,
+      rating ? parseInt(rating) : undefined,
     );
   }
 

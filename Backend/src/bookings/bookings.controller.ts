@@ -29,6 +29,14 @@ export class BookingsController {
     private readonly pdfService: PdfService,
   ) {}
 
+  // Déclarée avant @Get(':id') pour ne pas être capturée par ce pattern —
+  // alimente le badge sidebar "Réservations / Litiges" (cf. DashboardShell).
+  @Roles(Role.ADMIN)
+  @Get('disputes/pending-count')
+  pendingDisputesCount() {
+    return this.bookingsService.pendingDisputesCount();
+  }
+
   @Roles(Role.ADMIN)
   @Get('all')
   findAll(

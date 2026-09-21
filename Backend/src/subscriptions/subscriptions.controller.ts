@@ -4,7 +4,7 @@ import { SubscriptionsService } from './subscriptions.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { type User, Role } from '@prisma/client';
+import { type User, Role, SubscriptionStatus } from '@prisma/client';
 import { InitiateSubscriptionDto } from './dto/initiate-subscription.dto';
 import { AdminExtendDto } from './dto/admin-extend.dto';
 
@@ -48,10 +48,22 @@ export class SubscriptionsController {
 
   @Roles(Role.ADMIN)
   @Get('all')
-  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    const subStatus = Object.values(SubscriptionStatus).includes(
+      status as SubscriptionStatus,
+    )
+      ? (status as SubscriptionStatus)
+      : undefined;
     return this.subscriptionsService.findAll(
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,
+      subStatus,
+      search,
     );
   }
 

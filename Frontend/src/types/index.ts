@@ -259,7 +259,7 @@ export type SubscriptionStatus = 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';
 export interface Subscription {
   id: string;
   userId: string;
-  user?: Pick<User, 'id' | 'firstName' | 'lastName' | 'email' | 'agencyName'>;
+  user?: Pick<User, 'id' | 'firstName' | 'lastName' | 'email' | 'agencyName' | 'agencyAvatar' | 'avatar' | 'agencyColor'>;
   plan: SubscriptionPlan;
   status: SubscriptionStatus;
   monthlyFee: string;

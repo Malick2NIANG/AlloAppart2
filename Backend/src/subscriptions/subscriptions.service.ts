@@ -2,14 +2,10 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
-import { ListingStatus, SubscriptionPlan, SubscriptionStatus, User } from '@prisma/client';
+import { ListingStatus, Prisma, SubscriptionPlan, SubscriptionStatus, User } from '@prisma/client';
 import axios from 'axios';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
-
-const PLAN_PRICES: Record<SubscriptionPlan, number> = {
-  STARTER: 75_000,
-  PRO: 150_000,
-};
+import { PlatformConfigService } from '../platform-config/platform-config.service';
 
 type UserStub = Pick<User, 'id' | 'firstName' | 'lastName' | 'email' | 'phone'>;
 
@@ -21,6 +17,7 @@ export class SubscriptionsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly softpay: PaydunyaSoftpayService,
+    private readonly platformConfig: PlatformConfigService,
   ) {}
 
   async initiate(userId: string, plan: SubscriptionPlan) {
@@ -34,7 +31,8 @@ export class SubscriptionsService {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
     });
-    const amount = PLAN_PRICES[plan];
+    const pricing = await this.platformConfig.getPricing();
+    const amount = plan === SubscriptionPlan.PRO ? pricing.proPriceFcfaMonthly : pricing.starterPriceFcfa;
 
     const subscription = await this.prisma.subscription.upsert({
       where: { userId },
@@ -301,9 +299,37 @@ export class SubscriptionsService {
     });
   }
 
-  async findAll(page = 1, limit = 20) {
+  // `status`/`search` alimentent les StatFilterCard + la barre de recherche de
+  // espace/subscriptions (admin) — même pattern que BookingsService.findAll /
+  // ListingsService.findAll_admin. La recherche porte sur l'agence (nom
+  // affiché en priorité sur la carte) mais retombe aussi sur le nom/email du
+  // titulaire du compte, au cas où l'admin ne se souvient que de l'un des
+  // deux.
+  async findAll(
+    page = 1,
+    limit = 20,
+    status?: SubscriptionStatus,
+    search?: string,
+  ) {
+    const q = search?.trim();
+    const where: Prisma.SubscriptionWhereInput = {
+      ...(status ? { status } : {}),
+      ...(q
+        ? {
+            user: {
+              OR: [
+                { agencyName: { contains: q, mode: 'insensitive' } },
+                { firstName: { contains: q, mode: 'insensitive' } },
+                { lastName: { contains: q, mode: 'insensitive' } },
+                { email: { contains: q, mode: 'insensitive' } },
+              ],
+            },
+          }
+        : {}),
+    };
     const [data, total] = await Promise.all([
       this.prisma.subscription.findMany({
+        where,
         include: {
           user: {
             select: {
@@ -312,6 +338,13 @@ export class SubscriptionsService {
               lastName: true,
               email: true,
               agencyName: true,
+              // Photo affichée sur la carte admin — agencyAvatar en priorité
+              // (vitrine), avatar personnel en repli, même convention que
+              // bailleur/ma-vitrine ; agencyColor thème le cercle d'initiales
+              // quand aucune des deux n'est renseignée.
+              agencyAvatar: true,
+              avatar: true,
+              agencyColor: true,
             },
           },
         },
@@ -319,7 +352,7 @@ export class SubscriptionsService {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.subscription.count(),
+      this.prisma.subscription.count({ where }),
     ]);
     return { data, total, page, limit };
   }

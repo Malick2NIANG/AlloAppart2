@@ -28,6 +28,11 @@ const TYPE_ICON: Record<string, { icon: string; color: string }> = {
   BOOKING_CONFIRMED: { icon: 'fa-circle-check',     color: 'text-emerald-500' },
   BOOKING_CANCELLED: { icon: 'fa-calendar-xmark',   color: 'text-red-500'     },
   REVIEW_RECEIVED:   { icon: 'fa-star',             color: 'text-gold'        },
+  VERIF_REQUESTED:       { icon: 'fa-shield-halved',       color: 'text-amber-500' },
+  VERIF_DECLINE_REQUEST: { icon: 'fa-person-circle-question', color: 'text-amber-500' },
+  LISTING_REPORTED:      { icon: 'fa-flag',                color: 'text-amber-500' },
+  BOOKING_DISPUTED:      { icon: 'fa-triangle-exclamation', color: 'text-red-500'  },
+  ADMIN_BROADCAST:       { icon: 'fa-crown',                color: 'text-gold-dark' },
 };
 
 export default function NotificationBell({ userId }: { userId: string }) {
@@ -176,16 +181,28 @@ export default function NotificationBell({ userId }: { userId: string }) {
             ) : (
               notifs.map((n) => {
                 const cfg = TYPE_ICON[n.type] ?? { icon: 'fa-circle-dot', color: 'text-sub' };
+                const isBroadcast = n.type === 'ADMIN_BROADCAST';
                 return (
                   <div
                     key={n.id}
                     onClick={() => void markOne(n.id)}
-                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-bg transition-colors ${!n.isRead ? 'bg-blue-50 dark:bg-blue-950/30/40' : ''}`}
+                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${
+                      isBroadcast
+                        ? 'bg-gold-pale/50 dark:bg-gold-dark/10 border-l-2 border-gold-dark hover:bg-gold-pale/70 dark:hover:bg-gold-dark/20'
+                        : `hover:bg-bg ${!n.isRead ? 'bg-blue-50 dark:bg-blue-950/30/40' : ''}`
+                    }`}
                   >
-                    <div className="shrink-0 h-8 w-8 rounded-xl flex items-center justify-center bg-bg border border-line mt-0.5">
+                    <div className={`shrink-0 h-8 w-8 rounded-xl flex items-center justify-center mt-0.5 ${
+                      isBroadcast ? 'bg-gold-pale' : 'bg-bg border border-line'
+                    }`}>
                       <i className={`fa-solid ${cfg.icon} text-xs ${cfg.color}`} />
                     </div>
                     <div className="flex-1 min-w-0">
+                      {isBroadcast && (
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-gold-dark leading-none mb-1">
+                          {t('directionBadge')}
+                        </p>
+                      )}
                       <p className={`text-xs font-semibold text-main leading-snug ${!n.isRead ? 'font-bold' : ''}`}>
                         {n.title}
                       </p>
@@ -193,7 +210,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
                       <p className="text-[10px] text-sub/70 mt-1">{relativeTime(n.createdAt)}</p>
                     </div>
                     {!n.isRead && (
-                      <div className="shrink-0 h-2 w-2 rounded-full bg-blue-500 mt-1.5" />
+                      <div className={`shrink-0 h-2 w-2 rounded-full mt-1.5 ${isBroadcast ? 'bg-gold-dark' : 'bg-blue-500'}`} />
                     )}
                   </div>
                 );

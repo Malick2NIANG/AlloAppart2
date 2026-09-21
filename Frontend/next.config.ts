@@ -14,6 +14,12 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'res.cloudinary.com' },
       { protocol: 'https', hostname: 'img.clerk.com' },
       { protocol: 'https', hostname: '**.clerk.com' },
+      // Manquait alors que BookingCard.tsx (et désormais AdminListingCard dans
+      // espace/listings/page.tsx) l'utilisent déjà comme image de repli quand
+      // une annonce n'a aucune photo — sans cette entrée, next/image rejette
+      // cette URL au runtime (hostname non autorisé) dès qu'une annonce sans
+      // photo apparaît, plantant le rendu de la carte.
+      { protocol: 'https', hostname: 'via.placeholder.com' },
     ],
   },
 };

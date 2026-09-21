@@ -134,4 +134,26 @@ export class MailService {
 
     await this.deliver(opts.to, t(loc, 'mailReactivatedSubject'), html, 'Réactivation email');
   }
+
+  /** Code de confirmation OTP pour valider un changement de configuration tarifaire (espace/config). */
+  async sendConfigOtp(opts: {
+    to: string;
+    code: string;
+    locale?: string | null;
+  }): Promise<void> {
+    if (!this.transporter) return;
+    const loc: Locale = toLocale(opts.locale);
+
+    const html = this.shell(`
+      <h2 style="margin:0 0 8px;color:#1a1a1a;">${t(loc, 'mailConfigOtpTitle')}</h2>
+      <p style="color:#555;margin:0 0 24px;">${t(loc, 'mailConfigOtpBody')}</p>
+      <div style="background:#f9f6ef;border-radius:12px;padding:20px 24px;margin-bottom:24px;text-align:center;">
+        <p style="margin:0;font-size:32px;font-weight:700;letter-spacing:8px;color:#1a1a1a;">${opts.code}</p>
+      </div>
+      <p style="color:#555;margin:0 0 16px;">${t(loc, 'mailConfigOtpExpiry')}</p>
+      <p style="margin-top:32px;font-size:12px;color:#aaa;">${t(loc, 'mailConfigOtpIgnore')}</p>
+    `);
+
+    await this.deliver(opts.to, t(loc, 'mailConfigOtpSubject'), html, 'Config OTP email');
+  }
 }

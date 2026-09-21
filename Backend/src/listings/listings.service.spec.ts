@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SearchService } from '../search/search.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
+import { PlatformConfigService } from '../platform-config/platform-config.service';
 import { ListingsService } from './listings.service';
 import {
   ListingStatus,
@@ -69,6 +70,20 @@ describe('ListingsService', () => {
         { provide: ConfigService, useValue: configMock },
         { provide: NotificationsService, useValue: {} },
         { provide: PaydunyaSoftpayService, useValue: softpayMock },
+        {
+          provide: PlatformConfigService,
+          useValue: {
+            getPricing: jest.fn().mockResolvedValue({
+              starterPriceFcfa: 75_000,
+              proPriceFcfaMonthly: 150_000,
+              nightlyCommissionRate: 0.1,
+              monthlyCommissionMonths: 1,
+              auditBasicPriceFcfa: 25_000,
+              auditFullPriceFcfa: 60_000,
+              boostPriceFcfa: 5_000,
+            }),
+          },
+        },
       ],
     }).compile();
 

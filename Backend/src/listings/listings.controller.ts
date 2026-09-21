@@ -55,6 +55,15 @@ export class ListingsController {
     return this.listingsService.findAllReports();
   }
 
+  // Déclarée avant tout @Get(':id') potentiel pour ne pas être capturée par
+  // ce pattern (même précaution que verifications/bookings) — alimente le
+  // badge sidebar "Signalements" (cf. DashboardShell).
+  @Roles(Role.ADMIN)
+  @Get('reports/pending-count')
+  pendingReportsCount() {
+    return this.listingsService.pendingReportsCount();
+  }
+
   @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
   @Patch(':id/unpublish')
   unpublish(@Param('id') id: string, @CurrentUser() user: User) {

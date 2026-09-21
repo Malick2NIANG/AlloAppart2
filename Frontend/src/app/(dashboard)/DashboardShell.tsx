@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
+import Pusher from 'pusher-js';
 import { useClerk, useAuth, useUser } from '@clerk/nextjs';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
@@ -127,10 +128,12 @@ interface Props {
   userAvatar?: string | null;
   userInitials?: string;
   pendingVerifCount?: number;
+  pendingReportsCount?: number;
+  pendingDisputesCount?: number;
   children: React.ReactNode;
 }
 
-export default function DashboardShell({ userName, userId, roles, navItems, isProAgence = false, userRole, userAvatar, userInitials = '?', pendingVerifCount = 0, children }: Props) {
+export default function DashboardShell({ userName, userId, roles, navItems, isProAgence = false, userRole, userAvatar, userInitials = '?', pendingVerifCount: initialVerifCount = 0, pendingReportsCount: initialReportsCount = 0, pendingDisputesCount: initialDisputesCount = 0, children }: Props) {
   const td     = useTranslations('dashboard');
   const locale = useLocale();
 
@@ -163,7 +166,18 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
   const [unreadCount, setUnreadCount] = useState(0);
   const [now, setNow]             = useState(new Date());
   const pathname = usePathname();
-  const visibleVerifCount = pathname.includes('/verifications') ? 0 : pendingVerifCount;
+  const isAdmin = roles.includes('ADMIN');
+
+  /* ── Badges "action requise" (admin) — seedés côté serveur (layout.tsx),
+     rendus vivants ici via Pusher (événements causés par d'autres
+     utilisateurs) + un event window dédié (actions de l'admin lui-même sur
+     ses propres pages, cf. espace/verifications, /reports, /bookings). ── */
+  const [verifCount,    setVerifCount]    = useState(initialVerifCount);
+  const [reportsCount,  setReportsCount]  = useState(initialReportsCount);
+  const [disputesCount, setDisputesCount] = useState(initialDisputesCount);
+  const visibleVerifCount    = pathname.includes('/verifications') ? 0 : verifCount;
+  const visibleReportsCount  = pathname.includes('/reports')       ? 0 : reportsCount;
+  const visibleDisputesCount = pathname.includes('/bookings')      ? 0 : disputesCount;
   const { signOut } = useClerk();
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -196,12 +210,92 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
 
   useEffect(() => { void fetchUnread(); }, [fetchUnread]);
 
-  /* Se met à jour quand MessagesShell reçoit/lit un message */
+  /* Se met à jour quand MessagesShell reçoit/lit un message (même onglet) */
   useEffect(() => {
     const handler = () => void fetchUnread();
     window.addEventListener('aa-messages-updated', handler);
     return () => window.removeEventListener('aa-messages-updated', handler);
   }, [fetchUnread]);
+
+  /* ── Badges admin "action requise" — refetch ciblé par compteur ──────── */
+  const fetchVerifCount = useCallback(async () => {
+    const token = await getToken().catch(() => null);
+    if (!token) return;
+    try {
+      const r = await api.get<{ count: number }>('/verifications/pending-count', token);
+      setVerifCount(r.count);
+    } catch {}
+  }, [getToken]);
+
+  const fetchReportsCount = useCallback(async () => {
+    const token = await getToken().catch(() => null);
+    if (!token) return;
+    try {
+      const r = await api.get<{ count: number }>('/listings/reports/pending-count', token);
+      setReportsCount(r.count);
+    } catch {}
+  }, [getToken]);
+
+  const fetchDisputesCount = useCallback(async () => {
+    const token = await getToken().catch(() => null);
+    if (!token) return;
+    try {
+      const r = await api.get<{ count: number }>('/bookings/disputes/pending-count', token);
+      setDisputesCount(r.count);
+    } catch {}
+  }, [getToken]);
+
+  /* Rafraîchissements auto-provoqués : l'admin agit sur sa propre page
+     (valider/assigner une vérif, approuver/refuser un déclin, suspendre une
+     annonce signalée, trancher un litige) — même pattern que
+     'aa-messages-updated' pour rester cohérent avec l'existant. */
+  useEffect(() => {
+    if (!isAdmin) return;
+    const handler = (e: Event) => {
+      const kind = (e as CustomEvent<{ kind?: string }>).detail?.kind;
+      if (kind === 'VERIFICATIONS') void fetchVerifCount();
+      else if (kind === 'REPORTS') void fetchReportsCount();
+      else if (kind === 'DISPUTES') void fetchDisputesCount();
+    };
+    window.addEventListener('aa-badges-updated', handler);
+    return () => window.removeEventListener('aa-badges-updated', handler);
+  }, [isAdmin, fetchVerifCount, fetchReportsCount, fetchDisputesCount]);
+
+  /* ── Pusher temps réel — événements causés par d'autres utilisateurs ─────
+     Canal déjà utilisé par NotificationBell (même souscription, deux
+     abonnés indépendants — Pusher-js le permet sans conflit) : on y ajoute
+     ici deux écoutes dédiées aux badges, pour ne pas coupler leur logique à
+     celle de la cloche (qui marque tout lu à l'ouverture). */
+  useEffect(() => {
+    if (!userId) return;
+    const key  = process.env.NEXT_PUBLIC_SOKETI_APP_KEY  ?? '';
+    const host = process.env.NEXT_PUBLIC_SOKETI_HOST     ?? 'localhost';
+    const port = Number(process.env.NEXT_PUBLIC_SOKETI_PORT ?? '6001');
+    if (!key) return;
+
+    const useTLS = port === 443;
+    const client = new Pusher(key, {
+      cluster: 'mt1', wsHost: host, wsPort: port, wssPort: port,
+      forceTLS: useTLS, enabledTransports: useTLS ? ['wss'] : ['ws'], disableStats: true,
+    });
+    const ch = client.subscribe(`user-${userId}`);
+
+    // Badge Messages — tous rôles (signal léger, sans écriture DB ni cloche).
+    ch.bind('unread-badge', () => void fetchUnread());
+
+    // Badges admin — types de notification déjà envoyés aux admins.
+    if (isAdmin) {
+      ch.bind('notification', (notif: { type?: string }) => {
+        if (notif?.type === 'LISTING_REPORTED') void fetchReportsCount();
+        else if (notif?.type === 'BOOKING_DISPUTED') void fetchDisputesCount();
+        else if (notif?.type === 'VERIF_DECLINE_REQUEST' || notif?.type === 'VERIF_REQUESTED') {
+          void fetchVerifCount();
+        }
+      });
+    }
+
+    return () => { ch.unbind_all(); client.unsubscribe(`user-${userId}`); client.disconnect(); };
+  }, [userId, isAdmin, fetchUnread, fetchReportsCount, fetchDisputesCount, fetchVerifCount]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -224,7 +318,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
   })();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-bg">
+    <div className="dashboard-viewport flex overflow-hidden bg-bg">
 
       {/* Skeleton pleine page (sidebar + header + zone de travail) pendant
           un changement de langue — cf. DashboardSkeletonOverlay plus haut. */}
@@ -421,10 +515,20 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                       )}
-                      {/* Badge vérifications en attente — admin uniquement */}
+                      {/* Badges "action requise" — admin uniquement */}
                       {item.href.includes('/verifications') && visibleVerifCount > 0 && (
                         <span className="absolute -top-1 -right-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white leading-none">
                           {visibleVerifCount > 9 ? '9+' : visibleVerifCount}
+                        </span>
+                      )}
+                      {item.href === '/espace/reports' && visibleReportsCount > 0 && (
+                        <span className="absolute -top-1 -right-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white leading-none">
+                          {visibleReportsCount > 9 ? '9+' : visibleReportsCount}
+                        </span>
+                      )}
+                      {item.href === '/espace/bookings' && visibleDisputesCount > 0 && (
+                        <span className="absolute -top-1 -right-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white leading-none">
+                          {visibleDisputesCount > 9 ? '9+' : visibleDisputesCount}
                         </span>
                       )}
                     </span>
@@ -439,6 +543,16 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
                         {item.href.includes('/verifications') && visibleVerifCount > 0 && (
                           <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white leading-none">
                             {visibleVerifCount > 9 ? '9+' : visibleVerifCount}
+                          </span>
+                        )}
+                        {item.href === '/espace/reports' && visibleReportsCount > 0 && (
+                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white leading-none">
+                            {visibleReportsCount > 9 ? '9+' : visibleReportsCount}
+                          </span>
+                        )}
+                        {item.href === '/espace/bookings' && visibleDisputesCount > 0 && (
+                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white leading-none">
+                            {visibleDisputesCount > 9 ? '9+' : visibleDisputesCount}
                           </span>
                         )}
                       </span>
