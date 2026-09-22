@@ -573,8 +573,8 @@ function LocataireBookingActions({
 
         {/* Signalement de non-conformité — fenêtre de 24h après l'entrée dans les lieux */}
         {status === 'CONFIRMED' && booking.escrowStatus === 'HELD' && onDispute && (() => {
-          const hoursSinceStart =
-            (Date.now() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60);
+          // eslint-disable-next-line react-hooks/purity -- fenêtre de 24h calculée depuis l'heure courante, snapshot voulu au rendu
+          const hoursSinceStart = (Date.now() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60);
           if (hoursSinceStart < 0 || hoursSinceStart > 24) return null; // hors fenêtre
           return (
             <button
@@ -588,8 +588,8 @@ function LocataireBookingActions({
 
         {/* Annulation d'une réservation CONFIRMED — ouvre le modal avec politique */}
         {status === 'CONFIRMED' && booking.escrowStatus === 'HELD' && onCancel && (() => {
-          const hoursUntilStart =
-            (new Date(booking.startDate).getTime() - Date.now()) / (1000 * 60 * 60);
+          // eslint-disable-next-line react-hooks/purity -- délai avant le séjour calculé depuis l'heure courante, snapshot voulu au rendu
+          const hoursUntilStart = (new Date(booking.startDate).getTime() - Date.now()) / (1000 * 60 * 60);
           if (hoursUntilStart < 0) return null; // séjour en cours → pas d'annulation
           return (
             <button
@@ -651,8 +651,8 @@ function CancellationModal({
   const [error,   setError]   = useState<string | null>(null);
 
   // Calcul de la politique de remboursement (identique au backend)
-  const hoursUntilStart =
-    (new Date(booking.startDate).getTime() - Date.now()) / (1000 * 60 * 60);
+  // eslint-disable-next-line react-hooks/purity -- délai avant le séjour calculé depuis l'heure courante, snapshot voulu au rendu
+  const hoursUntilStart = (new Date(booking.startDate).getTime() - Date.now()) / (1000 * 60 * 60);
   const fullRefund   = hoursUntilStart > 7 * 24;
   const refundAmount = fullRefund ? Number(booking.totalAmount) : 0;
 
@@ -767,8 +767,8 @@ function DisputeModal({
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState<string | null>(null);
 
-  const hoursSinceStart =
-    (Date.now() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60);
+  // eslint-disable-next-line react-hooks/purity -- fenêtre de signalement calculée depuis l'heure courante, snapshot voulu au rendu
+  const hoursSinceStart = (Date.now() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60);
   const hoursLeft = Math.max(0, Math.ceil(DISPUTE_WINDOW_HOURS - hoursSinceStart));
 
   const handleSubmit = async () => {

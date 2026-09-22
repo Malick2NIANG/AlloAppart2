@@ -172,6 +172,7 @@ export default function AgentDashboard() {
           <div className="rounded-2xl border border-line bg-card divide-y divide-line overflow-hidden">
             {stats.recentRatings.map((r) => {
               const initials = `${r.raterFirstName[0]}${r.raterLastName[0]}`.toUpperCase();
+              // eslint-disable-next-line react-hooks/purity -- lecture de l'heure courante pour un affichage "il y a X jours", snapshot voulu au rendu
               const diffDays = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 86400000);
               const timeStr = diffDays === 0
                 ? t('timeToday')

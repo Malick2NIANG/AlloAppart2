@@ -47,6 +47,7 @@ export default function NotificationsPage() {
   const [marking,  setMarking]  = useState(false);
 
   const relativeTime = (dateStr: string): string => {
+    // eslint-disable-next-line react-hooks/purity -- lecture de l'heure courante pour un affichage "il y a X min/h/j", snapshot voulu au rendu
     const diff = Date.now() - new Date(dateStr).getTime();
     const m = Math.floor(diff / 60000);
     if (m < 1)  return t('justNow');

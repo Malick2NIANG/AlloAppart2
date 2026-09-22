@@ -373,6 +373,7 @@ function AdminSubscriptionCard({
           <span><i className="fa-solid fa-coins mr-1" />{formatPrice(sub.monthlyFee)}{t('perMonth')}</span>
           {sub.endDate && (
             <span className={`font-medium ${
+              // eslint-disable-next-line react-hooks/purity -- lecture de l'heure courante pour signaler visuellement une échéance à J-7, snapshot voulu au rendu
               new Date(sub.endDate) < new Date(Date.now() + 7 * 86400000)
                 ? 'text-amber-600 dark:text-amber-400'
                 : 'text-sub'
