@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+
+jobs:
+  backend:
+    name: Backend — tsc / lint / tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    env:
+      # prisma generate a besoin d'une DATABASE_URL syntaxiquement valide,
+      # mais ne se connecte pas réellement à la base pour générer le client.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx tsc --noEmit
+      - run: npx eslint "{src,apps,libs,test}/**/*.ts"
+      - run: npm test
+
+  frontend:
+    name: Frontend — tsc / lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
