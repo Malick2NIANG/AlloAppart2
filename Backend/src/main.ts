@@ -48,7 +48,7 @@ async function bootstrap() {
   // Guards globaux : Auth Clerk + RBAC (roles[])
   app.useGlobalGuards(
     new ClerkAuthGuard(reflector, config, prisma),
-    new RolesGuard(reflector),
+    new RolesGuard(reflector, config, prisma),
   );
 
   // Swagger UI — disponible en dev uniquement

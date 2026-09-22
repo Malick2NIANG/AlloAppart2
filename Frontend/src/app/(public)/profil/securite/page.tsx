@@ -3,12 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 export default function SecuritePage() {
   const { isSignedIn } = useAuth();
   const { user, isLoaded } = useUser();
   const t = useTranslations('securite');
+  // Renvoyé par espace/layout.tsx quand un ADMIN sans 2FA active tente
+  // d'accéder à l'espace admin (voir aussi RolesGuard côté backend, qui
+  // bloquerait de toute façon le premier appel API — cette redirection
+  // évite juste l'aller-retour raté).
+  const require2fa = useSearchParams().get('require2fa') === '1';
 
   /* Password form */
   const [currentPwd,  setCurrentPwd]  = useState('');
@@ -131,6 +137,13 @@ export default function SecuritePage() {
         <h1 className="text-xl font-extrabold text-text flex items-center gap-2">
           <i className="fa-solid fa-shield-halved text-gold-dark" /> {t('title')}
         </h1>
+
+        {require2fa && !totpEnabled && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-300 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
+            <i className="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400 mt-0.5 text-sm" />
+            <p className="text-sm text-amber-800 dark:text-amber-300">{t('require2faBanner')}</p>
+          </div>
+        )}
 
         {/* ── Mot de passe ── */}
         <section className="rounded-2xl border border-line bg-card p-6 space-y-4">

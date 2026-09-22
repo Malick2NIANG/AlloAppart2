@@ -335,6 +335,7 @@ export class AuthService {
       first_name?: string;
       last_name?: string;
       phone_numbers?: { phone_number: string }[];
+      two_factor_enabled?: boolean;
     };
 
     if (event.type === 'user.created') {
@@ -350,6 +351,7 @@ export class AuthService {
           lastName: data.last_name ?? '',
           phone: data.phone_numbers?.[0]?.phone_number ?? null,
           roles: [Role.LOCATAIRE],
+          twoFactorEnabled: data.two_factor_enabled ?? false,
         },
         update: {
           // Met à jour le nom/email si le guard avait créé l'utilisateur avec des données placeholder
@@ -360,6 +362,9 @@ export class AuthService {
           }),
           ...(data.phone_numbers?.[0]?.phone_number && {
             phone: data.phone_numbers[0].phone_number,
+          }),
+          ...(data.two_factor_enabled !== undefined && {
+            twoFactorEnabled: data.two_factor_enabled,
           }),
         },
       });
@@ -380,6 +385,12 @@ export class AuthService {
           }),
           ...(data.phone_numbers?.[0] && {
             phone: data.phone_numbers[0].phone_number,
+          }),
+          // Activer/désactiver la 2FA (TOTP) dans Clerk déclenche un
+          // événement user.updated — c'est ce qui garde en phase le flag
+          // local utilisé par RolesGuard pour imposer la 2FA aux ADMIN.
+          ...(data.two_factor_enabled !== undefined && {
+            twoFactorEnabled: data.two_factor_enabled,
           }),
         },
       });

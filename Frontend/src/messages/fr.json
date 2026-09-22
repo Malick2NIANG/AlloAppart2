@@ -785,7 +785,8 @@
     "loading": "Chargement…",
     "signInRequired": "Connectez-vous pour accéder aux paramètres de sécurité.",
     "signIn": "Se connecter",
-    "demoReadOnly": "Les paramètres de sécurité ne sont pas disponibles en mode démo."
+    "demoReadOnly": "Les paramètres de sécurité ne sont pas disponibles en mode démo.",
+    "require2faBanner": "La double authentification (2FA) est obligatoire pour accéder à l'espace admin. Activez-la ci-dessous pour continuer."
   },
   "onboarding": {
     "title": "Comment souhaitez-vous utiliser AlloAppart ?",

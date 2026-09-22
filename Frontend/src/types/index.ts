@@ -29,6 +29,8 @@ export interface User {
   roles: Role[];
   isVerified: boolean;
   isSuspended: boolean;
+  /** 2FA (TOTP) Clerk active sur ce compte — obligatoire pour le rôle ADMIN. */
+  twoFactorEnabled?: boolean;
   agencyName?: string | null;
   agencySlug?: string | null;
   bio?: string | null;

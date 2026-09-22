@@ -785,7 +785,8 @@
     "loading": "Loading…",
     "signInRequired": "Sign in to access security settings.",
     "signIn": "Sign in",
-    "demoReadOnly": "Security settings are not available in demo mode."
+    "demoReadOnly": "Security settings are not available in demo mode.",
+    "require2faBanner": "Two-factor authentication (2FA) is required to access the admin space. Enable it below to continue."
   },
   "onboarding": {
     "title": "How would you like to use AlloAppart?",

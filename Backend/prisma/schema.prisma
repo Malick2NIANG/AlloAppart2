@@ -44,6 +44,12 @@ model User {
   isVerified               Boolean        @default(false)
   isSuspended              Boolean        @default(false)
   mustChangePassword       Boolean        @default(false)
+  // Reflet local de la 2FA (TOTP) Clerk de ce compte — synchronisé par le
+  // webhook user.created/user.updated (voir AuthService.handleWebhook) et
+  // vérifié en direct auprès de Clerk en cas de doute (voir RolesGuard).
+  // Sert à imposer la 2FA obligatoire pour le rôle ADMIN (espace sensible) :
+  // voir RolesGuard.ensureAdminTwoFactor.
+  twoFactorEnabled         Boolean        @default(false)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   bookings              Booking[]      @relation("TenantBookings")

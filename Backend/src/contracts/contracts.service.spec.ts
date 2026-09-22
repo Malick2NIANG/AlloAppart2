@@ -32,6 +32,7 @@ const owner: User = {
   isVerified: true,
   isSuspended: false,
   mustChangePassword: false,
+  twoFactorEnabled: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -61,6 +62,7 @@ const tenant: User = {
   isVerified: false,
   isSuspended: false,
   mustChangePassword: false,
+  twoFactorEnabled: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
