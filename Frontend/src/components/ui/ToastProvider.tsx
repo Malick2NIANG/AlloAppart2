@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useId, useMemo } from 'react';
+import { useState, useCallback, useId, useMemo, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ToastContext, type ToastItem, type ToastType } from './Toast';
 
@@ -46,14 +46,14 @@ function ToastItem({ item, onRemove }: { item: ToastItem; onRemove: (id: string)
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const baseId = useId();
-  let counter = 0;
+  const counterRef = useRef(0);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const addToast = useCallback((type: ToastType, message: string, durationMs?: number) => {
-    const id = `${baseId}-${Date.now()}-${counter++}`;
+    const id = `${baseId}-${Date.now()}-${counterRef.current++}`;
     setToasts((prev) => {
       const next = [...prev, { id, type, message }];
       return next.length > MAX_TOASTS ? next.slice(next.length - MAX_TOASTS) : next;

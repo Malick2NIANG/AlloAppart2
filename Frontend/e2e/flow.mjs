@@ -19,27 +19,12 @@ fs.mkdirSync(SS_DIR, { recursive: true });
 const FRONTEND = process.env.E2E_FRONTEND_URL || 'http://localhost:3000';
 const RUN_ID = process.env.E2E_RUN_ID || String(Date.now());
 
-// Clerk's Cloudflare Turnstile bot-protection blocks headless signUp.create() calls.
-// Clerk's documented bypass for automated testing: fetch a short-lived Testing Token via
-// the Backend API and pass it as ?__clerk_testing_token=<token> on the page navigation —
-// ClerkJS then forwards it on subsequent Frontend API calls. See:
-// https://clerk.com/docs/guides/development/testing/overview
 function getClerkSecretKey() {
   const envPath = path.join(__dirname, '..', '..', 'Backend', '.env');
   const envContent = fs.readFileSync(envPath, 'utf8');
   const match = envContent.match(/^CLERK_SECRET_KEY=(.+)$/m);
   if (!match) throw new Error('CLERK_SECRET_KEY not found in Backend/.env');
   return match[1].trim();
-}
-
-async function getClerkTestingToken() {
-  const res = await fetch('https://api.clerk.com/v1/testing_tokens', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${getClerkSecretKey()}` },
-  });
-  if (!res.ok) throw new Error(`Failed to fetch Clerk testing token: HTTP ${res.status}`);
-  const body = await res.json();
-  return body.token;
 }
 
 // Sign-up's captcha (Cloudflare Turnstile) hangs indefinitely in this headless Chromium

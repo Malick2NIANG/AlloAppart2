@@ -146,6 +146,7 @@ function NewListingForm() {
     defaultValues: { lat: 14.6937, lng: -17.4441, amenities: [] },
   });
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- diagnostic informatif du React Compiler (non actif dans ce build) sur react-hook-form watch(), pas un bug
   const lat         = watch('lat');
   const lng         = watch('lng');
   const amenities   = watch('amenities') ?? [];

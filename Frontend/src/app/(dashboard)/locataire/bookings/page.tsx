@@ -36,7 +36,6 @@ export default function LocataireBookingsPage() {
   const [myReviews,   setMyReviews]   = useState<MyReview[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
-  const [hasBailleur, setHasBailleur] = useState(true);
 
   /* Modals */
   const [reviewModal,       setReviewModal]       = useState<{ booking: Booking } | null>(null);
@@ -49,9 +48,8 @@ export default function LocataireBookingsPage() {
     const token = await getToken();
     if (!token) { setLoading(false); return; }
     try {
-      const [data, me, reviews] = await Promise.all([
+      const [data, reviews] = await Promise.all([
         api.get<Booking[]>('/bookings/mine', token),
-        api.get<{ roles: string[] }>('/auth/me', token),
         api.get<MyReview[]>('/reviews/mine', token),
       ]);
 
@@ -80,7 +78,6 @@ export default function LocataireBookingsPage() {
 
       setBookings(finalData);
       setMyReviews(reviews);
-      setHasBailleur(me.roles.some((r) => ['BAILLEUR', 'PRO_AGENCE', 'ADMIN'].includes(r)));
     } catch {
       setError(t('loadBookingsError'));
     } finally {

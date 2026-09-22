@@ -7,7 +7,7 @@ import Pusher from 'pusher-js';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
-import type { Message, MessageReplyTo, MessageRoom, User } from '@/types';
+import type { Message, MessageRoom, User } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -301,8 +301,6 @@ export default function MessagesShell({ emptyHint, space }: Props) {
       setMessages((prev) => prev.map((m) => m.id === data.id ? { ...m, deletedAt: new Date().toISOString() } : m));
     });
     return () => { ch.unbind_all(); client.unsubscribe(`room-${activeRoomId}`); client.disconnect(); };
-  // getToken est stable (Clerk) — pas de boucle
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRoomId, getToken]);
 
   /* ── Send text ────────────────────────────────────────────────────────── */

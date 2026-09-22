@@ -41,7 +41,6 @@ export default function NotificationBell({ userId }: { userId: string }) {
   const [notifs,      setNotifs]      = useState<Notif[]>([]);
   const [unread,      setUnread]      = useState(0);
   const [open,        setOpen]        = useState(false);
-  const [loading,     setLoading]     = useState(false);
   const dropdownRef   = useRef<HTMLDivElement>(null);
   const tokenRef      = useRef<string | null>(null);
 
@@ -131,8 +130,6 @@ export default function NotificationBell({ userId }: { userId: string }) {
       setNotifs((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
     } catch {}
   };
-
-  if (loading) return null;
 
   return (
     <div className="relative" ref={dropdownRef}>

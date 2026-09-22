@@ -6,17 +6,14 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 
-const REASON_VALUES = [
-  { value: 'FRAUD',          icon: 'fa-triangle-exclamation' },
-  { value: 'WRONG_PRICE',    icon: 'fa-tag'                  },
-  { value: 'WRONG_PHOTOS',   icon: 'fa-image'                },
-  { value: 'ALREADY_RENTED', icon: 'fa-lock'                 },
-  { value: 'WRONG_LOCATION', icon: 'fa-location-dot'         },
-  { value: 'OFFENSIVE',      icon: 'fa-ban'                  },
-  { value: 'OTHER',          icon: 'fa-ellipsis'             },
-] as const;
-
-type ReasonValue = typeof REASON_VALUES[number]['value'];
+type ReasonValue =
+  | 'FRAUD'
+  | 'WRONG_PRICE'
+  | 'WRONG_PHOTOS'
+  | 'ALREADY_RENTED'
+  | 'WRONG_LOCATION'
+  | 'OFFENSIVE'
+  | 'OTHER';
 
 interface Props {
   listingId: string;

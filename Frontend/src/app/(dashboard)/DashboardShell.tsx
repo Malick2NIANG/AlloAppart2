@@ -206,7 +206,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
       const count = rooms.filter((r) => r.messages?.[0] && !r.messages[0].readAt && r.messages[0].senderId !== userId).length;
       setUnreadCount(count);
     } catch {}
-  }, [getToken]);
+  }, [getToken, userId]);
 
   useEffect(() => { void fetchUnread(); }, [fetchUnread]);
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -40,7 +40,6 @@ const ESCROW_ICON: Record<string, string> = {
 
 export default function BookingDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const router  = useRouter();
   const searchParams = useSearchParams();
   const { getToken } = useAuth();
   const { toast } = useToast();
