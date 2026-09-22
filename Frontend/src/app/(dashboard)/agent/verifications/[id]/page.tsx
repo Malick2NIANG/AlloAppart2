@@ -73,6 +73,7 @@ export default function MissionDetailPage() {
     } finally { setLoading(false); }
   }, [id, getToken, router]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
 
   const doAction = async (action: 'start' | 'complete' | 'decline', body?: object) => {

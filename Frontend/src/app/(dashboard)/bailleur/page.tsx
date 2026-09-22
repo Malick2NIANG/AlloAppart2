@@ -184,6 +184,7 @@ export default function BailleurDashboardPage() {
     }
   }, [getToken, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
 
   const downloadReport = async () => {

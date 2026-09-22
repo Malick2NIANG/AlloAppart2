@@ -817,6 +817,7 @@ function MesDemandesTab() {
     } catch {} finally { setLoading(false); }
   }, [getToken]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void fetchVerifs(); }, [fetchVerifs]);
 
   const handleRatingSaved = (verifId: string, saved: AgentRating) => {
@@ -921,6 +922,7 @@ function NosAgentsTab() {
     } catch {} finally { setLoading(false); }
   }, [getToken]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { load(); }, [load]);
 
   const filtered = agents.filter((a) => {

@@ -106,6 +106,7 @@ export default function MaVitrinePage() {
     finally { setLoading(false); }
   }, [getToken, router]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
 
   // Sélection d'un nouveau fichier : passe d'abord par le recadrage carré,

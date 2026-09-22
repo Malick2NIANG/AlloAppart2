@@ -126,6 +126,7 @@ export default function VitrineAnalyticsPage() {
     }
   }, [getToken, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
 
   if (loading) {

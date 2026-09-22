@@ -77,6 +77,7 @@ export default function AgentVerificationsPage() {
     finally { setLoading(false); }
   }, [getToken]); // toast/t exclus des deps pour éviter la boucle infinie
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
 
   const inProgress = assigned.filter((v) => v.status === 'IN_PROGRESS');

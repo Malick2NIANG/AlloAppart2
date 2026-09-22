@@ -135,6 +135,7 @@ export default function BailleurAgentsPage() {
     }
   }, [getToken]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { load(); }, [load]);
 
   const filtered = agents.filter((a) => {

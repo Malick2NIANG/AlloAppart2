@@ -91,6 +91,7 @@ function BailleurListingsContent() {
     });
   }, [getToken, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -106,10 +107,12 @@ function BailleurListingsContent() {
     const status = searchParams.get('status');
     if (status === 'boost_success') toastRef.current.success(t('boostSuccess'));
     if (status === 'boost_cancel')  toastRef.current.error(t('boostCancelPayment'));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronisation depuis l'URL (retour de paiement), déclenche un refetch
     if (status === 'verif_success') { toastRef.current.success(t('verifPaySuccess')); load(); }
     if (status === 'verif_cancel')  toastRef.current.error(t('verifPayCancel'));
   }, [searchParams, t, load]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset pagination suite à un changement de filtre/recherche
   useEffect(() => { setPage(1); }, [filter, search]);
 
   const triggerRevalidation = () => {

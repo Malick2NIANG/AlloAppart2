@@ -85,6 +85,7 @@ function AbonnementContent() {
     }
   }, [getToken, API, router]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void fetchSubscription(); }, [fetchSubscription]);
 
   useEffect(() => {
@@ -92,6 +93,7 @@ function AbonnementContent() {
 
     if (status === 'success') {
       showToast('success', t('abonnementPaymentSuccess'));
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronisation depuis l'URL (retour de paiement PayDunya), déclenche un polling
       setPolling(true);
       let attempts = 0;
       pollRef.current = setInterval(() => {

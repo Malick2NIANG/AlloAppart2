@@ -73,6 +73,7 @@ export default function NotificationsPage() {
     }
   }, [getToken]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
 
   const markAllRead = async () => {

@@ -91,6 +91,7 @@ export default function BookingDetailPage() {
     }
   }, [id, getToken, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
 
   // PayDunya redirige ici via `cancel_url` quand l'utilisateur annule ou que

@@ -64,6 +64,7 @@ export default function AgentProfilPage() {
     finally { setLoading(false); }
   }, [getToken]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

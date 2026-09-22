@@ -104,6 +104,7 @@ export default function AdminReportsPage() {
     }
   }, [getToken, toast]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
 
   const displayed = filter === 'HIGH'

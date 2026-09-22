@@ -83,6 +83,7 @@ export default function AgentCalendrierPage() {
     finally { setLoading(false); }
   }, [getToken]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
 
   // ── Mission lookup helpers ─────────────────────────────────────────────────

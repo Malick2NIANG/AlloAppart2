@@ -208,6 +208,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
     } catch {}
   }, [getToken, userId]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void fetchUnread(); }, [fetchUnread]);
 
   /* Se met à jour quand MessagesShell reçoit/lit un message (même onglet) */
@@ -299,6 +300,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setOpen(false); }, [pathname]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset UI (tooltip) suite à un changement d'état externe (sidebar repliée/dépliée)
   useEffect(() => { if (!collapsed) setTooltip(null); }, [collapsed]);
 
   const chipRoles = userRole ? roles.filter((r) => r !== userRole) : roles;
