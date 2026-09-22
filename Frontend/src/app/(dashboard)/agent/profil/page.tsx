@@ -25,9 +25,8 @@ export default function AgentProfilPage() {
   const locale       = useLocale();
   const numLocale    = locale === 'en' ? 'en-US' : 'fr-FR';
   const toastRef     = useRef(toast);
-  toastRef.current   = toast;
   const tRef         = useRef(t);
-  tRef.current       = t;
+  useEffect(() => { toastRef.current = toast; tRef.current = t; });
 
   const [user,    setUser]    = useState<User | null>(null);
   const [stats,   setStats]   = useState<AgentStats | null>(null);

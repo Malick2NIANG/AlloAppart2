@@ -37,7 +37,7 @@ export default function AdminUsersPage() {
   const { toast } = useToast();
   const t = useTranslations('admin');
   const tRef = useRef(t);
-  tRef.current = t;
+  useEffect(() => { tRef.current = t; });
 
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);

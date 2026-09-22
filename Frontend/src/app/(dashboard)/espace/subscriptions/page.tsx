@@ -52,7 +52,7 @@ export default function AdminSubscriptionsPage() {
   const { toast }    = useToast();
   const t            = useTranslations('admin');
   const tRef         = useRef(t);
-  tRef.current       = t;
+  useEffect(() => { tRef.current = t; });
 
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [total, setTotal]       = useState(0);

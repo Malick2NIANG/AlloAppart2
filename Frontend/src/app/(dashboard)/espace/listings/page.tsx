@@ -63,7 +63,7 @@ function AdminListingsContent() {
   const { toast }      = useToast();
   const t              = useTranslations('admin');
   const tRef           = useRef(t);
-  tRef.current         = t;
+  useEffect(() => { tRef.current = t; });
   const searchParams   = useSearchParams();
   const defaultStatus  = (searchParams.get('status') ?? 'ALL') as StatusFilter;
 

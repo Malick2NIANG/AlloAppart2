@@ -21,7 +21,7 @@ export default function MaVitrinePage() {
   const { toast }     = useToast();
   const t             = useTranslations('bailleur');
   const toastRef      = useRef(toast);
-  toastRef.current    = toast;
+  useEffect(() => { toastRef.current = toast; });
 
   const [user,         setUser]         = useState<User | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);

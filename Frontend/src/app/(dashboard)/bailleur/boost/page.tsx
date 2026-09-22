@@ -58,7 +58,7 @@ export default function BoostPage() {
   const searchParams = useSearchParams();
   const { toast }    = useToast();
   const toastRef     = useRef(toast);
-  toastRef.current   = toast;
+  useEffect(() => { toastRef.current = toast; });
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -247,6 +247,7 @@ export default function BoostPage() {
                   {t('cancel')}
                 </button>
                 <button
+                  // eslint-disable-next-line react-hooks/refs -- faux positif : handleBoost n'est pas une ref, c'est une fonction async classique
                   onClick={() => void handleBoost(confirmId)}
                   disabled={boosting !== null}
                   className="flex-1 rounded-xl bg-gold py-2.5 text-sm font-bold text-gray-900 hover:bg-gold-dark transition disabled:opacity-60"

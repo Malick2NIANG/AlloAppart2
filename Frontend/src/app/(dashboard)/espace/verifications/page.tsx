@@ -56,7 +56,7 @@ export default function AdminVerificationsPage() {
   const { toast }    = useToast();
   const t            = useTranslations('admin');
   const tRef         = useRef(t);
-  tRef.current       = t;
+  useEffect(() => { tRef.current = t; });
 
   const [tab, setTab]                     = useState<TabMode>('pending');
   const [statusFilter, setStatusFilter]   = useState<StatusFilter>('ALL');

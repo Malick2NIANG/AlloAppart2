@@ -64,7 +64,7 @@ export default function AdminReportsPage() {
   const locale       = useLocale();
   const numLocale    = locale === 'en' ? 'en-US' : 'fr-FR';
   const tRef         = useRef(t);
-  tRef.current       = t;
+  useEffect(() => { tRef.current = t; });
 
   const [items,    setItems]    = useState<ListingReport[]>([]);
   const [loading,  setLoading]  = useState(true);

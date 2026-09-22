@@ -38,9 +38,8 @@ export default function AgentVerificationsPage() {
   const { toast } = useToast();
   const t = useTranslations('agent');
   const toastRef = useRef(toast);
-  toastRef.current = toast;
   const tRef = useRef(t);
-  tRef.current = t;
+  useEffect(() => { toastRef.current = toast; tRef.current = t; });
   const router = useRouter();
 
   const [tab,          setTab]          = useState<Tab>('assigned');

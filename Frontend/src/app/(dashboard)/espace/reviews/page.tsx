@@ -29,7 +29,7 @@ export default function AdminReviewsPage() {
   const { toast }    = useToast();
   const t            = useTranslations('admin');
   const tRef         = useRef(t);
-  tRef.current       = t;
+  useEffect(() => { tRef.current = t; });
 
   const [reviews, setReviews]   = useState<Review[]>([]);
   const [total, setTotal]       = useState(0);
