@@ -11,13 +11,23 @@ import { memoryStorage } from 'multer';
 import { UploadService } from './upload.service';
 
 const ALLOWED_MIME = [
-  'image/jpeg', 'image/png', 'image/webp', 'image/heic',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
   // Messages vocaux
-  'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav',
+  'audio/webm',
+  'audio/ogg',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/wav',
   // Vidéos d'annonce (cf. ImageUploadZone.tsx VIDEO_TYPES — même liste,
   // sinon le front laisse l'utilisateur déposer une vidéo qui se fait
   // systématiquement refuser ici).
-  'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'video/x-msvideo',
 ];
 // 200 MB pour couvrir les vidéos (cf. ImageUploadZone.tsx MAX_VIDEO_SIZE) —
 // les images/audio restent bien plus légers en pratique, cette limite n'est
@@ -42,7 +52,9 @@ export class UploadController {
         const baseType = file.mimetype.split(';')[0].trim();
         if (!ALLOWED_MIME.includes(baseType)) {
           return cb(
-            new BadRequestException('Format non supporté (jpg, png, webp, audio, vidéo)'),
+            new BadRequestException(
+              'Format non supporté (jpg, png, webp, audio, vidéo)',
+            ),
             false,
           );
         }

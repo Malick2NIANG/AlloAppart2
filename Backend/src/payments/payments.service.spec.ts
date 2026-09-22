@@ -357,28 +357,39 @@ describe('PaymentsService', () => {
   // écran "en cours de traitement" qui ne se résolvait jamais.
   describe('verifyBooking — échec/annulation PayDunya', () => {
     beforeEach(() => {
-      configMock.get.mockImplementation((key: string) => ({
-        PAYDUNYA_MASTER_KEY: 'mk',
-        PAYDUNYA_PRIVATE_KEY: 'pk',
-        PAYDUNYA_TOKEN: 'tk',
-      })[key]);
+      configMock.get.mockImplementation(
+        (key: string) =>
+          ({
+            PAYDUNYA_MASTER_KEY: 'mk',
+            PAYDUNYA_PRIVATE_KEY: 'pk',
+            PAYDUNYA_TOKEN: 'tk',
+          })[key],
+      );
     });
 
     it("marque le booking CANCELLED si PayDunya confirme 'cancelled'", async () => {
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
-        id: 'b20', tenantId: 't20', status: BookingStatus.PENDING,
-        paymentRef: 'PD-tok20', totalAmount: 50000,
+        id: 'b20',
+        tenantId: 't20',
+        status: BookingStatus.PENDING,
+        paymentRef: 'PD-tok20',
+        totalAmount: 50000,
       });
       axiosGetMock.mockResolvedValueOnce({ data: { status: 'cancelled' } });
       prismaMock.booking.update.mockResolvedValueOnce({
-        id: 'b20', status: BookingStatus.CANCELLED, escrowStatus: EscrowStatus.REFUNDED,
+        id: 'b20',
+        status: BookingStatus.CANCELLED,
+        escrowStatus: EscrowStatus.REFUNDED,
       });
 
       const result = await service.verifyBooking('b20', 't20');
 
       expect(prismaMock.booking.update).toHaveBeenCalledWith({
         where: { id: 'b20' },
-        data: { status: BookingStatus.CANCELLED, escrowStatus: EscrowStatus.REFUNDED },
+        data: {
+          status: BookingStatus.CANCELLED,
+          escrowStatus: EscrowStatus.REFUNDED,
+        },
         include: { listing: { include: { owner: true } }, tenant: true },
       });
       expect(result.status).toBe(BookingStatus.CANCELLED);
@@ -386,19 +397,27 @@ describe('PaymentsService', () => {
 
     it("marque le booking CANCELLED si PayDunya confirme 'failed'", async () => {
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
-        id: 'b21', tenantId: 't21', status: BookingStatus.APPROVED,
-        paymentRef: 'PD-tok21', totalAmount: 75000,
+        id: 'b21',
+        tenantId: 't21',
+        status: BookingStatus.APPROVED,
+        paymentRef: 'PD-tok21',
+        totalAmount: 75000,
       });
       axiosGetMock.mockResolvedValueOnce({ data: { status: 'failed' } });
       prismaMock.booking.update.mockResolvedValueOnce({
-        id: 'b21', status: BookingStatus.CANCELLED, escrowStatus: EscrowStatus.REFUNDED,
+        id: 'b21',
+        status: BookingStatus.CANCELLED,
+        escrowStatus: EscrowStatus.REFUNDED,
       });
 
       const result = await service.verifyBooking('b21', 't21');
 
       expect(prismaMock.booking.update).toHaveBeenCalledWith({
         where: { id: 'b21' },
-        data: { status: BookingStatus.CANCELLED, escrowStatus: EscrowStatus.REFUNDED },
+        data: {
+          status: BookingStatus.CANCELLED,
+          escrowStatus: EscrowStatus.REFUNDED,
+        },
         include: { listing: { include: { owner: true } }, tenant: true },
       });
       expect(result.status).toBe(BookingStatus.CANCELLED);
@@ -406,8 +425,11 @@ describe('PaymentsService', () => {
 
     it('ne réécrit rien si le booking est déjà CANCELLED (idempotence, webhook déjà passé)', async () => {
       const already = {
-        id: 'b22', tenantId: 't22', status: BookingStatus.CANCELLED,
-        paymentRef: 'PD-tok22', totalAmount: 30000,
+        id: 'b22',
+        tenantId: 't22',
+        status: BookingStatus.CANCELLED,
+        paymentRef: 'PD-tok22',
+        totalAmount: 30000,
       };
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(already);
       axiosGetMock.mockResolvedValueOnce({ data: { status: 'failed' } });
@@ -420,10 +442,15 @@ describe('PaymentsService', () => {
 
     it("laisse le booking inchangé si PayDunya renvoie 'pending' (pas encore finalisé)", async () => {
       const pendingBooking = {
-        id: 'b23', tenantId: 't23', status: BookingStatus.PENDING,
-        paymentRef: 'PD-tok23', totalAmount: 40000,
+        id: 'b23',
+        tenantId: 't23',
+        status: BookingStatus.PENDING,
+        paymentRef: 'PD-tok23',
+        totalAmount: 40000,
       };
-      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(pendingBooking);
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        pendingBooking,
+      );
       axiosGetMock.mockResolvedValueOnce({ data: { status: 'pending' } });
 
       const result = await service.verifyBooking('b23', 't23');
@@ -441,23 +468,36 @@ describe('PaymentsService', () => {
   // mais notre statut restait bloqué sur PENDING/APPROVED pour toujours.
   describe('initiate — réutilisation du checkout PayDunya', () => {
     it('revérifie via PayDunya, débloque le booking en base et rejette avec ALREADY_PAID si la facture est déjà réglée', async () => {
-      configMock.get.mockImplementation((key: string) => ({
-        PAYDUNYA_MASTER_KEY: 'mk',
-        PAYDUNYA_PRIVATE_KEY: 'pk',
-        PAYDUNYA_TOKEN: 'tk',
-      })[key]);
+      configMock.get.mockImplementation(
+        (key: string) =>
+          ({
+            PAYDUNYA_MASTER_KEY: 'mk',
+            PAYDUNYA_PRIVATE_KEY: 'pk',
+            PAYDUNYA_TOKEN: 'tk',
+          })[key],
+      );
 
       // 1) initiate() charge le booking
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
-        id: 'b10', tenantId: 't10', bookingType: 'MONTHLY',
-        status: BookingStatus.APPROVED, paymentRef: 'PD-tok10',
-        totalAmount: 240000, listing: {}, tenant: {},
+        id: 'b10',
+        tenantId: 't10',
+        bookingType: 'MONTHLY',
+        status: BookingStatus.APPROVED,
+        paymentRef: 'PD-tok10',
+        totalAmount: 240000,
+        listing: {},
+        tenant: {},
       });
       // 2) verifyBooking() recharge le booking (include différent)
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
-        id: 'b10', tenantId: 't10', bookingType: 'MONTHLY',
-        status: BookingStatus.APPROVED, paymentRef: 'PD-tok10',
-        totalAmount: 240000, listing: { owner: {} }, tenant: {},
+        id: 'b10',
+        tenantId: 't10',
+        bookingType: 'MONTHLY',
+        status: BookingStatus.APPROVED,
+        paymentRef: 'PD-tok10',
+        totalAmount: 240000,
+        listing: { owner: {} },
+        tenant: {},
       });
       axiosGetMock.mockResolvedValueOnce({
         data: {
@@ -468,16 +508,27 @@ describe('PaymentsService', () => {
       });
       // 3) markBookingPaid() recharge le booking pour connaître bookingType
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
-        id: 'b10', bookingType: 'MONTHLY',
+        id: 'b10',
+        bookingType: 'MONTHLY',
       });
       prismaMock.booking.update.mockResolvedValueOnce({
-        id: 'b10', listingId: 'l10', tenantId: 't10',
+        id: 'b10',
+        listingId: 'l10',
+        tenantId: 't10',
         tenant: { email: 't@x.com', firstName: 'T', lastName: 'T' },
-        listing: { owner: { email: 'o@x.com', firstName: 'O', lastName: 'O', id: 'o1' }, title: 'X', city: 'Dakar' },
-        totalAmount: 240000, platformFee: 0, landlordAmount: 240000,
+        listing: {
+          owner: { email: 'o@x.com', firstName: 'O', lastName: 'O', id: 'o1' },
+          title: 'X',
+          city: 'Dakar',
+        },
+        totalAmount: 240000,
+        platformFee: 0,
+        landlordAmount: 240000,
       });
 
-      await expect(service.initiate('b10', 't10')).rejects.toThrow('ALREADY_PAID');
+      await expect(service.initiate('b10', 't10')).rejects.toThrow(
+        'ALREADY_PAID',
+      );
 
       // Le plus important : le statut a bien été débloqué en base, même si
       // la requête HTTP courante se termine par une erreur (le front
@@ -495,21 +546,34 @@ describe('PaymentsService', () => {
     });
 
     it("réutilise l'URL existante si le paiement est encore 'pending' chez PayDunya", async () => {
-      configMock.get.mockImplementation((key: string) => ({
-        PAYDUNYA_MASTER_KEY: 'mk',
-        PAYDUNYA_PRIVATE_KEY: 'pk',
-        PAYDUNYA_TOKEN: 'tk',
-      })[key]);
+      configMock.get.mockImplementation(
+        (key: string) =>
+          ({
+            PAYDUNYA_MASTER_KEY: 'mk',
+            PAYDUNYA_PRIVATE_KEY: 'pk',
+            PAYDUNYA_TOKEN: 'tk',
+          })[key],
+      );
 
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
-        id: 'b11', tenantId: 't11', bookingType: 'NIGHTLY',
-        status: BookingStatus.PENDING, paymentRef: 'PD-tok11',
-        totalAmount: 90000, listing: {}, tenant: {},
+        id: 'b11',
+        tenantId: 't11',
+        bookingType: 'NIGHTLY',
+        status: BookingStatus.PENDING,
+        paymentRef: 'PD-tok11',
+        totalAmount: 90000,
+        listing: {},
+        tenant: {},
       });
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
-        id: 'b11', tenantId: 't11', bookingType: 'NIGHTLY',
-        status: BookingStatus.PENDING, paymentRef: 'PD-tok11',
-        totalAmount: 90000, listing: { owner: {} }, tenant: {},
+        id: 'b11',
+        tenantId: 't11',
+        bookingType: 'NIGHTLY',
+        status: BookingStatus.PENDING,
+        paymentRef: 'PD-tok11',
+        totalAmount: 90000,
+        listing: { owner: {} },
+        tenant: {},
       });
       axiosGetMock.mockResolvedValueOnce({ data: { status: 'pending' } });
 
@@ -522,14 +586,24 @@ describe('PaymentsService', () => {
     it("réutilise l'URL existante sans appeler PayDunya si aucune clé n'est configurée (comportement historique préservé)", async () => {
       // configMock par défaut : get() renvoie undefined pour toute clé.
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
-        id: 'b12', tenantId: 't12', bookingType: 'NIGHTLY',
-        status: BookingStatus.PENDING, paymentRef: 'PD-tok12',
-        totalAmount: 50000, listing: {}, tenant: {},
+        id: 'b12',
+        tenantId: 't12',
+        bookingType: 'NIGHTLY',
+        status: BookingStatus.PENDING,
+        paymentRef: 'PD-tok12',
+        totalAmount: 50000,
+        listing: {},
+        tenant: {},
       });
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
-        id: 'b12', tenantId: 't12', bookingType: 'NIGHTLY',
-        status: BookingStatus.PENDING, paymentRef: 'PD-tok12',
-        totalAmount: 50000, listing: { owner: {} }, tenant: {},
+        id: 'b12',
+        tenantId: 't12',
+        bookingType: 'NIGHTLY',
+        status: BookingStatus.PENDING,
+        paymentRef: 'PD-tok12',
+        totalAmount: 50000,
+        listing: { owner: {} },
+        tenant: {},
       });
 
       const result = await service.initiate('b12', 't12');

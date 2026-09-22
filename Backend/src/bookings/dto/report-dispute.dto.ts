@@ -1,4 +1,10 @@
-import { ArrayMinSize, IsArray, IsString, IsUrl, MinLength } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsString,
+  IsUrl,
+  MinLength,
+} from 'class-validator';
 
 export class ReportDisputeDto {
   @IsString()

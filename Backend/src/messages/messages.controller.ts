@@ -1,4 +1,13 @@
-﻿import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+﻿import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { MessagesService } from './messages.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -43,7 +52,12 @@ export class MessagesController {
     @CurrentUser() user: User,
     @Body() dto: SendMessageDto,
   ) {
-    return this.messagesService.sendMessage(id, user.id, dto.content, dto.replyToId);
+    return this.messagesService.sendMessage(
+      id,
+      user.id,
+      dto.content,
+      dto.replyToId,
+    );
   }
 
   @Post('rooms/:id/read')

@@ -2,7 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { AgencesService } from './agences.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { BookingStatus, Role, SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
+import {
+  BookingStatus,
+  Role,
+  SubscriptionPlan,
+  SubscriptionStatus,
+} from '@prisma/client';
 
 // Régression produit : la vitrine publique (/agences/:slug) et le profil
 // personnel (/profil) partageaient auparavant les mêmes colonnes
@@ -26,18 +31,28 @@ describe('AgencesService', () => {
     roles: [Role.PRO_AGENCE],
     isSuspended: false,
     createdAt: new Date(),
-    subscription: { plan: SubscriptionPlan.PRO, status: SubscriptionStatus.ACTIVE },
+    subscription: {
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.ACTIVE,
+    },
     _count: { listings: 3 },
   };
 
   beforeEach(async () => {
     prismaMock = {
-      user: { findMany: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
+      user: {
+        findMany: jest.fn(),
+        findUnique: jest.fn(),
+        updateMany: jest.fn(),
+      },
       booking: { findFirst: jest.fn() },
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AgencesService, { provide: PrismaService, useValue: prismaMock }],
+      providers: [
+        AgencesService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
     }).compile();
 
     service = module.get<AgencesService>(AgencesService);
@@ -49,7 +64,7 @@ describe('AgencesService', () => {
         ...baseAgency,
         bio: 'Bio personnelle',
         avatar: 'perso.jpg',
-        agencyBio: 'Bio officielle de l\'agence',
+        agencyBio: "Bio officielle de l'agence",
         agencyAvatar: 'logo-agence.jpg',
         listings: [],
       });
@@ -57,7 +72,7 @@ describe('AgencesService', () => {
       const result = await service.findBySlug('guilla-immo');
 
       expect(result).toMatchObject({
-        bio: 'Bio officielle de l\'agence',
+        bio: "Bio officielle de l'agence",
         avatar: 'logo-agence.jpg',
       });
       // Les clés brutes agencyX ne doivent jamais fuiter dans la réponse publique,
@@ -88,7 +103,9 @@ describe('AgencesService', () => {
     it("lève NotFoundException si l'agence n'existe pas", async () => {
       prismaMock.user.findUnique.mockResolvedValueOnce(null);
 
-      await expect(service.findBySlug('inconnue')).rejects.toThrow(NotFoundException);
+      await expect(service.findBySlug('inconnue')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -119,7 +136,7 @@ describe('AgencesService', () => {
   // qu'à un visiteur connecté ayant une réservation confirmée/active/terminée
   // avec cette agence précise.
   describe('getPhoneForViewer', () => {
-    it("renvoie le téléphone si une réservation qualifiante existe", async () => {
+    it('renvoie le téléphone si une réservation qualifiante existe', async () => {
       prismaMock.user.findUnique.mockResolvedValueOnce({
         id: 'a1',
         phone: '+221770000001',
@@ -135,7 +152,13 @@ describe('AgencesService', () => {
       expect(prismaMock.booking.findFirst).toHaveBeenCalledWith({
         where: {
           tenantId: 'tenant-1',
-          status: { in: [BookingStatus.CONFIRMED, BookingStatus.ACTIVE, BookingStatus.COMPLETED] },
+          status: {
+            in: [
+              BookingStatus.CONFIRMED,
+              BookingStatus.ACTIVE,
+              BookingStatus.COMPLETED,
+            ],
+          },
           listing: { ownerId: 'a1' },
         },
         select: { id: true },
@@ -160,7 +183,9 @@ describe('AgencesService', () => {
     it("lève NotFoundException si l'agence n'existe pas", async () => {
       prismaMock.user.findUnique.mockResolvedValueOnce(null);
 
-      await expect(service.getPhoneForViewer('inconnue', 'tenant-1')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.getPhoneForViewer('inconnue', 'tenant-1'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

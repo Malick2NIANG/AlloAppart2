@@ -10,9 +10,9 @@ export class SmsService {
   private from: string = '';
 
   constructor(private readonly config: ConfigService) {
-    const sid   = this.config.get<string>('TWILIO_ACCOUNT_SID');
+    const sid = this.config.get<string>('TWILIO_ACCOUNT_SID');
     const token = this.config.get<string>('TWILIO_AUTH_TOKEN');
-    this.from   = this.config.get<string>('TWILIO_FROM_NUMBER') ?? '';
+    this.from = this.config.get<string>('TWILIO_FROM_NUMBER') ?? '';
 
     if (sid && token && this.from) {
       this.client = twilio(sid, token);

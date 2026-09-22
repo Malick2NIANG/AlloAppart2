@@ -9,9 +9,7 @@ import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 
 @Controller('payments')
 export class PaymentsController {
-  constructor(
-    private readonly paymentsService: PaymentsService,
-  ) {}
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Roles(Role.LOCATAIRE)

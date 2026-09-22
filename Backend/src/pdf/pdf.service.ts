@@ -808,8 +808,14 @@ export class PdfService {
         }
       };
 
-      const revenueTrend = trendOf(data.stats.totalRevenue, data.previousMonth.totalRevenue);
-      const bookingsTrend = trendOf(data.stats.totalBookings, data.previousMonth.totalBookings);
+      const revenueTrend = trendOf(
+        data.stats.totalRevenue,
+        data.previousMonth.totalRevenue,
+      );
+      const bookingsTrend = trendOf(
+        data.stats.totalBookings,
+        data.previousMonth.totalBookings,
+      );
 
       let y = 130;
       kpiCard(
@@ -818,9 +824,21 @@ export class PdfService {
         'ANNONCES ACTIVES',
         `${data.stats.publishedListings} / ${data.stats.totalListings}`,
       );
-      kpiCard(315, y, 'RÉSERVATIONS', `${data.stats.totalBookings}`, bookingsTrend);
+      kpiCard(
+        315,
+        y,
+        'RÉSERVATIONS',
+        `${data.stats.totalBookings}`,
+        bookingsTrend,
+      );
       y += 92;
-      kpiCard(40, y, 'REVENUS ENCAISSÉS', formatFcfa(data.stats.totalRevenue), revenueTrend);
+      kpiCard(
+        40,
+        y,
+        'REVENUS ENCAISSÉS',
+        formatFcfa(data.stats.totalRevenue),
+        revenueTrend,
+      );
       kpiCard(
         315,
         y,
@@ -841,7 +859,12 @@ export class PdfService {
 
       // ── Répartition par statut ──
       ensureRoom(45);
-      doc.moveTo(40, y).lineTo(555, y).strokeColor(BORDER).lineWidth(0.5).stroke();
+      doc
+        .moveTo(40, y)
+        .lineTo(555, y)
+        .strokeColor(BORDER)
+        .lineWidth(0.5)
+        .stroke();
       y += 10;
       doc
         .fillColor(GREY)
@@ -870,7 +893,12 @@ export class PdfService {
 
       // ── Revenu par annonce ──
       ensureRoom(55 + Math.min(data.listingBreakdown.length, 5) * 18);
-      doc.moveTo(40, y).lineTo(555, y).strokeColor(BORDER).lineWidth(0.5).stroke();
+      doc
+        .moveTo(40, y)
+        .lineTo(555, y)
+        .strokeColor(BORDER)
+        .lineWidth(0.5)
+        .stroke();
       y += 10;
       doc
         .fillColor(GREY)
@@ -910,7 +938,12 @@ export class PdfService {
 
       // ── Section réservations détaillées ──
       ensureRoom(45);
-      doc.moveTo(40, y).lineTo(555, y).strokeColor(BORDER).lineWidth(0.5).stroke();
+      doc
+        .moveTo(40, y)
+        .lineTo(555, y)
+        .strokeColor(BORDER)
+        .lineWidth(0.5)
+        .stroke();
       y += 10;
       doc
         .fillColor(GREY)

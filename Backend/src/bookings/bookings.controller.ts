@@ -53,7 +53,9 @@ export class BookingsController {
     const statuses = status
       ?.split(',')
       .map((s) => s.trim())
-      .filter((s): s is BookingStatus => Object.values(BookingStatus).includes(s as BookingStatus));
+      .filter((s): s is BookingStatus =>
+        Object.values(BookingStatus).includes(s as BookingStatus),
+      );
     return this.bookingsService.findAll(
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,

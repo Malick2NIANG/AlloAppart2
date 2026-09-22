@@ -17,7 +17,10 @@ describe('AnalyticsService — restriction plan PRO', () => {
     booking: { count: jest.Mock; aggregate: jest.Mock; findMany: jest.Mock };
   };
 
-  const proAgenceUser = (plan: SubscriptionPlan | null, status: SubscriptionStatus | null) => ({
+  const proAgenceUser = (
+    plan: SubscriptionPlan | null,
+    status: SubscriptionStatus | null,
+  ) => ({
     profileViews: 42,
     agencyName: 'Guilla Immo',
     agencySlug: 'guilla-immo',
@@ -30,8 +33,15 @@ describe('AnalyticsService — restriction plan PRO', () => {
   beforeEach(async () => {
     prismaMock = {
       user: { findUniqueOrThrow: jest.fn() },
-      listing: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
-      review: { aggregate: jest.fn().mockResolvedValue({ _avg: { rating: null }, _count: { id: 0 } }) },
+      listing: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      review: {
+        aggregate: jest
+          .fn()
+          .mockResolvedValue({ _avg: { rating: null }, _count: { id: 0 } }),
+      },
       booking: {
         count: jest.fn().mockResolvedValue(0),
         aggregate: jest.fn().mockResolvedValue({ _sum: { totalAmount: null } }),
@@ -40,7 +50,10 @@ describe('AnalyticsService — restriction plan PRO', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AnalyticsService, { provide: PrismaService, useValue: prismaMock }],
+      providers: [
+        AnalyticsService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
     }).compile();
 
     service = module.get<AnalyticsService>(AnalyticsService);
@@ -53,7 +66,12 @@ describe('AnalyticsService — restriction plan PRO', () => {
       );
       prismaMock.listing.findMany.mockResolvedValueOnce([
         {
-          id: 'l1', title: 'Appt 1', city: 'Dakar', type: 'APPARTEMENT', status: 'ACTIVE', isVerified: true,
+          id: 'l1',
+          title: 'Appt 1',
+          city: 'Dakar',
+          type: 'APPARTEMENT',
+          status: 'ACTIVE',
+          isVerified: true,
           _count: { bookings: 3, reviews: 1, favoritedBy: 0 },
           bookings: [{ totalAmount: 100000 }],
         },
@@ -80,7 +98,12 @@ describe('AnalyticsService — restriction plan PRO', () => {
       );
       prismaMock.listing.findMany.mockResolvedValueOnce([
         {
-          id: 'l1', title: 'Appt 1', city: 'Dakar', type: 'APPARTEMENT', status: 'ACTIVE', isVerified: true,
+          id: 'l1',
+          title: 'Appt 1',
+          city: 'Dakar',
+          type: 'APPARTEMENT',
+          status: 'ACTIVE',
+          isVerified: true,
           _count: { bookings: 3, reviews: 1, favoritedBy: 0 },
           bookings: [{ totalAmount: 100000 }],
         },
@@ -119,11 +142,15 @@ describe('AnalyticsService — restriction plan PRO', () => {
       ).rejects.toThrow(ForbiddenException);
       await expect(
         service.getOwnerMonthlyReport('owner1', '2026-08'),
-      ).rejects.toMatchObject({ response: expect.objectContaining({ code: 'PRO_ONLY' }) });
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'PRO_ONLY' }),
+      });
     });
 
     it('rejette un compte PRO_AGENCE sans aucun abonnement (jamais souscrit)', async () => {
-      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce(proAgenceUser(null, null));
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce(
+        proAgenceUser(null, null),
+      );
 
       await expect(
         service.getOwnerMonthlyReport('owner1', '2026-08'),
@@ -140,10 +167,13 @@ describe('AnalyticsService — restriction plan PRO', () => {
       ).resolves.toBeDefined();
     });
 
-    it("autorise un simple BAILLEUR individuel sans abonnement (fonctionnalité hors périmètre agence)", async () => {
+    it('autorise un simple BAILLEUR individuel sans abonnement (fonctionnalité hors périmètre agence)', async () => {
       prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
-        firstName: 'Awa', lastName: 'Ndiaye', agencyName: null,
-        roles: [Role.BAILLEUR], subscription: null,
+        firstName: 'Awa',
+        lastName: 'Ndiaye',
+        agencyName: null,
+        roles: [Role.BAILLEUR],
+        subscription: null,
       });
 
       await expect(

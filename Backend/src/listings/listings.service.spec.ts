@@ -27,7 +27,11 @@ describe('ListingsService', () => {
       findUniqueOrThrow: jest.Mock;
       groupBy: jest.Mock;
     };
-    boostPayment: { findFirst: jest.Mock; update: jest.Mock; create: jest.Mock };
+    boostPayment: {
+      findFirst: jest.Mock;
+      update: jest.Mock;
+      create: jest.Mock;
+    };
   };
   let searchMock: {
     indexListing: jest.Mock;
@@ -50,7 +54,11 @@ describe('ListingsService', () => {
         findUniqueOrThrow: jest.fn(),
         groupBy: jest.fn(),
       },
-      boostPayment: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
+      boostPayment: {
+        findFirst: jest.fn(),
+        update: jest.fn(),
+        create: jest.fn(),
+      },
     };
     searchMock = {
       indexListing: jest.fn().mockResolvedValue(undefined),
@@ -130,7 +138,10 @@ describe('ListingsService', () => {
         await expect(
           service.create('owner1', { status: ListingStatus.ACTIVE } as never),
         ).rejects.toMatchObject({
-          response: expect.objectContaining({ code: 'STARTER_LISTING_LIMIT', limit: 10 }),
+          response: expect.objectContaining({
+            code: 'STARTER_LISTING_LIMIT',
+            limit: 10,
+          }),
         });
         expect(prismaMock.listing.create).not.toHaveBeenCalled();
       });
@@ -247,9 +258,13 @@ describe('ListingsService', () => {
           status: ListingStatus.ACTIVE,
         });
 
-        await service.update('l1', { id: 'owner1', roles: [Role.PRO_AGENCE] } as User, {
-          title: 'Nouveau titre',
-        } as never);
+        await service.update(
+          'l1',
+          { id: 'owner1', roles: [Role.PRO_AGENCE] } as User,
+          {
+            title: 'Nouveau titre',
+          },
+        );
 
         expect(prismaMock.user.findUniqueOrThrow).not.toHaveBeenCalled();
       });
@@ -450,7 +465,10 @@ describe('ListingsService', () => {
       prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
         id: 'owner1',
         roles: [Role.PRO_AGENCE],
-        subscription: { plan: SubscriptionPlan.PRO, status: SubscriptionStatus.ACTIVE },
+        subscription: {
+          plan: SubscriptionPlan.PRO,
+          status: SubscriptionStatus.ACTIVE,
+        },
       });
       prismaMock.listing.update.mockResolvedValueOnce({
         id: 'l1',
@@ -471,7 +489,10 @@ describe('ListingsService', () => {
       prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
         id: 'owner1',
         roles: [Role.PRO_AGENCE],
-        subscription: { plan: SubscriptionPlan.STARTER, status: SubscriptionStatus.ACTIVE },
+        subscription: {
+          plan: SubscriptionPlan.STARTER,
+          status: SubscriptionStatus.ACTIVE,
+        },
       });
       configMock.get.mockImplementation((key: string) => {
         if (key === 'NODE_ENV') return 'test';

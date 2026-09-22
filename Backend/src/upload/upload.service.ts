@@ -81,17 +81,22 @@ export class UploadService {
             transformation: [{ quality: 'auto:good' }],
           }
         : isAudio
-        ? {
-            folder: 'allo-appart/audio',
-            resource_type: 'video' as const,
-          }
-        : {
-            folder: 'allo-appart/listings',
-            resource_type: 'image' as const,
-            transformation: [
-              { width: 1280, height: 960, crop: 'limit', quality: 'auto:good' },
-            ],
-          };
+          ? {
+              folder: 'allo-appart/audio',
+              resource_type: 'video' as const,
+            }
+          : {
+              folder: 'allo-appart/listings',
+              resource_type: 'image' as const,
+              transformation: [
+                {
+                  width: 1280,
+                  height: 960,
+                  crop: 'limit',
+                  quality: 'auto:good',
+                },
+              ],
+            };
 
       const stream = cloudinary.uploader.upload_stream(
         uploadOptions,

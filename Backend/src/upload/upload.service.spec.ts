@@ -37,7 +37,10 @@ function mp4Buf(): Buffer {
   return heicBuf('mp42');
 }
 
-function multerFile(buffer: Buffer, mimetype = 'image/jpeg'): Express.Multer.File {
+function multerFile(
+  buffer: Buffer,
+  mimetype = 'image/jpeg',
+): Express.Multer.File {
   return {
     buffer,
     fieldname: 'file',

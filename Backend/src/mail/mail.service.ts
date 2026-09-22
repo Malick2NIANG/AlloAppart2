@@ -52,7 +52,12 @@ export class MailService {
     return `<a href="${href}" style="display:inline-block;background:#c9a84c;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;">${label}</a>`;
   }
 
-  private async deliver(to: string, subject: string, html: string, tag: string): Promise<void> {
+  private async deliver(
+    to: string,
+    subject: string,
+    html: string,
+    tag: string,
+  ): Promise<void> {
     if (!this.transporter) return;
     try {
       await this.transporter.sendMail({ from: this.from, to, subject, html });
@@ -73,7 +78,10 @@ export class MailService {
     if (!this.transporter) return;
 
     const loc: Locale = toLocale(opts.locale);
-    const roleLabel = t(loc, opts.role === 'agent' ? 'roleAgent' : 'roleAgence');
+    const roleLabel = t(
+      loc,
+      opts.role === 'agent' ? 'roleAgent' : 'roleAgence',
+    );
     const agencySuffix = opts.agencyName ? ` (${opts.agencyName})` : '';
 
     const html = this.shell(`
@@ -113,7 +121,12 @@ export class MailService {
       <p style="margin-top:32px;font-size:12px;color:#aaa;">${t(loc, 'commonTeam')}</p>
     `);
 
-    await this.deliver(opts.to, t(loc, 'mailSuspendedSubject'), html, 'Suspension email');
+    await this.deliver(
+      opts.to,
+      t(loc, 'mailSuspendedSubject'),
+      html,
+      'Suspension email',
+    );
   }
 
   async sendAccountReactivated(opts: {
@@ -132,7 +145,12 @@ export class MailService {
       <p style="margin-top:32px;font-size:12px;color:#aaa;">${t(loc, 'commonTeam')}</p>
     `);
 
-    await this.deliver(opts.to, t(loc, 'mailReactivatedSubject'), html, 'Réactivation email');
+    await this.deliver(
+      opts.to,
+      t(loc, 'mailReactivatedSubject'),
+      html,
+      'Réactivation email',
+    );
   }
 
   /** Code de confirmation OTP pour valider un changement de configuration tarifaire (espace/config). */
@@ -154,6 +172,11 @@ export class MailService {
       <p style="margin-top:32px;font-size:12px;color:#aaa;">${t(loc, 'mailConfigOtpIgnore')}</p>
     `);
 
-    await this.deliver(opts.to, t(loc, 'mailConfigOtpSubject'), html, 'Config OTP email');
+    await this.deliver(
+      opts.to,
+      t(loc, 'mailConfigOtpSubject'),
+      html,
+      'Config OTP email',
+    );
   }
 }

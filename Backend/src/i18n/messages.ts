@@ -131,8 +131,7 @@ const fr = {
   mailLeaseTerminatedSubject: 'Bail résilié — {listingTitle}',
   mailLeaseTerminatedBody:
     'Le bail mensuel pour <strong>{listingTitle}</strong> a été résilié.',
-  mailContractReadySubject:
-    'Votre contrat de bail est prêt — {listingTitle}',
+  mailContractReadySubject: 'Votre contrat de bail est prêt — {listingTitle}',
   mailContractReadyBody:
     "Le contrat de bail pour <strong>{listingTitle}</strong> est disponible au téléchargement depuis votre espace AlloAppart. C'est un modèle qui laisse des espaces libres pour vos informations personnelles (pièce d'identité, etc.) : imprimez-le, complétez-le et signez-le à la main avec le bailleur lors de votre rencontre au bien.",
 
@@ -214,7 +213,7 @@ const fr = {
   pushDeclineRequestBody:
     'Un agent demande à décliner la mission « {listingTitle} ». Approbation requise.',
   pushVerifRequestedBody:
-    'Nouvelle demande de vérification pour « {listingTitle} ». Assignation d\'un agent requise.',
+    "Nouvelle demande de vérification pour « {listingTitle} ». Assignation d'un agent requise.",
   pushNewMessageBody: '{senderName} vous a envoyé un message.',
   pushContactFilterAlertBody:
     '{senderName} a tenté de partager des coordonnées de contact hors plateforme {count} fois au cours des dernières 24h (conversation {roomId}).',
@@ -316,8 +315,7 @@ const en: Record<MessageKey, string> = {
   mailConfigChangedIntro:
     'In accordance with our Terms of Service (Article 7), we are informing you of a change to the platform’s pricing:',
   mailConfigChangedEffectiveNow: 'These new rates are already in effect.',
-  mailConfigChangedEffectiveAt:
-    'These new rates will take effect on {date}.',
+  mailConfigChangedEffectiveAt: 'These new rates will take effect on {date}.',
   mailConfigCancelledSubject: 'Scheduled pricing change cancelled',
   mailConfigCancelledBody:
     'The pricing change that was scheduled to take effect on {date} has been cancelled by the administrator. Current rates remain unchanged.',
@@ -371,8 +369,7 @@ const en: Record<MessageKey, string> = {
   mailLeaseTerminatedSubject: 'Lease ended — {listingTitle}',
   mailLeaseTerminatedBody:
     'The monthly lease for <strong>{listingTitle}</strong> has ended.',
-  mailContractReadySubject:
-    'Your lease contract is ready — {listingTitle}',
+  mailContractReadySubject: 'Your lease contract is ready — {listingTitle}',
   mailContractReadyBody:
     "The lease contract for <strong>{listingTitle}</strong> is available to download from your AlloAppart account. It's a template with blank spaces left for your personal details (ID card, etc.): print it, fill it in, and sign it by hand with the landlord when you meet at the property.",
 
@@ -477,8 +474,7 @@ const en: Record<MessageKey, string> = {
   pushConfigChangedBody:
     'The administrator updated the platform pricing: {changes}. {when}',
   pushConfigChangedEffectiveNow: 'These new rates are already in effect.',
-  pushConfigChangedEffectiveAt:
-    'These new rates will take effect on {date}.',
+  pushConfigChangedEffectiveAt: 'These new rates will take effect on {date}.',
   pushConfigChangeCancelledBody:
     'The pricing change scheduled for {date} has been cancelled. Current rates remain unchanged.',
 

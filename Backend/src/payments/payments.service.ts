@@ -405,11 +405,17 @@ export class PaymentsService {
     // insuffisant, annulation par l'utilisateur, etc.) restait indéfiniment
     // PENDING/APPROVED côté réservation, et la page de confirmation
     // affichait "en cours de traitement" pour toujours au lieu d'un échec.
-    if (confirm.data.status === 'cancelled' || confirm.data.status === 'failed') {
+    if (
+      confirm.data.status === 'cancelled' ||
+      confirm.data.status === 'failed'
+    ) {
       if (booking.status === BookingStatus.CANCELLED) return booking; // déjà traité par le webhook
       return this.prisma.booking.update({
         where: { id: bookingId },
-        data: { status: BookingStatus.CANCELLED, escrowStatus: EscrowStatus.REFUNDED },
+        data: {
+          status: BookingStatus.CANCELLED,
+          escrowStatus: EscrowStatus.REFUNDED,
+        },
         include: { listing: { include: { owner: true } }, tenant: true },
       });
     }

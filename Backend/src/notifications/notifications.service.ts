@@ -1038,7 +1038,9 @@ export class NotificationsService {
 
     const users =
       segment === 'ALL'
-        ? await this.prisma.user.findMany({ select: { id: true, clerkId: true } })
+        ? await this.prisma.user.findMany({
+            select: { id: true, clerkId: true },
+          })
         : await this.prisma.user.findMany({
             where: { roles: { has: roleMap[segment] } },
             select: { id: true, clerkId: true },

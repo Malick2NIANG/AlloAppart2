@@ -37,12 +37,20 @@ describe('ClerkAuthGuard', () => {
     reflector = new Reflector();
     jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false); // route non publique par défaut
 
-    const config = { get: jest.fn().mockReturnValue('sk_test_clerk') } as unknown as ConfigService;
-    guard = new ClerkAuthGuard(reflector, config, prismaMock as unknown as PrismaService);
+    const config = {
+      get: jest.fn().mockReturnValue('sk_test_clerk'),
+    } as unknown as ConfigService;
+    guard = new ClerkAuthGuard(
+      reflector,
+      config,
+      prismaMock as unknown as PrismaService,
+    );
   });
 
-  it("rejette un token dont la signature est invalide (forgé) — la faille corrigée", async () => {
-    verifyTokenMock.mockRejectedValueOnce(new Error('JWT signature is invalid.'));
+  it('rejette un token dont la signature est invalide (forgé) — la faille corrigée', async () => {
+    verifyTokenMock.mockRejectedValueOnce(
+      new Error('JWT signature is invalid.'),
+    );
 
     const ctx = makeContext('Bearer eyJforged.payload.sig');
 
@@ -50,7 +58,7 @@ describe('ClerkAuthGuard', () => {
     expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
   });
 
-  it('accepte un token dont la signature est valide et charge l\'utilisateur correspondant', async () => {
+  it("accepte un token dont la signature est valide et charge l'utilisateur correspondant", async () => {
     verifyTokenMock.mockResolvedValueOnce({ sub: 'clerk_123' });
     prismaMock.user.findUnique.mockResolvedValueOnce({
       id: 'user1',

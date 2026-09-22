@@ -33,10 +33,17 @@ export class ListingsController {
   @Roles(Role.ADMIN)
   @Get('all')
   findAllAdmin(@Query() dto: AdminListingsQueryDto) {
-    const listingStatus = Object.values(ListingStatus).includes(dto.status as ListingStatus)
+    const listingStatus = Object.values(ListingStatus).includes(
+      dto.status as ListingStatus,
+    )
       ? (dto.status as ListingStatus)
       : undefined;
-    return this.listingsService.findAll_admin(dto.page ?? 1, dto.limit ?? 20, listingStatus, dto.city);
+    return this.listingsService.findAll_admin(
+      dto.page ?? 1,
+      dto.limit ?? 20,
+      listingStatus,
+      dto.city,
+    );
   }
 
   @Get('mine')

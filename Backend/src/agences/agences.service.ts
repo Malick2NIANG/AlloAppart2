@@ -12,11 +12,11 @@ const QUALIFYING_BOOKING_STATUSES = [
 ];
 
 const AGENCY_PUBLIC_SELECT = {
-  id:          true,
-  firstName:   true,
-  lastName:    true,
-  agencyName:  true,
-  agencySlug:  true,
+  id: true,
+  firstName: true,
+  lastName: true,
+  agencyName: true,
+  agencySlug: true,
   // Champs dédiés à la vitrine publique (page "Ma vitrine"), distincts de
   // avatar/bio (profil personnel) — voir schema.prisma. Les personnels
   // restent sélectionnés en repli tant qu'une agence n'a pas renseigné les
@@ -27,14 +27,14 @@ const AGENCY_PUBLIC_SELECT = {
   // les routes publiques (findAll/findBySlug). Il n'est révélé qu'via
   // getPhoneForViewer(), après vérification d'une réservation qualifiante
   // (Task #120).
-  avatar:      true,
-  bio:         true,
+  avatar: true,
+  bio: true,
   agencyAvatar: true,
-  agencyBio:   true,
+  agencyBio: true,
   agencyAddress: true,
   agencyColor: true,
-  createdAt:   true,
-  roles:       true,
+  createdAt: true,
+  roles: true,
   isSuspended: true,
   subscription: {
     select: { plan: true, status: true },
@@ -47,27 +47,27 @@ const AGENCY_PUBLIC_SELECT = {
 } as const;
 
 const LISTING_PUBLIC_SELECT = {
-  id:        true,
-  title:     true,
-  price:     true,
+  id: true,
+  title: true,
+  price: true,
   // Nécessaires pour afficher le bon tarif (nuitée/mensuel/les deux) sur la
   // vitrine — `price` seul peut être un équivalent mensuel dérivé pour une
   // annonce NIGHTLY (cf. resolveMonthlyPrice, listings.service.ts).
-  rentalMode:    true,
+  rentalMode: true,
   pricePerNight: true,
-  type:      true,
-  city:      true,
-  region:    true,
-  address:   true,
-  images:    true,
-  rooms:     true,
-  surface:   true,
-  beds:      true,
-  baths:     true,
+  type: true,
+  city: true,
+  region: true,
+  address: true,
+  images: true,
+  rooms: true,
+  surface: true,
+  beds: true,
+  baths: true,
   boostUntil: true,
   boostScore: true,
   isVerified: true,
-  createdAt:  true,
+  createdAt: true,
 } as const;
 
 @Injectable()
@@ -82,7 +82,12 @@ export class AgencesService {
    * du tout : voir la note sur AGENCY_PUBLIC_SELECT et getPhoneForViewer().
    */
   private resolveVitrineFields<
-    T extends { agencyBio: string | null; agencyAvatar: string | null; bio: string | null; avatar: string | null },
+    T extends {
+      agencyBio: string | null;
+      agencyAvatar: string | null;
+      bio: string | null;
+      avatar: string | null;
+    },
   >(agency: T) {
     const { agencyBio, agencyAvatar, ...rest } = agency;
     return {
@@ -101,13 +106,26 @@ export class AgencesService {
    * `@Public()`) : un visiteur non connecté ne peut par définition avoir
    * aucune réservation, donc n'a jamais accès à cet endpoint.
    */
-  async getPhoneForViewer(slug: string, viewerId: string): Promise<{ phone: string | null }> {
+  async getPhoneForViewer(
+    slug: string,
+    viewerId: string,
+  ): Promise<{ phone: string | null }> {
     const agency = await this.prisma.user.findUnique({
       where: { agencySlug: slug },
-      select: { id: true, phone: true, agencyPhone: true, roles: true, isSuspended: true },
+      select: {
+        id: true,
+        phone: true,
+        agencyPhone: true,
+        roles: true,
+        isSuspended: true,
+      },
     });
 
-    if (!agency || !agency.roles?.includes(Role.PRO_AGENCE) || agency.isSuspended) {
+    if (
+      !agency ||
+      !agency.roles?.includes(Role.PRO_AGENCE) ||
+      agency.isSuspended
+    ) {
       throw new NotFoundException('Agency not found.');
     }
 
@@ -158,15 +176,16 @@ export class AgencesService {
         listings: {
           where: { status: ListingStatus.ACTIVE },
           select: LISTING_PUBLIC_SELECT,
-          orderBy: [
-            { boostScore: 'desc' },
-            { createdAt:  'desc' },
-          ],
+          orderBy: [{ boostScore: 'desc' }, { createdAt: 'desc' }],
         },
       },
     });
 
-    if (!agency || !agency.roles?.includes(Role.PRO_AGENCE) || agency.isSuspended) {
+    if (
+      !agency ||
+      !agency.roles?.includes(Role.PRO_AGENCE) ||
+      agency.isSuspended
+    ) {
       throw new NotFoundException('Agency not found.');
     }
 

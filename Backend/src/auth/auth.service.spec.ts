@@ -308,7 +308,7 @@ describe('AuthService', () => {
       expect(result.agencySlug).toBe('guilla-immo');
     });
 
-    it("ajoute un suffixe -2 si le slug de base est déjà pris par une autre agence", async () => {
+    it('ajoute un suffixe -2 si le slug de base est déjà pris par une autre agence', async () => {
       prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
         ...baseUser,
         agencyName: null,
@@ -374,7 +374,7 @@ describe('AuthService', () => {
       email: 'agence@example.com',
       firstName: 'Fatou',
       lastName: 'Ndiaye',
-      agencyName: "Immo Dakar Plus",
+      agencyName: 'Immo Dakar Plus',
     };
 
     it('génère et persiste un agencySlug sans que le DTO ne le contienne', async () => {

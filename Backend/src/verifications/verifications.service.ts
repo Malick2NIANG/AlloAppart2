@@ -83,12 +83,18 @@ export class VerificationsService {
     const existing = await this.prisma.verification.findFirst({
       where: {
         listingId: dto.listingId,
-        status: { in: [VerifStatus.REQUESTED, VerifStatus.SCHEDULED, VerifStatus.IN_PROGRESS] },
+        status: {
+          in: [
+            VerifStatus.REQUESTED,
+            VerifStatus.SCHEDULED,
+            VerifStatus.IN_PROGRESS,
+          ],
+        },
       },
     });
     if (existing) {
       throw new ConflictException(
-        'Une vérification est déjà en cours pour cette annonce. Attendez qu\'elle soit terminée avant d\'en soumettre une nouvelle.',
+        "Une vérification est déjà en cours pour cette annonce. Attendez qu'elle soit terminée avant d'en soumettre une nouvelle.",
       );
     }
 
@@ -100,7 +106,9 @@ export class VerificationsService {
           auditType: dto.auditType,
           scheduledAt: new Date(dto.scheduledAt),
           status: VerifStatus.REQUESTED,
-          ...(dto.preferredAgentId ? { preferredAgentId: dto.preferredAgentId } : {}),
+          ...(dto.preferredAgentId
+            ? { preferredAgentId: dto.preferredAgentId }
+            : {}),
         },
       });
       void this.notif.notifyAdminNewVerificationRequest(
@@ -113,9 +121,10 @@ export class VerificationsService {
 
     // Tout le reste (STARTER, bailleur individuel) : paiement PayDunya requis
     // avant que la Verification ne soit réellement créée.
-    const existingPendingPayment = await this.prisma.verificationPayment.findFirst({
-      where: { listingId: dto.listingId, status: 'PENDING' },
-    });
+    const existingPendingPayment =
+      await this.prisma.verificationPayment.findFirst({
+        where: { listingId: dto.listingId, status: 'PENDING' },
+      });
     if (existingPendingPayment) {
       throw new ConflictException(
         'Un paiement AlloVérifié est déjà en attente pour cette annonce.',
@@ -131,7 +140,9 @@ export class VerificationsService {
   ) {
     const pricing = await this.platformConfig.getPricing();
     const amount =
-      dto.auditType === 'BASIC' ? pricing.auditBasicPriceFcfa : pricing.auditFullPriceFcfa;
+      dto.auditType === 'BASIC'
+        ? pricing.auditBasicPriceFcfa
+        : pricing.auditFullPriceFcfa;
     const isDev = this.config.get<string>('NODE_ENV') !== 'production';
 
     // ── Mode bypass dev : simule le paiement sans appeler PayDunya ──────────
@@ -268,7 +279,9 @@ export class VerificationsService {
         auditType: payment.auditType,
         scheduledAt: payment.scheduledAt,
         status: VerifStatus.REQUESTED,
-        ...(payment.preferredAgentId ? { preferredAgentId: payment.preferredAgentId } : {}),
+        ...(payment.preferredAgentId
+          ? { preferredAgentId: payment.preferredAgentId }
+          : {}),
       },
     });
     await this.prisma.verificationPayment.update({
@@ -331,9 +344,22 @@ export class VerificationsService {
       include: {
         listing: {
           select: {
-            id: true, title: true, city: true, address: true, images: true,
-            lat: true, lng: true,
-            owner: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+            id: true,
+            title: true,
+            city: true,
+            address: true,
+            images: true,
+            lat: true,
+            lng: true,
+            owner: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                email: true,
+              },
+            },
           },
         },
         agent: { select: { id: true, firstName: true, lastName: true } },
@@ -363,8 +389,20 @@ export class VerificationsService {
       include: {
         listing: {
           select: {
-            id: true, title: true, city: true, address: true, images: true,
-            owner: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+            id: true,
+            title: true,
+            city: true,
+            address: true,
+            images: true,
+            owner: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -379,7 +417,9 @@ export class VerificationsService {
         status: { in: [VerifStatus.DONE, VerifStatus.REJECTED] },
       },
       include: {
-        listing: { select: { id: true, title: true, city: true, images: true } },
+        listing: {
+          select: { id: true, title: true, city: true, images: true },
+        },
       },
       orderBy: { completedAt: 'desc' },
     });
@@ -390,24 +430,50 @@ export class VerificationsService {
     today.setHours(0, 0, 0, 0);
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const [assigned, inProgress, doneThisMonth, doneTotal, todayMissions, ratings] = await Promise.all([
-      this.prisma.verification.count({ where: { agentId, status: VerifStatus.SCHEDULED } }),
-      this.prisma.verification.count({ where: { agentId, status: VerifStatus.IN_PROGRESS } }),
-      this.prisma.verification.count({ where: { agentId, status: VerifStatus.DONE, completedAt: { gte: monthStart } } }),
-      this.prisma.verification.count({ where: { agentId, status: VerifStatus.DONE } }),
+    const [
+      assigned,
+      inProgress,
+      doneThisMonth,
+      doneTotal,
+      todayMissions,
+      ratings,
+    ] = await Promise.all([
+      this.prisma.verification.count({
+        where: { agentId, status: VerifStatus.SCHEDULED },
+      }),
+      this.prisma.verification.count({
+        where: { agentId, status: VerifStatus.IN_PROGRESS },
+      }),
+      this.prisma.verification.count({
+        where: {
+          agentId,
+          status: VerifStatus.DONE,
+          completedAt: { gte: monthStart },
+        },
+      }),
+      this.prisma.verification.count({
+        where: { agentId, status: VerifStatus.DONE },
+      }),
       this.prisma.verification.findMany({
         where: {
           agentId,
           scheduledAt: { gte: today, lt: new Date(today.getTime() + 86400000) },
           status: { in: [VerifStatus.SCHEDULED, VerifStatus.IN_PROGRESS] },
         },
-        include: { listing: { select: { id: true, title: true, city: true, address: true } } },
+        include: {
+          listing: {
+            select: { id: true, title: true, city: true, address: true },
+          },
+        },
         orderBy: { scheduledAt: 'asc' },
       }),
       this.prisma.agentRating.findMany({
         where: { agentId },
         select: {
-          id: true, rating: true, comment: true, createdAt: true,
+          id: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
           rater: { select: { firstName: true, lastName: true, avatar: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -415,9 +481,16 @@ export class VerificationsService {
       }),
     ]);
 
-    const totalRatings = await this.prisma.agentRating.count({ where: { agentId } });
-    const ratingSum    = await this.prisma.agentRating.aggregate({ where: { agentId }, _avg: { rating: true } });
-    const avgRating    = ratingSum._avg.rating ? Math.round(ratingSum._avg.rating * 10) / 10 : null;
+    const totalRatings = await this.prisma.agentRating.count({
+      where: { agentId },
+    });
+    const ratingSum = await this.prisma.agentRating.aggregate({
+      where: { agentId },
+      _avg: { rating: true },
+    });
+    const avgRating = ratingSum._avg.rating
+      ? Math.round(ratingSum._avg.rating * 10) / 10
+      : null;
 
     return {
       assigned,
@@ -443,9 +516,22 @@ export class VerificationsService {
     return this.prisma.verification.findMany({
       where: { listing: { ownerId: userId } },
       include: {
-        listing: { select: { id: true, title: true, city: true, images: true } },
-        agent: { select: { id: true, firstName: true, lastName: true, phone: true, avatar: true, bio: true } },
-        rating: { select: { id: true, rating: true, comment: true, createdAt: true } },
+        listing: {
+          select: { id: true, title: true, city: true, images: true },
+        },
+        agent: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            avatar: true,
+            bio: true,
+          },
+        },
+        rating: {
+          select: { id: true, rating: true, comment: true, createdAt: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -465,11 +551,21 @@ export class VerificationsService {
       include: {
         listing: {
           include: {
-            owner: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+            owner: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                email: true,
+              },
+            },
           },
         },
         agent: true,
-        preferredAgent: { select: { id: true, firstName: true, lastName: true } },
+        preferredAgent: {
+          select: { id: true, firstName: true, lastName: true },
+        },
       },
       orderBy: { scheduledAt: 'asc' },
     });
@@ -517,20 +613,31 @@ export class VerificationsService {
       include: { listing: { include: { owner: { select: { id: true } } } } },
     });
     if (v.status !== VerifStatus.DECLINE_PENDING) {
-      throw new BadRequestException('This verification is not pending decline.');
+      throw new BadRequestException(
+        'This verification is not pending decline.',
+      );
     }
     const updated = await this.prisma.verification.update({
       where: { id },
       data: { status: VerifStatus.REQUESTED, agentId: null },
     });
-    void this.notif.notifyVerifDeclined(v.listing.owner.id, v.listing.title, id, v.listingId);
+    void this.notif.notifyVerifDeclined(
+      v.listing.owner.id,
+      v.listing.title,
+      id,
+      v.listingId,
+    );
     return updated;
   }
 
   async refuseDecline(id: string) {
-    const v = await this.prisma.verification.findUniqueOrThrow({ where: { id } });
+    const v = await this.prisma.verification.findUniqueOrThrow({
+      where: { id },
+    });
     if (v.status !== VerifStatus.DECLINE_PENDING) {
-      throw new BadRequestException('This verification is not pending decline.');
+      throw new BadRequestException(
+        'This verification is not pending decline.',
+      );
     }
     return this.prisma.verification.update({
       where: { id },
@@ -543,19 +650,35 @@ export class VerificationsService {
       where: { id: verificationId },
       data: { agentId, status: VerifStatus.SCHEDULED },
       include: {
-        listing: { include: { owner: { select: { id: true, firstName: true, lastName: true } } } },
-        agent:   { select: { firstName: true, lastName: true } },
+        listing: {
+          include: {
+            owner: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+        agent: { select: { firstName: true, lastName: true } },
       },
     });
 
     const listingTitle = v.listing.title;
-    const agentName    = `${v.agent?.firstName ?? ''} ${v.agent?.lastName ?? ''}`.trim();
-    const bailleurId   = v.listing.owner.id;
+    const agentName =
+      `${v.agent?.firstName ?? ''} ${v.agent?.lastName ?? ''}`.trim();
+    const bailleurId = v.listing.owner.id;
 
     // Notif agent — nouvelle mission
-    void this.notif.notifyVerifAssigned(agentId, listingTitle, verificationId, v.listingId);
+    void this.notif.notifyVerifAssigned(
+      agentId,
+      listingTitle,
+      verificationId,
+      v.listingId,
+    );
     // Notif bailleur — agent confirmé
-    void this.notif.notifyVerifScheduled(bailleurId, listingTitle, agentName, verificationId, v.listingId);
+    void this.notif.notifyVerifScheduled(
+      bailleurId,
+      listingTitle,
+      agentName,
+      verificationId,
+      v.listingId,
+    );
 
     return v;
   }
@@ -583,7 +706,12 @@ export class VerificationsService {
     });
 
     // Notif bailleur — visite démarrée
-    void this.notif.notifyVerifInProgress(v.listing.owner.id, v.listing.title, id, v.listingId);
+    void this.notif.notifyVerifInProgress(
+      v.listing.owner.id,
+      v.listing.title,
+      id,
+      v.listingId,
+    );
 
     return updated;
   }
@@ -597,7 +725,9 @@ export class VerificationsService {
     if (!v.agentId) throw new ForbiddenException('No agent assigned');
     if (v.agentId !== agentId) throw new ForbiddenException('Not authorized');
     if (v.status !== VerifStatus.IN_PROGRESS)
-      throw new BadRequestException('Visit must be started before certifying the property');
+      throw new BadRequestException(
+        'Visit must be started before certifying the property',
+      );
 
     await this.prisma.listing.update({
       where: { id: v.listingId },
@@ -620,7 +750,12 @@ export class VerificationsService {
     });
 
     // Notif bailleur — visite terminée
-    void this.notif.notifyVerifDone(v.listing.owner.id, v.listing.title, id, v.listingId);
+    void this.notif.notifyVerifDone(
+      v.listing.owner.id,
+      v.listing.title,
+      id,
+      v.listingId,
+    );
 
     return updated;
   }
@@ -633,12 +768,24 @@ export class VerificationsService {
         include: {
           listing: {
             select: {
-              id: true, title: true, city: true,
-              owner: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+              id: true,
+              title: true,
+              city: true,
+              owner: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  phone: true,
+                  email: true,
+                },
+              },
             },
           },
           agent: { select: { id: true, firstName: true, lastName: true } },
-          preferredAgent: { select: { id: true, firstName: true, lastName: true } },
+          preferredAgent: {
+            select: { id: true, firstName: true, lastName: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -650,7 +797,9 @@ export class VerificationsService {
   }
 
   async validate(id: string, adminId: string) {
-    const admin = await this.prisma.user.findUniqueOrThrow({ where: { id: adminId } });
+    const admin = await this.prisma.user.findUniqueOrThrow({
+      where: { id: adminId },
+    });
     if (!admin.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Admin only');
     }
@@ -660,7 +809,7 @@ export class VerificationsService {
 
     if (v.status !== VerifStatus.DONE) {
       throw new BadRequestException(
-        'Le badge AlloVérifié ne peut être accordé que sur une visite terminée par l\'agent (statut DONE).',
+        "Le badge AlloVérifié ne peut être accordé que sur une visite terminée par l'agent (statut DONE).",
       );
     }
 
@@ -671,7 +820,12 @@ export class VerificationsService {
     });
 
     // Notif bailleur — badge accordé
-    void this.notif.notifyVerifValidated(listing.owner.id, listing.title, id, v.listingId);
+    void this.notif.notifyVerifValidated(
+      listing.owner.id,
+      listing.title,
+      id,
+      v.listingId,
+    );
 
     return { validated: true };
   }
@@ -707,7 +861,11 @@ export class VerificationsService {
     });
   }
 
-  async rate(verificationId: string, raterId: string, dto: RateVerificationDto) {
+  async rate(
+    verificationId: string,
+    raterId: string,
+    dto: RateVerificationDto,
+  ) {
     // Vérifier que la verif existe et est DONE
     const v = await this.prisma.verification.findUnique({
       where: { id: verificationId },
@@ -716,10 +874,14 @@ export class VerificationsService {
 
     if (!v) throw new NotFoundException('Verification not found');
     if (v.status !== VerifStatus.DONE) {
-      throw new BadRequestException('Rating is only available after a completed visit (status DONE).');
+      throw new BadRequestException(
+        'Rating is only available after a completed visit (status DONE).',
+      );
     }
     if (v.listing.ownerId !== raterId) {
-      throw new ForbiddenException('Seul le bailleur de l\'annonce peut noter l\'agent.');
+      throw new ForbiddenException(
+        "Seul le bailleur de l'annonce peut noter l'agent.",
+      );
     }
     if (!v.agentId) {
       throw new BadRequestException('No agent assigned to this verification.');
@@ -780,7 +942,9 @@ export class VerificationsService {
     });
 
     if (count > 0) {
-      this.logger.log(`Badge AlloVérifié expiré sur ${count} annonce(s) (vérification > ${BADGE_VALIDITY_MONTHS} mois)`);
+      this.logger.log(
+        `Badge AlloVérifié expiré sur ${count} annonce(s) (vérification > ${BADGE_VALIDITY_MONTHS} mois)`,
+      );
     }
   }
 }

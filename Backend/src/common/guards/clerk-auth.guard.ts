@@ -72,17 +72,23 @@ export class ClerkAuthGuard implements CanActivate {
         }
       }
 
-      if (user.isSuspended) throw new UnauthorizedException('Account suspended');
+      if (user.isSuspended)
+        throw new UnauthorizedException('Account suspended');
 
       request.user = user;
       return true;
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err;
       process.stderr.write(
-        '[Guard] err=' + String((err as Error)?.constructor?.name) +
-        ' code=' + String((err as any)?.code) +
-        ' msg=' + String((err as Error)?.message) +
-        ' meta=' + JSON.stringify((err as any)?.meta) + '\n',
+        '[Guard] err=' +
+          String((err as Error)?.constructor?.name) +
+          ' code=' +
+          String((err as any)?.code) +
+          ' msg=' +
+          String((err as Error)?.message) +
+          ' meta=' +
+          JSON.stringify((err as any)?.meta) +
+          '\n',
       );
       throw new UnauthorizedException('Invalid token or user not found');
     }

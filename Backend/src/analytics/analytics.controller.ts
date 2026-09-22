@@ -26,13 +26,16 @@ export class AnalyticsController {
     @Query('month') month: string,
     @Res() res: Response,
   ) {
-    const data = await this.analyticsService.getOwnerMonthlyReport(user.id, month);
-    const pdf  = await this.pdfService.generateMonthlyReport(data);
+    const data = await this.analyticsService.getOwnerMonthlyReport(
+      user.id,
+      month,
+    );
+    const pdf = await this.pdfService.generateMonthlyReport(data);
     const filename = `rapport-${month}.pdf`;
     res.set({
-      'Content-Type':        'application/pdf',
+      'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length':      pdf.length,
+      'Content-Length': pdf.length,
     });
     res.end(pdf);
   }

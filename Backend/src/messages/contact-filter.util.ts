@@ -22,7 +22,13 @@
 const PHONE_PATTERN = /(?:\+?\d[\s.-]?){8,}\d/g;
 
 const APP_KEYWORDS = [
-  'whatsapp', 'wapp', 'telegram', 'signal', 'messenger', 'imo', 'viber',
+  'whatsapp',
+  'wapp',
+  'telegram',
+  'signal',
+  'messenger',
+  'imo',
+  'viber',
 ];
 const APP_PATTERN = new RegExp(`\\b(${APP_KEYWORDS.join('|')})\\b`, 'gi');
 

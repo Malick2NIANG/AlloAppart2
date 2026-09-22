@@ -1,4 +1,12 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { type User, Role } from '@prisma/client';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -39,6 +47,10 @@ export class NotificationsController {
   @Roles(Role.ADMIN)
   @HttpCode(200)
   broadcast(@Body() dto: BroadcastDto) {
-    return this.notifications.broadcastPush(dto.title, dto.message, dto.segment);
+    return this.notifications.broadcastPush(
+      dto.title,
+      dto.message,
+      dto.segment,
+    );
   }
 }

@@ -11,12 +11,26 @@ import { NotificationsService } from '../notifications/notifications.service';
 describe('MessagesService — filtre anti-contournement', () => {
   let service: MessagesService;
   let prismaMock: {
-    message: { create: jest.Mock; update: jest.Mock; count: jest.Mock; findUnique: jest.Mock };
+    message: {
+      create: jest.Mock;
+      update: jest.Mock;
+      count: jest.Mock;
+      findUnique: jest.Mock;
+    };
     messageRoom: { findUnique: jest.Mock };
   };
-  let notificationsMock: { notifyContactFilterAlert: jest.Mock; notifyNewMessage: jest.Mock };
+  let notificationsMock: {
+    notifyContactFilterAlert: jest.Mock;
+    notifyNewMessage: jest.Mock;
+  };
 
-  const sender = { id: 'u1', firstName: 'Awa', lastName: 'Ndiaye', agencyName: null, roles: ['LOCATAIRE'] };
+  const sender = {
+    id: 'u1',
+    firstName: 'Awa',
+    lastName: 'Ndiaye',
+    agencyName: null,
+    roles: ['LOCATAIRE'],
+  };
 
   beforeEach(async () => {
     prismaMock = {
@@ -52,8 +66,13 @@ describe('MessagesService — filtre anti-contournement', () => {
 
   it("n'alerte pas les admins tant que le seuil n'est pas atteint", async () => {
     prismaMock.message.create.mockResolvedValueOnce({
-      id: 'm1', roomId: 'room1', senderId: 'u1', content: '[numéro masqué]',
-      readAt: null, createdAt: new Date(), sender,
+      id: 'm1',
+      roomId: 'room1',
+      senderId: 'u1',
+      content: '[numéro masqué]',
+      readAt: null,
+      createdAt: new Date(),
+      sender,
     });
     prismaMock.message.count.mockResolvedValueOnce(2); // en dessous du seuil (3)
 
@@ -68,8 +87,13 @@ describe('MessagesService — filtre anti-contournement', () => {
 
   it('alerte les admins dès que le seuil est atteint', async () => {
     prismaMock.message.create.mockResolvedValueOnce({
-      id: 'm2', roomId: 'room1', senderId: 'u1', content: '[email masqué]',
-      readAt: null, createdAt: new Date(), sender,
+      id: 'm2',
+      roomId: 'room1',
+      senderId: 'u1',
+      content: '[email masqué]',
+      readAt: null,
+      createdAt: new Date(),
+      sender,
     });
     prismaMock.message.count.mockResolvedValueOnce(3); // = seuil
 
@@ -77,17 +101,29 @@ describe('MessagesService — filtre anti-contournement', () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(notificationsMock.notifyContactFilterAlert).toHaveBeenCalledWith(
-      'u1', 'Awa Ndiaye', 'room1', 3,
+      'u1',
+      'Awa Ndiaye',
+      'room1',
+      3,
     );
   });
 
   it("ne compte/n'alerte jamais un message vocal (pas de faux positif sur l'URL)", async () => {
     prismaMock.message.create.mockResolvedValueOnce({
-      id: 'm3', roomId: 'room1', senderId: 'u1', content: '[AUDIO]:https://res.cloudinary.com/x/y.mp3',
-      readAt: null, createdAt: new Date(), sender,
+      id: 'm3',
+      roomId: 'room1',
+      senderId: 'u1',
+      content: '[AUDIO]:https://res.cloudinary.com/x/y.mp3',
+      readAt: null,
+      createdAt: new Date(),
+      sender,
     });
 
-    await service.sendMessage('room1', 'u1', '[AUDIO]:https://res.cloudinary.com/x/y.mp3');
+    await service.sendMessage(
+      'room1',
+      'u1',
+      '[AUDIO]:https://res.cloudinary.com/x/y.mp3',
+    );
     await new Promise((r) => setTimeout(r, 0));
 
     expect(prismaMock.message.count).not.toHaveBeenCalled();
@@ -96,8 +132,13 @@ describe('MessagesService — filtre anti-contournement', () => {
 
   it('ne recompte/alerte pas un message normal (rien de filtré)', async () => {
     prismaMock.message.create.mockResolvedValueOnce({
-      id: 'm4', roomId: 'room1', senderId: 'u1', content: 'Bonjour, toujours dispo ?',
-      readAt: null, createdAt: new Date(), sender,
+      id: 'm4',
+      roomId: 'room1',
+      senderId: 'u1',
+      content: 'Bonjour, toujours dispo ?',
+      readAt: null,
+      createdAt: new Date(),
+      sender,
     });
 
     await service.sendMessage('room1', 'u1', 'Bonjour, toujours dispo ?');
@@ -109,11 +150,19 @@ describe('MessagesService — filtre anti-contournement', () => {
 
   it('déclenche aussi le contrôle sur editMessage()', async () => {
     prismaMock.message.findUnique.mockResolvedValueOnce({
-      id: 'm5', roomId: 'room1', senderId: 'u1', content: 'ancien contenu', deletedAt: null,
+      id: 'm5',
+      roomId: 'room1',
+      senderId: 'u1',
+      content: 'ancien contenu',
+      deletedAt: null,
     });
     prismaMock.message.update.mockResolvedValueOnce({
-      id: 'm5', roomId: 'room1', senderId: 'u1', content: '[numéro masqué]',
-      editedAt: new Date(), sender,
+      id: 'm5',
+      roomId: 'room1',
+      senderId: 'u1',
+      content: '[numéro masqué]',
+      editedAt: new Date(),
+      sender,
     });
     prismaMock.message.count.mockResolvedValueOnce(3);
 
@@ -121,7 +170,10 @@ describe('MessagesService — filtre anti-contournement', () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(notificationsMock.notifyContactFilterAlert).toHaveBeenCalledWith(
-      'u1', 'Awa Ndiaye', 'room1', 3,
+      'u1',
+      'Awa Ndiaye',
+      'room1',
+      3,
     );
   });
 });

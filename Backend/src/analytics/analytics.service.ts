@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   BookingStatus,
@@ -28,28 +32,29 @@ export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getLocataireStats(userId: string) {
-    const [totalBookings, activeBookings, favoritesResult, unreadMessages] = await Promise.all([
-      this.prisma.booking.count({ where: { tenantId: userId } }),
-      this.prisma.booking.count({
-        where: {
-          tenantId: userId,
-          status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
-        },
-      }),
-      // Favoris : relation many-to-many User <-> Listing via "UserFavorites"
-      this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { _count: { select: { favorites: true } } },
-      }),
-      // Messages non lus : messages dans les rooms du locataire, envoyés par quelqu'un d'autre, sans readAt
-      this.prisma.message.count({
-        where: {
-          room: { participants: { some: { id: userId } } },
-          senderId: { not: userId },
-          readAt: null,
-        },
-      }),
-    ]);
+    const [totalBookings, activeBookings, favoritesResult, unreadMessages] =
+      await Promise.all([
+        this.prisma.booking.count({ where: { tenantId: userId } }),
+        this.prisma.booking.count({
+          where: {
+            tenantId: userId,
+            status: { in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+          },
+        }),
+        // Favoris : relation many-to-many User <-> Listing via "UserFavorites"
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { _count: { select: { favorites: true } } },
+        }),
+        // Messages non lus : messages dans les rooms du locataire, envoyés par quelqu'un d'autre, sans readAt
+        this.prisma.message.count({
+          where: {
+            room: { participants: { some: { id: userId } } },
+            senderId: { not: userId },
+            readAt: null,
+          },
+        }),
+      ]);
 
     return {
       totalBookings,
@@ -182,10 +187,17 @@ export class AnalyticsService {
       this.prisma.user.count({ where: { roles: { has: Role.PRO_AGENCE } } }),
       this.prisma.user.count({ where: { roles: { has: Role.AGENT_TERRAIN } } }),
       this.prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-      this.prisma.listing.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-      this.prisma.booking.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+      this.prisma.listing.count({
+        where: { createdAt: { gte: thirtyDaysAgo } },
+      }),
+      this.prisma.booking.count({
+        where: { createdAt: { gte: thirtyDaysAgo } },
+      }),
       this.prisma.booking.aggregate({
-        where: { status: BookingStatus.COMPLETED, createdAt: { gte: thirtyDaysAgo } },
+        where: {
+          status: BookingStatus.COMPLETED,
+          createdAt: { gte: thirtyDaysAgo },
+        },
         _sum: { totalAmount: true },
       }),
       this.prisma.listing.count({ where: { status: ListingStatus.DRAFT } }),
@@ -199,7 +211,12 @@ export class AnalyticsService {
     ]);
 
     return {
-      roleBreakdown: { totalLocataires, totalBailleurs, totalProAgences, totalAgents },
+      roleBreakdown: {
+        totalLocataires,
+        totalBailleurs,
+        totalProAgences,
+        totalAgents,
+      },
       last30Days: {
         newUsers: newUsersLast30,
         newListings: newListingsLast30,
@@ -234,7 +251,11 @@ export class AnalyticsService {
         this.prisma.verification.count({
           where: {
             status: {
-              in: [VerifStatus.REQUESTED, VerifStatus.SCHEDULED, VerifStatus.IN_PROGRESS],
+              in: [
+                VerifStatus.REQUESTED,
+                VerifStatus.SCHEDULED,
+                VerifStatus.IN_PROGRESS,
+              ],
             },
             createdAt: { lt: twentyFourHoursAgo },
           },
@@ -245,7 +266,9 @@ export class AnalyticsService {
             endDate: { lte: sevenDaysFromNow, gte: new Date() },
           },
         }),
-        this.prisma.listing.count({ where: { status: ListingStatus.SUSPENDED } }),
+        this.prisma.listing.count({
+          where: { status: ListingStatus.SUSPENDED },
+        }),
       ]);
 
     return { overdueVerifications, expiringSubscriptions, suspendedListings };
@@ -268,7 +291,10 @@ export class AnalyticsService {
       months.push({
         year: d.getFullYear(),
         month: d.getMonth() + 1,
-        label: d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
+        label: d.toLocaleDateString('fr-FR', {
+          month: 'short',
+          year: '2-digit',
+        }),
       });
     }
 
@@ -277,18 +303,25 @@ export class AnalyticsService {
         const start = new Date(year, month - 1, 1);
         const end = new Date(year, month, 1);
 
-        const [newUsers, newListings, newBookings, revenueAgg] = await Promise.all([
-          this.prisma.user.count({ where: { createdAt: { gte: start, lt: end } } }),
-          this.prisma.listing.count({ where: { createdAt: { gte: start, lt: end } } }),
-          this.prisma.booking.count({ where: { createdAt: { gte: start, lt: end } } }),
-          this.prisma.booking.aggregate({
-            where: {
-              status: { in: PAID_BOOKING_STATUSES },
-              createdAt: { gte: start, lt: end },
-            },
-            _sum: { totalAmount: true },
-          }),
-        ]);
+        const [newUsers, newListings, newBookings, revenueAgg] =
+          await Promise.all([
+            this.prisma.user.count({
+              where: { createdAt: { gte: start, lt: end } },
+            }),
+            this.prisma.listing.count({
+              where: { createdAt: { gte: start, lt: end } },
+            }),
+            this.prisma.booking.count({
+              where: { createdAt: { gte: start, lt: end } },
+            }),
+            this.prisma.booking.aggregate({
+              where: {
+                status: { in: PAID_BOOKING_STATUSES },
+                createdAt: { gte: start, lt: end },
+              },
+              _sum: { totalAmount: true },
+            }),
+          ]);
 
         return {
           label,
@@ -312,14 +345,17 @@ export class AnalyticsService {
       months.push({
         year: d.getFullYear(),
         month: d.getMonth() + 1,
-        label: d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
+        label: d.toLocaleDateString('fr-FR', {
+          month: 'short',
+          year: '2-digit',
+        }),
       });
     }
 
     const results = await Promise.all(
       months.map(async ({ year, month, label }) => {
         const start = new Date(year, month - 1, 1);
-        const end   = new Date(year, month, 1);
+        const end = new Date(year, month, 1);
 
         const [bookings, revenue] = await Promise.all([
           this.prisma.booking.count({
@@ -352,24 +388,27 @@ export class AnalyticsService {
   async getOwnerMonthlyReport(ownerId: string, monthStr: string) {
     // monthStr format: "YYYY-MM"
     const [yearStr, monthNumStr] = monthStr.split('-');
-    const year  = parseInt(yearStr ?? '', 10);
+    const year = parseInt(yearStr ?? '', 10);
     const month = parseInt(monthNumStr ?? '', 10);
     if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
       throw new BadRequestException('Invalid month format. Use YYYY-MM.');
     }
 
     const start = new Date(year, month - 1, 1);
-    const end   = new Date(year, month, 1);
+    const end = new Date(year, month, 1);
     // Mois précédent, uniquement pour la tendance affichée sur les KPI du PDF
     // (ex. "+12% vs juillet") — jamais mélangé aux chiffres du mois affiché.
     const prevStart = new Date(year, month - 2, 1);
-    const prevEnd   = start;
+    const prevEnd = start;
 
     const owner = await this.prisma.user.findUniqueOrThrow({
       where: { id: ownerId },
       select: {
-        firstName: true, lastName: true, agencyName: true,
-        roles: true, subscription: { select: { plan: true, status: true } },
+        firstName: true,
+        lastName: true,
+        agencyName: true,
+        roles: true,
+        subscription: { select: { plan: true, status: true } },
       },
     });
 
@@ -406,7 +445,9 @@ export class AnalyticsService {
       listingBreakdownRaw,
     ] = await Promise.all([
       this.prisma.listing.count({ where: { ownerId } }),
-      this.prisma.listing.count({ where: { ownerId, status: ListingStatus.ACTIVE } }),
+      this.prisma.listing.count({
+        where: { ownerId, status: ListingStatus.ACTIVE },
+      }),
       this.prisma.booking.findMany({
         where: {
           listing: { ownerId },
@@ -414,7 +455,7 @@ export class AnalyticsService {
         },
         include: {
           listing: { select: { title: true } },
-          tenant:  { select: { firstName: true, lastName: true } },
+          tenant: { select: { firstName: true, lastName: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -431,7 +472,10 @@ export class AnalyticsService {
         _sum: { totalAmount: true },
       }),
       this.prisma.booking.count({
-        where: { listing: { ownerId }, createdAt: { gte: prevStart, lt: prevEnd } },
+        where: {
+          listing: { ownerId },
+          createdAt: { gte: prevStart, lt: prevEnd },
+        },
       }),
       this.prisma.listing.findMany({
         where: { ownerId },
@@ -457,11 +501,14 @@ export class AnalyticsService {
       .reduce((sum, b) => sum + Number(b.totalAmount), 0);
 
     const statusBreakdown = Object.values(
-      bookings.reduce<Record<string, { status: string; count: number }>>((acc, b) => {
-        acc[b.status] ??= { status: b.status, count: 0 };
-        acc[b.status]!.count += 1;
-        return acc;
-      }, {}),
+      bookings.reduce<Record<string, { status: string; count: number }>>(
+        (acc, b) => {
+          acc[b.status] ??= { status: b.status, count: 0 };
+          acc[b.status].count += 1;
+          return acc;
+        },
+        {},
+      ),
     );
 
     const listingBreakdown = listingBreakdownRaw
@@ -476,8 +523,13 @@ export class AnalyticsService {
 
     return {
       ownerName: owner.agencyName ?? `${owner.firstName} ${owner.lastName}`,
-      month: start.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
-      previousMonthLabel: prevStart.toLocaleDateString('fr-FR', { month: 'long' }),
+      month: start.toLocaleDateString('fr-FR', {
+        month: 'long',
+        year: 'numeric',
+      }),
+      previousMonthLabel: prevStart.toLocaleDateString('fr-FR', {
+        month: 'long',
+      }),
       stats: {
         totalListings,
         publishedListings,
@@ -494,10 +546,10 @@ export class AnalyticsService {
       bookings: bookings.map((b) => ({
         id: b.id,
         listingTitle: b.listing.title,
-        tenantName:   `${b.tenant.firstName} ${b.tenant.lastName}`,
-        startDate:    b.startDate,
-        totalAmount:  b.totalAmount,
-        status:       b.status,
+        tenantName: `${b.tenant.firstName} ${b.tenant.lastName}`,
+        startDate: b.startDate,
+        totalAmount: b.totalAmount,
+        status: b.status,
       })),
     };
   }
@@ -507,13 +559,25 @@ export class AnalyticsService {
     const [owner, listings, ratingAgg, monthly] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({
         where: { id: ownerId },
-        select: { profileViews: true, agencyName: true, agencySlug: true, subscription: { select: { plan: true, status: true } } },
+        select: {
+          profileViews: true,
+          agencyName: true,
+          agencySlug: true,
+          subscription: { select: { plan: true, status: true } },
+        },
       }),
       this.prisma.listing.findMany({
         where: { ownerId },
         select: {
-          id: true, title: true, city: true, type: true, status: true, isVerified: true,
-          _count: { select: { bookings: true, reviews: true, favoritedBy: true } },
+          id: true,
+          title: true,
+          city: true,
+          type: true,
+          status: true,
+          isVerified: true,
+          _count: {
+            select: { bookings: true, reviews: true, favoritedBy: true },
+          },
           bookings: {
             where: { status: { in: PAID_BOOKING_STATUSES } },
             select: { totalAmount: true },
@@ -531,17 +595,17 @@ export class AnalyticsService {
 
     // Enrichissement par listing : revenu confirmé + bookings confirmés
     const listingStats = listings.map((l) => ({
-      id:             l.id,
-      title:          l.title,
-      city:           l.city,
-      type:           l.type,
-      status:         l.status,
-      isVerified:     l.isVerified,
-      totalBookings:  l._count.bookings,
+      id: l.id,
+      title: l.title,
+      city: l.city,
+      type: l.type,
+      status: l.status,
+      isVerified: l.isVerified,
+      totalBookings: l._count.bookings,
       confirmedBookings: l.bookings.length,
-      favorites:      l._count.favoritedBy,
-      reviewCount:    l._count.reviews,
-      revenue:        l.bookings.reduce((s, b) => s + Number(b.totalAmount), 0),
+      favorites: l._count.favoritedBy,
+      reviewCount: l._count.reviews,
+      revenue: l.bookings.reduce((s, b) => s + Number(b.totalAmount), 0),
     }));
 
     // Top 5 par réservations
@@ -550,32 +614,41 @@ export class AnalyticsService {
       .slice(0, 5);
 
     // ── KPIs enrichis ──────────────────────────────────────────────────
-    const totalBookingsAll   = listingStats.reduce((s, l) => s + l.totalBookings, 0);
-    const confirmedAll       = listingStats.reduce((s, l) => s + l.confirmedBookings, 0);
+    const totalBookingsAll = listingStats.reduce(
+      (s, l) => s + l.totalBookings,
+      0,
+    );
+    const confirmedAll = listingStats.reduce(
+      (s, l) => s + l.confirmedBookings,
+      0,
+    );
     // Taux de conversion : réservations confirmées/complétées / total réservations (%)
-    const conversionRate     = totalBookingsAll > 0
-      ? Math.round((confirmedAll / totalBookingsAll) * 100)
-      : 0;
+    const conversionRate =
+      totalBookingsAll > 0
+        ? Math.round((confirmedAll / totalBookingsAll) * 100)
+        : 0;
 
     // Pression AlloVérifié : annonces actives vérifiées / total annonces actives (%)
-    const activeListingsAll  = listings.filter((l) => l.status === 'ACTIVE');
-    const verifiedActive     = activeListingsAll.filter((l) => l.isVerified).length;
-    const alloVerifieRate    = activeListingsAll.length > 0
-      ? Math.round((verifiedActive / activeListingsAll.length) * 100)
-      : 0;
+    const activeListingsAll = listings.filter((l) => l.status === 'ACTIVE');
+    const verifiedActive = activeListingsAll.filter((l) => l.isVerified).length;
+    const alloVerifieRate =
+      activeListingsAll.length > 0
+        ? Math.round((verifiedActive / activeListingsAll.length) * 100)
+        : 0;
 
     // Score global 0-100 (composite)
     //   – Note moyenne     : 30 pts max
     //   – Conversion       : 25 pts max
     //   – AlloVérifié      : 25 pts max
     //   – Taux publication : 20 pts max
-    const avgRatingVal     = ratingAgg._avg.rating ?? 0;
-    const activeRatio      = listings.length > 0 ? activeListingsAll.length / listings.length : 0;
+    const avgRatingVal = ratingAgg._avg.rating ?? 0;
+    const activeRatio =
+      listings.length > 0 ? activeListingsAll.length / listings.length : 0;
     const performanceScore = Math.round(
       (avgRatingVal / 5) * 30 +
-      (conversionRate / 100) * 25 +
-      (alloVerifieRate / 100) * 25 +
-      activeRatio * 20,
+        (conversionRate / 100) * 25 +
+        (alloVerifieRate / 100) * 25 +
+        activeRatio * 20,
     );
     // ──────────────────────────────────────────────────────────────────
 
@@ -590,24 +663,26 @@ export class AnalyticsService {
       owner.subscription?.status === SubscriptionStatus.ACTIVE;
 
     return {
-      profileViews:  owner.profileViews,
-      agencyName:    owner.agencyName,
-      agencySlug:    owner.agencySlug,
-      subscription:  owner.subscription,
+      profileViews: owner.profileViews,
+      agencyName: owner.agencyName,
+      agencySlug: owner.agencySlug,
+      subscription: owner.subscription,
       isPro,
       totalListings: listings.length,
       activeListings: activeListingsAll.length,
-      avgRating:     ratingAgg._avg.rating ? Math.round(ratingAgg._avg.rating * 10) / 10 : null,
-      reviewCount:   ratingAgg._count.id,
-      totalRevenue:  listingStats.reduce((s, l) => s + l.revenue, 0),
+      avgRating: ratingAgg._avg.rating
+        ? Math.round(ratingAgg._avg.rating * 10) / 10
+        : null,
+      reviewCount: ratingAgg._count.id,
+      totalRevenue: listingStats.reduce((s, l) => s + l.revenue, 0),
       // ── Réservé PRO ──
-      topListings:          isPro ? topListings : [],
-      monthly:              isPro ? monthly : [],
-      conversionRate:       isPro ? conversionRate : null,
-      alloVerifieRate:      isPro ? alloVerifieRate : null,
-      performanceScore:     isPro ? performanceScore : null,
-      verifiedActiveCount:  isPro ? verifiedActive : null,
-      totalActiveCount:     isPro ? activeListingsAll.length : null,
+      topListings: isPro ? topListings : [],
+      monthly: isPro ? monthly : [],
+      conversionRate: isPro ? conversionRate : null,
+      alloVerifieRate: isPro ? alloVerifieRate : null,
+      performanceScore: isPro ? performanceScore : null,
+      verifiedActiveCount: isPro ? verifiedActive : null,
+      totalActiveCount: isPro ? activeListingsAll.length : null,
     };
   }
 }

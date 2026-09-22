@@ -50,7 +50,7 @@ export class ReviewsService {
         comment: dto.comment,
       },
       include: {
-        author:  { select: { firstName: true, lastName: true } },
+        author: { select: { firstName: true, lastName: true } },
         listing: { select: { title: true, ownerId: true } },
       },
     });
@@ -101,7 +101,14 @@ export class ReviewsService {
   async findMine(authorId: string) {
     return this.prisma.review.findMany({
       where: { authorId },
-      select: { id: true, bookingId: true, listingId: true, rating: true, comment: true, createdAt: true },
+      select: {
+        id: true,
+        bookingId: true,
+        listingId: true,
+        rating: true,
+        comment: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -112,14 +119,16 @@ export class ReviewsService {
       this.prisma.review.findMany({
         where: { listing: { ownerId } },
         include: {
-          author:  { select: { id: true, firstName: true, lastName: true, avatar: true } },
+          author: {
+            select: { id: true, firstName: true, lastName: true, avatar: true },
+          },
           listing: { select: { id: true, title: true, city: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.review.aggregate({
         where: { listing: { ownerId } },
-        _avg:   { rating: true },
+        _avg: { rating: true },
         _count: { id: true },
       }),
     ]);

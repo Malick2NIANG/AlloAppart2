@@ -63,8 +63,18 @@ describe('NotificationsService.broadcastPush', () => {
     // dédié pilote le style doré côté NotificationBell.
     expect(prismaMock.notification.createMany).toHaveBeenCalledWith({
       data: [
-        expect.objectContaining({ userId: 'u1', type: 'ADMIN_BROADCAST', title: 'Titre', body: 'Message' }),
-        expect.objectContaining({ userId: 'u2', type: 'ADMIN_BROADCAST', title: 'Titre', body: 'Message' }),
+        expect.objectContaining({
+          userId: 'u1',
+          type: 'ADMIN_BROADCAST',
+          title: 'Titre',
+          body: 'Message',
+        }),
+        expect.objectContaining({
+          userId: 'u2',
+          type: 'ADMIN_BROADCAST',
+          title: 'Titre',
+          body: 'Message',
+        }),
       ],
     });
     expect(pusherMock.trigger).toHaveBeenCalledTimes(2);
@@ -82,11 +92,7 @@ describe('NotificationsService.broadcastPush', () => {
       { id: 'u2', clerkId: 'clerk_2' },
     ]);
 
-    const result = await service.broadcastPush(
-      'Titre',
-      'Message',
-      'BAILLEURS',
-    );
+    const result = await service.broadcastPush('Titre', 'Message', 'BAILLEURS');
 
     expect(prismaMock.user.findMany).toHaveBeenCalledWith({
       where: { roles: { has: Role.BAILLEUR } },
@@ -101,7 +107,9 @@ describe('NotificationsService.broadcastPush', () => {
   });
 
   it('segment LOCATAIRES : mappe correctement vers Role.LOCATAIRE', async () => {
-    prismaMock.user.findMany.mockResolvedValue([{ id: 'u3', clerkId: 'clerk_3' }]);
+    prismaMock.user.findMany.mockResolvedValue([
+      { id: 'u3', clerkId: 'clerk_3' },
+    ]);
 
     await service.broadcastPush('T', 'M', 'LOCATAIRES');
 
@@ -128,7 +136,9 @@ describe('NotificationsService.broadcastPush', () => {
   });
 
   it('segment AGENTS_TERRAIN : mappe correctement vers Role.AGENT_TERRAIN', async () => {
-    prismaMock.user.findMany.mockResolvedValue([{ id: 'u4', clerkId: 'clerk_4' }]);
+    prismaMock.user.findMany.mockResolvedValue([
+      { id: 'u4', clerkId: 'clerk_4' },
+    ]);
 
     const result = await service.broadcastPush('T', 'M', 'AGENTS_TERRAIN');
 

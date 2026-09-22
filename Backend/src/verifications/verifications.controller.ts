@@ -1,4 +1,12 @@
-﻿import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+﻿import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { VerificationsService } from './verifications.service';
 import { CreateVerificationDto } from './dto/create-verification.dto';
@@ -86,7 +94,9 @@ export class VerificationsController {
     @Query('limit') limit?: string,
     @Query('status') status?: string,
   ) {
-    const verifStatus = Object.values(VerifStatus).includes(status as VerifStatus)
+    const verifStatus = Object.values(VerifStatus).includes(
+      status as VerifStatus,
+    )
       ? (status as VerifStatus)
       : undefined;
     return this.verificationsService.findAll(

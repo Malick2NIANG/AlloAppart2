@@ -20,8 +20,11 @@ async function bootstrap() {
   const isDev = config.get<string>('NODE_ENV') !== 'production';
   app.enableCors({
     origin: isDev
-      ? (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => cb(null, true)   // dev : tout localhost accepté
-      : config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000',
+      ? (
+          origin: string | undefined,
+          cb: (err: Error | null, allow?: boolean) => void,
+        ) => cb(null, true) // dev : tout localhost accepté
+      : (config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000'),
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

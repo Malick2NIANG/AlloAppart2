@@ -6,9 +6,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-const SENDER_SELECT = { id: true, firstName: true, lastName: true, agencyName: true, roles: true } as const;
+const SENDER_SELECT = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  agencyName: true,
+  roles: true,
+} as const;
 const REPLY_TO_SELECT = {
-  id: true, content: true, senderId: true, deletedAt: true,
+  id: true,
+  content: true,
+  senderId: true,
+  deletedAt: true,
   sender: { select: SENDER_SELECT },
 } as const;
 import { PrismaService } from '../prisma/prisma.service';
@@ -19,7 +28,11 @@ import { sanitizeContactInfo } from './contact-filter.util';
 // Marqueurs posés par sanitizeContactInfo() sur le contenu stocké — sert à
 // recompter, a posteriori, les tentatives de contournement d'un expéditeur
 // sans avoir besoin d'une table/colonne dédiée (Task #121).
-const CIRCUMVENTION_MARKERS = ['[numéro masqué]', '[application masquée]', '[email masqué]'];
+const CIRCUMVENTION_MARKERS = [
+  '[numéro masqué]',
+  '[application masquée]',
+  '[email masqué]',
+];
 // Nombre de tentatives filtrées, sur 24h glissantes, à partir duquel les
 // admins sont alertés. Renotifié tous les N dépassements supplémentaires
 // (pas à chaque message) pour ne pas spammer les admins d'un récidiviste.
@@ -40,7 +53,17 @@ export class MessagesService {
       where: { participants: { some: { id: userId } } },
       include: {
         listing: { select: { id: true, title: true, images: true } },
-        participants: { select: { id: true, firstName: true, lastName: true, avatar: true, agencyName: true, agencySlug: true, roles: true } },
+        participants: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+            agencyName: true,
+            agencySlug: true,
+            roles: true,
+          },
+        },
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
       orderBy: { createdAt: 'desc' },
@@ -54,7 +77,7 @@ export class MessagesService {
     return this.prisma.message.findMany({
       where: { roomId },
       include: {
-        sender:  { select: SENDER_SELECT },
+        sender: { select: SENDER_SELECT },
         replyTo: { select: REPLY_TO_SELECT },
       },
       orderBy: { createdAt: 'desc' },
@@ -90,10 +113,17 @@ export class MessagesService {
     });
   }
 
-  async sendMessage(roomId: string, senderId: string, content: string, replyToId?: string) {
+  async sendMessage(
+    roomId: string,
+    senderId: string,
+    content: string,
+    replyToId?: string,
+  ) {
     await this.assertParticipant(roomId, senderId);
     if (replyToId) {
-      const replyMsg = await this.prisma.message.findUnique({ where: { id: replyToId } });
+      const replyMsg = await this.prisma.message.findUnique({
+        where: { id: replyToId },
+      });
       if (!replyMsg || replyMsg.roomId !== roomId)
         throw new BadRequestException('Invalid reference message');
     }
@@ -104,14 +134,18 @@ export class MessagesService {
     const filtered = isVoice ? null : sanitizeContactInfo(content);
     const safeContent = isVoice ? content : filtered!.content;
     const message = await this.prisma.message.create({
-      data: { roomId, senderId, content: safeContent, ...(replyToId ? { replyToId } : {}) },
+      data: {
+        roomId,
+        senderId,
+        content: safeContent,
+        ...(replyToId ? { replyToId } : {}),
+      },
       include: {
-        sender:  { select: SENDER_SELECT },
+        sender: { select: SENDER_SELECT },
         replyTo: { select: REPLY_TO_SELECT },
       },
     });
-    const senderName =
-      message.sender.firstName + ' ' + message.sender.lastName;
+    const senderName = message.sender.firstName + ' ' + message.sender.lastName;
     if (filtered?.wasFiltered) {
       void this.logAndMaybeAlertCircumvention(senderId, senderName, roomId);
     }
@@ -144,7 +178,7 @@ export class MessagesService {
 
   async markRead(roomId: string, userId: string): Promise<{ count: number }> {
     await this.assertParticipant(roomId, userId);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
     const result: { count: number } = await this.prisma.message.updateMany({
       where: { roomId, senderId: { not: userId }, readAt: null },
       data: { readAt: new Date() },
@@ -153,7 +187,9 @@ export class MessagesService {
   }
 
   async editMessage(messageId: string, userId: string, content: string) {
-    const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
+    const msg = await this.prisma.message.findUnique({
+      where: { id: messageId },
+    });
     if (!msg) throw new NotFoundException('Message not found');
     if (msg.senderId !== userId) throw new ForbiddenException('Not authorized');
     if (msg.deletedAt) throw new BadRequestException('Message deleted');
@@ -167,7 +203,8 @@ export class MessagesService {
       include: { sender: { select: SENDER_SELECT } },
     });
     if (filtered.wasFiltered) {
-      const editorName = updated.sender.firstName + ' ' + updated.sender.lastName;
+      const editorName =
+        updated.sender.firstName + ' ' + updated.sender.lastName;
       void this.logAndMaybeAlertCircumvention(userId, editorName, msg.roomId);
     }
     void this.pusher.trigger('room-' + msg.roomId, 'message-edited', {
@@ -179,7 +216,9 @@ export class MessagesService {
   }
 
   async deleteMessage(messageId: string, userId: string) {
-    const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
+    const msg = await this.prisma.message.findUnique({
+      where: { id: messageId },
+    });
     if (!msg) throw new NotFoundException('Message not found');
     if (msg.senderId !== userId) throw new ForbiddenException('Not authorized');
 
@@ -187,7 +226,9 @@ export class MessagesService {
       where: { id: messageId },
       data: { deletedAt: new Date() },
     });
-    void this.pusher.trigger('room-' + msg.roomId, 'message-deleted', { id: messageId });
+    void this.pusher.trigger('room-' + msg.roomId, 'message-deleted', {
+      id: messageId,
+    });
     return { success: true };
   }
 

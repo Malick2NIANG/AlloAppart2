@@ -802,7 +802,9 @@ export class BookingsService {
         include: {
           // `images` : la page admin affiche désormais la même carte photo
           // que locataire/bailleur (avant ce lot : simples lignes de texte).
-          listing: { select: { id: true, title: true, city: true, images: true } },
+          listing: {
+            select: { id: true, title: true, city: true, images: true },
+          },
           tenant: {
             select: { id: true, firstName: true, lastName: true, email: true },
           },

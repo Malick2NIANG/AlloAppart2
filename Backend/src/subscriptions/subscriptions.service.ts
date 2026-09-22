@@ -2,7 +2,13 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
-import { ListingStatus, Prisma, SubscriptionPlan, SubscriptionStatus, User } from '@prisma/client';
+import {
+  ListingStatus,
+  Prisma,
+  SubscriptionPlan,
+  SubscriptionStatus,
+  User,
+} from '@prisma/client';
 import axios from 'axios';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 import { PlatformConfigService } from '../platform-config/platform-config.service';
@@ -32,7 +38,10 @@ export class SubscriptionsService {
       where: { id: userId },
     });
     const pricing = await this.platformConfig.getPricing();
-    const amount = plan === SubscriptionPlan.PRO ? pricing.proPriceFcfaMonthly : pricing.starterPriceFcfa;
+    const amount =
+      plan === SubscriptionPlan.PRO
+        ? pricing.proPriceFcfaMonthly
+        : pricing.starterPriceFcfa;
 
     const subscription = await this.prisma.subscription.upsert({
       where: { userId },
@@ -62,18 +71,26 @@ export class SubscriptionsService {
 
     // ── Mode bypass dev : simule le paiement sans appeler PayDunya ───────────
     if (isDev && this.config.get<string>('PAYDUNYA_DEV_BYPASS') === 'true') {
-      this.logger.warn(`[DEV BYPASS] Activation directe de l'abonnement ${subscriptionId} (${plan} — ${amount} FCFA)`);
-      const now     = new Date();
+      this.logger.warn(
+        `[DEV BYPASS] Activation directe de l'abonnement ${subscriptionId} (${plan} — ${amount} FCFA)`,
+      );
+      const now = new Date();
       const endDate = new Date(now);
       endDate.setDate(endDate.getDate() + 30);
       await this.prisma.subscription.update({
         where: { id: subscriptionId },
-        data:  { status: SubscriptionStatus.ACTIVE, startDate: now, endDate, paymentRef: `DEV-${Date.now()}` },
+        data: {
+          status: SubscriptionStatus.ACTIVE,
+          startDate: now,
+          endDate,
+          paymentRef: `DEV-${Date.now()}`,
+        },
       });
-      const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+      const frontendUrl =
+        this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
       return {
         payment_url: `${frontendUrl}/bailleur/abonnement?status=success`,
-        transId:     `DEV-${Date.now()}`,
+        transId: `DEV-${Date.now()}`,
       };
     }
     // ─────────────────────────────────────────────────────────────────────────
@@ -119,7 +136,10 @@ export class SubscriptionsService {
         },
       )
       .catch((err: unknown) => {
-        const axiosErr = err as { response?: { status: number; data: unknown }; message?: string };
+        const axiosErr = err as {
+          response?: { status: number; data: unknown };
+          message?: string;
+        };
         this.logger.error(
           `PayDunya create-invoice ERREUR — status: ${axiosErr.response?.status ?? 'N/A'} — body: ${JSON.stringify(axiosErr.response?.data ?? axiosErr.message)}`,
         );
@@ -147,7 +167,11 @@ export class SubscriptionsService {
       data: { paymentRef },
     });
 
-    return { payment_url: invoiceUrl, transId: paymentRef, paymentToken: response.data.token };
+    return {
+      payment_url: invoiceUrl,
+      transId: paymentRef,
+      paymentToken: response.data.token,
+    };
   }
 
   /**
@@ -155,7 +179,9 @@ export class SubscriptionsService {
    * custom (SOFTPAY) après paiement via Orange Money / Wave / Free Money.
    */
   async verifySubscription(userId: string) {
-    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    const sub = await this.prisma.subscription.findUnique({
+      where: { userId },
+    });
     if (!sub) return { active: false };
     if (sub.status === SubscriptionStatus.ACTIVE) return { active: true };
     if (!sub.paymentRef?.startsWith('PD-')) return { active: false };
@@ -185,7 +211,8 @@ export class SubscriptionsService {
     const { token, customData } = this.softpay.verifyAndParseCallback(rawBody);
 
     const subscriptionId = customData['subscription_id'];
-    if (typeof subscriptionId !== 'string' || !subscriptionId) return { ok: true };
+    if (typeof subscriptionId !== 'string' || !subscriptionId)
+      return { ok: true };
 
     const subscription = await this.prisma.subscription.findUnique({
       where: { id: subscriptionId },
@@ -196,7 +223,9 @@ export class SubscriptionsService {
 
     const confirm = await this.softpay.confirmInvoiceStatus(token);
     if (!confirm) {
-      throw new BadRequestException('Impossible de confirmer le paiement PayDunya');
+      throw new BadRequestException(
+        'Impossible de confirmer le paiement PayDunya',
+      );
     }
 
     if (confirm.status === 'completed') {
@@ -227,7 +256,9 @@ export class SubscriptionsService {
     daysLeft: number | null;
     level: 'ok' | 'warning' | 'critical' | 'expired' | 'none';
   }> {
-    const sub = await this.prisma.subscription.findUnique({ where: { userId } });
+    const sub = await this.prisma.subscription.findUnique({
+      where: { userId },
+    });
 
     if (!sub || sub.status === SubscriptionStatus.CANCELLED) {
       return { daysLeft: null, level: 'none' };
@@ -239,14 +270,14 @@ export class SubscriptionsService {
 
     if (!sub.endDate) return { daysLeft: null, level: 'ok' };
 
-    const msLeft   = sub.endDate.getTime() - Date.now();
+    const msLeft = sub.endDate.getTime() - Date.now();
     const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
 
     let level: 'ok' | 'warning' | 'critical' | 'expired';
-    if (daysLeft <= 0)  level = 'expired';
-    else if (daysLeft <= 3)  level = 'critical';
-    else if (daysLeft <= 7)  level = 'warning';
-    else                     level = 'ok';
+    if (daysLeft <= 0) level = 'expired';
+    else if (daysLeft <= 3) level = 'critical';
+    else if (daysLeft <= 7) level = 'warning';
+    else level = 'ok';
 
     return { daysLeft: Math.max(0, daysLeft), level };
   }
@@ -257,7 +288,7 @@ export class SubscriptionsService {
     // 1. Trouver les abonnements expirés (avant de les mettre à jour pour récupérer les userId)
     const expired = await this.prisma.subscription.findMany({
       where: {
-        status:  SubscriptionStatus.ACTIVE,
+        status: SubscriptionStatus.ACTIVE,
         endDate: { lt: new Date() },
       },
       select: { id: true, userId: true },
@@ -265,20 +296,20 @@ export class SubscriptionsService {
 
     if (expired.length === 0) return;
 
-    const ids     = expired.map((s) => s.id);
+    const ids = expired.map((s) => s.id);
     const userIds = expired.map((s) => s.userId);
 
     // 2. Suspendre les abonnements
     const { count: subCount } = await this.prisma.subscription.updateMany({
       where: { id: { in: ids } },
-      data:  { status: SubscriptionStatus.SUSPENDED },
+      data: { status: SubscriptionStatus.SUSPENDED },
     });
 
     // 3. Cascade : suspendre les annonces actives des propriétaires concernés
     const { count: listingCount } = await this.prisma.listing.updateMany({
       where: {
         ownerId: { in: userIds },
-        status:  ListingStatus.ACTIVE,
+        status: ListingStatus.ACTIVE,
       },
       data: { status: ListingStatus.SUSPENDED },
     });
@@ -292,7 +323,7 @@ export class SubscriptionsService {
     const sub = await this.prisma.subscription.findUnique({
       where: { userId },
     });
-    if (!sub) throw new BadRequestException("No subscription found");
+    if (!sub) throw new BadRequestException('No subscription found');
     return this.prisma.subscription.update({
       where: { userId },
       data: { status: SubscriptionStatus.CANCELLED },
@@ -375,7 +406,9 @@ export class SubscriptionsService {
   }
 
   async extendById(id: string, days = 30) {
-    const sub = await this.prisma.subscription.findUniqueOrThrow({ where: { id } });
+    const sub = await this.prisma.subscription.findUniqueOrThrow({
+      where: { id },
+    });
     const currentEnd = sub.endDate ?? new Date();
     const newEnd = new Date(currentEnd);
     newEnd.setDate(newEnd.getDate() + days);

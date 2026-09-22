@@ -1,12 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { VerificationsService, AUDIT_PRICE_XOF } from './verifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 import { PlatformConfigService } from '../platform-config/platform-config.service';
-import { Role, VerifStatus, SubscriptionPlan, SubscriptionStatus, type User } from '@prisma/client';
+import {
+  Role,
+  VerifStatus,
+  SubscriptionPlan,
+  SubscriptionStatus,
+  type User,
+} from '@prisma/client';
 
 // Ce fichier couvre create() (gratuité PRO/admin vs paiement PayDunya
 // obligatoire pour les autres), reject() et findRatingByVerification() — les
@@ -33,7 +44,10 @@ describe('VerificationsService', () => {
     user: { findUniqueOrThrow: jest.Mock };
   };
   let configMock: { get: jest.Mock };
-  let softpayMock: { confirmInvoiceStatus: jest.Mock; verifyAndParseCallback: jest.Mock };
+  let softpayMock: {
+    confirmInvoiceStatus: jest.Mock;
+    verifyAndParseCallback: jest.Mock;
+  };
 
   const baseVerification = {
     id: 'verif1',
@@ -62,7 +76,10 @@ describe('VerificationsService', () => {
       user: { findUniqueOrThrow: jest.fn() },
     };
     configMock = { get: jest.fn() };
-    softpayMock = { confirmInvoiceStatus: jest.fn(), verifyAndParseCallback: jest.fn() };
+    softpayMock = {
+      confirmInvoiceStatus: jest.fn(),
+      verifyAndParseCallback: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -112,7 +129,9 @@ describe('VerificationsService', () => {
         subscription: null,
       });
 
-      await expect(service.create('stranger', dto)).rejects.toThrow(ForbiddenException);
+      await expect(service.create('stranger', dto)).rejects.toThrow(
+        ForbiddenException,
+      );
       expect(prismaMock.verification.create).not.toHaveBeenCalled();
     });
 
@@ -124,7 +143,10 @@ describe('VerificationsService', () => {
         subscription: null,
       });
       prismaMock.verification.findFirst.mockResolvedValueOnce(null);
-      prismaMock.verification.create.mockResolvedValueOnce({ id: 'v1', ...dto });
+      prismaMock.verification.create.mockResolvedValueOnce({
+        id: 'v1',
+        ...dto,
+      });
 
       const result = await service.create('admin1', dto);
 
@@ -137,10 +159,16 @@ describe('VerificationsService', () => {
       prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
         id: 'owner1',
         roles: [Role.PRO_AGENCE],
-        subscription: { plan: SubscriptionPlan.PRO, status: SubscriptionStatus.ACTIVE },
+        subscription: {
+          plan: SubscriptionPlan.PRO,
+          status: SubscriptionStatus.ACTIVE,
+        },
       });
       prismaMock.verification.findFirst.mockResolvedValueOnce(null);
-      prismaMock.verification.create.mockResolvedValueOnce({ id: 'v1', ...dto });
+      prismaMock.verification.create.mockResolvedValueOnce({
+        id: 'v1',
+        ...dto,
+      });
 
       const result = await service.create('owner1', dto);
 
@@ -153,7 +181,10 @@ describe('VerificationsService', () => {
       prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
         id: 'owner1',
         roles: [Role.PRO_AGENCE],
-        subscription: { plan: SubscriptionPlan.STARTER, status: SubscriptionStatus.ACTIVE },
+        subscription: {
+          plan: SubscriptionPlan.STARTER,
+          status: SubscriptionStatus.ACTIVE,
+        },
       });
       prismaMock.verification.findFirst.mockResolvedValueOnce(null);
       prismaMock.verificationPayment.findFirst.mockResolvedValueOnce(null);
@@ -179,14 +210,20 @@ describe('VerificationsService', () => {
         verificationId: null,
         listing: { id: 'listing1', title: 'Test listing' },
       });
-      prismaMock.verification.create.mockResolvedValueOnce({ id: 'v1', ...dto });
+      prismaMock.verification.create.mockResolvedValueOnce({
+        id: 'v1',
+        ...dto,
+      });
       prismaMock.verificationPayment.update.mockResolvedValueOnce({});
 
       const result = await service.create('owner1', dto);
 
       expect(prismaMock.verificationPayment.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ amount: AUDIT_PRICE_XOF.BASIC, status: 'CONFIRMED' }),
+          data: expect.objectContaining({
+            amount: AUDIT_PRICE_XOF.BASIC,
+            status: 'CONFIRMED',
+          }),
         }),
       );
       expect(result).toMatchObject({ verification: { id: 'v1' } });
@@ -223,7 +260,10 @@ describe('VerificationsService', () => {
         verificationId: null,
         listing: { id: 'listing1', title: 'Test listing' },
       });
-      prismaMock.verification.create.mockResolvedValueOnce({ id: 'v2', ...dto });
+      prismaMock.verification.create.mockResolvedValueOnce({
+        id: 'v2',
+        ...dto,
+      });
       prismaMock.verificationPayment.update.mockResolvedValueOnce({});
 
       const result = await service.create('owner1', dto);
@@ -239,9 +279,14 @@ describe('VerificationsService', () => {
         subscription: null,
       });
       prismaMock.verification.findFirst.mockResolvedValueOnce(null);
-      prismaMock.verificationPayment.findFirst.mockResolvedValueOnce({ id: 'vp-pending', status: 'PENDING' });
+      prismaMock.verificationPayment.findFirst.mockResolvedValueOnce({
+        id: 'vp-pending',
+        status: 'PENDING',
+      });
 
-      await expect(service.create('owner1', dto)).rejects.toThrow(ConflictException);
+      await expect(service.create('owner1', dto)).rejects.toThrow(
+        ConflictException,
+      );
       expect(prismaMock.verificationPayment.create).not.toHaveBeenCalled();
     });
 
@@ -250,11 +295,18 @@ describe('VerificationsService', () => {
       prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
         id: 'owner1',
         roles: [Role.PRO_AGENCE],
-        subscription: { plan: SubscriptionPlan.PRO, status: SubscriptionStatus.ACTIVE },
+        subscription: {
+          plan: SubscriptionPlan.PRO,
+          status: SubscriptionStatus.ACTIVE,
+        },
       });
-      prismaMock.verification.findFirst.mockResolvedValueOnce({ id: 'existing' });
+      prismaMock.verification.findFirst.mockResolvedValueOnce({
+        id: 'existing',
+      });
 
-      await expect(service.create('owner1', dto)).rejects.toThrow(ConflictException);
+      await expect(service.create('owner1', dto)).rejects.toThrow(
+        ConflictException,
+      );
       expect(prismaMock.verification.create).not.toHaveBeenCalled();
     });
   });
@@ -351,9 +403,9 @@ describe('VerificationsService', () => {
         status: VerifStatus.DONE,
       });
 
-      await expect(service.reject('verif1', agent, 'changement d\'avis')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.reject('verif1', agent, "changement d'avis"),
+      ).rejects.toThrow(BadRequestException);
       expect(prismaMock.verification.update).not.toHaveBeenCalled();
     });
 
@@ -367,7 +419,9 @@ describe('VerificationsService', () => {
         status: VerifStatus.REJECTED,
       });
 
-      await expect(service.reject('verif1', agent, 'accès impossible')).resolves.toBeDefined();
+      await expect(
+        service.reject('verif1', agent, 'accès impossible'),
+      ).resolves.toBeDefined();
     });
 
     it("refuse si l'appelant n'est ni l'agent assigné ni un admin", async () => {
@@ -376,9 +430,9 @@ describe('VerificationsService', () => {
         status: VerifStatus.IN_PROGRESS,
       });
 
-      await expect(service.reject('verif1', otherAgent, 'raison')).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.reject('verif1', otherAgent, 'raison'),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('un admin ne peut pas non plus rejeter une vérification DONE', async () => {
@@ -412,7 +466,9 @@ describe('VerificationsService', () => {
       prismaMock.verification.findUnique.mockResolvedValueOnce(verifWithOwner);
       prismaMock.agentRating.findUnique.mockResolvedValueOnce({ rating: 5 });
 
-      await expect(service.findRatingByVerification('verif1', owner)).resolves.toEqual({
+      await expect(
+        service.findRatingByVerification('verif1', owner),
+      ).resolves.toEqual({
         rating: 5,
       });
     });
@@ -421,31 +477,35 @@ describe('VerificationsService', () => {
       prismaMock.verification.findUnique.mockResolvedValueOnce(verifWithOwner);
       prismaMock.agentRating.findUnique.mockResolvedValueOnce({ rating: 5 });
 
-      await expect(service.findRatingByVerification('verif1', ratedAgent)).resolves.toBeDefined();
+      await expect(
+        service.findRatingByVerification('verif1', ratedAgent),
+      ).resolves.toBeDefined();
     });
 
     it('autorise un admin', async () => {
       prismaMock.verification.findUnique.mockResolvedValueOnce(verifWithOwner);
       prismaMock.agentRating.findUnique.mockResolvedValueOnce({ rating: 5 });
 
-      await expect(service.findRatingByVerification('verif1', admin)).resolves.toBeDefined();
+      await expect(
+        service.findRatingByVerification('verif1', admin),
+      ).resolves.toBeDefined();
     });
 
     it('refuse à un utilisateur sans lien avec cette vérification — la faille IDOR corrigée', async () => {
       prismaMock.verification.findUnique.mockResolvedValueOnce(verifWithOwner);
 
-      await expect(service.findRatingByVerification('verif1', stranger)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.findRatingByVerification('verif1', stranger),
+      ).rejects.toThrow(ForbiddenException);
       expect(prismaMock.agentRating.findUnique).not.toHaveBeenCalled();
     });
 
-    it('lève NotFoundException si la vérification n\'existe pas', async () => {
+    it("lève NotFoundException si la vérification n'existe pas", async () => {
       prismaMock.verification.findUnique.mockResolvedValueOnce(null);
 
-      await expect(service.findRatingByVerification('inconnu', owner)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.findRatingByVerification('inconnu', owner),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
