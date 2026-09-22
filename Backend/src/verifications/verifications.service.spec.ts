@@ -220,6 +220,7 @@ describe('VerificationsService', () => {
 
       expect(prismaMock.verificationPayment.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           data: expect.objectContaining({
             amount: AUDIT_PRICE_XOF.BASIC,
             status: 'CONFIRMED',
@@ -517,6 +518,7 @@ describe('VerificationsService', () => {
       await service.expireOldBadges();
 
       expect(prismaMock.listing.updateMany).toHaveBeenCalledWith({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         where: { isVerified: true, verifiedAt: { lt: expect.any(Date) } },
         data: { isVerified: false },
       });

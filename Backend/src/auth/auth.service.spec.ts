@@ -399,6 +399,7 @@ describe('AuthService', () => {
 
       expect(prismaMock.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           data: expect.objectContaining({
             agencySlug: 'immo-dakar-plus',
           }),
@@ -435,6 +436,7 @@ describe('AuthService', () => {
       expect(result.phone).toBe('+221775278980');
       expect(prismaMock.booking.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           where: expect.objectContaining({
             OR: [
               { tenantId: 'viewer1', listing: { ownerId: 'target1' } },

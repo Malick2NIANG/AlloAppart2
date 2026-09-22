@@ -79,15 +79,19 @@ export class ClerkAuthGuard implements CanActivate {
       return true;
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err;
+      const errWithCodeAndMeta = err as {
+        code?: unknown;
+        meta?: unknown;
+      };
       process.stderr.write(
         '[Guard] err=' +
           String((err as Error)?.constructor?.name) +
           ' code=' +
-          String((err as any)?.code) +
+          String(errWithCodeAndMeta?.code) +
           ' msg=' +
           String((err as Error)?.message) +
           ' meta=' +
-          JSON.stringify((err as any)?.meta) +
+          JSON.stringify(errWithCodeAndMeta?.meta) +
           '\n',
       );
       throw new UnauthorizedException('Invalid token or user not found');

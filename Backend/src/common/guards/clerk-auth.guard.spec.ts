@@ -8,7 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 // constituait la faille (décodage local du JWT sans vérification de
 // signature). On simule ici son comportement réel — rejet si la signature
 // est invalide, résolution avec le payload si le token est authentique.
-const verifyTokenMock = jest.fn();
+const verifyTokenMock = jest.fn<Promise<{ sub: string }>, unknown[]>();
 jest.mock('@clerk/backend', () => ({
   verifyToken: (...args: unknown[]) => verifyTokenMock(...args),
 }));

@@ -143,6 +143,7 @@ describe('AnalyticsService — restriction plan PRO', () => {
       await expect(
         service.getOwnerMonthlyReport('owner1', '2026-08'),
       ).rejects.toMatchObject({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         response: expect.objectContaining({ code: 'PRO_ONLY' }),
       });
     });

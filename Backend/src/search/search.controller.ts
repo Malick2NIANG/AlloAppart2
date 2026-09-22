@@ -4,7 +4,6 @@ import {
   Get,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';

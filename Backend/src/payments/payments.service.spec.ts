@@ -12,6 +12,7 @@ import axios from 'axios';
 // Utilisé par PaymentsService.verifyBooking() (appel direct à l'API PayDunya,
 // distinct du PaydunyaSoftpayService injecté utilisé par le webhook).
 jest.mock('axios');
+// eslint-disable-next-line @typescript-eslint/unbound-method
 const axiosGetMock = axios.get as jest.Mock;
 
 describe('PaymentsService', () => {
@@ -536,6 +537,7 @@ describe('PaymentsService', () => {
       expect(prismaMock.booking.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'b10' },
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           data: expect.objectContaining({ status: BookingStatus.ACTIVE }),
         }),
       );

@@ -138,6 +138,7 @@ describe('ListingsService', () => {
         await expect(
           service.create('owner1', { status: ListingStatus.ACTIVE } as never),
         ).rejects.toMatchObject({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           response: expect.objectContaining({
             code: 'STARTER_LISTING_LIMIT',
             limit: 10,
