@@ -128,6 +128,8 @@ describe('BookingsService', () => {
     notifyMonthlyRequestApproved: jest.Mock;
     notifyMonthlyRequestRejected: jest.Mock;
     notifyLeaseTerminated: jest.Mock;
+    notifyLeaseTerminationScheduled: jest.Mock;
+    notifyLeaseTerminationCancelled: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -157,6 +159,8 @@ describe('BookingsService', () => {
       notifyMonthlyRequestApproved: jest.fn().mockResolvedValue(undefined),
       notifyMonthlyRequestRejected: jest.fn().mockResolvedValue(undefined),
       notifyLeaseTerminated: jest.fn().mockResolvedValue(undefined),
+      notifyLeaseTerminationScheduled: jest.fn().mockResolvedValue(undefined),
+      notifyLeaseTerminationCancelled: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -1053,7 +1057,11 @@ describe('BookingsService', () => {
   });
 
   // --- terminateLease ---
+  // Bailleur/locataire : préavis de 30j (programme la résiliation, ne
+  // résilie pas tout de suite). Admin : résiliation immédiate (arbitrage
+  // litige), comme avant.
   describe('terminateLease', () => {
+    const admin: User = { ...owner, id: 'admin1', roles: [Role.ADMIN] };
     const activeBooking = {
       id: 'booking-monthly-1',
       listingId: 'listing1',
@@ -1061,38 +1069,69 @@ describe('BookingsService', () => {
       bookingType: BookingType.MONTHLY,
       status: BookingStatus.ACTIVE,
       totalAmount: 600000,
+      terminationEffectiveAt: null as Date | null,
       listing: { ...listing, owner, rentalMode: RentalMode.MONTHLY },
       tenant,
     };
 
-    it('résilie le bail si le locataire résilie — repasse l’annonce en ACTIVE', async () => {
+    it('programme la résiliation à +30j si le locataire résilie — le bail reste ACTIVE', async () => {
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(activeBooking);
-      prismaMock.$transaction.mockResolvedValueOnce([
-        { ...activeBooking, status: BookingStatus.TERMINATED },
-        { ...listing, status: 'ACTIVE' },
-      ]);
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...activeBooking,
+        terminationRequestedById: tenant.id,
+        terminationEffectiveAt: new Date(),
+      });
 
       const result = await service.terminateLease('booking-monthly-1', tenant);
 
-      expect(result.status).toBe(BookingStatus.TERMINATED);
-      expect(notifMock.notifyLeaseTerminated).toHaveBeenCalledWith(
-        expect.objectContaining({ terminatedByTenant: true }),
+      expect(result.status).toBe(BookingStatus.ACTIVE);
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+      expect(notifMock.notifyLeaseTerminationScheduled).toHaveBeenCalledWith(
+        expect.objectContaining({ requestedByTenant: true }),
+      );
+      expect(notifMock.notifyLeaseTerminated).not.toHaveBeenCalled();
+    });
+
+    it('programme la résiliation à +30j si le bailleur résilie', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(activeBooking);
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...activeBooking,
+        terminationRequestedById: owner.id,
+        terminationEffectiveAt: new Date(),
+      });
+
+      const result = await service.terminateLease('booking-monthly-1', owner);
+
+      expect(result.status).toBe(BookingStatus.ACTIVE);
+      expect(notifMock.notifyLeaseTerminationScheduled).toHaveBeenCalledWith(
+        expect.objectContaining({ requestedByTenant: false }),
       );
     });
 
-    it('résilie le bail si le bailleur résilie', async () => {
+    it('résilie immédiatement si un admin résilie (arbitrage litige) — bypass le préavis', async () => {
       prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(activeBooking);
       prismaMock.$transaction.mockResolvedValueOnce([
         { ...activeBooking, status: BookingStatus.TERMINATED },
         { ...listing, status: 'ACTIVE' },
       ]);
 
-      const result = await service.terminateLease('booking-monthly-1', owner);
+      const result = await service.terminateLease('booking-monthly-1', admin);
 
       expect(result.status).toBe(BookingStatus.TERMINATED);
       expect(notifMock.notifyLeaseTerminated).toHaveBeenCalledWith(
         expect.objectContaining({ terminatedByTenant: false }),
       );
+      expect(notifMock.notifyLeaseTerminationScheduled).not.toHaveBeenCalled();
+    });
+
+    it('lève BadRequestException si une résiliation est déjà programmée', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...activeBooking,
+        terminationEffectiveAt: new Date('2027-01-01'),
+      });
+      await expect(
+        service.terminateLease('booking-monthly-1', tenant),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it("lève ForbiddenException si l'utilisateur n'est ni locataire, ni bailleur, ni admin", async () => {
@@ -1125,6 +1164,67 @@ describe('BookingsService', () => {
       await expect(
         service.terminateLease('booking-monthly-1', tenant),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // --- cancelTerminateLease ---
+  describe('cancelTerminateLease', () => {
+    const scheduledBooking = {
+      id: 'booking-monthly-1',
+      listingId: 'listing1',
+      tenantId: 'tenant1',
+      bookingType: BookingType.MONTHLY,
+      status: BookingStatus.ACTIVE,
+      totalAmount: 600000,
+      terminationRequestedById: 'tenant1',
+      terminationEffectiveAt: new Date('2027-01-01'),
+      listing: { ...listing, owner, rentalMode: RentalMode.MONTHLY },
+      tenant,
+    };
+
+    it('annule la résiliation programmée — le bail reste ACTIVE sans interruption', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        scheduledBooking,
+      );
+      prismaMock.booking.update.mockResolvedValueOnce({
+        ...scheduledBooking,
+        terminationRequestedAt: null,
+        terminationEffectiveAt: null,
+        terminationRequestedById: null,
+      });
+
+      const result = await service.cancelTerminateLease(
+        'booking-monthly-1',
+        owner,
+      );
+
+      expect(result.terminationEffectiveAt).toBeNull();
+      expect(result.status).toBe(BookingStatus.ACTIVE);
+      expect(notifMock.notifyLeaseTerminationCancelled).toHaveBeenCalled();
+    });
+
+    it('lève BadRequestException si aucune résiliation n’est programmée', async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce({
+        ...scheduledBooking,
+        terminationEffectiveAt: null,
+      });
+      await expect(
+        service.cancelTerminateLease('booking-monthly-1', tenant),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("lève ForbiddenException si l'utilisateur n'est ni locataire, ni bailleur, ni admin", async () => {
+      prismaMock.booking.findUniqueOrThrow.mockResolvedValueOnce(
+        scheduledBooking,
+      );
+      const stranger: User = {
+        ...tenant,
+        id: 'stranger1',
+        roles: [Role.LOCATAIRE],
+      };
+      await expect(
+        service.cancelTerminateLease('booking-monthly-1', stranger),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 

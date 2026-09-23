@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PlatformConfigService } from '../platform-config/platform-config.service';
@@ -38,6 +39,18 @@ const VERIFICATION_WINDOW_BUFFER_DAYS = 1;
 
 // Fenêtre de signalement de non-conformité — Article 9 des CGU
 const DISPUTE_WINDOW_HOURS = 24;
+
+// Délai de grâce après la fin du séjour (nuitée) avant complétion
+// automatique — laisse au bailleur le temps de signaler un litige ou de
+// terminer manuellement, tout en évitant qu'une réservation reste bloquée en
+// CONFIRMED indéfiniment s'il oublie de cliquer "Terminer" (ce qui empêche le
+// locataire de laisser un avis, cf. ReviewsService.create).
+const AUTO_COMPLETE_GRACE_HOURS = 48;
+
+// Préavis de résiliation d'un bail mensuel — bailleur et locataire y sont
+// tous deux soumis à égalité. Seul un ADMIN (arbitrage litige) peut résilier
+// immédiatement, en dehors de ce mécanisme.
+const LEASE_TERMINATION_NOTICE_DAYS = 30;
 
 const DAYS_PER_MONTH = 30; // base du prorata nuitée quand aucun tarif/nuit n'est défini
 // Repli si une annonce MIXTE plus ancienne n'a pas (encore) de minLeaseMonths
@@ -412,7 +425,13 @@ export class BookingsService {
 
   /**
    * Résilie un bail mensuel actif (à l'initiative du bailleur ou du
-   * locataire) — repasse l'annonce en ACTIVE, à nouveau bookable.
+   * locataire). Un ADMIN (arbitrage d'un litige) résilie immédiatement,
+   * comme avant. Bailleur et locataire, eux, déclenchent désormais un
+   * préavis de `LEASE_TERMINATION_NOTICE_DAYS` jours : le bail reste ACTIF
+   * jusqu'à `terminationEffectiveAt`, date à laquelle le cron
+   * `processScheduledLeaseTerminations` le résilie effectivement. Chacun
+   * peut annuler la demande via `cancelTerminateLease` tant que la date
+   * d'effet n'est pas dépassée.
    */
   async terminateLease(id: string, user: User) {
     const booking = await this.prisma.booking.findUniqueOrThrow({
@@ -421,7 +440,8 @@ export class BookingsService {
     });
     const isOwner = booking.listing.ownerId === user.id;
     const isTenant = booking.tenantId === user.id;
-    if (!isOwner && !isTenant && !user.roles.includes(Role.ADMIN)) {
+    const isAdmin = user.roles.includes(Role.ADMIN);
+    if (!isOwner && !isTenant && !isAdmin) {
       throw new ForbiddenException('Not authorized');
     }
     if (
@@ -433,19 +453,72 @@ export class BookingsService {
       );
     }
 
-    const [updated] = await this.prisma.$transaction([
-      this.prisma.booking.update({
-        where: { id },
-        data: { status: BookingStatus.TERMINATED, terminatedAt: new Date() },
-      }),
-      this.prisma.listing.update({
-        where: { id: booking.listingId },
-        data: { status: ListingStatus.ACTIVE },
-      }),
-    ]);
+    // Arbitrage admin (litige) : résiliation immédiate, comme avant — ne
+    // passe pas par le préavis.
+    if (isAdmin) {
+      const [updated] = await this.prisma.$transaction([
+        this.prisma.booking.update({
+          where: { id },
+          data: {
+            status: BookingStatus.TERMINATED,
+            terminatedAt: new Date(),
+            terminationRequestedAt: null,
+            terminationEffectiveAt: null,
+            terminationRequestedById: null,
+          },
+        }),
+        this.prisma.listing.update({
+          where: { id: booking.listingId },
+          data: { status: ListingStatus.ACTIVE },
+        }),
+      ]);
+
+      this.notifications
+        .notifyLeaseTerminated({
+          tenantEmail: booking.tenant.email,
+          tenantName: booking.tenant.firstName + ' ' + booking.tenant.lastName,
+          tenantId: booking.tenantId,
+          landlordEmail: booking.listing.owner.email,
+          landlordName:
+            booking.listing.owner.firstName +
+            ' ' +
+            booking.listing.owner.lastName,
+          landlordId: booking.listing.ownerId,
+          listingTitle: booking.listing.title,
+          listingCity: booking.listing.city,
+          bookingId: booking.id,
+          totalAmount: Number(booking.totalAmount),
+          terminatedByTenant: isTenant,
+        })
+        .catch(() => {});
+
+      return updated;
+    }
+
+    // Bailleur ou locataire : préavis. Une demande est déjà en cours.
+    if (booking.terminationEffectiveAt) {
+      throw new BadRequestException(
+        'Une résiliation est déjà programmée pour le ' +
+          booking.terminationEffectiveAt.toISOString().slice(0, 10) +
+          '.',
+      );
+    }
+
+    const requestedAt = new Date();
+    const effectiveAt = new Date(requestedAt);
+    effectiveAt.setDate(effectiveAt.getDate() + LEASE_TERMINATION_NOTICE_DAYS);
+
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: {
+        terminationRequestedAt: requestedAt,
+        terminationEffectiveAt: effectiveAt,
+        terminationRequestedById: user.id,
+      },
+    });
 
     this.notifications
-      .notifyLeaseTerminated({
+      .notifyLeaseTerminationScheduled({
         tenantEmail: booking.tenant.email,
         tenantName: booking.tenant.firstName + ' ' + booking.tenant.lastName,
         tenantId: booking.tenantId,
@@ -459,11 +532,131 @@ export class BookingsService {
         listingCity: booking.listing.city,
         bookingId: booking.id,
         totalAmount: Number(booking.totalAmount),
-        terminatedByTenant: isTenant,
+        requestedByTenant: isTenant,
+        effectiveAt,
       })
       .catch(() => {});
 
     return updated;
+  }
+
+  /**
+   * Annule une résiliation de bail programmée (voir `terminateLease`) — le
+   * bail reste ACTIVE sans interruption. Accessible au bailleur, au
+   * locataire ou à un admin, quelle que soit la partie à l'origine de la
+   * demande initiale (annuler ne fait de tort à personne, contrairement à
+   * résilier).
+   */
+  async cancelTerminateLease(id: string, user: User) {
+    const booking = await this.prisma.booking.findUniqueOrThrow({
+      where: { id },
+      include: { listing: { include: { owner: true } }, tenant: true },
+    });
+    const isOwner = booking.listing.ownerId === user.id;
+    const isTenant = booking.tenantId === user.id;
+    if (!isOwner && !isTenant && !user.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Not authorized');
+    }
+    if (!booking.terminationEffectiveAt) {
+      throw new BadRequestException('Aucune résiliation programmée.');
+    }
+
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: {
+        terminationRequestedAt: null,
+        terminationEffectiveAt: null,
+        terminationRequestedById: null,
+      },
+    });
+
+    this.notifications
+      .notifyLeaseTerminationCancelled({
+        tenantEmail: booking.tenant.email,
+        tenantName: booking.tenant.firstName + ' ' + booking.tenant.lastName,
+        tenantId: booking.tenantId,
+        landlordEmail: booking.listing.owner.email,
+        landlordName:
+          booking.listing.owner.firstName +
+          ' ' +
+          booking.listing.owner.lastName,
+        landlordId: booking.listing.ownerId,
+        listingTitle: booking.listing.title,
+        listingCity: booking.listing.city,
+        bookingId: booking.id,
+        totalAmount: Number(booking.totalAmount),
+      })
+      .catch(() => {});
+
+    return updated;
+  }
+
+  /**
+   * Cron quotidien — finalise les résiliations de bail dont le préavis est
+   * écoulé (voir `terminateLease`). Miroir de la logique de résiliation
+   * immédiate admin, mais déclenché automatiquement à la date d'effet.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async processScheduledLeaseTerminations(): Promise<void> {
+    const candidates = await this.prisma.booking.findMany({
+      where: {
+        status: BookingStatus.ACTIVE,
+        bookingType: BookingType.MONTHLY,
+        terminationEffectiveAt: { lte: new Date() },
+      },
+      include: { listing: { include: { owner: true } }, tenant: true },
+    });
+
+    let count = 0;
+    for (const booking of candidates) {
+      try {
+        await this.prisma.$transaction([
+          this.prisma.booking.update({
+            where: { id: booking.id },
+            data: {
+              status: BookingStatus.TERMINATED,
+              terminatedAt: new Date(),
+              terminationRequestedAt: null,
+              terminationEffectiveAt: null,
+              terminationRequestedById: null,
+            },
+          }),
+          this.prisma.listing.update({
+            where: { id: booking.listingId },
+            data: { status: ListingStatus.ACTIVE },
+          }),
+        ]);
+        count++;
+
+        void this.notifications
+          .notifyLeaseTerminated({
+            tenantEmail: booking.tenant.email,
+            tenantName: `${booking.tenant.firstName} ${booking.tenant.lastName}`,
+            tenantId: booking.tenantId,
+            landlordEmail: booking.listing.owner.email,
+            landlordName: `${booking.listing.owner.firstName} ${booking.listing.owner.lastName}`,
+            landlordId: booking.listing.ownerId,
+            listingTitle: booking.listing.title,
+            listingCity: booking.listing.city,
+            bookingId: booking.id,
+            totalAmount: Number(booking.totalAmount),
+            terminatedByTenant:
+              booking.terminationRequestedById === booking.tenantId,
+          })
+          .catch(() => {});
+      } catch (err) {
+        this.logger.error(
+          `processScheduledLeaseTerminations: échec sur la réservation ${booking.id}`,
+          err instanceof Error ? err.stack : undefined,
+        );
+      }
+    }
+
+    if (count > 0) {
+      this.logger.log(
+        `${count} bail(aux) mensuel(s) résilié(s) automatiquement (préavis de ${LEASE_TERMINATION_NOTICE_DAYS}j écoulé)`,
+      );
+    }
   }
 
   async getAvailability(listingId: string) {
@@ -857,6 +1050,73 @@ export class BookingsService {
         escrowStatus: EscrowStatus.RELEASED,
       },
     });
+  }
+
+  /**
+   * Cron horaire — complète automatiquement les réservations nuitée
+   * CONFIRMED dont le séjour est terminé depuis plus de
+   * `AUTO_COMPLETE_GRACE_HOURS` sans que le bailleur ait cliqué "Terminer".
+   * Reproduit exactement les garde-fous de `complete()` (litige exclu, séjour
+   * bien terminé) mais sans vérification d'autorisation puisqu'il n'y a pas
+   * d'utilisateur à l'origine de l'appel.
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async autoCompleteBookings(): Promise<void> {
+    const cutoff = new Date();
+    cutoff.setHours(cutoff.getHours() - AUTO_COMPLETE_GRACE_HOURS);
+
+    const candidates = await this.prisma.booking.findMany({
+      where: {
+        status: BookingStatus.CONFIRMED,
+        bookingType: BookingType.NIGHTLY,
+        escrowStatus: { not: EscrowStatus.DISPUTED },
+        endDate: { lt: cutoff },
+      },
+      include: {
+        listing: { include: { owner: true } },
+        tenant: true,
+      },
+    });
+
+    let count = 0;
+    for (const booking of candidates) {
+      try {
+        await this.prisma.booking.update({
+          where: { id: booking.id },
+          data: {
+            status: BookingStatus.COMPLETED,
+            escrowStatus: EscrowStatus.RELEASED,
+          },
+        });
+        count++;
+
+        void this.notifications
+          .notifyBookingAutoCompleted({
+            tenantEmail: booking.tenant.email,
+            tenantName: `${booking.tenant.firstName} ${booking.tenant.lastName}`,
+            tenantId: booking.tenantId,
+            landlordEmail: booking.listing.owner.email,
+            landlordName: `${booking.listing.owner.firstName} ${booking.listing.owner.lastName}`,
+            landlordId: booking.listing.ownerId,
+            listingTitle: booking.listing.title,
+            listingCity: booking.listing.city,
+            bookingId: booking.id,
+            totalAmount: Number(booking.totalAmount),
+          })
+          .catch(() => {});
+      } catch (err) {
+        this.logger.error(
+          `autoCompleteBookings: échec sur la réservation ${booking.id}`,
+          err instanceof Error ? err.stack : undefined,
+        );
+      }
+    }
+
+    if (count > 0) {
+      this.logger.log(
+        `${count} réservation(s) complétée(s) automatiquement (séjour terminé depuis > ${AUTO_COMPLETE_GRACE_HOURS}h)`,
+      );
+    }
   }
 
   /**

@@ -41,6 +41,10 @@ export default function NotificationBell({ userId }: { userId: string }) {
   const [notifs,      setNotifs]      = useState<Notif[]>([]);
   const [unread,      setUnread]      = useState(0);
   const [open,        setOpen]        = useState(false);
+  // Notifications dont le texte (souvent tronqué à 2 lignes) a été déplié
+  // par l'utilisateur — clé = id de la notif, persiste tant que le menu
+  // reste ouvert.
+  const [expanded,    setExpanded]    = useState<Record<string, boolean>>({});
   const dropdownRef   = useRef<HTMLDivElement>(null);
   const tokenRef      = useRef<string | null>(null);
 
@@ -181,6 +185,12 @@ export default function NotificationBell({ userId }: { userId: string }) {
               notifs.map((n) => {
                 const cfg = TYPE_ICON[n.type] ?? { icon: 'fa-circle-dot', color: 'text-sub' };
                 const isBroadcast = n.type === 'ADMIN_BROADCAST';
+                const isExpanded = !!expanded[n.id];
+                // Heuristique simple : au-delà de ~90 caractères, le corps
+                // dépasse quasi systématiquement 2 lignes sur la largeur du
+                // menu (320px) — on propose donc le dépli uniquement dans ce
+                // cas, plutôt que de mesurer le DOM.
+                const isLong = n.body.length > 90;
                 return (
                   <div
                     key={n.id}
@@ -205,7 +215,21 @@ export default function NotificationBell({ userId }: { userId: string }) {
                       <p className={`text-xs font-semibold text-main leading-snug ${!n.isRead ? 'font-bold' : ''}`}>
                         {n.title}
                       </p>
-                      <p className="text-[11px] text-sub mt-0.5 leading-relaxed line-clamp-2">{n.body}</p>
+                      <p className={`text-[11px] text-sub mt-0.5 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
+                        {n.body}
+                      </p>
+                      {isLong && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpanded((prev) => ({ ...prev, [n.id]: !prev[n.id] }));
+                          }}
+                          className="mt-0.5 text-[10px] font-semibold text-gold-dark hover:underline"
+                        >
+                          {isExpanded ? t('seeLessText') : t('seeMoreText')}
+                          <i className={`fa-solid fa-chevron-down text-[8px] ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                      )}
                       <p className="text-[10px] text-sub/70 mt-1">{relativeTime(n.createdAt)}</p>
                     </div>
                     {!n.isRead && (

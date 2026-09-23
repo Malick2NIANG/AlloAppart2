@@ -150,6 +150,11 @@ export interface Booking {
   endDate?: string;               // absent pour le mensuel (bail à durée ouverte)
   depositAmount?: string | null;  // caution — mensuel uniquement
   terminatedAt?: string | null;   // date de résiliation du bail — mensuel uniquement
+  // Préavis de résiliation (30j) en cours — mensuel/ACTIVE uniquement. Non
+  // vide tant que la résiliation n'a pas été annulée ou n'a pas pris effet.
+  terminationRequestedAt?: string | null;
+  terminationEffectiveAt?: string | null;
+  terminationRequestedById?: string | null;
   totalAmount: string;    // Decimal → string via JSON
   platformFee?: string;   // commission AlloAppart (10%)
   landlordAmount?: string; // montant net bailleur

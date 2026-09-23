@@ -98,6 +98,11 @@ export class BookingsController {
     return this.bookingsService.terminateLease(id, user);
   }
 
+  @Patch(':id/cancel-terminate-lease')
+  cancelTerminateLease(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.bookingsService.cancelTerminateLease(id, user);
+  }
+
   @Get('mine')
   findMine(@CurrentUser() user: User) {
     return this.bookingsService.findMine(user.id);

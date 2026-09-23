@@ -395,6 +395,67 @@ export class NotificationsService {
     }
   }
 
+  /**
+   * Séjour nuitée passé automatiquement à COMPLETED par le cron
+   * `BookingsService.autoCompleteBookings` (le bailleur n'a pas cliqué
+   * "Terminer" dans les 48h suivant la fin du séjour). Prévient le locataire
+   * (invitation à laisser un avis) et le bailleur (fonds libérés).
+   */
+  async notifyBookingAutoCompleted(
+    data: BookingNotificationData,
+  ): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const tenant = escapeHtml(data.tenantName);
+    const ref = escapeHtml(data.bookingId);
+
+    const tenantLoc = await this.localeOf({
+      userId: data.tenantId,
+      email: data.tenantEmail,
+    });
+
+    await this.send(
+      data.tenantEmail,
+      t(tenantLoc, 'mailBookingCompletedSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
+        `<p>${t(tenantLoc, 'mailBookingCompletedBody', { listingTitle: title })}</p>` +
+        `<p>${t(tenantLoc, 'mailRefLabel', { ref })}</p>` +
+        this.signature(tenantLoc),
+    );
+
+    if (data.tenantId) {
+      void this.onesignal.sendToExternalIds(
+        [data.tenantId],
+        t(tenantLoc, 'pushBookingCompletedTenantTitle'),
+        t(tenantLoc, 'pushBookingCompletedTenantBody', {
+          listingTitle: data.listingTitle,
+        }),
+        { bookingId: data.bookingId },
+      );
+
+      void this.pushInApp(
+        data.tenantId,
+        'BOOKING_COMPLETED',
+        'pushBookingCompletedTenantTitle',
+        'pushBookingCompletedTenantBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+
+    if (data.landlordId) {
+      void this.pushInApp(
+        data.landlordId,
+        'BOOKING_COMPLETED',
+        'pushBookingCompletedLandlordTitle',
+        'pushBookingCompletedLandlordBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+  }
+
   /* ── Location mensuelle (système hybride) ──────────────────────────────── */
 
   // Bailleur/agence : nouvelle demande de location au mois
@@ -570,6 +631,130 @@ export class NotificationsService {
         'LEASE_TERMINATED',
         'pushLeaseTerminatedTitle',
         'pushLeaseTerminatedBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+  }
+
+  /**
+   * Préavis de résiliation déclenché par le bailleur ou le locataire (voir
+   * `BookingsService.terminateLease`) — le bail reste ACTIF jusqu'à
+   * `effectiveAt`. Prévient les DEUX parties avec la date d'effet ; celle qui
+   * n'est pas à l'origine de la demande est celle qui a le plus besoin d'être
+   * informée, mais l'auteur reçoit aussi une confirmation.
+   */
+  async notifyLeaseTerminationScheduled(
+    data: BookingNotificationData & {
+      requestedByTenant: boolean;
+      effectiveAt: Date;
+    },
+  ): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const tenant = escapeHtml(data.tenantName);
+    const landlord = escapeHtml(data.landlordName);
+
+    const [tenantLoc, landlordLoc] = await Promise.all([
+      this.localeOf({ userId: data.tenantId, email: data.tenantEmail }),
+      this.localeOf({ userId: data.landlordId, email: data.landlordEmail }),
+    ]);
+
+    const dateStr = (loc: Locale) =>
+      data.effectiveAt.toLocaleDateString(loc === 'en' ? 'en-US' : 'fr-SN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+    await this.send(
+      data.tenantEmail,
+      t(tenantLoc, 'mailLeaseTerminationScheduledSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
+        `<p>${t(tenantLoc, 'mailLeaseTerminationScheduledBody', { listingTitle: title, date: dateStr(tenantLoc) })}</p>` +
+        this.signature(tenantLoc),
+    );
+    await this.send(
+      data.landlordEmail,
+      t(landlordLoc, 'mailLeaseTerminationScheduledSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(landlordLoc, 'commonHello', { firstName: landlord })},</h2>` +
+        `<p>${t(landlordLoc, 'mailLeaseTerminationScheduledBody', { listingTitle: title, date: dateStr(landlordLoc) })}</p>` +
+        this.signature(landlordLoc),
+    );
+
+    if (data.tenantId) {
+      void this.pushInApp(
+        data.tenantId,
+        'LEASE_TERMINATION_SCHEDULED',
+        'pushLeaseTerminationScheduledTitle',
+        'pushLeaseTerminationScheduledBody',
+        { listingTitle: data.listingTitle, date: dateStr(tenantLoc) },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+    if (data.landlordId) {
+      void this.pushInApp(
+        data.landlordId,
+        'LEASE_TERMINATION_SCHEDULED',
+        'pushLeaseTerminationScheduledTitle',
+        'pushLeaseTerminationScheduledBody',
+        { listingTitle: data.listingTitle, date: dateStr(landlordLoc) },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+  }
+
+  /** Annulation d'une résiliation de bail programmée — le bail se poursuit sans interruption. */
+  async notifyLeaseTerminationCancelled(
+    data: BookingNotificationData,
+  ): Promise<void> {
+    const title = escapeHtml(data.listingTitle);
+    const tenant = escapeHtml(data.tenantName);
+    const landlord = escapeHtml(data.landlordName);
+
+    const [tenantLoc, landlordLoc] = await Promise.all([
+      this.localeOf({ userId: data.tenantId, email: data.tenantEmail }),
+      this.localeOf({ userId: data.landlordId, email: data.landlordEmail }),
+    ]);
+
+    await this.send(
+      data.tenantEmail,
+      t(tenantLoc, 'mailLeaseTerminationCancelledSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(tenantLoc, 'commonHello', { firstName: tenant })},</h2>` +
+        `<p>${t(tenantLoc, 'mailLeaseTerminationCancelledBody', { listingTitle: title })}</p>` +
+        this.signature(tenantLoc),
+    );
+    await this.send(
+      data.landlordEmail,
+      t(landlordLoc, 'mailLeaseTerminationCancelledSubject', {
+        listingTitle: data.listingTitle,
+      }),
+      `<h2>${t(landlordLoc, 'commonHello', { firstName: landlord })},</h2>` +
+        `<p>${t(landlordLoc, 'mailLeaseTerminationCancelledBody', { listingTitle: title })}</p>` +
+        this.signature(landlordLoc),
+    );
+
+    if (data.tenantId) {
+      void this.pushInApp(
+        data.tenantId,
+        'LEASE_TERMINATION_CANCELLED',
+        'pushLeaseTerminationCancelledTitle',
+        'pushLeaseTerminationCancelledBody',
+        { listingTitle: data.listingTitle },
+        { bookingId: data.bookingId, listingTitle: data.listingTitle },
+      );
+    }
+    if (data.landlordId) {
+      void this.pushInApp(
+        data.landlordId,
+        'LEASE_TERMINATION_CANCELLED',
+        'pushLeaseTerminationCancelledTitle',
+        'pushLeaseTerminationCancelledBody',
         { listingTitle: data.listingTitle },
         { bookingId: data.bookingId, listingTitle: data.listingTitle },
       );
@@ -1014,9 +1199,9 @@ export class NotificationsService {
    * Contrairement aux autres notifications (transactionnelles, déclenchées
    * par un événement), un broadcast doit être immédiatement identifiable
    * comme venant de la Direction et non de la plateforme elle-même — d'où le
-   * préfixe "👑 De la part d'AlloAppart" sur le push OneSignal, et le type
+   * préfixe "De la part d'AlloAppart" sur le push OneSignal, et le type
    * dédié ADMIN_BROADCAST côté cloche in-app (NotificationBell lui applique
-   * un style doré + couronne distinct des notifications automatiques).
+   * un style doré + icône couronne distinct des notifications automatiques).
    *
    * Jusqu'ici seul le push OneSignal était envoyé (rien dans la cloche) : on
    * a donc désormais besoin des ids de chaque destinataire — y compris pour
@@ -1049,7 +1234,7 @@ export class NotificationsService {
     const externalIds = users.map((u) => u.clerkId);
     const recipients = users.length;
 
-    const brandedTitle = `👑 De la part d'AlloAppart — ${title}`;
+    const brandedTitle = `De la part d'AlloAppart — ${title}`;
     await this.onesignal.sendBroadcast(
       brandedTitle,
       message,

@@ -9,7 +9,7 @@ import { PusherService } from '../pusher/pusher.service';
 // Ce fichier couvre broadcastPush() — le chemin exact emprunté par la page
 // admin espace/communications (POST /notifications/broadcast) : ciblage des
 // destinataires par segment de rôle, transmission à OneSignal avec le
-// préfixe "👑 De la part d'AlloAppart", et création d'une notification
+// préfixe "De la part d'AlloAppart", et création d'une notification
 // cloche (type ADMIN_BROADCAST) par destinataire. Les autres méthodes
 // (emails/push transactionnels par événement) ne sont pas couvertes ici.
 describe('NotificationsService.broadcastPush', () => {
@@ -54,7 +54,7 @@ describe('NotificationsService.broadcastPush', () => {
       select: { id: true, clerkId: true },
     });
     expect(onesignalMock.sendBroadcast).toHaveBeenCalledWith(
-      "👑 De la part d'AlloAppart — Titre",
+      "De la part d'AlloAppart — Titre",
       'Message',
       undefined,
     );
@@ -99,7 +99,7 @@ describe('NotificationsService.broadcastPush', () => {
       select: { id: true, clerkId: true },
     });
     expect(onesignalMock.sendBroadcast).toHaveBeenCalledWith(
-      "👑 De la part d'AlloAppart — Titre",
+      "De la part d'AlloAppart — Titre",
       'Message',
       ['clerk_1', 'clerk_2'],
     );

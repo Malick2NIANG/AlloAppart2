@@ -135,6 +135,15 @@ model Booking {
   // demande (indépendante d'un changement ultérieur de listing.depositMonths/price).
   depositAmount  Decimal?      @db.Decimal(12, 2)
   terminatedAt   DateTime?     // Date de résiliation du bail (mode MONTHLY)
+  // Préavis de résiliation (mode MONTHLY, bail ACTIVE) : le bailleur ou le
+  // locataire déclenche un préavis de 30 jours au lieu d'une résiliation
+  // immédiate (cf. LEASE_TERMINATION_NOTICE_DAYS dans bookings.service.ts).
+  // Tant que terminationEffectiveAt n'est pas dépassé, le bail reste ACTIVE ;
+  // chaque partie peut annuler la demande. Seul un ADMIN (arbitrage litige)
+  // continue de résilier immédiatement, sans passer par ces champs.
+  terminationRequestedAt   DateTime?
+  terminationEffectiveAt   DateTime?
+  terminationRequestedById String?
   // Signalement de non-conformité AlloVérifié (Article 9 des CGU) — fenêtre de
   // 24h après l'entrée dans les lieux pour contester l'état du bien.
   disputeReason      String?

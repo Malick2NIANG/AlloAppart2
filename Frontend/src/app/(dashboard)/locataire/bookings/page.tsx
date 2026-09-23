@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Booking, BookingStatus } from '@/types';
 import { openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
@@ -13,7 +13,7 @@ import ContractCard from '@/components/bookings/ContractCard';
 import { VerificationQrModal } from '@/components/bookings/VerificationQrModal';
 import { BookingCard } from '@/components/bookings/BookingCard';
 import { StatusChip } from '@/components/bookings/StatusChip';
-import { BookingTabs } from '@/components/bookings/BookingTabs';
+import { StatFilterCard } from '@/components/bookings/StatFilterCard';
 import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
 import { BookingPagination } from '@/components/bookings/BookingPagination';
 
@@ -111,11 +111,14 @@ export default function LocataireBookingsPage() {
     else if (archived.length > 0) setActiveTab('archived');
   }, [loading, pending.length, confirmed.length, archived.length]);
 
+  // Les 3 cartes restent toujours affichées (même quand un groupe est vide),
+  // même pattern StatFilterCard que les pages admin — contrairement aux
+  // anciens onglets pill (BookingTabs) qui se masquaient s'ils étaient vides.
   const tabs = [
-    { key: 'pending' as const,   label: t('sectionPending'),   icon: 'fa-clock',        items: pending },
-    { key: 'confirmed' as const, label: t('sectionConfirmed'), icon: 'fa-circle-check', items: confirmed },
-    { key: 'archived' as const,  label: t('sectionArchived'),  icon: 'fa-archive',      items: archived },
-  ].filter((tab) => tab.items.length > 0);
+    { key: 'pending' as const,   label: t('sectionPending'),   icon: 'fa-clock',        color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-50 dark:bg-amber-950/30',   items: pending },
+    { key: 'confirmed' as const, label: t('sectionConfirmed'), icon: 'fa-circle-check', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30', items: confirmed },
+    { key: 'archived' as const,  label: t('sectionArchived'),  icon: 'fa-box-archive',  color: 'text-sub',                              bg: 'bg-card',                              items: archived },
+  ];
   const active = tabs.find((tab) => tab.key === activeTab) ?? tabs[0];
 
   // Recherche + pagination — propres à chaque onglet (réinitialisées quand on
@@ -182,12 +185,23 @@ export default function LocataireBookingsPage() {
         </div>
       ) : active && (
         <>
-          {/* Onglets par statut */}
-          <BookingTabs
-            tabs={tabs.map((tab) => ({ key: tab.key, label: tab.label, icon: tab.icon, count: tab.items.length }))}
-            active={active.key}
-            onChange={switchTab}
-          />
+          {/* Stats par statut — doublent aussi de filtre cliquable (même
+              pattern que les pages admin). */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+            {tabs.map((tab) => (
+              <StatFilterCard
+                key={tab.key}
+                icon={tab.icon}
+                label={tab.label}
+                value={tab.items.length}
+                color={tab.color}
+                bg={tab.bg}
+                active={active.key === tab.key}
+                onClick={() => switchTab(tab.key)}
+                selectedLabel={t('filterSelected')}
+              />
+            ))}
+          </div>
 
           {/* Recherche + lignes par page */}
           <BookingSearchRow
@@ -359,14 +373,22 @@ function LocataireBookingActions({
 }) {
   const { getToken } = useAuth();
   const t = useTranslations('locataire');
-  const { id: bookingId, status } = booking;
+  const locale = useLocale();
+  const { id: bookingId, status, terminationEffectiveAt, terminationRequestedById, tenantId } = booking;
+  const terminationRequestedByLandlord = !!terminationRequestedById && terminationRequestedById !== tenantId;
   const [payLoading,       setPayLoading]       = useState(false);
   const [cancelLoading,    setCancelLoading]    = useState(false);
   const [pdfLoading,       setPdfLoading]       = useState(false);
   const [terminateLoading, setTerminateLoading] = useState(false);
+  const [cancelTermLoading, setCancelTermLoading] = useState(false);
   const [confirmTerminate, setConfirmTerminate] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', {
+      year: 'numeric', month: 'long', day: 'numeric',
+    });
 
   const handleDownloadPdf = async () => {
     const token = await getToken();
@@ -461,6 +483,20 @@ function LocataireBookingActions({
     }
   };
 
+  const handleCancelTermination = async () => {
+    const token = await getToken();
+    if (!token) return;
+    setCancelTermLoading(true);
+    setError(null);
+    try {
+      await api.patch(`/bookings/${bookingId}/cancel-terminate-lease`, {}, token);
+      onRefresh();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : t('actionError'));
+      setCancelTermLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col items-start gap-1.5">
       <div className="flex items-center gap-2 flex-wrap justify-start">
@@ -525,9 +561,25 @@ function LocataireBookingActions({
           </>
         )}
 
-        {/* Bail actif — le locataire peut le résilier à tout moment */}
+        {/* Bail actif — le locataire peut déclencher un préavis de
+            résiliation (30j) à tout moment, ou l'annuler si déjà en cours. */}
         {status === 'ACTIVE' && (
-          confirmTerminate ? (
+          terminationEffectiveAt ? (
+            <div className="flex flex-col items-start gap-1.5">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                <i className="fa-solid fa-hourglass-half text-[10px]" />
+                {t('terminationScheduledNotice', { date: formatDate(terminationEffectiveAt) })}
+                {terminationRequestedByLandlord && ` · ${t('terminationRequestedByOther')}`}
+              </span>
+              <button
+                onClick={() => void handleCancelTermination()}
+                disabled={cancelTermLoading}
+                className="text-xs px-3 py-1.5 rounded-full font-medium bg-bg text-sub border border-line hover:bg-line/30 transition disabled:opacity-50"
+              >
+                {cancelTermLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('actionCancelTermination')}
+              </button>
+            </div>
+          ) : confirmTerminate ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-sub">{t('confirmTerminateLease')}</span>
               <button

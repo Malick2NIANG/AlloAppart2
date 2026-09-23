@@ -12,7 +12,7 @@ import Link from 'next/link';
 import BookingActions from './BookingActions';
 import ContractCard from '@/components/bookings/ContractCard';
 import { BookingCard } from '@/components/bookings/BookingCard';
-import { BookingTabs } from '@/components/bookings/BookingTabs';
+import { StatFilterCard } from '@/components/bookings/StatFilterCard';
 import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
 import { BookingPagination } from '@/components/bookings/BookingPagination';
 
@@ -73,11 +73,14 @@ export default function BailleurBookingsPage() {
     else if (archived.length > 0) setActiveTab('archived');
   }, [loading, pending.length, active.length, archived.length]);
 
+  // Les 3 cartes restent toujours affichées (même quand un groupe est vide),
+  // même pattern StatFilterCard que les pages admin — contrairement aux
+  // anciens onglets pill (BookingTabs) qui se masquaient s'ils étaient vides.
   const tabs = [
-    { key: 'pending' as const,   label: t('sectionPending'),   icon: 'fa-clock',        items: pending },
-    { key: 'confirmed' as const, label: t('sectionConfirmed'), icon: 'fa-circle-check', items: active },
-    { key: 'archived' as const,  label: t('sectionArchived'),  icon: 'fa-archive',      items: archived },
-  ].filter((tab) => tab.items.length > 0);
+    { key: 'pending' as const,   label: t('sectionPending'),   icon: 'fa-clock',        color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-50 dark:bg-amber-950/30',   items: pending },
+    { key: 'confirmed' as const, label: t('sectionConfirmed'), icon: 'fa-circle-check', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30', items: active },
+    { key: 'archived' as const,  label: t('sectionArchived'),  icon: 'fa-box-archive',  color: 'text-sub',                              bg: 'bg-card',                              items: archived },
+  ];
   const currentTab = tabs.find((tab) => tab.key === activeTab) ?? tabs[0];
 
   // Recherche + pagination client — propres à chaque onglet.
@@ -146,12 +149,23 @@ export default function BailleurBookingsPage() {
         </div>
       ) : currentTab && (
         <>
-          {/* Onglets par statut */}
-          <BookingTabs
-            tabs={tabs.map((tab) => ({ key: tab.key, label: tab.label, icon: tab.icon, count: tab.items.length }))}
-            active={currentTab.key}
-            onChange={switchTab}
-          />
+          {/* Stats par statut — doublent aussi de filtre cliquable (même
+              pattern que les pages admin). */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+            {tabs.map((tab) => (
+              <StatFilterCard
+                key={tab.key}
+                icon={tab.icon}
+                label={tab.label}
+                value={tab.items.length}
+                color={tab.color}
+                bg={tab.bg}
+                active={currentTab.key === tab.key}
+                onClick={() => switchTab(tab.key)}
+                selectedLabel={t('filterSelected')}
+              />
+            ))}
+          </div>
 
           {/* Recherche + lignes par page */}
           <BookingSearchRow
@@ -239,6 +253,8 @@ function LandlordBookingCard({
           <BookingActions
             bookingId={booking.id}
             status={booking.status}
+            terminationEffectiveAt={booking.terminationEffectiveAt}
+            terminationRequestedByTenant={booking.terminationRequestedById === booking.tenantId}
             onActionDone={onActionDone}
             toast={toast}
           />

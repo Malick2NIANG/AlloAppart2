@@ -115,6 +115,9 @@ const fr = {
   mailBookingCancelledSubject: 'Réservation annulée — {listingTitle}',
   mailBookingCancelledBody:
     'Votre réservation pour <strong>{listingTitle}</strong> a été <strong>annulée</strong>.',
+  mailBookingCompletedSubject: 'Séjour terminé — {listingTitle}',
+  mailBookingCompletedBody:
+    "Votre séjour à <strong>{listingTitle}</strong> est à présent terminé. N'hésitez pas à laisser un avis pour partager votre expérience.",
   mailContactLabel: 'Contact : {email}',
 
   /* Email — location au mois (système hybride) */
@@ -131,6 +134,13 @@ const fr = {
   mailLeaseTerminatedSubject: 'Bail résilié — {listingTitle}',
   mailLeaseTerminatedBody:
     'Le bail mensuel pour <strong>{listingTitle}</strong> a été résilié.',
+  mailLeaseTerminationScheduledSubject:
+    'Préavis de résiliation — {listingTitle}',
+  mailLeaseTerminationScheduledBody:
+    'Une résiliation a été demandée pour le bail mensuel de <strong>{listingTitle}</strong>. Sauf annulation, elle prendra effet le <strong>{date}</strong>.',
+  mailLeaseTerminationCancelledSubject: 'Résiliation annulée — {listingTitle}',
+  mailLeaseTerminationCancelledBody:
+    'La résiliation programmée pour le bail mensuel de <strong>{listingTitle}</strong> a été annulée. Le bail se poursuit normalement.',
   mailContractReadySubject: 'Votre contrat de bail est prêt — {listingTitle}',
   mailContractReadyBody:
     "Le contrat de bail pour <strong>{listingTitle}</strong> est disponible au téléchargement depuis votre espace AlloAppart. C'est un modèle qui laisse des espaces libres pour vos informations personnelles (pièce d'identité, etc.) : imprimez-le, complétez-le et signez-le à la main avec le bailleur lors de votre rencontre au bien.",
@@ -156,6 +166,8 @@ const fr = {
   pushBookingConfirmedTitle: 'Réservation confirmée !',
   pushBookingCancelledTitle: 'Réservation annulée',
   pushBookingCancelledByTenantTitle: 'Réservation annulée par le locataire',
+  pushBookingCompletedTenantTitle: 'Séjour terminé !',
+  pushBookingCompletedLandlordTitle: 'Réservation terminée',
   pushReviewReceivedTitle: 'Nouvel avis reçu',
   pushVerifAssignedTitle: 'Nouvelle mission AlloVérifié',
   pushVerifScheduledTitle: 'Agent assigné à votre vérification',
@@ -180,6 +192,8 @@ const fr = {
   pushMonthlyApprovedTitle: 'Demande approuvée !',
   pushMonthlyRejectedTitle: 'Demande refusée',
   pushLeaseTerminatedTitle: 'Bail résilié',
+  pushLeaseTerminationScheduledTitle: 'Préavis de résiliation',
+  pushLeaseTerminationCancelledTitle: 'Résiliation annulée',
   pushContractReadyTitle: 'Contrat de bail prêt',
   pushConfigChangedTitle: 'Tarification mise à jour',
   pushConfigChangeCancelledTitle: 'Changement de tarification annulé',
@@ -195,6 +209,10 @@ const fr = {
     'Votre réservation pour « {listingTitle} » a été annulée.',
   pushBookingCancelledByTenantBody:
     '{tenantName} a annulé sa réservation pour « {listingTitle} ».',
+  pushBookingCompletedTenantBody:
+    'Votre séjour à « {listingTitle} » est terminé. Laissez un avis !',
+  pushBookingCompletedLandlordBody:
+    'Le séjour pour « {listingTitle} » est terminé, les fonds ont été libérés.',
   pushReviewReceivedBody:
     '{tenantName} a laissé {stars} sur « {listingTitle} ».',
   pushVerifAssignedBody:
@@ -236,6 +254,10 @@ const fr = {
   pushMonthlyRejectedBody:
     'Votre demande pour « {listingTitle} » a été refusée.',
   pushLeaseTerminatedBody: 'Le bail pour « {listingTitle} » a été résilié.',
+  pushLeaseTerminationScheduledBody:
+    'Résiliation programmée pour « {listingTitle} », effective le {date}.',
+  pushLeaseTerminationCancelledBody:
+    'La résiliation programmée pour « {listingTitle} » a été annulée.',
   pushContractReadyBody:
     'Le contrat de bail pour « {listingTitle} » est prêt à télécharger.',
   pushConfigChangedBody:
@@ -354,6 +376,9 @@ const en: Record<MessageKey, string> = {
   mailBookingCancelledSubject: 'Booking cancelled — {listingTitle}',
   mailBookingCancelledBody:
     'Your booking for <strong>{listingTitle}</strong> has been <strong>cancelled</strong>.',
+  mailBookingCompletedSubject: 'Stay completed — {listingTitle}',
+  mailBookingCompletedBody:
+    'Your stay at <strong>{listingTitle}</strong> is now complete. Feel free to leave a review to share your experience.',
   mailContactLabel: 'Contact: {email}',
 
   /* Email — monthly rental (hybrid system) */
@@ -369,6 +394,14 @@ const en: Record<MessageKey, string> = {
   mailLeaseTerminatedSubject: 'Lease ended — {listingTitle}',
   mailLeaseTerminatedBody:
     'The monthly lease for <strong>{listingTitle}</strong> has ended.',
+  mailLeaseTerminationScheduledSubject:
+    'Lease termination notice — {listingTitle}',
+  mailLeaseTerminationScheduledBody:
+    'A termination request has been made for the monthly lease of <strong>{listingTitle}</strong>. Unless cancelled, it will take effect on <strong>{date}</strong>.',
+  mailLeaseTerminationCancelledSubject:
+    'Lease termination cancelled — {listingTitle}',
+  mailLeaseTerminationCancelledBody:
+    'The scheduled termination for the monthly lease of <strong>{listingTitle}</strong> has been cancelled. The lease continues as normal.',
   mailContractReadySubject: 'Your lease contract is ready — {listingTitle}',
   mailContractReadyBody:
     "The lease contract for <strong>{listingTitle}</strong> is available to download from your AlloAppart account. It's a template with blank spaces left for your personal details (ID card, etc.): print it, fill it in, and sign it by hand with the landlord when you meet at the property.",
@@ -394,6 +427,8 @@ const en: Record<MessageKey, string> = {
   pushBookingConfirmedTitle: 'Booking confirmed!',
   pushBookingCancelledTitle: 'Booking cancelled',
   pushBookingCancelledByTenantTitle: 'Booking cancelled by the tenant',
+  pushBookingCompletedTenantTitle: 'Stay completed!',
+  pushBookingCompletedLandlordTitle: 'Booking completed',
   pushReviewReceivedTitle: 'New review received',
   pushVerifAssignedTitle: 'New AlloVerified mission',
   pushVerifScheduledTitle: 'Agent assigned to your verification',
@@ -417,6 +452,8 @@ const en: Record<MessageKey, string> = {
   pushMonthlyApprovedTitle: 'Request approved!',
   pushMonthlyRejectedTitle: 'Request declined',
   pushLeaseTerminatedTitle: 'Lease ended',
+  pushLeaseTerminationScheduledTitle: 'Lease termination notice',
+  pushLeaseTerminationCancelledTitle: 'Termination cancelled',
   pushContractReadyTitle: 'Lease contract ready',
   pushConfigChangedTitle: 'Pricing updated',
   pushConfigChangeCancelledTitle: 'Pricing change cancelled',
@@ -430,6 +467,10 @@ const en: Record<MessageKey, string> = {
     'Your booking for “{listingTitle}” has been cancelled.',
   pushBookingCancelledByTenantBody:
     '{tenantName} cancelled their booking for “{listingTitle}”.',
+  pushBookingCompletedTenantBody:
+    'Your stay at “{listingTitle}” is complete. Leave a review!',
+  pushBookingCompletedLandlordBody:
+    'The stay for “{listingTitle}” is complete, funds have been released.',
   pushReviewReceivedBody: '{tenantName} left {stars} on “{listingTitle}”.',
   pushVerifAssignedBody: 'You have been assigned to verify “{listingTitle}”.',
   pushVerifScheduledBody:
@@ -469,6 +510,10 @@ const en: Record<MessageKey, string> = {
     'Your request for “{listingTitle}” is approved — pay to confirm.',
   pushMonthlyRejectedBody: 'Your request for “{listingTitle}” was declined.',
   pushLeaseTerminatedBody: 'The lease for “{listingTitle}” has ended.',
+  pushLeaseTerminationScheduledBody:
+    'Termination scheduled for “{listingTitle}”, effective {date}.',
+  pushLeaseTerminationCancelledBody:
+    'The scheduled termination for “{listingTitle}” has been cancelled.',
   pushContractReadyBody:
     'The lease contract for “{listingTitle}” is ready to download.',
   pushConfigChangedBody:
