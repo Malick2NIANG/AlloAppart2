@@ -214,11 +214,13 @@ export default function MessagesShell({ emptyHint, space }: Props) {
     finally { setLoadingRooms(false); }
   }, [getToken]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void loadRooms(); }, [loadRooms]);
 
   // Auto-ouvrir la room passée en ?room= (ex: depuis la page vérifications)
   useEffect(() => {
     if (roomFromUrl && rooms.length > 0 && !activeRoomId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronisation depuis l'URL
       setActiveRoomId(roomFromUrl);
     }
   }, [roomFromUrl, rooms, activeRoomId]);
@@ -247,6 +249,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
 
   useEffect(() => {
     if (!activeRoomId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset avant fetch des messages de la nouvelle room
     setMessages([]);
     void loadMessages(activeRoomId);
     setTimeout(() => inputRef.current?.focus(), 100);

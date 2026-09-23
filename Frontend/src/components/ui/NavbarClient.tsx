@@ -207,6 +207,7 @@ export default function NavbarClient({ locale, labels }: Props) {
     } catch {}
   }, [isSignedIn, getToken]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void refreshProfile(); }, [refreshProfile]);
 
   /* Écoute l'event émis par la page profil après une sauvegarde */

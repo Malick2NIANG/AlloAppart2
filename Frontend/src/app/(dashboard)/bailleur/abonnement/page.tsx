@@ -94,7 +94,6 @@ function AbonnementContent() {
     if (status === 'success') {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronisation depuis l'URL (retour de paiement PayDunya), déclenche un toast + un polling
       showToast('success', t('abonnementPaymentSuccess'));
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronisation depuis l'URL (retour de paiement PayDunya), déclenche un polling
       setPolling(true);
       let attempts = 0;
       pollRef.current = setInterval(() => {

@@ -70,6 +70,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
     } catch {}
   }, [getToken]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void fetchNotifs(); }, [fetchNotifs]);
 
   /* ── Pusher temps réel ────────────────────────────────────── */

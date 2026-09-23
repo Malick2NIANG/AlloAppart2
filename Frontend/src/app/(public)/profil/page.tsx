@@ -30,6 +30,7 @@ export default function ProfilPage() {
   /* Charger les données Clerk + API au montage */
   useEffect(() => {
     if (!user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- état synchronisé depuis l'objet user de Clerk
     setFirstName(user.firstName ?? '');
     setLastName(user.lastName ?? '');
     setPhone(user.phoneNumbers?.[0]?.phoneNumber ?? '');

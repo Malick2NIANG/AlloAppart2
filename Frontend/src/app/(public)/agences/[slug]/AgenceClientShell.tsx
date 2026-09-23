@@ -50,6 +50,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
   // fonctionne aussi sur la vitrine : elle pousse q/minPrice/maxPrice dans
   // l'URL de cette même page au lieu de partir vers /listings.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronisation depuis l'URL (recherche globale de la Navbar)
     setSearch(searchParams.get('q') ?? '');
     setMinPrice(searchParams.get('minPrice') ?? '');
     setMaxPrice(searchParams.get('maxPrice') ?? '');
@@ -57,6 +58,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
 
   // Revenir à la page 1 dès qu'un filtre ou la taille de page change.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset pagination suite à un changement de filtre
     setPage(1);
   }, [search, minPrice, maxPrice, typeFilter, rentalFilter, pageSize]);
 

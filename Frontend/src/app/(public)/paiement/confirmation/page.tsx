@@ -25,6 +25,7 @@ export default function PaiementConfirmationPage() {
 
   useEffect(() => {
     if (!bookingId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronisation depuis l'URL (retour de paiement PayDunya)
       setErrorMsg(t('noBookingRef'));
       setStatus('error');
       return;

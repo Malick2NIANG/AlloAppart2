@@ -56,6 +56,7 @@ export default function SubscriptionAlert() {
 
   useEffect(() => {
     if (!sessionId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronisation depuis sessionStorage (source externe)
     setDismissedExpired(sessionStorage.getItem(expiredKey) === '1');
   }, [sessionId, expiredKey]);
 

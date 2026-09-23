@@ -48,6 +48,7 @@ export default function PhotoCropper({ src, onConfirm, onCancel, onError, square
 
   /* ── Charger l'image ──────────────────────────────────────── */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset avant chargement d'une ressource externe (image)
     setReady(false);
     const img = new Image();
     img.crossOrigin = 'anonymous'; // évite un canvas "tainted" pour une image distante (Cloudinary)
