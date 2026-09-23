@@ -98,9 +98,11 @@ export default function AdminDashboardPage() {
     }
   }, [getToken, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(false); }, [load]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronisation avec l'horloge externe (tick chaque seconde)
     setClock(new Date());
     const id = setInterval(() => setClock(new Date()), 1000);
     return () => clearInterval(id);

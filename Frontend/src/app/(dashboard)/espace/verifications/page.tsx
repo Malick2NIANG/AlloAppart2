@@ -156,6 +156,7 @@ export default function AdminVerificationsPage() {
   }, [getToken, LIMIT]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial/pagination, setState après résolution async
     fetchData(tab, statusFilter, page);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, statusFilter, page]);

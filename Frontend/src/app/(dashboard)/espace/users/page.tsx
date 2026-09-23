@@ -100,6 +100,7 @@ export default function AdminUsersPage() {
   }, [getToken]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial/pagination, setState après résolution async
   useEffect(() => { void fetchUsers(page, limit, q, role); }, [page, limit, role]);
 
   const handleSearchChange = (v: string) => {

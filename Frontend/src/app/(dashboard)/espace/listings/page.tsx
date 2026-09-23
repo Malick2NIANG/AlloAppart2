@@ -120,6 +120,7 @@ function AdminListingsContent() {
   }, [getToken, limit]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial/pagination, setState après résolution async
     fetchListings(page, status, city);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, status]);
@@ -144,6 +145,7 @@ function AdminListingsContent() {
   }, [getToken]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
     fetchStatusCounts(city);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

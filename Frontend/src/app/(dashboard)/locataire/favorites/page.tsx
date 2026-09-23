@@ -34,6 +34,7 @@ export default function FavoritesPage() {
     });
   }, [getToken, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { load(); }, [load]);
 
   const remove = async (listingId: string) => {

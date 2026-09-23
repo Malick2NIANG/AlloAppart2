@@ -85,6 +85,7 @@ export default function LocataireBookingsPage() {
     }
   }, [getToken, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const reviewedBookingIds = new Set(myReviews.map((r) => r.bookingId));
@@ -104,6 +105,7 @@ export default function LocataireBookingsPage() {
   useEffect(() => {
     if (loading || tabInitialized.current) return;
     tabInitialized.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- choix de l'onglet par défaut une fois les données async arrivées, ne peut pas être calculé au rendu
     if (pending.length > 0) setActiveTab('pending');
     else if (confirmed.length > 0) setActiveTab('confirmed');
     else if (archived.length > 0) setActiveTab('archived');
@@ -140,10 +142,6 @@ export default function LocataireBookingsPage() {
   const pageCount    = Math.max(1, Math.ceil(filteredItems.length / perPage));
   const clampedPage  = Math.min(page, pageCount);
   const visibleItems = filteredItems.slice((clampedPage - 1) * perPage, clampedPage * perPage);
-
-  useEffect(() => {
-    if (page !== clampedPage) setPage(clampedPage);
-  }, [page, clampedPage]);
 
   if (loading) {
     return (

@@ -101,6 +101,7 @@ export default function AdminSubscriptionsPage() {
   }, [getToken, limit]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial/pagination, setState après résolution async
     fetchData(page, status, search);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, status]);
@@ -125,6 +126,7 @@ export default function AdminSubscriptionsPage() {
   }, [getToken]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
     fetchStatusCounts('');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -100,6 +100,7 @@ export default function AdminBookingsPage() {
     }
   }, [getToken, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial/pagination, setState après résolution async
   useEffect(() => { fetchData(page, group, debouncedSearch, limit); }, [fetchData, page, group, debouncedSearch, limit]);
 
   useEffect(() => {

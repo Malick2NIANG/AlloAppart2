@@ -82,7 +82,9 @@ export default function AdminReviewsPage() {
     }
   }, [getToken, limit, ratingFilter]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial/pagination, setState après résolution async
   useEffect(() => { fetchData(page); }, [fetchData, page]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void fetchRatingCounts(); }, [fetchRatingCounts]);
 
   const handleFilterChange = (rf: RatingFilter) => {
