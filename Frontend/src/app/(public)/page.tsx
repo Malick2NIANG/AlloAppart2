@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { getTranslations, getLocale } from 'next-intl/server';
 import { auth } from '@clerk/nextjs/server';
 import FavoriteButton from '@/components/ui/FavoriteButton';
+import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import GreetingHero from '@/components/ui/GreetingHero';
 import GreetingCTA from '@/components/ui/GreetingCTA';
 import { getListingPriceAmounts, type Listing, type PaginatedResponse } from '@/types';
@@ -14,8 +15,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1
 
 async function fetchRecentListings(): Promise<Listing[]> {
   try {
+    // Le tri (vérifié+boosté > boosté > vérifié > simple) est géré côté
+    // backend dans ListingsService.findAll — même logique de priorité que
+    // /listings, pas de retri ad hoc ici.
+    // Cache aligné sur le revalidate de page (300s) — un cache de 3600s ici
+    // (précédemment) désynchronisait l'accueil de /listings, qui ne cache
+    // pas du tout : jusqu'à 1h de décalage sur l'ordre et les badges.
     const res = await fetch(`${API_URL}/listings?limit=8&page=1`, {
-      next: { revalidate: 3600 },
+      next: { revalidate: 300 },
     });
     if (!res.ok) return [];
     const json: PaginatedResponse<Listing> = await res.json();
@@ -351,7 +358,10 @@ export default async function HomePage() {
 
                   {/* Corps */}
                   <div className="p-4">
-                    <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">{l.title}</h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">{l.title}</h3>
+                      {l.isVerified && <AlloVerifieBadge size="sm" className="shrink-0 mt-0.5" />}
+                    </div>
                     <p className="mt-1 flex items-center gap-1 text-sm text-sub">
                       <i className="fa-solid fa-location-dot text-gold-dark text-xs" />
                       {l.city}
@@ -532,7 +542,7 @@ export default async function HomePage() {
               <Link
                 key={r.slug}
                 href={`/listings?region=${encodeURIComponent(r.slug)}&limit=6&page=1`}
-                className="group flex h-32 flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-bg hover:border-gold-dark/50 hover:bg-gold-pale/30 transition-all duration-300"
+                className="group flex h-32 flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-bg hover:border-gold-dark/50 hover:bg-gold-pale/30 dark:hover:bg-gold-dark/10 transition-all duration-300"
               >
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-dark transition-transform duration-300 group-hover:scale-110">
                   <i className="fa-solid fa-location-dot text-sm" />

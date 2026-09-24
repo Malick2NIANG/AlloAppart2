@@ -135,7 +135,7 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
         )}
       </div>
 
-      <div className="rounded-xl border border-gold/30 bg-gold-pale/50 p-3.5 space-y-1.5">
+      <div className="rounded-xl border border-gold/30 dark:border-gold/20 bg-gold-pale/50 dark:bg-gold-dark/10 p-3.5 space-y-1.5">
         <p className="text-xs text-gold-dark font-medium flex items-center gap-1.5">
           <i className="fa-solid fa-circle-info text-xs" />
           {t('infoNoteTitle')}

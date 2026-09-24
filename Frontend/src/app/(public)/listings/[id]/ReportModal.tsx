@@ -160,7 +160,7 @@ export default function ReportModal({ listingId, onClose }: Props) {
               className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-sm text-left transition ${
                 reason === r.value
                   ? 'border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400'
-                  : 'border-line bg-card text-text hover:border-line/80 hover:bg-gold-pale/30'
+                  : 'border-line bg-card text-text hover:border-line/80 hover:bg-gold-pale/30 dark:hover:bg-gold-dark/10'
               }`}
             >
               <i className={`fa-solid ${r.icon} text-xs w-4 shrink-0 ${reason === r.value ? 'text-red-500' : 'text-sub'}`} />

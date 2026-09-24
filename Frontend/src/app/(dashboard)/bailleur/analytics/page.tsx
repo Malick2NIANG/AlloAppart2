@@ -507,7 +507,7 @@ export default function VitrineAnalyticsPage() {
 
       {/* Vitrine link */}
       {stats.agencySlug && (
-        <div className="rounded-2xl border border-gold/30 bg-gold-pale/30 p-5 flex items-center justify-between gap-3 flex-wrap">
+        <div className="rounded-2xl border border-gold/30 dark:border-gold/20 bg-gold-pale/30 dark:bg-gold-dark/10 p-5 flex items-center justify-between gap-3 flex-wrap">
           <div>
             <p className="text-sm font-semibold text-text">{t('analyticsVitrinePublicTitle')}</p>
             <p className="text-xs text-sub mt-0.5">
@@ -535,7 +535,7 @@ function LockedFeaturePanel({
   icon: string; title: string; desc: string; cta: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-dashed border-gold/40 bg-gold-pale/20 p-6 flex flex-col items-center text-center gap-3">
+    <div className="relative overflow-hidden rounded-2xl border border-dashed border-gold/40 dark:border-gold/25 bg-gold-pale/20 dark:bg-gold-dark/10 p-6 flex flex-col items-center text-center gap-3">
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-gold to-gold-light">
         <i className={`fa-solid ${icon} text-white text-sm`} />
       </div>

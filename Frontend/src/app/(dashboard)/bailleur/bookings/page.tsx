@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
@@ -59,19 +59,10 @@ export default function BailleurBookingsPage() {
   const archived = bookings.filter((b) =>
     b.status === 'CANCELLED' || b.status === 'COMPLETED' || b.status === 'REJECTED' || b.status === 'TERMINATED');
 
-  // Onglet par défaut : "En attente" s'il y a quelque chose à traiter, sinon
-  // le premier onglet non vide — même logique que la page locataire. Ne se
-  // déclenche qu'une fois, au tout premier chargement.
+  // Onglet par défaut : toujours "En attente" pour bailleur/agence — ce sont
+  // les réservations qui demandent une action de leur part, contrairement à
+  // la page locataire qui, elle, retombe sur le premier onglet non vide.
   const [activeTab, setActiveTab] = useState<'pending' | 'confirmed' | 'archived'>('pending');
-  const tabInitialized = useRef(false);
-  useEffect(() => {
-    if (loading || tabInitialized.current) return;
-    tabInitialized.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- choix de l'onglet par défaut une fois les données async arrivées, ne peut pas être calculé au rendu
-    if (pending.length > 0) setActiveTab('pending');
-    else if (active.length > 0) setActiveTab('confirmed');
-    else if (archived.length > 0) setActiveTab('archived');
-  }, [loading, pending.length, active.length, archived.length]);
 
   // Les 3 cartes restent toujours affichées (même quand un groupe est vide),
   // même pattern StatFilterCard que les pages admin — contrairement aux
@@ -233,7 +224,7 @@ function LandlordBookingCard({
         { listingId: booking.listingId, tenantId: booking.tenantId },
         token
       );
-      router.push(`/bailleur/messages/${room.id}`);
+      router.push(`/bailleur/messages?room=${room.id}`);
     } catch {
       toast.error(t('contactError'));
     }

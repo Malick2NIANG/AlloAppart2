@@ -49,10 +49,17 @@ export class MessagesService {
   ) {}
 
   async findRooms(userId: string) {
-    return this.prisma.messageRoom.findMany({
+    const rooms = await this.prisma.messageRoom.findMany({
       where: { participants: { some: { id: userId } } },
       include: {
-        listing: { select: { id: true, title: true, images: true } },
+        // ownerId : indispensable côté front pour distinguer, sur un compte
+        // dual bailleur+locataire, les rooms où l'utilisateur est propriétaire
+        // de l'annonce de celles où il est le locataire qui a engagé la
+        // conversation — sinon le badge "non lus" de la sidebar affiche le
+        // même total sur les deux entrées "Messages" (cf. décision du 2026-09-24).
+        listing: {
+          select: { id: true, title: true, images: true, ownerId: true },
+        },
         participants: {
           select: {
             id: true,
@@ -68,6 +75,47 @@ export class MessagesService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Statut archivé : migration 20260924140000_add_archived_rooms appliquée
+    // et client Prisma régénéré (2026-09-24) — on utilise désormais l'API
+    // modèle plutôt que le SQL brut utilisé le temps que la migration soit
+    // appliquée en base.
+    const archivedRows = await this.prisma.archivedRoom.findMany({
+      where: { userId },
+      select: { roomId: true },
+    });
+    const archivedIds = new Set(archivedRows.map((r) => r.roomId));
+
+    return rooms.map((room) => ({
+      ...room,
+      archived: archivedIds.has(room.id),
+    }));
+  }
+
+  // Archivage à la WhatsApp : état par utilisateur, indépendant des autres
+  // participants de la conversation.
+  async archiveRoom(
+    roomId: string,
+    userId: string,
+  ): Promise<{ success: true }> {
+    await this.assertParticipant(roomId, userId);
+    await this.prisma.archivedRoom.upsert({
+      where: { userId_roomId: { userId, roomId } },
+      create: { userId, roomId },
+      update: {},
+    });
+    return { success: true };
+  }
+
+  async unarchiveRoom(
+    roomId: string,
+    userId: string,
+  ): Promise<{ success: true }> {
+    await this.assertParticipant(roomId, userId);
+    await this.prisma.archivedRoom.deleteMany({
+      where: { userId, roomId },
+    });
+    return { success: true };
   }
 
   async findMessages(roomId: string, userId: string, page = 1, limit = 50) {

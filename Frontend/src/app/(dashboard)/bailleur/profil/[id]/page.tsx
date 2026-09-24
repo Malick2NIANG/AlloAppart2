@@ -89,7 +89,7 @@ export default function ProfilPage() {
   const isAgent    = user.roles.includes('AGENT_TERRAIN');
 
   return (
-    <div className="max-w-2xl mx-auto py-10 px-4">
+    <div className="py-10 px-4">
       {/* Back */}
       <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-sub hover:text-text transition-colors mb-6">
         <i className="fa-solid fa-arrow-left text-xs" /> {t('profilBack')}

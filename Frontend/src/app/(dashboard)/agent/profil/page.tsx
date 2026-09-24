@@ -5,6 +5,7 @@ import { useAuth } from '@clerk/nextjs';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
+import PhoneInput from '@/components/ui/PhoneInput';
 import type { User } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -90,8 +91,7 @@ export default function AgentProfilPage() {
     setSaving(true);
     try {
       const updated = await api.patch<User>('/auth/me', {
-        firstName:    firstName.trim() || undefined,
-        lastName:     lastName.trim()  || undefined,
+        // nom/prénom verrouillés côté UI — non envoyés (voir champs disabled ci-dessus)
         phone:        phone.trim()     || undefined,
         bio:          bio.trim()       || undefined,
         coverageZone: coverageZone.trim() || undefined,
@@ -115,7 +115,7 @@ export default function AgentProfilPage() {
   const statCards = [
     { key: 'scheduled', icon: 'fa-calendar-check', label: t('statScheduledShort'),    val: stats?.assigned      ?? 0, color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-950/30' },
     { key: 'progress',  icon: 'fa-person-walking', label: t('statInProgressLabel'),   val: stats?.inProgress    ?? 0, color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-50 dark:bg-purple-950/30' },
-    { key: 'month',     icon: 'fa-shield-check',   label: t('statThisMonth'),         val: stats?.doneThisMonth ?? 0, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+    { key: 'month',     icon: 'fa-shield-halved',   label: t('statThisMonth'),         val: stats?.doneThisMonth ?? 0, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
     { key: 'rating',    icon: 'fa-star',           label: t('statAvgRatingShort'),
       val: stats?.averageRating != null ? stats.averageRating.toFixed(1) : '—', color: 'text-gold-dark', bg: 'bg-gold-pale' },
   ];
@@ -123,7 +123,7 @@ export default function AgentProfilPage() {
   const accountRows = [
     { key: 'email',  icon: 'fa-envelope',     label: t('accEmail'),               val: user.email },
     { key: 'since',  icon: 'fa-calendar',     label: t('accMemberSince'),         val: new Date(user.createdAt).toLocaleDateString(numLocale, { month: 'long', year: 'numeric' }) },
-    { key: 'certif', icon: 'fa-shield-check', label: t('accTotalCertifications'), val: stats?.doneTotal ?? '—' },
+    { key: 'certif', icon: 'fa-shield-halved', label: t('accTotalCertifications'), val: stats?.doneTotal ?? '—' },
   ];
 
   return (
@@ -131,7 +131,7 @@ export default function AgentProfilPage() {
 
       {/* ── Header ── */}
       <h1 className="text-xl font-extrabold text-text">
-        <i className="fa-solid fa-user-circle text-gold-dark mr-2" />
+        <i className="fa-solid fa-circle-user text-gold-dark mr-2" />
         {t('profileTitle')}
       </h1>
 
@@ -181,31 +181,33 @@ export default function AgentProfilPage() {
           <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
         </div>
 
-        {/* Nom / Prénom */}
+        {/* Nom / Prénom — verrouillés : renseignés par l'admin à la création du compte */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">{t('fieldFirstName')}</label>
-            <input value={firstName} onChange={(e) => setFirstName(e.target.value)}
-              placeholder={t('fieldFirstName')} maxLength={100}
-              className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40" />
+            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+              {t('fieldFirstName')}
+              <i className="fa-solid fa-lock text-[9px] text-sub" />
+            </label>
+            <input value={firstName} disabled readOnly
+              className="w-full rounded-xl border border-line bg-bg/60 px-4 py-2.5 text-sm text-sub cursor-not-allowed" />
           </div>
           <div>
-            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">{t('fieldLastName')}</label>
-            <input value={lastName} onChange={(e) => setLastName(e.target.value)}
-              placeholder={t('fieldLastName')} maxLength={100}
-              className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40" />
+            <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+              {t('fieldLastName')}
+              <i className="fa-solid fa-lock text-[9px] text-sub" />
+            </label>
+            <input value={lastName} disabled readOnly
+              className="w-full rounded-xl border border-line bg-bg/60 px-4 py-2.5 text-sm text-sub cursor-not-allowed" />
           </div>
+          <p className="col-span-2 text-[11px] text-sub -mt-1">
+            <i className="fa-solid fa-circle-info mr-1" />{t('fieldLockedByAdminHint')}
+          </p>
         </div>
 
         {/* Téléphone */}
         <div>
           <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">{t('fieldPhone')}</label>
-          <div className="relative">
-            <i className="fa-solid fa-phone absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-xs" />
-            <input value={phone} onChange={(e) => setPhone(e.target.value)}
-              type="tel" placeholder={t('fieldPhonePh')}
-              className="w-full rounded-xl border border-line bg-bg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40" />
-          </div>
+          <PhoneInput value={phone} onChange={setPhone} />
         </div>
 
         {/* Zone de couverture */}

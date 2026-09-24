@@ -27,7 +27,6 @@ const PRICING_FIELDS = [
   'nightlyCommissionRate',
   'monthlyCommissionMonths',
   'auditBasicPriceFcfa',
-  'auditFullPriceFcfa',
   'boostPriceFcfa',
 ] as const satisfies readonly ConfigFieldKey[];
 
@@ -38,7 +37,6 @@ const CLEAR_PENDING = {
   pendingNightlyCommissionRate: null,
   pendingMonthlyCommissionMonths: null,
   pendingAuditBasicPriceFcfa: null,
-  pendingAuditFullPriceFcfa: null,
   pendingBoostPriceFcfa: null,
   pendingEffectiveAt: null,
   pendingSetByEmail: null,
@@ -66,7 +64,6 @@ export interface PendingPlatformConfig {
   nightlyCommissionRate: number;
   monthlyCommissionMonths: number;
   auditBasicPriceFcfa: number;
-  auditFullPriceFcfa: number;
   boostPriceFcfa: number;
   effectiveAt: Date;
   setByEmail: string | null;
@@ -78,7 +75,6 @@ export interface PublicPlatformConfig {
   nightlyCommissionRate: number;
   monthlyCommissionMonths: number;
   auditBasicPriceFcfa: number;
-  auditFullPriceFcfa: number;
   boostPriceFcfa: number;
   updatedAt: Date;
   updatedByEmail: string | null;
@@ -92,7 +88,6 @@ export interface PlatformPricing {
   nightlyCommissionRate: number;
   monthlyCommissionMonths: number;
   auditBasicPriceFcfa: number;
-  auditFullPriceFcfa: number;
   boostPriceFcfa: number;
 }
 
@@ -154,8 +149,6 @@ export class PlatformConfigService {
           row.pendingMonthlyCommissionMonths ?? row.monthlyCommissionMonths,
         auditBasicPriceFcfa:
           row.pendingAuditBasicPriceFcfa ?? row.auditBasicPriceFcfa,
-        auditFullPriceFcfa:
-          row.pendingAuditFullPriceFcfa ?? row.auditFullPriceFcfa,
         boostPriceFcfa: row.pendingBoostPriceFcfa ?? row.boostPriceFcfa,
         ...CLEAR_PENDING,
       },
@@ -173,7 +166,6 @@ export class PlatformConfigService {
       nightlyCommissionRate: row.nightlyCommissionRate,
       monthlyCommissionMonths: row.monthlyCommissionMonths,
       auditBasicPriceFcfa: row.auditBasicPriceFcfa,
-      auditFullPriceFcfa: row.auditFullPriceFcfa,
       boostPriceFcfa: row.boostPriceFcfa,
       updatedAt: row.updatedAt,
       updatedByEmail: row.updatedByEmail,
@@ -189,8 +181,6 @@ export class PlatformConfigService {
               row.pendingMonthlyCommissionMonths ?? row.monthlyCommissionMonths,
             auditBasicPriceFcfa:
               row.pendingAuditBasicPriceFcfa ?? row.auditBasicPriceFcfa,
-            auditFullPriceFcfa:
-              row.pendingAuditFullPriceFcfa ?? row.auditFullPriceFcfa,
             boostPriceFcfa: row.pendingBoostPriceFcfa ?? row.boostPriceFcfa,
             effectiveAt: row.pendingEffectiveAt,
             setByEmail: row.pendingSetByEmail,
@@ -212,7 +202,6 @@ export class PlatformConfigService {
       nightlyCommissionRate: row.nightlyCommissionRate,
       monthlyCommissionMonths: row.monthlyCommissionMonths,
       auditBasicPriceFcfa: row.auditBasicPriceFcfa,
-      auditFullPriceFcfa: row.auditFullPriceFcfa,
       boostPriceFcfa: row.boostPriceFcfa,
     };
   }
@@ -300,7 +289,6 @@ export class PlatformConfigService {
             nightlyCommissionRate: dto.nightlyCommissionRate,
             monthlyCommissionMonths: dto.monthlyCommissionMonths,
             auditBasicPriceFcfa: dto.auditBasicPriceFcfa,
-            auditFullPriceFcfa: dto.auditFullPriceFcfa,
             boostPriceFcfa: dto.boostPriceFcfa,
             updatedByEmail: admin.email,
             // Un changement immédiat écrase toute modification déjà programmée.
@@ -320,8 +308,6 @@ export class PlatformConfigService {
               dto.monthlyCommissionMonths ?? before.monthlyCommissionMonths,
             pendingAuditBasicPriceFcfa:
               dto.auditBasicPriceFcfa ?? before.auditBasicPriceFcfa,
-            pendingAuditFullPriceFcfa:
-              dto.auditFullPriceFcfa ?? before.auditFullPriceFcfa,
             pendingBoostPriceFcfa: dto.boostPriceFcfa ?? before.boostPriceFcfa,
             pendingEffectiveAt: effectiveAt,
             pendingSetByEmail: admin.email,

@@ -65,6 +65,16 @@ export class MessagesController {
     return this.messagesService.markRead(id, user.id);
   }
 
+  @Post('rooms/:id/archive')
+  archiveRoom(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.messagesService.archiveRoom(id, user.id);
+  }
+
+  @Delete('rooms/:id/archive')
+  unarchiveRoom(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.messagesService.unarchiveRoom(id, user.id);
+  }
+
   @Patch(':messageId')
   editMessage(
     @Param('messageId') messageId: string,

@@ -2,16 +2,17 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
 
-// Comptes pas encore créés — rendu désactivé plus bas (voir la Col 1) sans
-// supprimer les données, pour réactiver l'affichage en un clin d'œil une
-// fois les vrais liens renseignés.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// Un href '#' est filtré au rendu plus bas (voir Col 1) — pratique pour
+// masquer un réseau tant que son lien n'existe pas encore.
 const SOCIALS = [
-  { icon: 'fa-brands fa-facebook',  href: '#', label: 'Facebook', color: 'hover:text-blue-600 dark:hover:text-blue-400  hover:border-blue-600'  },
-  { icon: 'fa-brands fa-instagram', href: '#', label: 'Instagram',color: 'hover:text-pink-500  hover:border-pink-500'  },
-  { icon: 'fa-brands fa-x-twitter', href: '#', label: 'X',        color: 'hover:text-text      hover:border-text'      },
-  { icon: 'fa-brands fa-linkedin',  href: '#', label: 'LinkedIn', color: 'hover:text-blue-500  hover:border-blue-500'  },
-  { icon: 'fa-brands fa-tiktok',    href: '#', label: 'TikTok',   color: 'hover:text-text      hover:border-text'      },
+  { icon: 'fa-brands fa-facebook',  href: 'https://www.facebook.com/AlloAppart.sn/',    label: 'Facebook', color: 'hover:text-blue-600 dark:hover:text-blue-400  hover:border-blue-600'  },
+  { icon: 'fa-brands fa-instagram', href: 'https://www.instagram.com/alloappart.sn',    label: 'Instagram',color: 'hover:text-pink-500  hover:border-pink-500'  },
+  { icon: 'fa-brands fa-x-twitter', href: 'https://x.com/alloappartsn',                  label: 'X',        color: 'hover:text-text      hover:border-text'      },
+  // TODO: remplacer par le lien de la future Page Entreprise
+  // (linkedin.com/company/alloappart) une fois créée — voir échange du
+  // 2026-09-24. Lien de profil personnel utilisé en attendant.
+  { icon: 'fa-brands fa-linkedin',  href: 'https://www.linkedin.com/in/alloappart-sénégal-3bb59243a', label: 'LinkedIn', color: 'hover:text-blue-500  hover:border-blue-500'  },
+  { icon: 'fa-brands fa-tiktok',    href: 'https://www.tiktok.com/@elhadji_101',         label: 'TikTok',   color: 'hover:text-text      hover:border-text'      },
 ];
 
 export default async function Footer() {
@@ -50,21 +51,23 @@ export default async function Footer() {
             <p className="text-sm leading-relaxed text-sub max-w-55">
               {t('tagline')}
             </p>
-            {/* Réseaux sociaux masqués tant que les comptes ne sont pas créés.
-                Décommenter dès que les vrais liens (href) remplacent les '#'
-                dans le tableau SOCIALS ci-dessus. */}
-            {/* <div className="flex flex-wrap gap-2 pt-1">
-              {SOCIALS.map((s) => (
+            {/* N'affiche que les réseaux dont le lien réel est renseigné
+                (href !== '#') — X et LinkedIn réapparaîtront seuls dès que
+                leur href sera mis à jour dans SOCIALS ci-dessus. */}
+            <div className="flex flex-wrap gap-2 pt-1">
+              {SOCIALS.filter((s) => s.href !== '#').map((s) => (
                 <a
                   key={s.label}
                   href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={s.label}
                   className={`flex h-11 w-11 items-center justify-center rounded-full border border-line bg-card text-sub transition-all duration-200 hover:scale-110 ${s.color}`}
                 >
                   <i className={`${s.icon} text-base`} />
                 </a>
               ))}
-            </div> */}
+            </div>
           </div>
 
           {/* Col 2 — Navigation */}

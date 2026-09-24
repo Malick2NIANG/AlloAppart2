@@ -560,8 +560,6 @@ function AdminVerificationCard({
         <p className="text-sm text-sub mt-0.5">
           <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
           {v.listing?.city}
-          <span className="mx-1.5">·</span>
-          <span className="uppercase text-xs tracking-wide">{v.auditType}</span>
         </p>
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           {v.scheduledAt && (

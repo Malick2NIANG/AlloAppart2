@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import AvatarCropper from '@/components/ui/AvatarCropper';
+import PhoneInput from '@/components/ui/PhoneInput';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -185,7 +186,7 @@ export default function ProfilPage() {
         {/* Formulaire */}
         <form onSubmit={handleSave} className="rounded-2xl border border-line bg-card p-6 space-y-5">
           <h2 className="text-sm font-semibold text-text flex items-center gap-2">
-            <i className="fa-solid fa-user-circle text-gold-dark" /> {t('personalInfo')}
+            <i className="fa-solid fa-circle-user text-gold-dark" /> {t('personalInfo')}
           </h2>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -214,12 +215,7 @@ export default function ProfilPage() {
           </Field>
 
           <Field label={t('phone')}>
-            <input
-              type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-              placeholder="+221 77 000 00 00"
-              disabled={!isLoaded}
-              className="input-field disabled:opacity-60 disabled:cursor-not-allowed"
-            />
+            <PhoneInput value={phone} onChange={setPhone} disabled={!isLoaded} />
           </Field>
 
           <Field label="Biographie">

@@ -41,12 +41,13 @@ export default function MissionDetailPage() {
   const [activeImg,       setActiveImg]       = useState(0);
   const [showComplete,    setShowComplete]    = useState(false);
   const [showDecline,     setShowDecline]     = useState(false);
+  const [showReject,      setShowReject]      = useState(false);
   const [notes,           setNotes]           = useState('');
   const [reportUrl,       setReportUrl]       = useState('');
-  const [tourUrl,         setTourUrl]         = useState('');
   const [photos,          setPhotos]          = useState<string[]>([]);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [declineReason,   setDeclineReason]   = useState('');
+  const [rejectReason,    setRejectReason]    = useState('');
   const photoRef = useRef<HTMLInputElement>(null);
 
   const STATUS_LABEL: Record<string, string> = {
@@ -76,7 +77,7 @@ export default function MissionDetailPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
 
-  const doAction = async (action: 'start' | 'complete' | 'decline', body?: object) => {
+  const doAction = async (action: 'start' | 'complete' | 'decline' | 'reject', body?: object) => {
     const token = await getToken();
     if (!token) return;
     setActing(true);
@@ -84,10 +85,15 @@ export default function MissionDetailPage() {
       await api.patch(`/verifications/${id}/${action}`, body ?? {}, token);
       toastRef.current.success(
         action === 'start' ? t('actionStarted') :
-        action === 'complete' ? t('actionCertifiedDetail') : t('declineSubmittedAdmin'),
+        action === 'complete' ? t('actionCertifiedDetail') :
+        action === 'reject' ? t('actionRejected') : t('declineSubmittedAdmin'),
       );
+      // "start"/"decline" sortent la mission de SCHEDULED (badge sidebar "Mes missions").
+      if (action === 'start' || action === 'decline') {
+        window.dispatchEvent(new CustomEvent('aa-badges-updated', { detail: { kind: 'AGENT_MISSIONS' } }));
+      }
       await load();
-      setShowComplete(false); setShowDecline(false);
+      setShowComplete(false); setShowDecline(false); setShowReject(false);
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message ?? t('genericError');
       toastRef.current.error(msg);
@@ -136,7 +142,7 @@ export default function MissionDetailPage() {
   const images = v.listing?.images ?? [];
 
   return (
-    <div className="space-y-5 max-w-2xl mx-auto">
+    <div className="space-y-5">
 
       {/* ── Retour ── */}
       <Link href="/agent/verifications" className="inline-flex items-center gap-2 text-sm text-sub hover:text-gold-dark transition-colors">
@@ -150,7 +156,7 @@ export default function MissionDetailPage() {
             isInProgress ? 'bg-purple-50 dark:bg-purple-950/30' : isDone ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-blue-50 dark:bg-blue-950/30'
           }`}>
             <i className={`fa-solid text-sm ${
-              isInProgress ? 'fa-person-walking text-purple-600 dark:text-purple-400' : isDone ? 'fa-shield-check text-emerald-600 dark:text-emerald-400' : 'fa-calendar-check text-blue-600 dark:text-blue-400'
+              isInProgress ? 'fa-person-walking text-purple-600 dark:text-purple-400' : isDone ? 'fa-shield-halved text-emerald-600 dark:text-emerald-400' : 'fa-calendar-check text-blue-600 dark:text-blue-400'
             }`} />
           </div>
           <div className="flex-1 min-w-0">
@@ -159,9 +165,6 @@ export default function MissionDetailPage() {
               <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
                 isInProgress ? 'bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400' : isDone ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' : 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400'
               }`}>{STATUS_LABEL[v.status] ?? v.status}</span>
-              <span className="text-[11px] font-medium bg-gold-pale text-gold-dark px-2.5 py-0.5 rounded-full">
-                {v.auditType === 'BASIC' ? t('auditBasic') : t('auditFull')}
-              </span>
             </div>
           </div>
         </div>
@@ -327,7 +330,13 @@ export default function MissionDetailPage() {
           {isInProgress && (
             <button onClick={() => setShowComplete(true)} disabled={acting}
               className="w-full flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3.5 disabled:opacity-50 transition-colors">
-              <i className="fa-solid fa-shield-check text-sm" /> {t('certifyProperty')}
+              <i className="fa-solid fa-shield-halved text-sm" /> {t('certifyProperty')}
+            </button>
+          )}
+          {isInProgress && (
+            <button onClick={() => setShowReject(true)} disabled={acting}
+              className="w-full flex items-center justify-center gap-2 rounded-2xl border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 font-medium py-3 text-sm transition-colors">
+              <i className="fa-solid fa-circle-xmark" /> {t('markNonCompliant')}
             </button>
           )}
           {isScheduled && (
@@ -382,13 +391,6 @@ export default function MissionDetailPage() {
                 <input type="url" value={reportUrl} onChange={(e) => setReportUrl(e.target.value)}
                   placeholder="https://drive.google.com/..." className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-emerald-500" />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-sub uppercase tracking-wide mb-1.5 block">
-                  {t('fieldTour3d')} <span className="text-gold-dark font-bold">AlloVérifié™</span> <span className="text-sub font-normal">{t('fieldOptional')}</span>
-                </label>
-                <input type="url" value={tourUrl} onChange={(e) => setTourUrl(e.target.value)}
-                  placeholder="https://lumalabs.ai/capture/..." className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </div>
             </div>
 
             <div className="flex gap-3 pt-1">
@@ -396,10 +398,10 @@ export default function MissionDetailPage() {
                 className="flex-1 rounded-xl border border-line text-sub hover:bg-bg text-sm font-medium py-2.5 transition-colors">
                 {t('cancel')}
               </button>
-              <button onClick={() => void doAction('complete', { notes: notes.trim() || undefined, reportUrl: reportUrl.trim() || undefined, tourUrl: tourUrl.trim() || undefined, photos: photos.length ? photos : undefined })}
+              <button onClick={() => void doAction('complete', { notes: notes.trim() || undefined, reportUrl: reportUrl.trim() || undefined, photos: photos.length ? photos : undefined })}
                 disabled={acting}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 disabled:opacity-50 transition-colors">
-                {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-shield-check" /> {t('certify')}</>}
+                {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-shield-halved" /> {t('certify')}</>}
               </button>
             </div>
           </div>
@@ -429,6 +431,35 @@ export default function MissionDetailPage() {
                 disabled={!declineReason.trim() || acting}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold py-2.5 disabled:opacity-50 transition-colors">
                 {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-paper-plane text-xs" /> {t('submit')}</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Non conforme (reject) ── */}
+      {showReject && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={(e) => e.target === e.currentTarget && setShowReject(false)}>
+          <div className="w-full max-w-lg bg-card rounded-2xl shadow-xl p-6 space-y-4">
+            <h3 className="font-bold text-text text-lg">{t('rejectModalTitle')}</h3>
+            <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 p-3 flex items-start gap-2">
+              <i className="fa-solid fa-triangle-exclamation text-red-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-red-700 dark:text-red-400">{t('rejectInfo')}</p>
+            </div>
+            <textarea rows={4} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
+              placeholder={t('rejectReasonPh')}
+              maxLength={500}
+              className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-red-400 resize-none" />
+            <p className="text-[11px] text-sub text-right -mt-2">{rejectReason.length}/500</p>
+            <div className="flex gap-3">
+              <button onClick={() => { setShowReject(false); setRejectReason(''); }}
+                className="flex-1 rounded-xl border border-line text-sub hover:bg-bg text-sm font-medium py-2.5 transition-colors">
+                {t('cancel')}
+              </button>
+              <button onClick={() => void doAction('reject', { reason: rejectReason.trim() })}
+                disabled={!rejectReason.trim() || acting}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold py-2.5 disabled:opacity-50 transition-colors">
+                {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-circle-xmark text-xs" /> {t('confirmReject')}</>}
               </button>
             </div>
           </div>

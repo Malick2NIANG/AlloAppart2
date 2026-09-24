@@ -253,7 +253,7 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
         className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 transition-all ${
-          dragging ? 'border-gold bg-gold-pale' : 'border-line hover:border-gold/50 hover:bg-gold-pale/30'
+          dragging ? 'border-gold bg-gold-pale dark:bg-gold-dark/15' : 'border-line hover:border-gold/50 hover:bg-gold-pale/30 dark:hover:bg-gold-dark/10'
         }`}
       >
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">

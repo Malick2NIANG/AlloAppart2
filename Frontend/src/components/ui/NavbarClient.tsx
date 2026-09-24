@@ -95,7 +95,7 @@ function ProfileDropdown({ userName, userEmail, isDemo, demoMode, profileLabel, 
 
       {/* Settings */}
       {[
-        { href: '/profil',          icon: 'fa-solid fa-user-circle',   label: profileLabel },
+        { href: '/profil',          icon: 'fa-solid fa-circle-user',   label: profileLabel },
         { href: '/profil/securite', icon: 'fa-solid fa-shield-halved', label: security     },
       ].map((item) => (
         <Link key={item.href} href={item.href} onClick={onClose}
@@ -541,7 +541,7 @@ export default function NavbarClient({ locale, labels }: Props) {
 
                 <div className="border-t border-line pt-2 mt-1 flex flex-col gap-1">
                   {[
-                    { href: '/profil',          icon: 'fa-solid fa-user-circle',   label: labels.profileLabel },
+                    { href: '/profil',          icon: 'fa-solid fa-circle-user',   label: labels.profileLabel },
                     { href: '/profil/securite', icon: 'fa-solid fa-shield-halved', label: labels.security     },
                   ].map((item) => (
                     <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}

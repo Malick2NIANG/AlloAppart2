@@ -170,6 +170,10 @@ export class ListingsService {
     // ── Calcul du score de visibilité ─────────────────────────────────
     // PRO_AGENCE PRO actif : +200 | PRO_AGENCE STARTER actif : +100
     // Bailleur boosté (boostUntil > maintenant) : +50
+    // AlloVérifié : +25 (additif, pas exclusif avec ce qui précède — une
+    // annonce vérifiée ET boostée doit primer sur une annonce boostée seule,
+    // qui elle-même prime sur une annonce vérifiée seule, qui prime sur une
+    // annonce simple : 75 > 50 > 25 > 0)
     // + boostScore existant (achats de boost)
     const now = new Date();
     const scored = allData.map((listing) => {
@@ -193,6 +197,8 @@ export class ListingsService {
       } else if (listing.boostUntil && listing.boostUntil > now) {
         priority += 50;
       }
+
+      if (listing.isVerified) priority += 25;
 
       return { listing, priority };
     });
@@ -248,7 +254,6 @@ export class ListingsService {
         verifications: {
           select: {
             status: true,
-            auditType: true,
             scheduledAt: true,
             completedAt: true,
             notes: true,
@@ -525,11 +530,20 @@ export class ListingsService {
   async suspendListing(id: string, user: User) {
     if (!user.roles.includes(Role.ADMIN))
       throw new ForbiddenException('Reserve aux administrateurs');
+    const listing = await this.prisma.listing.findUniqueOrThrow({
+      where: { id },
+      select: { title: true, ownerId: true },
+    });
     const updated = await this.prisma.listing.update({
       where: { id },
       data: { status: ListingStatus.SUSPENDED },
     });
     void this.search.deleteListingFromIndex(id).catch(() => undefined);
+    // On notifie le propriétaire de l'issue (annonce suspendue) — jamais le
+    // signalement brut ni l'identité d'un éventuel auteur de signalement.
+    void this.notifications
+      .notifyListingSuspended(listing.ownerId, listing.title)
+      .catch(() => undefined);
     return updated;
   }
 

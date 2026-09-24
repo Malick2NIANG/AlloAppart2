@@ -174,9 +174,11 @@ const fr = {
   pushVerifInProgressTitle: 'Visite AlloVérifié en cours',
   pushVerifDoneTitle: '✅ Vérification terminée !',
   pushVerifDeclinedTitle: 'Agent indisponible pour votre mission',
+  pushVerifRejectedTitle: 'Bien non conforme — vérification refusée',
   pushVerifValidatedTitle: '🏅 Badge AlloVérifié accordé !',
   pushListingReportedTitle: 'Nouveau signalement d’annonce',
   pushListingReportedUrgentTitle: '🚨 Annonce signalée plusieurs fois',
+  pushListingSuspendedTitle: '⚠️ Annonce suspendue',
   pushDeclineRequestTitle: 'Demande de déclin à approuver',
   pushVerifRequestedTitle: 'Nouvelle demande AlloVérifié',
   pushNewMessageTitle: 'Nouveau message',
@@ -224,10 +226,16 @@ const fr = {
     'La visite de « {listingTitle} » est terminée. En attente de validation admin.',
   pushVerifDeclinedBody:
     'L’agent a décliné la mission pour « {listingTitle} ». Un autre agent sera assigné.',
+  pushVerifRejectedCreditBody:
+    'L’agent a jugé « {listingTitle} » non conforme : {reason}. Corrigez les points signalés puis soumettez une nouvelle demande — la revisite sera gratuite grâce à un crédit AlloVérifié.',
+  pushVerifRejectedBody:
+    'L’agent a jugé « {listingTitle} » non conforme : {reason}. Vous pouvez soumettre une nouvelle demande une fois les corrections faites.',
   pushVerifValidatedBody:
     'Votre annonce « {listingTitle} » a obtenu le badge AlloVérifié.',
   pushListingReportedBody:
     '« {listingTitle} » signalée par {reporterName}. Motif : {reason}. ({count} signalement(s) au total)',
+  pushListingSuspendedBody:
+    'Votre annonce « {listingTitle} » a été suspendue par un administrateur après examen. Elle n’est plus visible publiquement. Contactez le support pour plus de détails.',
   pushDeclineRequestBody:
     'Un agent demande à décliner la mission « {listingTitle} ». Approbation requise.',
   pushVerifRequestedBody:
@@ -435,9 +443,11 @@ const en: Record<MessageKey, string> = {
   pushVerifInProgressTitle: 'AlloVerified visit in progress',
   pushVerifDoneTitle: '✅ Verification completed!',
   pushVerifDeclinedTitle: 'Agent unavailable for your mission',
+  pushVerifRejectedTitle: 'Property not compliant — verification rejected',
   pushVerifValidatedTitle: '🏅 AlloVerified badge granted!',
   pushListingReportedTitle: 'New listing report',
   pushListingReportedUrgentTitle: '🚨 Listing reported multiple times',
+  pushListingSuspendedTitle: '⚠️ Listing suspended',
   pushDeclineRequestTitle: 'Decline request to approve',
   pushVerifRequestedTitle: 'New AlloVerified request',
   pushNewMessageTitle: 'New message',
@@ -480,10 +490,16 @@ const en: Record<MessageKey, string> = {
     'The visit for “{listingTitle}” is complete. Awaiting admin approval.',
   pushVerifDeclinedBody:
     'The agent declined the mission for “{listingTitle}”. Another agent will be assigned.',
+  pushVerifRejectedCreditBody:
+    'The agent found “{listingTitle}” non-compliant: {reason}. Fix the issues and submit a new request — the revisit will be free thanks to an AlloVerified credit.',
+  pushVerifRejectedBody:
+    'The agent found “{listingTitle}” non-compliant: {reason}. You can submit a new request once the issues are fixed.',
   pushVerifValidatedBody:
     'Your listing “{listingTitle}” has been awarded the AlloVerified badge.',
   pushListingReportedBody:
     '“{listingTitle}” reported by {reporterName}. Reason: {reason}. ({count} report(s) in total)',
+  pushListingSuspendedBody:
+    'Your listing “{listingTitle}” has been suspended by an administrator after review. It is no longer publicly visible. Contact support for more details.',
   pushDeclineRequestBody:
     'An agent is requesting to decline the mission “{listingTitle}”. Approval required.',
   pushVerifRequestedBody:

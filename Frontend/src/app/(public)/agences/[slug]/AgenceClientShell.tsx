@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
@@ -10,6 +11,7 @@ import { getAgencyColorOption } from '@/lib/agencyColors';
 import { getListingPriceAmounts } from '@/types';
 import type { User } from '@/types';
 import { useToast } from '@/components/ui/Toast';
+import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import type { Agency, AgencyListing } from './page';
 
 type RentalFilter = 'ALL' | 'NIGHTLY' | 'MONTHLY';
@@ -284,83 +286,79 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {pageListings.map((listing) => {
               const isActive = listing.boostUntil && new Date(listing.boostUntil) > new Date();
-              const img      = listing.images[0];
+              const img      = listing.images[0] ?? 'https://via.placeholder.com/600x400?text=AlloAppart';
               return (
-                <div key={listing.id} className="rounded-2xl border border-line bg-card overflow-hidden hover:shadow-lg transition-shadow group">
-                  {/* Image */}
-                  <div className="relative h-44 bg-bg overflow-hidden">
-                    {img ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={img} alt={listing.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <i className="fa-regular fa-image text-3xl text-sub" />
+                // Même gabarit que les cartes de (public)/listings et de
+                // l'accueil (.listing-card, image h-56, badges/prix en
+                // overlay, AlloVerifieBadge) — seules les actions restent
+                // spécifiques à la vitrine (Voir le bien / Contacter).
+                <div key={listing.id} className="listing-card group flex flex-col">
+                  <Link href={`/listings/${listing.id}`} className="block">
+                    <div className="relative h-56 overflow-hidden rounded-t-2xl">
+                      <Image
+                        src={img}
+                        alt={listing.title}
+                        fill
+                        className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                        sizes="(max-width:640px) 100vw,(max-width:1024px) 50vw,33vw"
+                      />
+                      <div aria-hidden className="absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-transparent" />
+                      {/* Badges haut gauche */}
+                      <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                        {isActive && (
+                          <span className="flex items-center gap-1 rounded-full bg-gold text-gray-900 text-[10px] font-bold px-2.5 py-0.5 shadow-sm">
+                            <i className="fa-solid fa-bolt text-[9px]" /> {t('featuredBadge')}
+                          </span>
+                        )}
+                        <span className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-0.5 text-[10px] font-semibold text-gold-dark">
+                          {typeLabels[listing.type] ?? listing.type}
+                        </span>
                       </div>
-                    )}
-                    {/* Badges */}
-                    <div className="absolute top-2 left-2 flex gap-1.5 flex-wrap">
-                      {isActive && (
-                        <span className="flex items-center gap-1 bg-gold text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                          <i className="fa-solid fa-bolt text-[8px]" /> {t('featuredBadge')}
-                        </span>
-                      )}
-                      {listing.isVerified && (
-                        <span className="flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
-                          <i className="fa-solid fa-shield-check text-[8px]" /> {t('verifiedBadge')}
-                        </span>
-                      )}
-                    </div>
-                    {/* Prix — 1 pastille (NIGHTLY/MONTHLY) ou 2 empilées (MIXED) */}
-                    <div className="absolute bottom-2 right-2 flex flex-col items-end gap-1">
-                      {getListingPriceAmounts(listing).map((e) => (
-                        <span key={e.unit} className="bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full">
-                          {fmtPrice(e.amount)} FCFA/{t(e.unit === 'night' ? 'perNight' : 'perMonth')}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Infos */}
-                  <div className="p-4">
-                    <div className="mb-1 flex items-start justify-between gap-2">
-                      <Link href={`/listings/${listing.id}`}
-                        className="font-bold text-text text-sm leading-tight hover:text-gold-dark transition-colors line-clamp-2">
-                        {listing.title}
-                      </Link>
-                      <span className="shrink-0 text-[10px] font-semibold bg-gold-pale text-gold-dark px-2 py-0.5 rounded-full">
-                        {typeLabels[listing.type] ?? listing.type}
-                      </span>
-                    </div>
-                    <p className="text-xs text-sub flex items-center gap-1 mb-3">
-                      <i className="fa-solid fa-location-dot text-gold-dark text-[10px]" />
-                      {listing.city}{listing.address ? `, ${listing.address}` : ''}
-                    </p>
-
-                    {/* Détails */}
-                    <div className="flex items-center gap-3 text-xs text-sub mb-4">
-                      {listing.beds    && <span><i className="fa-solid fa-bed mr-1" />{listing.beds}</span>}
-                      {listing.baths   && <span><i className="fa-solid fa-bath mr-1" />{listing.baths}</span>}
-                      {listing.surface && <span><i className="fa-solid fa-ruler-combined mr-1" />{listing.surface} m²</span>}
-                      {listing.rooms   && !listing.beds && <span><i className="fa-solid fa-door-open mr-1" />{listing.rooms} {t('roomsLabel')}</span>}
+                      {/* Prix — 1 pastille (NIGHTLY/MONTHLY) ou 2 empilées (MIXED) */}
+                      <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
+                        {getListingPriceAmounts(listing).map((e) => (
+                          <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
+                            {fmtPrice(e.amount)} FCFA/{t(e.unit === 'night' ? 'perNight' : 'perMonth')}
+                          </span>
+                        ))}
+                      </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      <Link href={`/listings/${listing.id}`}
-                        className="flex-1 text-center rounded-xl border border-line text-sub hover:bg-bg text-xs font-medium py-2 transition-colors">
-                        {t('viewListing')}
-                      </Link>
-                      <button
-                        onClick={() => void handleContact(listing)}
-                        disabled={contacting === listing.id}
-                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white text-xs font-semibold py-2 disabled:opacity-50 transition-colors"
-                      >
-                        {contacting === listing.id
-                          ? <i className="fa-solid fa-spinner fa-spin" />
-                          : <><i className="fa-solid fa-comment-dots text-[10px]" /> {t('contactLabel')}</>}
-                      </button>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">
+                          {listing.title}
+                        </h3>
+                        {listing.isVerified && <AlloVerifieBadge size="sm" className="shrink-0 mt-0.5" />}
+                      </div>
+                      <p className="mt-1 flex items-center gap-1 text-sm text-sub">
+                        <i className="fa-solid fa-location-dot text-gold-dark text-xs" />
+                        {listing.city}{listing.address ? `, ${listing.address}` : ''}
+                      </p>
+                      <div className="mt-3 flex items-center gap-3 text-sm text-sub">
+                        {listing.beds    && <span className="flex items-center gap-1"><i className="fa-solid fa-bed text-gold-dark text-xs" />{listing.beds}</span>}
+                        {listing.baths   && <span className="flex items-center gap-1"><i className="fa-solid fa-bath text-gold-dark text-xs" />{listing.baths}</span>}
+                        {listing.surface && <span className="flex items-center gap-1"><i className="fa-solid fa-ruler-combined text-gold-dark text-xs" />{listing.surface} m²</span>}
+                        {listing.rooms   && !listing.beds && <span className="flex items-center gap-1"><i className="fa-solid fa-door-open text-gold-dark text-xs" />{listing.rooms} {t('roomsLabel')}</span>}
+                      </div>
                     </div>
+                  </Link>
+
+                  {/* Actions — hors du Link pour éviter un <a> imbriqué */}
+                  <div className="px-4 pb-4 flex gap-2">
+                    <Link href={`/listings/${listing.id}`}
+                      className="flex-1 text-center rounded-xl border border-line text-sub hover:bg-bg text-xs font-medium py-2 transition-colors">
+                      {t('viewListing')}
+                    </Link>
+                    <button
+                      onClick={() => void handleContact(listing)}
+                      disabled={contacting === listing.id}
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white text-xs font-semibold py-2 disabled:opacity-50 transition-colors"
+                    >
+                      {contacting === listing.id
+                        ? <i className="fa-solid fa-spinner fa-spin" />
+                        : <><i className="fa-solid fa-comment-dots text-[10px]" /> {t('contactLabel')}</>}
+                    </button>
                   </div>
                 </div>
               );

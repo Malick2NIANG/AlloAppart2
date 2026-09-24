@@ -77,7 +77,7 @@ export default async function RentalTermsCard({
       <h2 className="text-xl md:text-2xl font-semibold text-text mb-4">{t('rentalTermsTitle')}</h2>
 
       {/* Mode de location */}
-      <div className="flex items-start gap-3 rounded-2xl border border-gold/30 bg-gold-pale/60 px-4 py-3">
+      <div className="flex items-start gap-3 rounded-2xl border border-gold/30 dark:border-gold/20 bg-gold-pale/60 dark:bg-gold-dark/10 px-4 py-3">
         <span className="h-9 w-9 rounded-full bg-gold-pale text-gold-dark inline-grid place-items-center shrink-0">
           <i className={`fa-solid ${MODE_ICON[rentalMode]} text-sm`} />
         </span>

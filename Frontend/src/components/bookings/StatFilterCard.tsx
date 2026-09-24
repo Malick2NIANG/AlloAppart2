@@ -27,7 +27,7 @@ export function StatFilterCard({
       type="button"
       onClick={onClick}
       className={`rounded-2xl border p-4 flex items-center gap-3 text-left transition-colors ${
-        active ? 'border-gold-dark bg-gold-pale/30' : 'border-line bg-card hover:border-gold-dark/40'
+        active ? 'border-gold-dark bg-gold-pale/30 dark:bg-gold-dark/10' : 'border-line bg-card hover:border-gold-dark/40'
       }`}
     >
       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${bg}`}>

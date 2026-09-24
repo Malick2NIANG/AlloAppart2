@@ -48,11 +48,13 @@ export default function RedirectPage() {
           if (me.mustChangePassword) { router.replace('/change-password'); return; }
           if (!me.termsAcceptedAt)   { router.replace('/accept-terms');    return; }
 
+          // Tous les rôles atterrissent sur leur tableau de bord respectif
+          // (racine de leur espace), jamais directement sur une sous-page.
           const roles = me.roles ?? [];
-          if (roles.includes('ADMIN'))         { router.replace('/espace');              return; }
-          if (roles.includes('AGENT_TERRAIN')) { router.replace('/agent/verifications'); return; }
-          if (roles.includes('PRO_AGENCE'))    { router.replace('/bailleur/listings');   return; }
-          if (roles.includes('BAILLEUR'))      { router.replace('/bailleur/listings');   return; }
+          if (roles.includes('ADMIN'))         { router.replace('/espace'); return; }
+          if (roles.includes('AGENT_TERRAIN')) { router.replace('/agent');  return; }
+          if (roles.includes('PRO_AGENCE'))    { router.replace('/bailleur'); return; }
+          if (roles.includes('BAILLEUR'))      { router.replace('/bailleur'); return; }
           router.replace('/locataire');
           return;
         } catch (err: unknown) {

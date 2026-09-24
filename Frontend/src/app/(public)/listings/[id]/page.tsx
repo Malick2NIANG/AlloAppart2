@@ -196,7 +196,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 <div className="flex items-center gap-2 mb-3">
                   <i className="fa-solid fa-shield-halved text-green-700 dark:text-green-400" />
                   <span className="font-semibold text-green-800 text-sm">
-                    {listing.verification.auditType === 'FULL' ? t('auditFull') : t('auditBasic')}
+                    {t('auditBasic')}
                   </span>
                   {listing.verification.completedAt && (
                     <span className="ml-auto text-xs text-green-600 dark:text-green-400">

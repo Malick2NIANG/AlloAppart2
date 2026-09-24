@@ -287,7 +287,7 @@ export default function EditListingPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-text">{t('editPageTitle')}</h1>
         <p className="mt-1 text-sm text-sub">{t('editPageSub')}</p>
@@ -297,7 +297,7 @@ export default function EditListingPage() {
 
       <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-5">
         {stepErrors.length > 0 && (
-          <div className="rounded-xl border border-gold-dark/30 bg-gold-pale/40 p-4">
+          <div className="rounded-xl border border-gold-dark/30 dark:border-gold-dark/20 bg-gold-pale/40 dark:bg-gold-dark/10 p-4">
             <p className="text-sm font-semibold text-text mb-1.5">
               <i className="fa-solid fa-triangle-exclamation text-gold-dark mr-1.5" />
               {t('stepErrorsTitle')}

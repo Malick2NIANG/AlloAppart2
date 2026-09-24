@@ -81,9 +81,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     ...(isAgent ? [
       { label: td('navOverview'),    href: '/agent',              icon: 'fa-solid fa-gauge',           exact: true },
       { label: td('navMyMissions'),  href: '/agent/verifications', icon: 'fa-solid fa-shield-halved'  },
-      { label: td('navCalendar'),    href: '/agent/calendrier',    icon: 'fa-regular fa-calendar-days' },
       { label: td('navMessages'),    href: '/agent/messages',      icon: 'fa-solid fa-comment-dots'   },
-      { label: td('navMyProfile'),   href: '/agent/profil',        icon: 'fa-solid fa-user-circle'    },
+      { label: td('navMyProfile'),   href: '/agent/profil',        icon: 'fa-solid fa-circle-user'    },
     ] : []),
     ...(isAdmin ? [
       { label: td('navAdminOverview'),  href: '/espace',                icon: 'fa-solid fa-gauge',         exact: true },
@@ -120,6 +119,24 @@ export default async function DashboardLayout({ children }: { children: React.Re
     if (dc.status === 'fulfilled') pendingDisputesCount = dc.value.count;
   }
 
+  // Idem pour agent (missions SCHEDULED pas encore commencées) et bailleur
+  // (crédits AlloVérifié disponibles) — cf. décision du 2026-09-24.
+  let agentPendingCount = 0;
+  if (isAgent) {
+    const r = await api
+      .get<{ count: number }>('/verifications/agent-pending-count', token ?? undefined)
+      .catch(() => null);
+    if (r) agentPendingCount = r.count;
+  }
+
+  let bailleurActionCount = 0;
+  if (isBailleur) {
+    const r = await api
+      .get<{ count: number }>('/verifications/bailleur-action-count', token ?? undefined)
+      .catch(() => null);
+    if (r) bailleurActionCount = r.count;
+  }
+
   return (
     <DashboardShell
       userName={userName}
@@ -133,6 +150,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       pendingVerifCount={pendingVerifCount}
       pendingReportsCount={pendingReportsCount}
       pendingDisputesCount={pendingDisputesCount}
+      agentPendingCount={agentPendingCount}
+      bailleurActionCount={bailleurActionCount}
     >
       {children}
     </DashboardShell>

@@ -14,6 +14,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 import { PlatformConfigService } from '../platform-config/platform-config.service';
 import { CreateVerificationDto } from './dto/create-verification.dto';
+import { UpdateVerificationDto } from './dto/update-verification.dto';
 import { CompleteVerificationDto } from './dto/complete-verification.dto';
 import { RateVerificationDto } from './dto/rate-verification.dto';
 import {
@@ -27,17 +28,18 @@ import {
 // Durée de validité du badge AlloVérifié — Article 6 des CGU (6 mois)
 const BADGE_VALIDITY_MONTHS = 6;
 
-// Tarifs AlloVérifié par défaut pour les demandeurs non couverts par un
+// Tarif AlloVérifié par défaut pour les demandeurs non couverts par un
 // abonnement PRO actif (STARTER, bailleur individuel) — gratuit et illimité
 // pour PRO actif et pour les admins. Cf. confirmation utilisateur du
-// 2026-09-10 : même logique que le boost, "PRO gratuit, reste payant
-// 25k/60k". Ces valeurs ne sont plus utilisées au runtime (remplacées par
+// 2026-09-24 : un seul palier (25k), le palier FULL/visite 3D a été retiré.
+// Cette valeur n'est plus utilisée au runtime (remplacée par
 // PlatformConfigService.getPricing(), éditable depuis espace/config) — cet
 // export ne sert plus que de valeur de référence pour les tests.
-export const AUDIT_PRICE_XOF: Record<'BASIC' | 'FULL', number> = {
-  BASIC: 25_000,
-  FULL: 60_000,
-};
+export const AUDIT_PRICE_XOF = 25_000;
+
+// Délai de carence après un rejet (bien non conforme) avant de pouvoir
+// redemander une vérification AlloVérifié pour la même annonce.
+export const REJECT_COOLDOWN_MS = 48 * 60 * 60 * 1000;
 
 @Injectable()
 export class VerificationsService {
@@ -98,17 +100,68 @@ export class VerificationsService {
       );
     }
 
+    // Délai de carence de 48h après un rejet (bien non conforme) avant de
+    // pouvoir redemander une vérification pour la même annonce — laisse le
+    // temps au bailleur de corriger les points signalés par l'agent. Cf.
+    // décision du 2026-09-24.
+    const lastRejected = await this.prisma.verification.findFirst({
+      where: { listingId: dto.listingId, status: VerifStatus.REJECTED },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (lastRejected) {
+      const elapsedMs = Date.now() - lastRejected.updatedAt.getTime();
+      const remainingMs = REJECT_COOLDOWN_MS - elapsedMs;
+      if (remainingMs > 0) {
+        const hoursLeft = Math.ceil(remainingMs / (60 * 60 * 1000));
+        throw new ConflictException(
+          `Cette annonce a été rejetée récemment. Vous devez attendre encore ${hoursLeft}h avant de soumettre une nouvelle demande AlloVérifié.`,
+        );
+      }
+    }
+
     // Gratuit et illimité : admin ou abonnement PRO actif (cf. AUDIT_PRICE_XOF ci-dessus).
     if (isAdmin || this.isProActive(requester)) {
       const verification = await this.prisma.verification.create({
         data: {
           listingId: dto.listingId,
-          auditType: dto.auditType,
           scheduledAt: new Date(dto.scheduledAt),
           status: VerifStatus.REQUESTED,
           ...(dto.preferredAgentId
             ? { preferredAgentId: dto.preferredAgentId }
             : {}),
+        },
+      });
+      void this.notif.notifyAdminNewVerificationRequest(
+        listing.title,
+        verification.id,
+        listing.id,
+      );
+      return verification;
+    }
+
+    // Crédit de re-soumission disponible (mission précédente rejetée par un
+    // agent — bien non conforme) : on saute le paiement, comme pour PRO/admin.
+    const credit = await this.prisma.verificationCredit.findFirst({
+      where: { listingId: dto.listingId, used: false },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (credit) {
+      const verification = await this.prisma.verification.create({
+        data: {
+          listingId: dto.listingId,
+          scheduledAt: new Date(dto.scheduledAt),
+          status: VerifStatus.REQUESTED,
+          ...(dto.preferredAgentId
+            ? { preferredAgentId: dto.preferredAgentId }
+            : {}),
+        },
+      });
+      await this.prisma.verificationCredit.update({
+        where: { id: credit.id },
+        data: {
+          used: true,
+          usedAt: new Date(),
+          usedByVerificationId: verification.id,
         },
       });
       void this.notif.notifyAdminNewVerificationRequest(
@@ -139,23 +192,19 @@ export class VerificationsService {
     dto: CreateVerificationDto,
   ) {
     const pricing = await this.platformConfig.getPricing();
-    const amount =
-      dto.auditType === 'BASIC'
-        ? pricing.auditBasicPriceFcfa
-        : pricing.auditFullPriceFcfa;
+    const amount = pricing.auditBasicPriceFcfa;
     const isDev = this.config.get<string>('NODE_ENV') !== 'production';
 
     // ── Mode bypass dev : simule le paiement sans appeler PayDunya ──────────
     if (isDev && this.config.get<string>('PAYDUNYA_DEV_BYPASS') === 'true') {
       this.logger.warn(
-        `[DEV BYPASS] Paiement AlloVérifié direct pour l'annonce ${dto.listingId} (${amount} FCFA — ${dto.auditType})`,
+        `[DEV BYPASS] Paiement AlloVérifié direct pour l'annonce ${dto.listingId} (${amount} FCFA)`,
       );
       const paymentRef = `DEV-VERIF-${Date.now()}`;
       const payment = await this.prisma.verificationPayment.create({
         data: {
           listingId: dto.listingId,
           requesterId,
-          auditType: dto.auditType,
           scheduledAt: new Date(dto.scheduledAt),
           preferredAgentId: dto.preferredAgentId,
           amount,
@@ -189,7 +238,7 @@ export class VerificationsService {
         {
           invoice: {
             total_amount: amount,
-            description: `AlloVérifié ${dto.auditType} -- AlloAppart`,
+            description: 'AlloVérifié -- AlloAppart',
             return_url:
               this.config.get<string>('FRONTEND_URL') +
               '/bailleur/listings?status=verif_success',
@@ -246,7 +295,6 @@ export class VerificationsService {
       data: {
         listingId: dto.listingId,
         requesterId,
-        auditType: dto.auditType,
         scheduledAt: new Date(dto.scheduledAt),
         preferredAgentId: dto.preferredAgentId,
         amount,
@@ -276,7 +324,6 @@ export class VerificationsService {
     const verification = await this.prisma.verification.create({
       data: {
         listingId: payment.listingId,
-        auditType: payment.auditType,
         scheduledAt: payment.scheduledAt,
         status: VerifStatus.REQUESTED,
         ...(payment.preferredAgentId
@@ -513,7 +560,7 @@ export class VerificationsService {
   }
 
   async findByRequester(userId: string) {
-    return this.prisma.verification.findMany({
+    const verifications = await this.prisma.verification.findMany({
       where: { listing: { ownerId: userId } },
       include: {
         listing: {
@@ -535,6 +582,29 @@ export class VerificationsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Pour chaque demande rejetée, indique au bailleur si elle a émis un
+    // crédit de re-soumission gratuit (paiement initial) et si ce crédit a
+    // déjà été consommé — cf. reject() : un crédit n'est émis que si la
+    // vérification rejetée avait été payée (pas de crédit = pas de paiement,
+    // donc la prochaine demande sera de toute façon gratuite).
+    const rejectedIds = verifications
+      .filter((v) => v.status === VerifStatus.REJECTED)
+      .map((v) => v.id);
+    const credits = rejectedIds.length
+      ? await this.prisma.verificationCredit.findMany({
+          where: { sourceVerificationId: { in: rejectedIds } },
+          select: { sourceVerificationId: true, used: true },
+        })
+      : [];
+    const creditByVerifId = new Map(
+      credits.map((c) => [c.sourceVerificationId, { used: c.used }]),
+    );
+
+    return verifications.map((v) => ({
+      ...v,
+      credit: creditByVerifId.get(v.id) ?? null,
+    }));
   }
 
   async findPending() {
@@ -580,6 +650,26 @@ export class VerificationsService {
       where: {
         status: { in: [VerifStatus.REQUESTED, VerifStatus.DECLINE_PENDING] },
       },
+    });
+    return { count };
+  }
+
+  // Agent : missions assignées pas encore commencées — badge sidebar "Mes
+  // missions" (cf. décision du 2026-09-24, extension des badges "action
+  // requise" au-delà de l'admin). IN_PROGRESS exclu : l'agent l'a déjà vue.
+  async agentPendingCount(agentId: string): Promise<{ count: number }> {
+    const count = await this.prisma.verification.count({
+      where: { agentId, status: VerifStatus.SCHEDULED },
+    });
+    return { count };
+  }
+
+  // Bailleur : crédits de re-soumission AlloVérifié disponibles (issus d'un
+  // rejet sur une vérification payée) — badge sidebar "AlloVérifié". Même
+  // décision que ci-dessus.
+  async bailleurActionCount(ownerId: string): Promise<{ count: number }> {
+    const count = await this.prisma.verificationCredit.count({
+      where: { ownerId, used: false },
     });
     return { count };
   }
@@ -734,7 +824,6 @@ export class VerificationsService {
       data: {
         isVerified: true,
         verifiedAt: new Date(),
-        ...(dto.tourUrl ? { tourUrl: dto.tourUrl } : {}),
       },
     });
 
@@ -833,6 +922,7 @@ export class VerificationsService {
   async reject(id: string, user: User, reason: string) {
     const v = await this.prisma.verification.findUniqueOrThrow({
       where: { id },
+      include: { listing: { include: { owner: { select: { id: true } } } } },
     });
 
     const isAgent = v.agentId !== null && v.agentId === user.id;
@@ -855,10 +945,38 @@ export class VerificationsService {
       );
     }
 
-    return this.prisma.verification.update({
+    const updated = await this.prisma.verification.update({
       where: { id },
       data: { status: VerifStatus.REJECTED, notes: reason },
     });
+
+    // Bien non conforme : le bailleur a déjà payé (sauf s'il était
+    // PRO/admin, gratuit — pas besoin de crédit dans ce cas) — on émet un
+    // crédit de re-soumission plutôt qu'un remboursement, cf. décision du
+    // 2026-09-24. Consommé automatiquement par create() à la prochaine
+    // demande pour cette même annonce.
+    const wasPaid = await this.prisma.verificationPayment.findFirst({
+      where: { listingId: v.listingId, verificationId: v.id },
+    });
+    if (wasPaid) {
+      await this.prisma.verificationCredit.create({
+        data: {
+          ownerId: v.listing.owner.id,
+          listingId: v.listingId,
+          sourceVerificationId: v.id,
+        },
+      });
+    }
+
+    void this.notif.notifyVerifRejectedWithCredit(
+      v.listing.owner.id,
+      v.listing.title,
+      v.listingId,
+      reason,
+      wasPaid !== null,
+    );
+
+    return updated;
   }
 
   async rate(
@@ -923,6 +1041,86 @@ export class VerificationsService {
     }
 
     return this.prisma.agentRating.findUnique({ where: { verificationId } });
+  }
+
+  // Édition par le demandeur (bailleur/agence) — uniquement tant que la
+  // demande est REQUESTED (pas encore assignée à un agent) : à ce stade rien
+  // n'engage l'agent côté planning, donc changer la date/heure ou l'agent
+  // préféré est sans risque. Ne touche jamais au paiement/crédit, seulement
+  // scheduledAt/preferredAgentId.
+  async update(id: string, user: User, dto: UpdateVerificationDto) {
+    const v = await this.prisma.verification.findUnique({
+      where: { id },
+      include: { listing: { select: { ownerId: true } } },
+    });
+    if (!v) throw new NotFoundException('Verification not found');
+
+    const isOwner = v.listing.ownerId === user.id;
+    const isAdmin = user.roles.includes(Role.ADMIN);
+    if (!isOwner && !isAdmin) throw new ForbiddenException('Not authorized');
+
+    if (v.status !== VerifStatus.REQUESTED) {
+      throw new ConflictException(
+        'Cette demande ne peut plus être modifiée : elle a déjà été prise en charge par un agent.',
+      );
+    }
+
+    return this.prisma.verification.update({
+      where: { id },
+      data: {
+        ...(dto.scheduledAt ? { scheduledAt: new Date(dto.scheduledAt) } : {}),
+        ...(dto.preferredAgentId !== undefined
+          ? { preferredAgentId: dto.preferredAgentId || null }
+          : {}),
+      },
+    });
+  }
+
+  // Annulation par le demandeur — même restriction que update() (REQUESTED
+  // uniquement). Si la demande avait consommé un crédit de re-soumission
+  // gratuit, on le restitue (le bailleur n'a rien obtenu en échange). En
+  // revanche si la demande a été réellement payée (PayDunya), on refuse
+  // l'auto-annulation : un remboursement est une opération financière qui
+  // doit passer par le support/l'admin, pas être déclenchée silencieusement
+  // ici.
+  async cancel(id: string, user: User): Promise<{ success: true }> {
+    const v = await this.prisma.verification.findUnique({
+      where: { id },
+      include: { listing: { select: { ownerId: true } } },
+    });
+    if (!v) throw new NotFoundException('Verification not found');
+
+    const isOwner = v.listing.ownerId === user.id;
+    const isAdmin = user.roles.includes(Role.ADMIN);
+    if (!isOwner && !isAdmin) throw new ForbiddenException('Not authorized');
+
+    if (v.status !== VerifStatus.REQUESTED) {
+      throw new ConflictException(
+        'Cette demande ne peut plus être annulée : elle a déjà été prise en charge par un agent.',
+      );
+    }
+
+    const payment = await this.prisma.verificationPayment.findFirst({
+      where: { verificationId: id, status: 'CONFIRMED' },
+    });
+    if (payment) {
+      throw new ConflictException(
+        "Cette demande a été payée : contactez le support AlloAppart pour l'annuler et être remboursé.",
+      );
+    }
+
+    const credit = await this.prisma.verificationCredit.findFirst({
+      where: { usedByVerificationId: id },
+    });
+    if (credit) {
+      await this.prisma.verificationCredit.update({
+        where: { id: credit.id },
+        data: { used: false, usedAt: null, usedByVerificationId: null },
+      });
+    }
+
+    await this.prisma.verification.delete({ where: { id } });
+    return { success: true };
   }
 
   /**

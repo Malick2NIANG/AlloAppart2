@@ -178,6 +178,8 @@ export default function MessagesShell({ emptyHint, space }: Props) {
   const [replyingTo,   setReplyingTo]   = useState<Message | null>(null);
   const [editingId,    setEditingId]    = useState<string | null>(null);
   const [editOriginal, setEditOriginal] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivingId,  setArchivingId]  = useState<string | null>(null);
 
   /* ── Voice recording ──────────────────────────────────────────────────── */
   const [recording,      setRecording]      = useState(false);
@@ -360,6 +362,25 @@ export default function MessagesShell({ emptyHint, space }: Props) {
     } catch { /* silencieux */ }
   };
 
+  /* ── Archive / unarchive (état par utilisateur, à la WhatsApp) ──────────── */
+  const toggleArchive = async (roomId: string, archived: boolean) => {
+    const token = await getToken();
+    if (!token) return;
+    setArchivingId(roomId);
+    /* Optimiste : on met à jour tout de suite, la room disparaît/réapparaît */
+    setRooms((prev) => prev.map((r) => (r.id === roomId ? { ...r, archived } : r)));
+    if (archived && activeRoomId === roomId) setActiveRoomId(null);
+    try {
+      if (archived) await api.post(`/messages/rooms/${roomId}/archive`, {}, token);
+      else await api.delete(`/messages/rooms/${roomId}/archive`, token);
+    } catch {
+      /* Échec → on annule le changement optimiste */
+      setRooms((prev) => prev.map((r) => (r.id === roomId ? { ...r, archived: !archived } : r)));
+    } finally {
+      setArchivingId(null);
+    }
+  };
+
   /* ── Voice recording ──────────────────────────────────────────────────── */
   const startRecording = async () => {
     try {
@@ -438,7 +459,9 @@ export default function MessagesShell({ emptyHint, space }: Props) {
 
   /* ── Filtered rooms ───────────────────────────────────────────────────── */
   const q = search.trim().toLowerCase();
+  const archivedCount = rooms.filter((r) => r.archived).length;
   const filteredRooms = rooms.filter((r) => {
+    if (!!r.archived !== showArchived) return false;
     if (!q) return true;
     const title = r.listing?.title?.toLowerCase() ?? '';
     const names = r.participants.map((p) => getDisplayName(p).toLowerCase()).join(' ');
@@ -460,12 +483,25 @@ export default function MessagesShell({ emptyHint, space }: Props) {
 
         <div className="px-4 pt-5 pb-3 border-b border-line shrink-0">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-lg font-bold text-text">Messages</h1>
-            <span className="text-xs font-medium bg-gold-pale text-gold-dark px-2.5 py-1 rounded-full">
-              {t('convCount', { count: rooms.length })}
-            </span>
+            {showArchived ? (
+              <button
+                type="button"
+                onClick={() => setShowArchived(false)}
+                className="inline-flex items-center gap-1.5 text-sm font-bold text-text hover:text-gold-dark transition-colors"
+              >
+                <i className="fa-solid fa-arrow-left text-xs" />
+                {t('archivedTitle')}
+              </button>
+            ) : (
+              <>
+                <h1 className="text-lg font-bold text-text">Messages</h1>
+                <span className="text-xs font-medium bg-gold-pale text-gold-dark px-2.5 py-1 rounded-full">
+                  {t('convCount', { count: rooms.length - archivedCount })}
+                </span>
+              </>
+            )}
           </div>
-          {space && (() => {
+          {!showArchived && space && (() => {
             const b = SPACE_BADGE[space];
             return (
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold mb-1 ${b.cls}`}>
@@ -474,6 +510,17 @@ export default function MessagesShell({ emptyHint, space }: Props) {
               </span>
             );
           })()}
+          {!showArchived && archivedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowArchived(true)}
+              className="flex items-center gap-2 w-full text-left px-1 py-1.5 mb-1 text-xs text-sub hover:text-gold-dark transition-colors"
+            >
+              <i className="fa-solid fa-box-archive text-[11px]" />
+              <span className="font-medium">{t('archivedPill')}</span>
+              <span className="ml-auto text-[10px] text-sub">{t('archivedCount', { count: archivedCount })}</span>
+            </button>
+          )}
           <div className="relative">
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sub text-xs pointer-events-none" />
             <input
@@ -505,13 +552,13 @@ export default function MessagesShell({ emptyHint, space }: Props) {
           ) : filteredRooms.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center px-4">
               <div className="h-14 w-14 rounded-2xl bg-gold-pale flex items-center justify-center mb-3">
-                <i className="fa-solid fa-comment-dots text-2xl text-gold-dark" />
+                <i className={`fa-solid ${showArchived ? 'fa-box-archive' : 'fa-comment-dots'} text-2xl text-gold-dark`} />
               </div>
               <p className="font-semibold text-text text-sm">
-                {q ? t('noResults') : t('noConversations')}
+                {q ? t('noResults') : showArchived ? t('archivedEmpty') : t('noConversations')}
               </p>
               <p className="text-xs text-sub mt-1">
-                {q ? t('noResultsFor', { search }) : (emptyHint ?? '')}
+                {q ? t('noResultsFor', { search }) : (showArchived ? '' : (emptyHint ?? ''))}
               </p>
             </div>
           ) : (
@@ -528,11 +575,16 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                 const preview   = lastMsg && !isAudio ? lastMsg.content : null;
 
                 return (
-                  <button
+                  <div
                     key={room.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setActiveRoomId(room.id)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${
-                      isActive ? 'bg-gold-pale border border-gold-dark/20' : 'hover:bg-card'
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveRoomId(room.id); }
+                    }}
+                    className={`group/row w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors cursor-pointer ${
+                      isActive ? 'bg-gold-pale dark:bg-gold-dark/15 border border-gold-dark/20 dark:border-gold/25' : 'hover:bg-card'
                     }`}
                   >
                     <div className="relative shrink-0">
@@ -576,7 +628,21 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                         1
                       </span>
                     )}
-                  </button>
+
+                    {/* Archiver / désarchiver — hors du flux "clic sur la ligne" */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); void toggleArchive(room.id, !room.archived); }}
+                      disabled={archivingId === room.id}
+                      title={room.archived ? t('unarchiveAction') : t('archiveAction')}
+                      className="shrink-0 h-7 w-7 rounded-full flex items-center justify-center text-sub hover:text-gold-dark hover:bg-gold-pale transition-colors disabled:opacity-40"
+                    >
+                      {archivingId === room.id
+                        ? <i className="fa-solid fa-spinner fa-spin text-[11px]" />
+                        : <i className={`fa-solid ${room.archived ? 'fa-box-open' : 'fa-box-archive'} text-[11px]`} />
+                      }
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -623,7 +689,9 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                 href={
                   otherParticipants[0].roles?.includes('PRO_AGENCE') && otherParticipants[0].agencySlug
                     ? `/agences/${otherParticipants[0].agencySlug}`
-                    : `/bailleur/profil/${otherParticipants[0].id}`
+                    : otherParticipants[0].roles?.includes('AGENT_TERRAIN')
+                      ? `/bailleur/agents/${otherParticipants[0].id}`
+                      : `/bailleur/profil/${otherParticipants[0].id}`
                 }
                 className="shrink-0 text-xs text-gold-dark hover:underline hidden sm:block"
               >

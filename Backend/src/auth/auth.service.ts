@@ -157,21 +157,30 @@ export class AuthService {
     // Assignation automatique du slug au premier renseignement du nom
     // d'agence — jamais réattribué ensuite (URL stable une fois partagée),
     // et jamais exposé au formulaire (cf. UpdateProfileDto).
+    const current = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+
+    // Nom/prénom verrouillés pour les agents : renseignés par l'admin à la
+    // création du compte (cf. page "Mon profil" agent, décision du 2026-09-24).
+    // Ignorés silencieusement plutôt que rejetés — le formulaire agent les
+    // envoie déjà désactivés, donc identiques à l'existant en usage normal.
+    const safeDto: UpdateProfileDto = { ...dto };
+    if (current.roles.includes(Role.AGENT_TERRAIN)) {
+      delete safeDto.firstName;
+      delete safeDto.lastName;
+    }
+
     let agencySlug: string | undefined;
-    if (dto.agencyName) {
-      const current = await this.prisma.user.findUniqueOrThrow({
-        where: { id: userId },
-      });
-      if (!current.agencySlug) {
-        agencySlug = await this.generateUniqueAgencySlug(
-          dto.agencyName,
-          userId,
-        );
-      }
+    if (safeDto.agencyName && !current.agencySlug) {
+      agencySlug = await this.generateUniqueAgencySlug(
+        safeDto.agencyName,
+        userId,
+      );
     }
     return this.prisma.user.update({
       where: { id: userId },
-      data: { ...dto, ...(agencySlug ? { agencySlug } : {}) },
+      data: { ...safeDto, ...(agencySlug ? { agencySlug } : {}) },
     });
   }
 
@@ -468,6 +477,7 @@ export class AuthService {
         avatar: true,
         bio: true,
         phone: true,
+        coverageZone: true,
         verifications: {
           where: { status: 'DONE' },
           select: { id: true },
@@ -483,6 +493,7 @@ export class AuthService {
       avatar: a.avatar,
       bio: a.bio,
       phone: a.phone,
+      coverageZone: a.coverageZone,
       completedMissions: a.verifications.length,
     }));
   }

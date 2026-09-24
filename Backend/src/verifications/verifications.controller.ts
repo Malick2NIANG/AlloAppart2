@@ -1,6 +1,7 @@
 ﻿import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -10,6 +11,7 @@
 import { Throttle } from '@nestjs/throttler';
 import { VerificationsService } from './verifications.service';
 import { CreateVerificationDto } from './dto/create-verification.dto';
+import { UpdateVerificationDto } from './dto/update-verification.dto';
 import { CompleteVerificationDto } from './dto/complete-verification.dto';
 import { AssignAgentDto } from './dto/assign-agent.dto';
 import { RejectVerificationDto } from './dto/reject-verification.dto';
@@ -85,6 +87,18 @@ export class VerificationsController {
   @Get('pending-count')
   pendingCount() {
     return this.verificationsService.pendingCount();
+  }
+
+  @Roles(Role.AGENT_TERRAIN)
+  @Get('agent-pending-count')
+  agentPendingCount(@CurrentUser() user: User) {
+    return this.verificationsService.agentPendingCount(user.id);
+  }
+
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE)
+  @Get('bailleur-action-count')
+  bailleurActionCount(@CurrentUser() user: User) {
+    return this.verificationsService.bailleurActionCount(user.id);
   }
 
   @Roles(Role.ADMIN)
@@ -179,5 +193,23 @@ export class VerificationsController {
   @Get(':id/rating')
   getRating(@Param('id') id: string, @CurrentUser() user: User) {
     return this.verificationsService.findRatingByVerification(id, user);
+  }
+
+  // Édition/annulation par le demandeur — uniquement tant que la demande est
+  // REQUESTED (pas encore assignée à un agent), cf. VerificationsService.
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE, Role.ADMIN)
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+    @Body() dto: UpdateVerificationDto,
+  ) {
+    return this.verificationsService.update(id, user, dto);
+  }
+
+  @Roles(Role.BAILLEUR, Role.PRO_AGENCE, Role.ADMIN)
+  @Delete(':id')
+  cancel(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.verificationsService.cancel(id, user);
   }
 }

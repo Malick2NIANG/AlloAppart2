@@ -89,7 +89,7 @@ export default async function PlanDuSitePage() {
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <SitemapSection title={t('sectionMain')}    icon="fa-solid fa-house"       links={mainLinks}     />
           <SitemapSection title={t('sectionTypes')}   icon="fa-solid fa-building"    links={propertyTypes} />
-          <SitemapSection title={t('sectionAccount')} icon="fa-solid fa-user-circle" links={accountLinks}  />
+          <SitemapSection title={t('sectionAccount')} icon="fa-solid fa-circle-user" links={accountLinks}  />
           <SitemapSection title={t('sectionCities')}  icon="fa-solid fa-city"        links={[
             { label: 'Dakar',       href: '/listings?city=Dakar'       },
             { label: 'Mbour',       href: '/listings?city=Mbour'       },

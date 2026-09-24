@@ -13,7 +13,6 @@ export type BookingStatus =
 export type EscrowStatus = 'AWAITING_PAYMENT' | 'HELD' | 'DISPUTED' | 'RELEASED' | 'REFUNDED';
 
 export type VerifStatus = 'REQUESTED' | 'SCHEDULED' | 'IN_PROGRESS' | 'DONE' | 'REJECTED' | 'DECLINE_PENDING';
-export type AuditType = 'BASIC' | 'FULL';
 
 export type DocumentType = 'ID_CARD' | 'PROOF_OF_INCOME' | 'GUARANTOR';
 
@@ -196,8 +195,8 @@ export interface Verification {
   listing?: Listing;
   agentId?: string | null;
   agent?: User;
+  preferredAgentId?: string | null;
   status: VerifStatus;
-  auditType: AuditType;
   reportUrl?: string;
   tourUrl?: string;
   scheduledAt: string;
@@ -237,6 +236,8 @@ export interface MessageRoom {
   participants: User[];
   messages?: Message[];
   createdAt: string;
+  /** Archivée par l'utilisateur courant (état par utilisateur, à la WhatsApp). */
+  archived?: boolean;
 }
 
 export interface Review {

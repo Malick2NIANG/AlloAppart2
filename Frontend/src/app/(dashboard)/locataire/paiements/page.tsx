@@ -150,7 +150,7 @@ export default function PaiementsPage() {
               <Link
                 key={b.id}
                 href={`/locataire/bookings/${b.id}`}
-                className="flex items-center gap-4 px-5 py-3.5 hover:bg-gold-pale/30 transition-colors group"
+                className="flex items-center gap-4 px-5 py-3.5 hover:bg-gold-pale/30 dark:hover:bg-gold-dark/10 transition-colors group"
               >
                 {/* Icône escrow */}
                 <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${ESCROW_CLS[b.escrowStatus] ?? 'bg-card border-line text-sub'}`}>

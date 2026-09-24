@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import { useAuth } from '@clerk/nextjs';
@@ -66,6 +66,7 @@ function relativeTime(dateStr: string, t: ReturnType<typeof useTranslations>, nu
 
 export default function AgentProfilePage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const { getToken } = useAuth();
   const t = useTranslations('bailleur');
   const locale = useLocale();
@@ -85,7 +86,7 @@ export default function AgentProfilePage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto space-y-4 animate-pulse">
+      <div className="space-y-4 animate-pulse">
         <div className="h-32 bg-line rounded-2xl" />
         <div className="h-24 bg-line rounded-2xl" />
         <div className="h-48 bg-line rounded-2xl" />
@@ -110,13 +111,14 @@ export default function AgentProfilePage() {
   const memberYear = new Date(agent.memberSince).getFullYear();
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="space-y-5">
 
-      {/* Back */}
-      <Link href="/bailleur/agents" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors">
+      {/* Back — revient à la page d'origine (ex. la discussion où "Voir le
+          profil" a été cliqué), pas systématiquement à la liste des agents. */}
+      <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors">
         <i className="fa-solid fa-arrow-left text-xs" />
-        {t('agentAllAgents')}
-      </Link>
+        {t('profilBack')}
+      </button>
 
       {/* Profile card */}
       <div className="rounded-2xl border border-line bg-card p-6">
@@ -167,10 +169,10 @@ export default function AgentProfilePage() {
                   <i className="fa-solid fa-phone text-[10px]" />
                   {agent.phone}
                 </a>
-                <a href={`sms:${agent.phone}`} className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
+                <Link href="/bailleur/messages" className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
                   <i className="fa-solid fa-message text-[10px]" />
-                  SMS
-                </a>
+                  {t('verifAgentMessage')}
+                </Link>
               </div>
             )}
           </div>

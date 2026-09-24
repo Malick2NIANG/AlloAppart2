@@ -193,7 +193,7 @@ function NewListingForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
         {stepErrors.length > 0 && (
-          <div className="rounded-xl border border-gold-dark/30 bg-gold-pale/40 p-4">
+          <div className="rounded-xl border border-gold-dark/30 dark:border-gold-dark/20 bg-gold-pale/40 dark:bg-gold-dark/10 p-4">
             <p className="text-sm font-semibold text-text mb-1.5">
               <i className="fa-solid fa-triangle-exclamation text-gold-dark mr-1.5" />
               {t('stepErrorsTitle')}

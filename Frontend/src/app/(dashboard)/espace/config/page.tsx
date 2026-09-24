@@ -24,7 +24,6 @@ type PricingFieldKey =
   | 'nightlyCommissionRate'
   | 'monthlyCommissionMonths'
   | 'auditBasicPriceFcfa'
-  | 'auditFullPriceFcfa'
   | 'boostPriceFcfa';
 
 interface PendingPlatformConfig {
@@ -33,7 +32,6 @@ interface PendingPlatformConfig {
   nightlyCommissionRate: number;
   monthlyCommissionMonths: number;
   auditBasicPriceFcfa: number;
-  auditFullPriceFcfa: number;
   boostPriceFcfa: number;
   effectiveAt: string;
   setByEmail: string | null;
@@ -45,7 +43,6 @@ interface PlatformConfig {
   nightlyCommissionRate: number;
   monthlyCommissionMonths: number;
   auditBasicPriceFcfa: number;
-  auditFullPriceFcfa: number;
   boostPriceFcfa: number;
   updatedAt: string;
   updatedByEmail: string | null;
@@ -79,7 +76,6 @@ interface ConfigForm {
   nightlyCommissionPercent: number;
   monthlyCommissionMonths: number;
   auditBasicPriceFcfa: number;
-  auditFullPriceFcfa: number;
   boostPriceFcfa: number;
 }
 
@@ -92,7 +88,6 @@ function toForm(cfg: PlatformConfig): ConfigForm {
     nightlyCommissionPercent: Math.round(cfg.nightlyCommissionRate * 1000) / 10,
     monthlyCommissionMonths: cfg.monthlyCommissionMonths,
     auditBasicPriceFcfa: cfg.auditBasicPriceFcfa,
-    auditFullPriceFcfa: cfg.auditFullPriceFcfa,
     boostPriceFcfa: cfg.boostPriceFcfa,
   };
 }
@@ -156,7 +151,6 @@ export default function AdminConfigPage() {
     Math.abs(form.nightlyCommissionPercent / 100 - config.nightlyCommissionRate) > 1e-6 ||
     form.monthlyCommissionMonths !== config.monthlyCommissionMonths ||
     form.auditBasicPriceFcfa !== config.auditBasicPriceFcfa ||
-    form.auditFullPriceFcfa !== config.auditFullPriceFcfa ||
     form.boostPriceFcfa !== config.boostPriceFcfa
   ));
 
@@ -184,7 +178,6 @@ export default function AdminConfigPage() {
       nightlyCommissionRate: form.nightlyCommissionPercent / 100,
       monthlyCommissionMonths: form.monthlyCommissionMonths,
       auditBasicPriceFcfa: form.auditBasicPriceFcfa,
-      auditFullPriceFcfa: form.auditFullPriceFcfa,
       boostPriceFcfa: form.boostPriceFcfa,
       confirmMethod: method,
       confirmCode: code,
@@ -338,12 +331,6 @@ export default function AdminConfigPage() {
                 value={form.auditBasicPriceFcfa} onChange={(v) => setField('auditBasicPriceFcfa', v)}
                 suffix={t('configFcfa')}
                 pendingNote={pendingFieldNote(config, 'auditBasicPriceFcfa', (v) => `${v.toLocaleString('fr-SN')} ${t('configFcfa')}`, t)}
-              />
-              <EditableField
-                label={t('configAuditFull')} sub={t('configAuditFullSub')}
-                value={form.auditFullPriceFcfa} onChange={(v) => setField('auditFullPriceFcfa', v)}
-                suffix={t('configFcfa')}
-                pendingNote={pendingFieldNote(config, 'auditFullPriceFcfa', (v) => `${v.toLocaleString('fr-SN')} ${t('configFcfa')}`, t)}
               />
             </div>
           </Section>

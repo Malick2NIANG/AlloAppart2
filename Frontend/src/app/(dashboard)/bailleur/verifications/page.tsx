@@ -3,14 +3,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Verification, VerifStatus } from '@/types';
+import { StatFilterCard } from '@/components/bookings/StatFilterCard';
+import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
+import { BookingPagination } from '@/components/bookings/BookingPagination';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
-interface AgentOption { id: string; firstName: string; lastName: string; completedMissions: number; }
-interface ListingOption { id: string; title: string; }
+const PER_PAGE_OPTIONS = [6, 12, 24] as const;
+type DemandesFilter = 'ALL' | 'ACTIVE' | 'HISTORY';
+
+interface ListingOption {
+  id: string;
+  title: string;
+  city?: string | null;
+  images?: string[] | null;
+}
 
 interface AgentRating {
   id: string;
@@ -23,6 +35,10 @@ interface VerifWithRating extends Omit<Verification, 'agent'> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   agent?: any;
   rating?: AgentRating | null;
+  // Présent uniquement pour une demande REJECTED : indique si un crédit de
+  // re-soumission gratuit a été émis pour cette annonce, et s'il a déjà été
+  // consommé — cf. verifications.service.ts findByRequester().
+  credit?: { used: boolean } | null;
 }
 
 interface Agent {
@@ -32,6 +48,7 @@ interface Agent {
   avatar: string | null;
   bio: string | null;
   phone: string | null;
+  coverageZone: string | null;
   completedMissions: number;
 }
 
@@ -41,7 +58,7 @@ const VERIF_STYLE: Record<VerifStatus, { color: string; icon: string; bg: string
   REQUESTED:       { color: 'text-amber-600 dark:text-amber-400',   icon: 'fa-clock',           bg: 'bg-amber-50 dark:bg-amber-950/30'   },
   SCHEDULED:       { color: 'text-blue-600 dark:text-blue-400',    icon: 'fa-calendar-check',  bg: 'bg-blue-50 dark:bg-blue-950/30'    },
   IN_PROGRESS:     { color: 'text-purple-600 dark:text-purple-400',  icon: 'fa-person-walking',  bg: 'bg-purple-50 dark:bg-purple-950/30'  },
-  DONE:            { color: 'text-emerald-600 dark:text-emerald-400', icon: 'fa-shield-check',    bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+  DONE:            { color: 'text-emerald-600 dark:text-emerald-400', icon: 'fa-shield-halved',   bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
   REJECTED:        { color: 'text-red-600 dark:text-red-400',     icon: 'fa-circle-xmark',    bg: 'bg-red-50 dark:bg-red-950/30'     },
   DECLINE_PENDING: { color: 'text-orange-600 dark:text-orange-400',  icon: 'fa-hourglass-half',  bg: 'bg-orange-50 dark:bg-orange-950/30'  },
 };
@@ -198,8 +215,11 @@ function RatingModal({ verifId, agentName, existing, onClose, onSaved }: {
 
 /* ── VerifCard ───────────────────────────────────────────────────────────── */
 
-function VerifCard({ v, expanded, onToggle, onRate }: {
-  v: VerifWithRating; expanded: boolean; onToggle: () => void; onRate: () => void;
+function VerifCard({ v, expanded, onToggle, onRate, isProActive, onRequestAgain, onEdit, onCancelled }: {
+  v: VerifWithRating; expanded: boolean; onToggle: () => void; onRate: () => void; isProActive: boolean;
+  onRequestAgain: (listing: ListingOption) => void;
+  onEdit: (v: VerifWithRating) => void;
+  onCancelled: () => void;
 }) {
   const t = useTranslations('bailleur');
   const locale = useLocale();
@@ -208,6 +228,24 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
   const { getToken } = useAuth();
   const router = useRouter();
   const [openingChat, setOpeningChat] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+
+  // Édition/annulation : uniquement tant que la demande n'a pas encore été
+  // prise en charge par un agent (même règle que côté backend).
+  const handleCancel = async () => {
+    const token = await getToken();
+    if (!token) return;
+    setCancelling(true);
+    try {
+      await api.delete(`/verifications/${v.id}`, token);
+      onCancelled();
+    } catch (err: unknown) {
+      alert((err as { message?: string })?.message ?? t('verifCancelError'));
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const STATUS_LABELS: Record<VerifStatus, string> = {
     REQUESTED:       t('verifStatusRequested'),
@@ -216,11 +254,6 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
     DONE:            t('verifStatusDone'),
     REJECTED:        t('verifStatusRejected'),
     DECLINE_PENDING: t('verifStatusDeclinePending'),
-  };
-
-  const AUDIT_LABELS: Record<string, string> = {
-    BASIC: t('verifAuditLabelBasic'),
-    FULL:  t('verifAuditLabelFull'),
   };
 
   const openAgentChat = async (agentId: string) => {
@@ -238,8 +271,20 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
     <div className="rounded-2xl border border-line bg-card overflow-hidden">
       <button type="button" onClick={onToggle}
         className="w-full flex items-start gap-4 p-5 text-left hover:bg-bg/50 transition-colors">
-        <div className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center ${style.bg}`}>
-          <i className={`fa-solid ${style.icon} ${style.color}`} />
+        {/* Photo principale de l'annonce — pour différencier les demandes en
+            un coup d'œil ; badge de statut superposé en bas à droite (icône
+            seule en repli si l'annonce n'a pas encore de photo). */}
+        <div className="relative shrink-0 h-14 w-14 rounded-xl overflow-hidden bg-bg">
+          {v.listing?.images?.[0] ? (
+            <Image src={v.listing.images[0]} alt={v.listing.title ?? ''} fill className="object-cover" sizes="56px" />
+          ) : (
+            <div className={`h-full w-full flex items-center justify-center ${style.bg}`}>
+              <i className={`fa-solid ${style.icon} ${style.color}`} />
+            </div>
+          )}
+          <span className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center ring-2 ring-card ${style.bg}`}>
+            <i className={`fa-solid ${style.icon} ${style.color} text-[9px]`} />
+          </span>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -253,7 +298,7 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
               </span>
             )}
           </div>
-          <p className="text-xs text-sub">{AUDIT_LABELS[v.auditType] ?? v.auditType}{v.listing?.city ? ` · ${v.listing.city}` : ''}</p>
+          <p className="text-xs text-sub">{v.listing?.city ?? ''}</p>
           <p className="text-xs text-sub mt-0.5">
             <i className="fa-regular fa-calendar text-[10px] mr-1" />
             {t('verifScheduledOn', { date: new Date(v.scheduledAt).toLocaleDateString(numLocale, { day: 'numeric', month: 'long', year: 'numeric' }) })}
@@ -316,12 +361,14 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
           {v.status === 'DONE' && (
             <div className="mt-4 space-y-2">
               <div className="flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2.5">
-                <i className="fa-solid fa-shield-check text-emerald-500" />
+                <i className="fa-solid fa-shield-halved text-emerald-500" />
                 <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{t('verifCertifiedBadge')}</p>
               </div>
               {v.notes && (
                 <div className="rounded-xl bg-bg p-3">
-                  <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-1">{t('verifAgentNotes')}</p>
+                  <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                    <i className="fa-solid fa-note-sticky text-gold-dark" />{t('verifAgentNotes')}
+                  </p>
                   <p className="text-sm text-text">{v.notes}</p>
                 </div>
               )}
@@ -334,7 +381,9 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
               )}
               {v.photos && v.photos.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-2">{t('verifPhotosLabel', { count: v.photos.length })}</p>
+                  <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    <i className="fa-regular fa-images text-gold-dark" />{t('verifPhotosLabel', { count: v.photos.length })}
+                  </p>
                   <div className="grid grid-cols-3 gap-2">
                     {v.photos.map((url, i) => (
                       <a key={i} href={url} target="_blank" rel="noreferrer">
@@ -350,7 +399,9 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
                   {v.rating ? (
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-[10px] font-semibold text-sub uppercase tracking-wide">{t('verifYourReview')}</p>
+                        <p className="text-[10px] font-semibold text-sub uppercase tracking-wide flex items-center gap-1.5">
+                          <i className="fa-solid fa-star text-amber-400" />{t('verifYourReview')}
+                        </p>
                         <button onClick={onRate} className="text-[10px] text-gold-dark hover:underline">{t('verifEditReview')}</button>
                       </div>
                       <Stars value={v.rating.rating} />
@@ -373,12 +424,82 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
             </div>
           )}
 
-          {v.status === 'REJECTED' && v.notes && (
-            <div className="mt-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 px-4 py-3">
-              <p className="text-[10px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide mb-1">{t('verifRejectionReason')}</p>
-              <p className="text-sm text-red-700 dark:text-red-400">{v.notes}</p>
+          {v.status === 'REJECTED' && (
+            <div className="mt-4 space-y-2">
+              {v.notes && (
+                <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 px-4 py-3">
+                  <p className="text-[10px] font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                    <i className="fa-solid fa-circle-exclamation" />{t('verifRejectionReason')}
+                  </p>
+                  <p className="text-sm text-red-700 dark:text-red-400">{v.notes}</p>
+                </div>
+              )}
+              {/* Le bailleur a besoin de savoir immédiatement s'il devra
+                  repayer pour redemander une vérification sur cette annonce,
+                  ou s'il lui reste un crédit gratuit (cf. reject() côté
+                  backend : un crédit n'est émis que si cette demande avait
+                  été payée). */}
+              <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 px-4 py-3 flex items-start gap-2.5">
+                <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
+                  {v.credit
+                    ? (v.credit.used ? t('verifCreditUsedNote') : t('verifCreditAvailableNote'))
+                    : (isProActive ? t('verifNoPaymentNotePro') : t('verifNoPaymentNoteOnce'))}
+                </p>
+              </div>
+              {/* Raccourci : redemande immédiate, uniquement quand cette annonce
+                  n'aura rien à repayer (PRO illimité, ou crédit de re-soumission
+                  encore disponible) — sinon on renvoie vers le flux normal
+                  (paiement) via le bouton "+" en haut de page. */}
+              {(isProActive || (v.credit && !v.credit.used)) && v.listing && (
+                <button
+                  type="button"
+                  onClick={() => onRequestAgain({
+                    id: v.listingId,
+                    title: v.listing?.title ?? '',
+                    city: v.listing?.city,
+                    images: v.listing?.images,
+                  })}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-gold-dark/30 bg-gold-pale/30 dark:bg-gold-dark/10 px-4 py-2.5 text-sm font-semibold text-gold-dark hover:bg-gold-pale/50 dark:hover:bg-gold-dark/20 transition-colors"
+                >
+                  <i className="fa-solid fa-rotate-right text-xs" />
+                  {t('verifRequestAgain')}
+                </button>
+              )}
             </div>
           )}
+
+          {/* Édition/annulation — uniquement tant qu'aucun agent n'a pris en
+              charge la demande, cf. VerificationsService.update()/cancel(). */}
+          {v.status === 'REQUESTED' && v.listing && (
+            <div className="mt-4 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onEdit(v)}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm font-semibold text-text hover:border-gold-dark/40 transition-colors"
+              >
+                <i className="fa-solid fa-pen text-xs" />{t('verifEditRequest')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmCancelOpen(true)}
+                disabled={cancelling}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors disabled:opacity-50"
+              >
+                <i className="fa-solid fa-trash-can text-xs" />{t('verifCancelRequest')}
+              </button>
+            </div>
+          )}
+
+          <ConfirmModal
+            open={confirmCancelOpen}
+            onClose={() => setConfirmCancelOpen(false)}
+            onConfirm={handleCancel}
+            title={t('verifCancelConfirmTitle')}
+            description={t('verifCancelConfirmDesc')}
+            confirmLabel={t('verifCancelRequest')}
+            variant="danger"
+          />
 
           {v.listing && (
             <Link href={`/bailleur/listings/${v.listingId}/edit`}
@@ -388,73 +509,6 @@ function VerifCard({ v, expanded, onToggle, onRate }: {
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-/* ── AgentCard ───────────────────────────────────────────────────────────── */
-
-function AgentCard({ agent }: { agent: Agent }) {
-  const t = useTranslations('bailleur');
-  const initials = [agent.firstName?.[0], agent.lastName?.[0]].filter(Boolean).join('').toUpperCase();
-  return (
-    <div className="bg-card rounded-2xl border border-line shadow-sm p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
-      <div className="flex items-center gap-3">
-        {agent.avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={agent.avatar} alt={`${agent.firstName} ${agent.lastName}`}
-            className="h-14 w-14 rounded-full object-cover border border-line flex-shrink-0" />
-        ) : (
-          <div className="h-14 w-14 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center flex-shrink-0">
-            <span className="text-lg font-semibold text-gold">{initials}</span>
-          </div>
-        )}
-        <div className="min-w-0">
-          <p className="font-semibold text-text text-base leading-snug truncate">{agent.firstName} {agent.lastName}</p>
-          <p className="text-xs text-sub mt-0.5">{t('agentVerifiedBadge')}</p>
-        </div>
-      </div>
-
-      <div className="flex gap-3">
-        <div className="flex-1 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl p-3 text-center border border-emerald-100 dark:border-emerald-900/40">
-          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{agent.completedMissions}</p>
-          <p className="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5 leading-tight">
-            {t('agentMission', { count: agent.completedMissions })}
-          </p>
-        </div>
-        <div className="flex-1 bg-gold/5 rounded-xl p-3 text-center border border-gold/20">
-          <p className="text-xl font-bold text-gold"><i className="fa-solid fa-shield-halved text-lg" /></p>
-          <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5 leading-tight">{t('agentCertified')}</p>
-        </div>
-      </div>
-
-      {agent.bio && <p className="text-xs text-sub leading-relaxed line-clamp-3">{agent.bio}</p>}
-
-      {agent.phone && (
-        <a href={`tel:${agent.phone}`} className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors">
-          <i className="fa-solid fa-phone text-[10px]" />{agent.phone}
-        </a>
-      )}
-
-      <div className="mt-auto pt-3 border-t border-line flex items-center justify-between gap-2">
-        {agent.completedMissions >= 10 ? (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-full px-2.5 py-1">
-            <i className="fa-solid fa-star text-[9px] text-amber-500" />{t('agentExperienced')}
-          </span>
-        ) : agent.completedMissions >= 3 ? (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded-full px-2.5 py-1">
-            <i className="fa-solid fa-circle-check text-[9px] text-blue-500" />{t('agentActiveLabel')}
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 rounded-full px-2.5 py-1">
-            <i className="fa-solid fa-seedling text-[9px] text-emerald-500" />{t('agentNew')}
-          </span>
-        )}
-        <Link href={`/bailleur/agents/${agent.id}`}
-          className="text-[11px] text-gold-dark hover:underline flex items-center gap-1 shrink-0">
-          {t('agentViewProfile')} <i className="fa-solid fa-arrow-right text-[9px]" />
-        </Link>
-      </div>
     </div>
   );
 }
@@ -658,16 +712,48 @@ function DateTimePicker({ value, onChange }: { value: string; onChange: (v: stri
   );
 }
 
-/* ── Modal Nouvelle demande ──────────────────────────────────────────────── */
+/* ── Modal Nouvelle demande / Modifier / Redemander ──────────────────────── */
 
-function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () => void }) {
+// Convertit un ISO backend (UTC) en valeur locale "YYYY-MM-DDTHH:mm" attendue
+// par DateTimePicker (même format que celui produit par son buildValue()).
+function toLocalDateTimeValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+interface EditingVerif {
+  id: string;
+  listing: ListingOption;
+  scheduledAt: string;
+  preferredAgentId?: string | null;
+}
+
+function NewVerifModal({ onClose, onSent, initialListing, editingVerif }: {
+  onClose: () => void;
+  onSent: () => void;
+  initialListing?: ListingOption | null;
+  editingVerif?: EditingVerif | null;
+}) {
   const { getToken } = useAuth();
   const t = useTranslations('bailleur');
   const [listings,  setListings]  = useState<ListingOption[]>([]);
-  const [agents,    setAgents]    = useState<AgentOption[]>([]);
-  const [form, setForm] = useState({ listingId: '', auditType: 'BASIC', scheduledAt: '', preferredAgentId: '' });
+  const [agents,    setAgents]    = useState<Agent[]>([]);
+  const [form, setForm] = useState({
+    listingId:    editingVerif?.listing.id ?? initialListing?.id ?? '',
+    scheduledAt:  editingVerif ? toLocalDateTimeValue(editingVerif.scheduledAt) : '',
+    preferredAgentId: editingVerif?.preferredAgentId ?? '',
+  });
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState('');
+  const [agentPickerOpen,   setAgentPickerOpen]   = useState(false);
+  const [listingPickerOpen, setListingPickerOpen] = useState(false);
+
+  // Annonce verrouillée dans les deux cas : on modifie une demande existante
+  // (impossible de changer l'annonce d'une demande déjà soumise), ou on
+  // redemande pour la même annonce après un refus (raccourci "Demander à
+  // nouveau").
+  const lockedListing = editingVerif?.listing ?? initialListing ?? null;
 
   useEffect(() => {
     const load = async () => {
@@ -676,7 +762,7 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
       try {
         const [lst, agt, verifs] = await Promise.all([
           api.get<{ data: ListingOption[] }>('/listings/mine?status=ACTIVE&limit=100', token),
-          api.get<AgentOption[]>('/auth/agents', token),
+          api.get<Agent[]>('/auth/agents', token),
           api.get<{ listingId: string; status: string }[]>('/verifications/mine', token),
         ]);
         const excludedIds = new Set(
@@ -698,14 +784,27 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
     try {
       const token = await getToken();
       if (!token) throw new Error();
-      await api.post('/verifications', {
-        listingId:  form.listingId,
-        auditType:  form.auditType,
-        scheduledAt: new Date(form.scheduledAt).toISOString(),
-        ...(form.preferredAgentId ? { preferredAgentId: form.preferredAgentId } : {}),
-      }, token);
+      if (editingVerif) {
+        await api.patch(`/verifications/${editingVerif.id}`, {
+          scheduledAt: new Date(form.scheduledAt).toISOString(),
+          preferredAgentId: form.preferredAgentId,
+        }, token);
+      } else {
+        await api.post('/verifications', {
+          listingId:  form.listingId,
+          scheduledAt: new Date(form.scheduledAt).toISOString(),
+          ...(form.preferredAgentId ? { preferredAgentId: form.preferredAgentId } : {}),
+        }, token);
+        // Rafraîchit le badge sidebar "AlloVérifié" — no-op si aucun crédit consommé.
+        window.dispatchEvent(new CustomEvent('aa-badges-updated', { detail: { kind: 'BAILLEUR_CREDIT' } }));
+      }
       onSent();
-    } catch { setError(t('verifError')); }
+    } catch (err: unknown) {
+      const msg = (err as { status?: number; message?: string })?.status === 409
+        ? (err as { message?: string }).message
+        : undefined;
+      setError(msg ?? t('verifError'));
+    }
     finally { setLoading(false); }
   };
 
@@ -714,8 +813,14 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
       <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="text-lg font-semibold text-text">{t('newVerifTitle')}</h2>
-            <p className="text-xs text-sub mt-0.5">{t('newVerifSubtitle')}</p>
+            <h2 className="text-lg font-semibold text-text">
+              {editingVerif ? t('editVerifTitle') : t('newVerifTitle')}
+            </h2>
+            <p className="text-xs text-sub mt-0.5">
+              {editingVerif
+                ? t('editVerifSubtitle', { title: editingVerif.listing.title })
+                : initialListing ? t('newVerifAgainSubtitle', { title: initialListing.title }) : t('newVerifSubtitle')}
+            </p>
           </div>
           <button onClick={onClose} className="text-sub hover:text-text transition-colors">
             <i className="fa-solid fa-xmark" />
@@ -725,33 +830,47 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
         <div className="flex flex-col gap-4">
           <div>
             <label className="block text-xs font-medium text-sub mb-1.5">{t('newVerifListingLabel')}</label>
-            <select value={form.listingId}
-              onChange={(e) => setForm((f) => ({ ...f, listingId: e.target.value }))}
-              className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold-dark">
-              <option value="">{t('newVerifListingDefault')}</option>
-              {listings.map((l) => (
-                <option key={l.id} value={l.id}>{l.title}</option>
-              ))}
-            </select>
+            {(() => {
+              const locked = !!lockedListing;
+              const selected = locked ? lockedListing : listings.find((l) => l.id === form.listingId);
+              const thumb = selected?.images?.[0];
+              return (
+                <button
+                  type="button"
+                  onClick={() => { if (!locked) setListingPickerOpen(true); }}
+                  disabled={locked}
+                  className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                    locked ? 'border-line bg-bg/60 cursor-not-allowed' : 'border-line bg-bg hover:border-gold-dark/40'
+                  }`}
+                >
+                  {selected ? (
+                    <>
+                      <div className="relative h-8 w-8 rounded-lg overflow-hidden bg-line shrink-0">
+                        {thumb ? (
+                          <Image src={thumb} alt={selected.title} fill sizes="32px" className="object-cover" />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center">
+                            <i className="fa-solid fa-house text-[10px] text-sub" />
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium text-text truncate flex-1">{selected.title}</span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-sub flex-1">{t('newVerifListingDefault')}</span>
+                  )}
+                  <i className={`fa-solid ${locked ? 'fa-lock' : 'fa-chevron-down'} text-xs text-sub shrink-0`} />
+                </button>
+              );
+            })()}
+            {lockedListing && (
+              <p className="text-[10px] text-sub mt-1">{t('newVerifListingLockedNote')}</p>
+            )}
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-sub mb-1.5">{t('verifAuditType')}</label>
-            <div className="flex gap-3">
-              {[
-                { value: 'BASIC', label: t('verifAuditBasic'), desc: t('verifAuditBasicDesc') },
-                { value: 'FULL',  label: t('verifAuditFull'),  desc: t('verifAuditFullDesc')  },
-              ].map((opt) => (
-                <button key={opt.value} type="button"
-                  onClick={() => setForm((f) => ({ ...f, auditType: opt.value }))}
-                  className={`flex-1 rounded-xl border p-3 text-left transition-colors ${
-                    form.auditType === opt.value ? 'border-gold-dark bg-gold-pale' : 'border-line bg-bg hover:border-gold-dark'
-                  }`}>
-                  <p className={`text-sm font-medium ${form.auditType === opt.value ? 'text-gold-dark' : 'text-text'}`}>{opt.label}</p>
-                  <p className="text-xs text-sub mt-0.5">{opt.desc}</p>
-                </button>
-              ))}
-            </div>
+          <div className="rounded-xl border border-line bg-bg p-3">
+            <p className="text-sm font-medium text-text">{t('verifAuditType')}</p>
+            <p className="text-xs text-sub mt-0.5">{t('verifAuditBasicDesc')}</p>
           </div>
 
           <div>
@@ -766,20 +885,62 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
             <label className="block text-xs font-medium text-sub mb-1.5">
               {t('verifAgentLabel')} <span className="font-normal text-sub">{t('verifAgentOptional')}</span>
             </label>
-            <select value={form.preferredAgentId}
-              onChange={(e) => setForm((f) => ({ ...f, preferredAgentId: e.target.value }))}
-              className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold-dark">
-              <option value="">{t('verifAgentDefault')}</option>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.firstName} {a.lastName}
-                  {a.completedMissions > 0 ? ` · ${t('newVerifMissions', { count: a.completedMissions })}` : ''}
-                </option>
-              ))}
-            </select>
+            {(() => {
+              const selected = agents.find((a) => a.id === form.preferredAgentId);
+              const initials = selected
+                ? [selected.firstName?.[0], selected.lastName?.[0]].filter(Boolean).join('').toUpperCase()
+                : '';
+              return (
+                <button
+                  type="button"
+                  onClick={() => setAgentPickerOpen(true)}
+                  className="w-full flex items-center gap-3 rounded-xl border border-line bg-bg px-3 py-2.5 text-left hover:border-gold-dark/40 transition-colors"
+                >
+                  {selected ? (
+                    <>
+                      {selected.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={selected.avatar} alt={`${selected.firstName} ${selected.lastName}`} className="h-8 w-8 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-gold-pale flex items-center justify-center text-[10px] font-bold text-gold-dark shrink-0">
+                          {initials}
+                        </div>
+                      )}
+                      <span className="text-sm font-medium text-text truncate flex-1">{selected.firstName} {selected.lastName}</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="h-8 w-8 rounded-full bg-line/60 flex items-center justify-center shrink-0">
+                        <i className="fa-solid fa-shuffle text-[11px] text-sub" />
+                      </div>
+                      <span className="text-sm text-sub flex-1">{t('verifAgentDefault')}</span>
+                    </>
+                  )}
+                  <i className="fa-solid fa-chevron-down text-xs text-sub shrink-0" />
+                </button>
+              );
+            })()}
             <p className="text-[10px] text-sub mt-1">{t('verifAgentNote')}</p>
           </div>
         </div>
+
+        {agentPickerOpen && (
+          <AgentPickerModal
+            agents={agents}
+            selectedId={form.preferredAgentId}
+            onSelect={(id) => setForm((f) => ({ ...f, preferredAgentId: id }))}
+            onClose={() => setAgentPickerOpen(false)}
+          />
+        )}
+
+        {listingPickerOpen && (
+          <ListingPickerModal
+            listings={listings}
+            selectedId={form.listingId}
+            onSelect={(id) => setForm((f) => ({ ...f, listingId: id }))}
+            onClose={() => setListingPickerOpen(false)}
+          />
+        )}
 
         {error && <p className="mt-3 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2">{error}</p>}
 
@@ -790,8 +951,257 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
           </button>
           <button onClick={() => void handleSubmit()} disabled={!form.listingId || !form.scheduledAt || loading}
             className="btn-gold text-sm rounded-xl px-5 py-2 disabled:opacity-50 disabled:cursor-not-allowed">
-            {loading ? <i className="fa-solid fa-spinner fa-spin" /> : t('verifSubmit')}
+            {loading ? <i className="fa-solid fa-spinner fa-spin" /> : (editingVerif ? t('editVerifSubmit') : t('verifSubmit'))}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Sous-modal : sélection d'un agent préféré (recherche + pagination) ──── */
+
+const AGENT_PICKER_PER_PAGE = 6;
+
+function AgentPickerModal({
+  agents, selectedId, onSelect, onClose,
+}: {
+  agents: Agent[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  const t = useTranslations('bailleur');
+  const [search, setSearch] = useState('');
+  const [page,   setPage]   = useState(1);
+
+  const q = search.trim().toLowerCase();
+  const filtered = agents.filter((a) => {
+    if (!q) return true;
+    const name = `${a.firstName} ${a.lastName}`.toLowerCase();
+    const zone = (a.coverageZone ?? '').toLowerCase();
+    return name.includes(q) || zone.includes(q);
+  });
+  const pageCount   = Math.max(1, Math.ceil(filtered.length / AGENT_PICKER_PER_PAGE));
+  const clampedPage = Math.min(page, pageCount);
+  const visible      = filtered.slice((clampedPage - 1) * AGENT_PICKER_PER_PAGE, clampedPage * AGENT_PICKER_PER_PAGE);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset pagination suite à une recherche
+  useEffect(() => { setPage(1); }, [search]);
+
+  const choose = (id: string) => { onSelect(id); onClose(); };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl bg-card border border-line p-6 shadow-xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-4 shrink-0">
+          <h3 className="text-base font-semibold text-text">{t('verifAgentPickerTitle')}</h3>
+          <button onClick={onClose} className="text-sub hover:text-text transition-colors">
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+
+        <div className="relative mb-4 shrink-0">
+          <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-sm pointer-events-none" />
+          <input
+            type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('verifAgentSearchPlaceholder')}
+            className="w-full rounded-xl border border-line bg-bg pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text">
+              <i className="fa-solid fa-xmark text-sm" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto -mx-1 px-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {!q && clampedPage === 1 && (
+              <button
+                type="button"
+                onClick={() => choose('')}
+                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                  selectedId === '' ? 'border-gold-dark bg-gold-pale/30 dark:bg-gold-dark/10' : 'border-line bg-bg hover:border-gold-dark/40'
+                }`}
+              >
+                <div className="h-10 w-10 rounded-full bg-line/60 flex items-center justify-center shrink-0">
+                  <i className="fa-solid fa-shuffle text-sm text-sub" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-text">{t('verifAgentDefault')}</p>
+                  <p className="text-[11px] text-sub truncate">{t('verifAgentNote')}</p>
+                </div>
+                {selectedId === '' && <i className="fa-solid fa-circle-check text-gold-dark text-sm shrink-0 ml-auto" />}
+              </button>
+            )}
+
+            {visible.map((a) => {
+              const initials = [a.firstName?.[0], a.lastName?.[0]].filter(Boolean).join('').toUpperCase();
+              const active = selectedId === a.id;
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => choose(a.id)}
+                  className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                    active ? 'border-gold-dark bg-gold-pale/30 dark:bg-gold-dark/10' : 'border-line bg-bg hover:border-gold-dark/40'
+                  }`}
+                >
+                  {a.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={a.avatar} alt={`${a.firstName} ${a.lastName}`} className="h-10 w-10 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-gold-pale flex items-center justify-center text-xs font-bold text-gold-dark shrink-0">
+                      {initials}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-text truncate">{a.firstName} {a.lastName}</p>
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      {a.completedMissions > 0 && (
+                        <span className="text-[11px] text-sub">{t('newVerifMissions', { count: a.completedMissions })}</span>
+                      )}
+                      {a.coverageZone && (
+                        <span className="text-[11px] text-sub flex items-center gap-1">
+                          <i className="fa-solid fa-location-dot text-[9px]" /> {a.coverageZone}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {active && <i className="fa-solid fa-circle-check text-gold-dark text-sm shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+
+          {filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <i className="fa-solid fa-magnifying-glass text-2xl text-line mb-2" />
+              <p className="text-sm text-sub">{t('noResultsFor', { search })}</p>
+              <button onClick={() => setSearch('')} className="text-xs text-gold-dark hover:underline mt-1">{t('clearSearch')}</button>
+            </div>
+          )}
+        </div>
+
+        <div className="shrink-0">
+          <BookingPagination
+            page={clampedPage} pageCount={pageCount} onPageChange={setPage}
+            previousLabel={t('previous')} nextLabel={t('next')}
+            pageOfLabel={t('pageOf', { page: clampedPage, total: pageCount })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Sous-modal : sélection de l'annonce à vérifier (recherche + pagination) */
+
+const LISTING_PICKER_PER_PAGE = 6;
+
+function ListingPickerModal({
+  listings, selectedId, onSelect, onClose,
+}: {
+  listings: ListingOption[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  const t = useTranslations('bailleur');
+  const [search, setSearch] = useState('');
+  const [page,   setPage]   = useState(1);
+
+  const q = search.trim().toLowerCase();
+  const filtered = listings.filter((l) => {
+    if (!q) return true;
+    return l.title.toLowerCase().includes(q) || (l.city ?? '').toLowerCase().includes(q);
+  });
+  const pageCount   = Math.max(1, Math.ceil(filtered.length / LISTING_PICKER_PER_PAGE));
+  const clampedPage = Math.min(page, pageCount);
+  const visible      = filtered.slice((clampedPage - 1) * LISTING_PICKER_PER_PAGE, clampedPage * LISTING_PICKER_PER_PAGE);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset pagination suite à une recherche
+  useEffect(() => { setPage(1); }, [search]);
+
+  const choose = (id: string) => { onSelect(id); onClose(); };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl bg-card border border-line p-6 shadow-xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-4 shrink-0">
+          <h3 className="text-base font-semibold text-text">{t('newVerifListingPickerTitle')}</h3>
+          <button onClick={onClose} className="text-sub hover:text-text transition-colors">
+            <i className="fa-solid fa-xmark" />
+          </button>
+        </div>
+
+        <div className="relative mb-4 shrink-0">
+          <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-sm pointer-events-none" />
+          <input
+            type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('newVerifListingSearchPlaceholder')}
+            className="w-full rounded-xl border border-line bg-bg pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text">
+              <i className="fa-solid fa-xmark text-sm" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto -mx-1 px-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {visible.map((l) => {
+              const active = selectedId === l.id;
+              const thumb = l.images?.[0];
+              return (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => choose(l.id)}
+                  className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                    active ? 'border-gold-dark bg-gold-pale/30 dark:bg-gold-dark/10' : 'border-line bg-bg hover:border-gold-dark/40'
+                  }`}
+                >
+                  <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-line shrink-0">
+                    {thumb ? (
+                      <Image src={thumb} alt={l.title} fill sizes="40px" className="object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center">
+                        <i className="fa-solid fa-house text-xs text-sub" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-text truncate">{l.title}</p>
+                    {l.city && (
+                      <span className="text-[11px] text-sub flex items-center gap-1 mt-0.5">
+                        <i className="fa-solid fa-location-dot text-[9px]" /> {l.city}
+                      </span>
+                    )}
+                  </div>
+                  {active && <i className="fa-solid fa-circle-check text-gold-dark text-sm shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+
+          {filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <i className="fa-solid fa-magnifying-glass text-2xl text-line mb-2" />
+              <p className="text-sm text-sub">{t('noResultsFor', { search })}</p>
+              <button onClick={() => setSearch('')} className="text-xs text-gold-dark hover:underline mt-1">{t('clearSearch')}</button>
+            </div>
+          )}
+        </div>
+
+        <div className="shrink-0">
+          <BookingPagination
+            page={clampedPage} pageCount={pageCount} onPageChange={setPage}
+            previousLabel={t('previous')} nextLabel={t('next')}
+            pageOfLabel={t('pageOf', { page: clampedPage, total: pageCount })}
+          />
         </div>
       </div>
     </div>
@@ -800,33 +1210,43 @@ function NewVerifModal({ onClose, onSent }: { onClose: () => void; onSent: () =>
 
 /* ── Tab: Mes demandes ───────────────────────────────────────────────────── */
 
-function MesDemandesTab() {
-  const { getToken } = useAuth();
+function MesDemandesTab({
+  verifs, loading, onRatingSaved, isProActive, onRequestAgain, onEdit, onCancelled,
+}: {
+  verifs: VerifWithRating[];
+  loading: boolean;
+  onRatingSaved: (verifId: string, saved: AgentRating) => void;
+  isProActive: boolean;
+  onRequestAgain: (listing: ListingOption) => void;
+  onEdit: (v: VerifWithRating) => void;
+  onCancelled: () => void;
+}) {
   const t = useTranslations('bailleur');
-  const [verifs,      setVerifs]      = useState<VerifWithRating[]>([]);
-  const [loading,     setLoading]     = useState(true);
   const [expanded,    setExpanded]    = useState<string | null>(null);
   const [ratingModal, setRatingModal] = useState<{ verifId: string; agentName: string; existing?: AgentRating | null } | null>(null);
-
-  const fetchVerifs = useCallback(async () => {
-    const token = await getToken();
-    if (!token) return;
-    try {
-      const data = await api.get<VerifWithRating[]>('/verifications/mine', token);
-      setVerifs(data);
-    } catch {} finally { setLoading(false); }
-  }, [getToken]);
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
-  useEffect(() => { void fetchVerifs(); }, [fetchVerifs]);
-
-  const handleRatingSaved = (verifId: string, saved: AgentRating) => {
-    setVerifs((prev) => prev.map((v) => v.id === verifId ? { ...v, rating: saved } : v));
-    setRatingModal(null);
-  };
+  const [subFilter, setSubFilter] = useState<DemandesFilter>('ALL');
+  const [search,    setSearch]    = useState('');
+  const [page,      setPage]      = useState(1);
+  const [perPage,   setPerPage]   = useState<typeof PER_PAGE_OPTIONS[number]>(6);
 
   const active   = verifs.filter((v) => !['DONE', 'REJECTED'].includes(v.status));
   const archived = verifs.filter((v) =>  ['DONE', 'REJECTED'].includes(v.status));
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset pagination suite à un changement de filtre/recherche
+  useEffect(() => { setPage(1); }, [subFilter, search, perPage]);
+
+  const base = subFilter === 'ACTIVE' ? active : subFilter === 'HISTORY' ? archived : verifs;
+  const q = search.trim().toLowerCase();
+  const filtered = base.filter((v) =>
+    !q || (v.listing?.title ?? '').toLowerCase().includes(q) || (v.listing?.city ?? '').toLowerCase().includes(q));
+  const pageCount    = Math.max(1, Math.ceil(filtered.length / perPage));
+  const clampedPage  = Math.min(page, pageCount);
+  const visible       = filtered.slice((clampedPage - 1) * perPage, clampedPage * perPage);
+
+  const handleRatingSaved = (verifId: string, saved: AgentRating) => {
+    onRatingSaved(verifId, saved);
+    setRatingModal(null);
+  };
 
   if (loading) {
     return (
@@ -858,38 +1278,82 @@ function MesDemandesTab() {
 
   return (
     <>
-      <div className="space-y-6">
-        {active.length > 0 && (
-          <section>
-            <h2 className="text-xs font-semibold text-sub uppercase tracking-widest mb-3">
-              {t('verifSectionActive', { count: active.length })}
-            </h2>
-            <div className="flex flex-col gap-3">
-              {active.map((v) => (
-                <VerifCard key={v.id} v={v} expanded={expanded === v.id}
-                  onToggle={() => setExpanded(expanded === v.id ? null : v.id)}
-                  onRate={() => setRatingModal({ verifId: v.id, agentName: v.agent ? `${v.agent.firstName} ${v.agent.lastName}` : '', existing: v.rating })}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-        {archived.length > 0 && (
-          <section>
-            <h2 className="text-xs font-semibold text-sub uppercase tracking-widest mb-3">
-              {t('verifSectionHistory', { count: archived.length })}
-            </h2>
-            <div className="flex flex-col gap-3">
-              {archived.map((v) => (
-                <VerifCard key={v.id} v={v} expanded={expanded === v.id}
-                  onToggle={() => setExpanded(expanded === v.id ? null : v.id)}
-                  onRate={() => setRatingModal({ verifId: v.id, agentName: v.agent ? `${v.agent.firstName} ${v.agent.lastName}` : '', existing: v.rating })}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+      {/* Sous-filtre par statut — même pattern StatFilterCard que bailleur/bookings */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+        <StatFilterCard
+          icon="fa-layer-group"
+          label={t('verifFilterAll')}
+          value={verifs.length}
+          color="text-gold-dark"
+          bg="bg-gold-pale/40 dark:bg-gold-dark/10"
+          active={subFilter === 'ALL'}
+          onClick={() => setSubFilter('ALL')}
+          selectedLabel={t('filterSelected')}
+        />
+        <StatFilterCard
+          icon="fa-clock"
+          label={t('verifFilterActive')}
+          value={active.length}
+          color="text-blue-600 dark:text-blue-400"
+          bg="bg-blue-50 dark:bg-blue-950/30"
+          active={subFilter === 'ACTIVE'}
+          onClick={() => setSubFilter('ACTIVE')}
+          selectedLabel={t('filterSelected')}
+        />
+        <StatFilterCard
+          icon="fa-box-archive"
+          label={t('verifFilterHistory')}
+          value={archived.length}
+          color="text-sub"
+          bg="bg-card"
+          active={subFilter === 'HISTORY'}
+          onClick={() => setSubFilter('HISTORY')}
+          selectedLabel={t('filterSelected')}
+        />
       </div>
+
+      {/* Recherche + lignes par page */}
+      <BookingSearchRow
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={t('verifSearchPlaceholder')}
+        perPage={perPage}
+        onPerPageChange={(n) => setPerPage(n as typeof PER_PAGE_OPTIONS[number])}
+        perPageOptions={PER_PAGE_OPTIONS}
+        rowsLabel={t('rowsLabel')}
+      />
+
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-sm text-sub">{q ? t('noResultsFor', { search }) : t('verifFilterEmpty')}</p>
+          {q && (
+            <button onClick={() => setSearch('')} className="mt-3 text-sm text-gold-dark hover:underline">
+              {t('clearSearch')}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {visible.map((v) => (
+            <VerifCard key={v.id} v={v} expanded={expanded === v.id} isProActive={isProActive}
+              onToggle={() => setExpanded(expanded === v.id ? null : v.id)}
+              onRate={() => setRatingModal({ verifId: v.id, agentName: v.agent ? `${v.agent.firstName} ${v.agent.lastName}` : '', existing: v.rating })}
+              onRequestAgain={onRequestAgain}
+              onEdit={onEdit}
+              onCancelled={onCancelled}
+            />
+          ))}
+        </div>
+      )}
+
+      <BookingPagination
+        page={clampedPage}
+        pageCount={pageCount}
+        onPageChange={setPage}
+        previousLabel={t('previous')}
+        nextLabel={t('next')}
+        pageOfLabel={t('pageOf', { page: clampedPage, total: pageCount })}
+      />
 
       {ratingModal && (
         <RatingModal
@@ -904,107 +1368,66 @@ function MesDemandesTab() {
   );
 }
 
-/* ── Tab: Nos agents ─────────────────────────────────────────────────────── */
+/* ── Page principale ─────────────────────────────────────────────────────── */
 
-function NosAgentsTab() {
-  const { getToken } = useAuth();
+function VerificationsPageContent() {
+  const { getToken }  = useAuth();
   const t = useTranslations('bailleur');
-  const [agents,  setAgents]  = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search,  setSearch]  = useState('');
+  const [newVerifOpen,  setNewVerifOpen]  = useState(false);
+  // Pré-remplissage pour le raccourci "Demander à nouveau" (demande rejetée,
+  // encore éligible à une redemande gratuite) — annonce verrouillée dans le
+  // modal, seuls date/heure et agent préféré restent modifiables.
+  const [prefillListing, setPrefillListing] = useState<ListingOption | null>(null);
+  // Édition d'une demande existante (statut REQUESTED) — annonce verrouillée
+  // dans le modal, seuls date/heure et agent préféré restent modifiables.
+  const [editingVerif, setEditingVerif] = useState<EditingVerif | null>(null);
 
-  const load = useCallback(async () => {
+  const [verifs,        setVerifs]        = useState<VerifWithRating[]>([]);
+  const [verifsLoading, setVerifsLoading] = useState(true);
+  // Abonnement PRO actif = AlloVérifié gratuit et illimité (cf. isProActive()
+  // backend) — détermine si la note "aucun paiement nécessaire" sur une
+  // demande refusée doit préciser qu'un paiement sera requis la prochaine
+  // fois (non-PRO, crédit ponctuel) ou que c'est gratuit à chaque fois (PRO).
+  // /subscriptions/me est réservé PRO_AGENCE/ADMIN : un simple BAILLEUR reçoit
+  // un 403, traité ici comme "pas PRO" (même schéma défensif que ailleurs).
+  const [isProActive, setIsProActive] = useState(false);
+
+  useEffect(() => {
+    void getToken().then((token) => {
+      if (!token) return;
+      api.get<{ plan: string; status: string }>('/subscriptions/me', token)
+        .then((sub) => setIsProActive(sub?.plan === 'PRO' && sub?.status === 'ACTIVE'))
+        .catch(() => setIsProActive(false));
+    });
+  }, [getToken]);
+
+  const fetchVerifs = useCallback(async () => {
     const token = await getToken();
     if (!token) return;
     try {
-      const data = await api.get<Agent[]>('/auth/agents', token);
-      setAgents(data);
-    } catch {} finally { setLoading(false); }
+      const data = await api.get<VerifWithRating[]>('/verifications/mine', token);
+      setVerifs(data);
+    } catch {} finally { setVerifsLoading(false); }
   }, [getToken]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void fetchVerifs(); }, [fetchVerifs]);
 
-  const filtered = agents.filter((a) => {
-    const q = search.toLowerCase();
-    return !q || a.firstName.toLowerCase().includes(q) || a.lastName.toLowerCase().includes(q);
-  });
+  // Rafraîchissement automatique en arrière-plan — pas de bouton "Actualiser"
+  // volontairement : le statut (agent assigné, visite en cours, certifié...)
+  // peut changer côté agent/admin à tout moment, l'utilisateur doit le voir
+  // sans action. Silencieux (fetchVerifs ne repasse pas loading à true) et
+  // suspendu si l'onglet n'est pas visible pour ne pas spammer l'API.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') void fetchVerifs();
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, [fetchVerifs]);
 
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sub text-xs" />
-          <input type="text" placeholder={t('verifAgentsSearchPlaceholder')} value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 text-sm border border-line rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-gold/30 text-text placeholder:text-sub" />
-        </div>
-        {agents.length > 0 && (
-          <p className="text-xs text-sub shrink-0">{t('verifAgentsCount', { count: filtered.length })}</p>
-        )}
-      </div>
-
-      <div className="flex items-start gap-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded-xl p-4">
-        <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">{t('verifAgentsInfoNote')}</p>
-      </div>
-
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-card rounded-2xl border border-line p-5 animate-pulse space-y-4">
-              <div className="flex gap-3 items-center">
-                <div className="h-14 w-14 rounded-full bg-line" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-4 bg-line rounded w-3/4" />
-                  <div className="h-3 bg-line rounded w-1/2" />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1 h-16 bg-line rounded-xl" />
-                <div className="flex-1 h-16 bg-line rounded-xl" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-20">
-          <i className="fa-solid fa-user-slash text-4xl text-line mb-4" />
-          <p className="text-sub text-sm">
-            {search ? t('agentNoResults') : t('agentNone')}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((agent) => <AgentCard key={agent.id} agent={agent} />)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── Page principale ─────────────────────────────────────────────────────── */
-
-type Tab = 'demandes' | 'agents';
-
-function VerificationsPageContent() {
-  const searchParams = useSearchParams();
-  const router       = useRouter();
-  const t = useTranslations('bailleur');
-  const activeTab    = (searchParams.get('tab') as Tab) ?? 'demandes';
-  const [newVerifOpen,  setNewVerifOpen]  = useState(false);
-  const [demandesKey,   setDemandesKey]   = useState(0);
-
-  const setTab = (tab: Tab) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('tab', tab);
-    router.replace(`/bailleur/verifications?${params.toString()}`);
+  const handleRatingSaved = (verifId: string, saved: AgentRating) => {
+    setVerifs((prev) => prev.map((v) => v.id === verifId ? { ...v, rating: saved } : v));
   };
-
-  const TABS: { key: Tab; label: string; icon: string }[] = [
-    { key: 'demandes', label: t('tabMyRequests'), icon: 'fa-shield-halved' },
-    { key: 'agents',   label: t('tabAgents'),     icon: 'fa-user-shield'   },
-  ];
 
   return (
     <div className="space-y-6">
@@ -1017,34 +1440,38 @@ function VerificationsPageContent() {
           </h1>
           <p className="text-sm text-sub mt-0.5">{t('verificationsPageSub')}</p>
         </div>
-        <button onClick={() => setNewVerifOpen(true)} className="btn-gold text-sm flex items-center gap-2 rounded-full px-4 py-2 shrink-0">
+        <button onClick={() => { setPrefillListing(null); setEditingVerif(null); setNewVerifOpen(true); }} className="btn-gold text-sm flex items-center gap-2 rounded-full px-4 py-2 shrink-0">
           <i className="fa-solid fa-plus text-xs" />{t('verificationsNewRequest')}
         </button>
       </div>
 
-      <div className="flex gap-1 rounded-xl bg-card border border-line p-1 w-fit">
-        {TABS.map(({ key, label, icon }) => (
-          <button key={key} onClick={() => setTab(key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === key
-                ? 'bg-card shadow-sm text-text border border-line'
-                : 'text-sub hover:text-text'
-            }`}>
-            <i className={`fa-solid ${icon} text-xs ${activeTab === key ? 'text-gold-dark' : ''}`} />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'demandes' ? <MesDemandesTab key={demandesKey} /> : <NosAgentsTab />}
+      <MesDemandesTab
+        verifs={verifs} loading={verifsLoading} onRatingSaved={handleRatingSaved} isProActive={isProActive}
+        onRequestAgain={(listing) => { setPrefillListing(listing); setEditingVerif(null); setNewVerifOpen(true); }}
+        onEdit={(v) => {
+          if (!v.listing) return;
+          setEditingVerif({
+            id: v.id,
+            listing: { id: v.listingId, title: v.listing.title, city: v.listing.city, images: v.listing.images },
+            scheduledAt: v.scheduledAt,
+            preferredAgentId: v.preferredAgentId,
+          });
+          setPrefillListing(null);
+          setNewVerifOpen(true);
+        }}
+        onCancelled={() => void fetchVerifs()}
+      />
 
       {newVerifOpen && (
         <NewVerifModal
-          onClose={() => setNewVerifOpen(false)}
+          initialListing={prefillListing}
+          editingVerif={editingVerif}
+          onClose={() => { setNewVerifOpen(false); setPrefillListing(null); setEditingVerif(null); }}
           onSent={() => {
             setNewVerifOpen(false);
-            setTab('demandes');
-            setDemandesKey((k) => k + 1);
+            setPrefillListing(null);
+            setEditingVerif(null);
+            void fetchVerifs();
           }}
         />
       )}

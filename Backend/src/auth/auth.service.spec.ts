@@ -356,14 +356,50 @@ describe('AuthService', () => {
     });
 
     it("ne touche pas au slug si agencyName n'est pas fourni dans le DTO", async () => {
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce(baseUser);
       prismaMock.user.update.mockResolvedValueOnce(baseUser);
 
       await service.updateMe('user1', { bio: 'Nouvelle bio' });
 
-      expect(prismaMock.user.findUniqueOrThrow).not.toHaveBeenCalled();
+      expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
       expect(prismaMock.user.update).toHaveBeenCalledWith({
         where: { id: 'user1' },
         data: { bio: 'Nouvelle bio' },
+      });
+    });
+  });
+
+  // --- Nom/prénom verrouillés pour les agents (renseignés par l'admin à la
+  // création du compte) — cf. page "Mon profil" agent, décision du 2026-09-24 ---
+  describe('updateMe — verrouillage nom/prénom pour les agents', () => {
+    const agentUser = { ...baseUser, roles: [Role.AGENT_TERRAIN] };
+
+    it('ignore firstName/lastName envoyés par un agent', async () => {
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce(agentUser);
+      prismaMock.user.update.mockResolvedValueOnce(agentUser);
+
+      await service.updateMe('user1', {
+        firstName: 'Tentative',
+        lastName: 'Modif',
+        phone: '+221770000000',
+      });
+
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 'user1' },
+        data: { phone: '+221770000000' },
+      });
+    });
+
+    it('autorise firstName/lastName pour un non-agent (ex. bailleur)', async () => {
+      const bailleur = { ...baseUser, roles: [Role.LOCATAIRE, Role.BAILLEUR] };
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce(bailleur);
+      prismaMock.user.update.mockResolvedValueOnce(bailleur);
+
+      await service.updateMe('user1', { firstName: 'Awa', lastName: 'Diop' });
+
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 'user1' },
+        data: { firstName: 'Awa', lastName: 'Diop' },
       });
     });
   });

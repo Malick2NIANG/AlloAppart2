@@ -4,11 +4,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
+import PhoneInput from '@/components/ui/PhoneInput';
 
 type PhoneForm = z.infer<ReturnType<typeof createPhoneSchema>>;
 
@@ -26,9 +27,6 @@ const variants = {
   center: { x: 0, opacity: 1 },
   exit:   (dir: number) => ({ x: dir * -48, opacity: 0 }),
 };
-
-const inputCls =
-  'w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition';
 
 export default function BecomeBailleurPage() {
   const t = useTranslations('becomeLandlord');
@@ -61,8 +59,9 @@ export default function BecomeBailleurPage() {
     [t],
   );
 
-  const { register, handleSubmit, formState: { errors } } = useForm<PhoneForm>({
+  const { control, handleSubmit, formState: { errors } } = useForm<PhoneForm>({
     resolver: zodResolver(phoneSchema),
+    defaultValues: { phone: '' },
   });
 
   useEffect(() => {
@@ -191,12 +190,13 @@ export default function BecomeBailleurPage() {
                   <label className="mb-1.5 block text-sm font-medium text-text">
                     {t('phoneLabel')} <span className="text-red-400">*</span>
                   </label>
-                  <div className="relative">
-                    <i className="fa-solid fa-phone absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
-                    <input {...register('phone')} type="tel"
-                      placeholder="+221 77 000 00 00"
-                      className={`${inputCls} pl-10`} />
-                  </div>
+                  <Controller
+                    control={control}
+                    name="phone"
+                    render={({ field }) => (
+                      <PhoneInput value={field.value} onChange={field.onChange} autoFocus />
+                    )}
+                  />
                   {errors.phone && (
                     <p className="mt-1 flex items-center gap-1 text-xs text-red-500">
                       <i className="fa-solid fa-circle-exclamation" /> {errors.phone.message}

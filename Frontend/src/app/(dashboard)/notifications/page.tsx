@@ -183,7 +183,7 @@ export default function NotificationsPage() {
                 onClick={() => { if (!n.isRead) void markOne(n.id); }}
                 className={`group flex items-start gap-4 rounded-2xl border p-4 transition-all cursor-pointer ${
                   !n.isRead
-                    ? 'border-gold/30 bg-gold-pale/30 hover:bg-gold-pale/50'
+                    ? 'border-gold/30 dark:border-gold/20 bg-gold-pale/30 dark:bg-gold-dark/10 hover:bg-gold-pale/50 dark:hover:bg-gold-dark/20'
                     : 'border-line bg-card hover:bg-bg'
                 }`}
               >

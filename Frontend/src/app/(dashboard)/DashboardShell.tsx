@@ -130,10 +130,12 @@ interface Props {
   pendingVerifCount?: number;
   pendingReportsCount?: number;
   pendingDisputesCount?: number;
+  agentPendingCount?: number;
+  bailleurActionCount?: number;
   children: React.ReactNode;
 }
 
-export default function DashboardShell({ userName, userId, roles, navItems, isProAgence = false, userRole, userAvatar, userInitials = '?', pendingVerifCount: initialVerifCount = 0, pendingReportsCount: initialReportsCount = 0, pendingDisputesCount: initialDisputesCount = 0, children }: Props) {
+export default function DashboardShell({ userName, userId, roles, navItems, isProAgence = false, userRole, userAvatar, userInitials = '?', pendingVerifCount: initialVerifCount = 0, pendingReportsCount: initialReportsCount = 0, pendingDisputesCount: initialDisputesCount = 0, agentPendingCount: initialAgentPendingCount = 0, bailleurActionCount: initialBailleurActionCount = 0, children }: Props) {
   const td     = useTranslations('dashboard');
   const locale = useLocale();
 
@@ -163,10 +165,15 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
   const [open, setOpen]           = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [tooltip, setTooltip]     = useState<{ label: string; top: number } | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
+  // Messages non lus, comptés séparément selon le "chapeau" porté dans chaque
+  // room (propriétaire de l'annonce vs participant) — cf. fetchUnread ci-dessous.
+  const [unreadOwnerCount,       setUnreadOwnerCount]       = useState(0);
+  const [unreadParticipantCount, setUnreadParticipantCount] = useState(0);
   const [now, setNow]             = useState(new Date());
   const pathname = usePathname();
-  const isAdmin = roles.includes('ADMIN');
+  const isAdmin    = roles.includes('ADMIN');
+  const isAgent    = roles.includes('AGENT_TERRAIN');
+  const isBailleur = roles.includes('BAILLEUR') || roles.includes('PRO_AGENCE');
 
   /* ── Badges "action requise" (admin) — seedés côté serveur (layout.tsx),
      rendus vivants ici via Pusher (événements causés par d'autres
@@ -175,9 +182,16 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
   const [verifCount,    setVerifCount]    = useState(initialVerifCount);
   const [reportsCount,  setReportsCount]  = useState(initialReportsCount);
   const [disputesCount, setDisputesCount] = useState(initialDisputesCount);
-  const visibleVerifCount    = pathname.includes('/verifications') ? 0 : verifCount;
+  const visibleVerifCount    = pathname.startsWith('/espace/verifications') ? 0 : verifCount;
   const visibleReportsCount  = pathname.includes('/reports')       ? 0 : reportsCount;
   const visibleDisputesCount = pathname.includes('/bookings')      ? 0 : disputesCount;
+
+  /* ── Badges "action requise" (agent + bailleur) — même principe que ceux de
+     l'admin ci-dessus, cf. décision du 2026-09-24. ── */
+  const [agentPendingCount,   setAgentPendingCount]   = useState(initialAgentPendingCount);
+  const [bailleurActionCount, setBailleurActionCount] = useState(initialBailleurActionCount);
+  const visibleAgentPendingCount   = pathname.startsWith('/agent/verifications')   ? 0 : agentPendingCount;
+  const visibleBailleurActionCount = pathname.startsWith('/bailleur/verifications') ? 0 : bailleurActionCount;
   const { signOut } = useClerk();
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -197,14 +211,24 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
     return () => clearInterval(t);
   }, []);
 
-  /* ── Badge messages non lus ──────────────────────────────── */
+  /* ── Badge messages non lus ──────────────────────────────────────────────
+     Compté séparément selon le "chapeau" porté dans chaque room (propriétaire
+     de l'annonce vs participant/locataire) — un compte dual bailleur+locataire
+     a deux entrées "Messages" dans la nav (une par section) qui pointent vers
+     la MÊME boîte de réception globale (/messages/rooms n'est pas filtré par
+     contexte). Sans ce découpage les deux entrées affichaient le même total,
+     ce qui laissait croire à deux pools de non-lus distincts. Cf. décision du
+     2026-09-24. */
   const fetchUnread = useCallback(async () => {
     const token = await getToken().catch(() => null);
     if (!token) return;
     try {
       const rooms = await api.get<MessageRoom[]>('/messages/rooms', token);
-      const count = rooms.filter((r) => r.messages?.[0] && !r.messages[0].readAt && r.messages[0].senderId !== userId).length;
-      setUnreadCount(count);
+      const isUnread = (r: MessageRoom) => !!r.messages?.[0] && !r.messages[0].readAt && r.messages[0].senderId !== userId;
+      const owner      = rooms.filter((r) => isUnread(r) && r.listing?.ownerId === userId).length;
+      const participant = rooms.filter((r) => isUnread(r) && r.listing?.ownerId !== userId).length;
+      setUnreadOwnerCount(owner);
+      setUnreadParticipantCount(participant);
     } catch {}
   }, [getToken, userId]);
 
@@ -246,6 +270,25 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
     } catch {}
   }, [getToken]);
 
+  /* ── Badges agent + bailleur "action requise" — même refetch ciblé ──────── */
+  const fetchAgentPendingCount = useCallback(async () => {
+    const token = await getToken().catch(() => null);
+    if (!token) return;
+    try {
+      const r = await api.get<{ count: number }>('/verifications/agent-pending-count', token);
+      setAgentPendingCount(r.count);
+    } catch {}
+  }, [getToken]);
+
+  const fetchBailleurActionCount = useCallback(async () => {
+    const token = await getToken().catch(() => null);
+    if (!token) return;
+    try {
+      const r = await api.get<{ count: number }>('/verifications/bailleur-action-count', token);
+      setBailleurActionCount(r.count);
+    } catch {}
+  }, [getToken]);
+
   /* Rafraîchissements auto-provoqués : l'admin agit sur sa propre page
      (valider/assigner une vérif, approuver/refuser un déclin, suspendre une
      annonce signalée, trancher un litige) — même pattern que
@@ -261,6 +304,29 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
     window.addEventListener('aa-badges-updated', handler);
     return () => window.removeEventListener('aa-badges-updated', handler);
   }, [isAdmin, fetchVerifCount, fetchReportsCount, fetchDisputesCount]);
+
+  /* Idem pour l'agent (il démarre/termine/refuse une mission depuis sa propre
+     page) et le bailleur (il consomme un crédit en soumettant une nouvelle
+     demande AlloVérifié) — même event générique 'aa-badges-updated'. */
+  useEffect(() => {
+    if (!isAgent) return;
+    const handler = (e: Event) => {
+      const kind = (e as CustomEvent<{ kind?: string }>).detail?.kind;
+      if (kind === 'AGENT_MISSIONS') void fetchAgentPendingCount();
+    };
+    window.addEventListener('aa-badges-updated', handler);
+    return () => window.removeEventListener('aa-badges-updated', handler);
+  }, [isAgent, fetchAgentPendingCount]);
+
+  useEffect(() => {
+    if (!isBailleur) return;
+    const handler = (e: Event) => {
+      const kind = (e as CustomEvent<{ kind?: string }>).detail?.kind;
+      if (kind === 'BAILLEUR_CREDIT') void fetchBailleurActionCount();
+    };
+    window.addEventListener('aa-badges-updated', handler);
+    return () => window.removeEventListener('aa-badges-updated', handler);
+  }, [isBailleur, fetchBailleurActionCount]);
 
   /* ── Pusher temps réel — événements causés par d'autres utilisateurs ─────
      Canal déjà utilisé par NotificationBell (même souscription, deux
@@ -295,8 +361,27 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
       });
     }
 
+    // Badge agent — nouvelle mission assignée (notifyVerifAssigned).
+    if (isAgent) {
+      ch.bind('notification', (notif: { type?: string }) => {
+        if (notif?.type === 'VERIF_ASSIGNED') void fetchAgentPendingCount();
+      });
+    }
+
+    // Badge bailleur — mission rejetée (crédit potentiellement émis, cf.
+    // notifyVerifRejectedWithCredit ; un refetch même sans crédit ne coûte rien).
+    if (isBailleur) {
+      ch.bind('notification', (notif: { type?: string }) => {
+        if (notif?.type === 'VERIF_REJECTED') void fetchBailleurActionCount();
+      });
+    }
+
     return () => { ch.unbind_all(); client.unsubscribe(`user-${userId}`); client.disconnect(); };
-  }, [userId, isAdmin, fetchUnread, fetchReportsCount, fetchDisputesCount, fetchVerifCount]);
+  }, [
+    userId, isAdmin, isAgent, isBailleur, fetchUnread,
+    fetchReportsCount, fetchDisputesCount, fetchVerifCount,
+    fetchAgentPendingCount, fetchBailleurActionCount,
+  ]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -484,6 +569,23 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
               const active = item.exact
                 ? pathname === item.href
                 : pathname === item.href || pathname.startsWith(item.href + '/');
+              // "/bailleur/messages" pointe vers les rooms où l'utilisateur est
+              // propriétaire de l'annonce, toute autre entrée "Messages"
+              // (/locataire/messages, /agent/messages) vers celles où il est
+              // participant — cf. fetchUnread (compte dual bailleur+locataire).
+              const messagesCount = item.href === '/bailleur/messages' ? unreadOwnerCount
+                : item.href.includes('/messages') ? unreadParticipantCount
+                : 0;
+              // Badges ambre "action requise" — un seul par item, admin (3
+              // compteurs) ou agent/bailleur (1 chacun), jamais les deux à la
+              // fois pour un même href donné, cf. décision du 2026-09-24.
+              const actionBadgeCount =
+                item.href === '/espace/verifications'   ? visibleVerifCount
+                : item.href === '/espace/reports'        ? visibleReportsCount
+                : item.href === '/espace/bookings'       ? visibleDisputesCount
+                : item.href === '/agent/verifications'   ? visibleAgentPendingCount
+                : item.href === '/bailleur/verifications' ? visibleBailleurActionCount
+                : 0;
               return (
                 <li
                   key={item.href}
@@ -512,49 +614,29 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
                       )}
                       <i className={`relative z-10 ${item.icon} text-sm`} />
                       {/* Badge non lus — uniquement sur l'item Messages */}
-                      {item.href.includes('/messages') && unreadCount > 0 && (
+                      {messagesCount > 0 && (
                         <span className="absolute -top-1 -right-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
-                          {unreadCount > 9 ? '9+' : unreadCount}
+                          {messagesCount > 9 ? '9+' : messagesCount}
                         </span>
                       )}
-                      {/* Badges "action requise" — admin uniquement */}
-                      {item.href.includes('/verifications') && visibleVerifCount > 0 && (
+                      {/* Badge "action requise" — admin (3 pages), agent (missions), bailleur (crédits) */}
+                      {actionBadgeCount > 0 && (
                         <span className="absolute -top-1 -right-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white leading-none">
-                          {visibleVerifCount > 9 ? '9+' : visibleVerifCount}
-                        </span>
-                      )}
-                      {item.href === '/espace/reports' && visibleReportsCount > 0 && (
-                        <span className="absolute -top-1 -right-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white leading-none">
-                          {visibleReportsCount > 9 ? '9+' : visibleReportsCount}
-                        </span>
-                      )}
-                      {item.href === '/espace/bookings' && visibleDisputesCount > 0 && (
-                        <span className="absolute -top-1 -right-1 z-20 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white leading-none">
-                          {visibleDisputesCount > 9 ? '9+' : visibleDisputesCount}
+                          {actionBadgeCount > 9 ? '9+' : actionBadgeCount}
                         </span>
                       )}
                     </span>
                     {!collapsed && (
                       <span className="flex-1 flex items-center justify-between">
                         {item.label}
-                        {item.href.includes('/messages') && unreadCount > 0 && (
+                        {messagesCount > 0 && (
                           <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white leading-none">
-                            {unreadCount > 9 ? '9+' : unreadCount}
+                            {messagesCount > 9 ? '9+' : messagesCount}
                           </span>
                         )}
-                        {item.href.includes('/verifications') && visibleVerifCount > 0 && (
+                        {actionBadgeCount > 0 && (
                           <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white leading-none">
-                            {visibleVerifCount > 9 ? '9+' : visibleVerifCount}
-                          </span>
-                        )}
-                        {item.href === '/espace/reports' && visibleReportsCount > 0 && (
-                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white leading-none">
-                            {visibleReportsCount > 9 ? '9+' : visibleReportsCount}
-                          </span>
-                        )}
-                        {item.href === '/espace/bookings' && visibleDisputesCount > 0 && (
-                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white leading-none">
-                            {visibleDisputesCount > 9 ? '9+' : visibleDisputesCount}
+                            {actionBadgeCount > 9 ? '9+' : actionBadgeCount}
                           </span>
                         )}
                       </span>

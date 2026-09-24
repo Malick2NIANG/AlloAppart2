@@ -4,7 +4,6 @@ import { getTranslations, getLocale } from 'next-intl/server';
 import { auth } from '@clerk/nextjs/server';
 import FavoriteButton from '@/components/ui/FavoriteButton';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
-import { MOCK_LISTINGS } from '@/lib/mockListings';
 import { getRegion } from '@/lib/regions';
 import { getListingPriceAmounts, type Listing } from '@/types';
 
@@ -31,15 +30,13 @@ export default async function RegionPage({
     const res = await api.get<{ data: Listing[]; total: number }>(
       `/listings?region=${encodeURIComponent(region)}&page=${currentPage}&limit=${PER_PAGE}`
     );
-    if (!Array.isArray(res?.data) || res.data.length === 0) throw new Error('empty');
-    listings = res.data;
-    total = res.total ?? 0;
+    listings = Array.isArray(res?.data) ? res.data : [];
+    total = res?.total ?? 0;
   } catch {
-    const filtered = (MOCK_LISTINGS as unknown as Listing[]).filter(
-      (l) => l.region.toLowerCase() === region.toLowerCase()
-    );
-    total = filtered.length;
-    listings = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
+    // API indisponible — on affiche l'état vide plutôt que des données
+    // inventées ; jamais de fallback mock sur une page publique.
+    listings = [];
+    total = 0;
   }
 
   const { getToken } = await auth();

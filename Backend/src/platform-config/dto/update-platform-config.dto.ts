@@ -38,11 +38,6 @@ export class UpdatePlatformConfigDto {
   @IsOptional()
   @IsInt()
   @Min(0)
-  auditFullPriceFcfa?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
   boostPriceFcfa?: number;
 
   /** Méthode de confirmation choisie par l'admin pour valider ce changement. */

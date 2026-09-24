@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import PhotoCropper from '@/components/ui/PhotoCropper';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import PhoneInput from '@/components/ui/PhoneInput';
 import { AGENCY_COLORS, getAgencyColorOption } from '@/lib/agencyColors';
 import { revalidateVitrineCache } from './actions';
 import type { User, Subscription, Listing, PaginatedResponse } from '@/types';
@@ -270,25 +271,6 @@ export default function MaVitrinePage() {
         )}
       </div>
 
-      {/* Lien public — lecture seule, jamais éditable (assigné automatiquement) */}
-      {vitrinUrl && (
-        <div className="rounded-2xl border border-gold/30 bg-gold-pale/40 p-4 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gold/20 flex items-center justify-center shrink-0">
-            <i className="fa-solid fa-link text-gold-dark" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold text-sub uppercase tracking-wide">{t('vitrineLinkLabel')}</p>
-            <p className="text-sm font-semibold text-gold-dark truncate">alloAppart.sn{vitrinUrl}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => { void navigator.clipboard.writeText(`https://alloAppart.sn${vitrinUrl}`); toastRef.current.success(t('vitrineLinkCopied')); }}
-            className="h-8 w-8 rounded-lg bg-white/60 dark:bg-white/10 flex items-center justify-center text-sub hover:text-gold-dark hover:bg-white dark:hover:bg-white/20 transition-colors shrink-0">
-            <i className="fa-regular fa-copy text-sm" />
-          </button>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start">
 
         <form id="vitrine-form" onSubmit={(e) => void handleSave(e)} className="space-y-5">
@@ -385,12 +367,7 @@ export default function MaVitrinePage() {
 
             <div>
               <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">{t('vitrinePhone')}</label>
-              <div className="relative">
-                <i className="fa-solid fa-phone absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-xs" />
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel"
-                  placeholder="+221 77 000 00 00"
-                  className="w-full rounded-xl border border-line bg-bg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40" />
-              </div>
+              <PhoneInput value={phone} onChange={setPhone} />
             </div>
 
             <div>

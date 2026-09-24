@@ -41,7 +41,6 @@ describe('SubscriptionsService', () => {
               nightlyCommissionRate: 0.1,
               monthlyCommissionMonths: 1,
               auditBasicPriceFcfa: 25_000,
-              auditFullPriceFcfa: 60_000,
               boostPriceFcfa: 5_000,
             }),
           },

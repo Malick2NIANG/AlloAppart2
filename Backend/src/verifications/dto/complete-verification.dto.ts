@@ -6,10 +6,6 @@ export class CompleteVerificationDto {
   reportUrl?: string;
 
   @IsOptional()
-  @IsUrl()
-  tourUrl?: string;
-
-  @IsOptional()
   @IsString()
   notes?: string;
 

@@ -276,7 +276,7 @@ export default function MessagesPage() {
                     <button
                       key={room.id}
                       onClick={() => selectRoom(room)}
-                      className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-bg border-b border-line/50 ${activeRoom?.id === room.id ? 'bg-gold-pale' : ''}`}
+                      className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-bg border-b border-line/50 ${activeRoom?.id === room.id ? 'bg-gold-pale dark:bg-gold-dark/15' : ''}`}
                     >
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-pale text-xs font-bold text-gold-dark">
                         {initials}

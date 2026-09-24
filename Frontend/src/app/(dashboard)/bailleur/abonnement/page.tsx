@@ -198,7 +198,7 @@ function AbonnementContent() {
       )}
 
       {searchParams.get('reason') === 'required' && (
-        <div className="mb-6 rounded-2xl border border-gold-dark/30 bg-gold-pale/40 p-4 flex items-start gap-3">
+        <div className="mb-6 rounded-2xl border border-gold-dark/30 dark:border-gold-dark/20 bg-gold-pale/40 dark:bg-gold-dark/10 p-4 flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gold-pale">
             <i className="fa-solid fa-lock text-gold-dark" />
           </div>
@@ -251,7 +251,7 @@ function AbonnementContent() {
               <div
                 key={plan.key}
                 className={`relative rounded-2xl border p-6 transition ${
-                  plan.highlighted ? 'border-gold bg-gold-pale/30 shadow-md' : 'border-line bg-card'
+                  plan.highlighted ? 'border-gold bg-gold-pale/30 dark:bg-gold-dark/10 shadow-md' : 'border-line bg-card'
                 }`}
               >
                 {plan.highlighted && (

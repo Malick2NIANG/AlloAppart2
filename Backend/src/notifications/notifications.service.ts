@@ -36,7 +36,6 @@ export type ConfigFieldKey =
   | 'nightlyCommissionRate'
   | 'monthlyCommissionMonths'
   | 'auditBasicPriceFcfa'
-  | 'auditFullPriceFcfa'
   | 'boostPriceFcfa';
 
 export interface ConfigFieldChange {
@@ -51,7 +50,6 @@ const CONFIG_FIELD_LABELS: Record<ConfigFieldKey, MessageKey> = {
   nightlyCommissionRate: 'configFieldNightlyCommission',
   monthlyCommissionMonths: 'configFieldMonthlyCommission',
   auditBasicPriceFcfa: 'configFieldAuditBasic',
-  auditFullPriceFcfa: 'configFieldAuditFull',
   boostPriceFcfa: 'configFieldBoost',
 };
 
@@ -60,7 +58,6 @@ const FCFA_FIELDS: ReadonlySet<ConfigFieldKey> = new Set([
   'starterPriceFcfa',
   'proPriceFcfaMonthly',
   'auditBasicPriceFcfa',
-  'auditFullPriceFcfa',
   'boostPriceFcfa',
 ]);
 
@@ -933,6 +930,25 @@ export class NotificationsService {
     );
   }
 
+  // Bailleur : mission rejetée par l'agent (bien non conforme) — émet un
+  // crédit de re-soumission gratuit si le bailleur avait payé (creditIssued).
+  async notifyVerifRejectedWithCredit(
+    bailleurId: string,
+    listingTitle: string,
+    listingId: string,
+    reason: string,
+    creditIssued: boolean,
+  ) {
+    await this.pushInApp(
+      bailleurId,
+      'VERIF_REJECTED',
+      'pushVerifRejectedTitle',
+      creditIssued ? 'pushVerifRejectedCreditBody' : 'pushVerifRejectedBody',
+      { listingTitle, reason },
+      { listingTitle, listingId, reason },
+    );
+  }
+
   // Agent : mission déclinée par lui-même (remise en REQUESTED)
   async notifyVerifDeclined(
     bailleurId: string,
@@ -975,6 +991,20 @@ export class NotificationsService {
           { senderId, roomId, count },
         ),
       ),
+    );
+  }
+
+  // Bailleur/agence : annonce suspendue par un admin (suite à un
+  // signalement ou non) — on notifie uniquement l'issue, jamais le
+  // signalement brut ni l'identité de l'éventuel auteur du signalement.
+  async notifyListingSuspended(ownerId: string, listingTitle: string) {
+    await this.pushInApp(
+      ownerId,
+      'LISTING_SUSPENDED',
+      'pushListingSuspendedTitle',
+      'pushListingSuspendedBody',
+      { listingTitle },
+      { listingTitle },
     );
   }
 

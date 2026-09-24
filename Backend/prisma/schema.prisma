@@ -200,7 +200,6 @@ model Verification {
   preferredAgentId  String?     // Agent demandé par le bailleur (optionnel, non contraignant)
   status            VerifStatus @default(REQUESTED)
   reportUrl         String?
-  auditType         AuditType   @default(BASIC)
   scheduledAt       DateTime
   completedAt       DateTime?
   notes             String?
@@ -216,6 +215,29 @@ model Verification {
   @@map("verifications")
 }
 
+/**
+ * Crédit de re-soumission AlloVérifié — émis automatiquement quand un agent
+ * rejette une vérification (bien non conforme) alors que le bailleur avait
+ * déjà payé. Consommé par VerificationsService.create() : si un crédit non
+ * utilisé existe pour l'annonce, la prochaine demande saute le paiement
+ * PayDunya. Pas de relations Prisma déclarées (simples FK) pour ne pas
+ * toucher aux modèles User/Listing/Verification existants.
+ */
+model VerificationCredit {
+  id                   String    @id @default(uuid())
+  ownerId              String
+  listingId            String
+  sourceVerificationId String
+  used                 Boolean   @default(false)
+  usedByVerificationId String?
+  createdAt            DateTime  @default(now())
+  usedAt               DateTime?
+
+  @@index([listingId, used])
+  @@index([ownerId])
+  @@map("verification_credits")
+}
+
 model MessageRoom {
   id           String    @id @default(uuid())
   listingId    String
@@ -226,6 +248,22 @@ model MessageRoom {
 
   @@index([listingId])
   @@map("message_rooms")
+}
+
+// Archivage d'une conversation, à la WhatsApp : un état PAR utilisateur (un
+// même roomId peut être archivé pour l'un des participants et pas pour
+// l'autre), donc pas un simple booléen sur MessageRoom. Table plate, sans
+// @relation, comme VerificationCredit ci-dessus — pas besoin de navigation
+// Prisma, juste des lookups par (userId) et (roomId).
+model ArchivedRoom {
+  id         String   @id @default(uuid())
+  userId     String
+  roomId     String
+  archivedAt DateTime @default(now())
+
+  @@unique([userId, roomId])
+  @@index([roomId])
+  @@map("archived_rooms")
 }
 
 model Message {
@@ -367,10 +405,6 @@ enum VerifStatus {
   DECLINE_PENDING
 }
 
-enum AuditType {
-  BASIC
-  FULL
-}
 
 enum ReportReason {
   FRAUD
@@ -458,15 +492,14 @@ model BoostPayment {
  * Paiement AlloVérifié pour les demandeurs non couverts par un abonnement PRO
  * actif (STARTER, bailleur individuel) — gratuit pour PRO actif/admin, cf.
  * VerificationsService.isProActive(). Reprend le schéma de BoostPayment ;
- * porte en plus les champs de la future Verification (auditType,
- * scheduledAt, preferredAgentId) puisque celle-ci n'est créée qu'une fois le
- * paiement confirmé — `verificationId` trace alors la Verification résultante.
+ * porte en plus les champs de la future Verification (scheduledAt,
+ * preferredAgentId) puisque celle-ci n'est créée qu'une fois le paiement
+ * confirmé — `verificationId` trace alors la Verification résultante.
  */
 model VerificationPayment {
   id               String    @id @default(uuid())
   listingId        String
   requesterId      String
-  auditType        AuditType
   scheduledAt      DateTime
   preferredAgentId String?
   amount           Int
@@ -495,7 +528,6 @@ model PlatformConfig {
   nightlyCommissionRate   Float    @default(0.10)
   monthlyCommissionMonths Float    @default(1)
   auditBasicPriceFcfa     Int      @default(25000)
-  auditFullPriceFcfa      Int      @default(60000)
   boostPriceFcfa          Int      @default(5000)
 
   // Modification tarifaire en attente — préavis CGU Article 7 (30 jours par
@@ -508,7 +540,6 @@ model PlatformConfig {
   pendingNightlyCommissionRate   Float?
   pendingMonthlyCommissionMonths Float?
   pendingAuditBasicPriceFcfa     Int?
-  pendingAuditFullPriceFcfa      Int?
   pendingBoostPriceFcfa          Int?
   pendingEffectiveAt             DateTime?
   pendingSetByEmail              String?

@@ -9,6 +9,7 @@ import { formatDate, displayableEmail } from '@/lib/utils';
 import { SkeletonListRow } from '@/components/ui/Skeleton';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useToast } from '@/components/ui/Toast';
+import PhoneInput from '@/components/ui/PhoneInput';
 
 type RoleFilter = 'ALL' | 'LOCATAIRE' | 'BAILLEUR' | 'PRO_AGENCE' | 'AGENT_TERRAIN' | 'ADMIN';
 
@@ -461,7 +462,7 @@ export default function AdminUsersPage() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-sub">{t('fieldPhone')}</label>
-              <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder={t('fieldPhonePh')} className={inputCls} />
+              <PhoneInput value={editForm.phone} onChange={v => setEditForm(f => ({ ...f, phone: v }))} />
             </div>
             {editModal.roles.includes('PRO_AGENCE') && (
               <div>
@@ -523,7 +524,7 @@ export default function AdminUsersPage() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-sub">{t('fieldPhone')}</label>
-              <input value={agentForm.phone} onChange={e => setAgentForm(f => ({ ...f, phone: e.target.value }))} placeholder={t('fieldPhonePh')} className={inputCls} />
+              <PhoneInput value={agentForm.phone} onChange={v => setAgentForm(f => ({ ...f, phone: v }))} />
             </div>
             {formError && <p className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-400">{formError}</p>}
             <div className="flex gap-3 justify-end pt-1">
@@ -578,7 +579,7 @@ export default function AdminUsersPage() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-sub">{t('fieldPhone')}</label>
-              <input value={agenceForm.phone} onChange={e => setAgenceForm(f => ({ ...f, phone: e.target.value }))} placeholder={t('fieldPhonePh')} className={inputCls} />
+              <PhoneInput value={agenceForm.phone} onChange={v => setAgenceForm(f => ({ ...f, phone: v }))} />
             </div>
             {formError && <p className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-400">{formError}</p>}
             <div className="flex gap-3 justify-end pt-1">

@@ -14,7 +14,7 @@ import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import { revalidateListingsCache } from './actions';
 
 // Doit rester synchronisé avec AUDIT_PRICE_XOF côté backend (verifications.service.ts)
-const AUDIT_PRICE_XOF: Record<'BASIC' | 'FULL', number> = { BASIC: 25_000, FULL: 60_000 };
+const AUDIT_PRICE_XOF = 25_000;
 
 interface VerifModal { listingId: string; title: string; }
 interface AgentOption { id: string; firstName: string; lastName: string; completedMissions: number; }
@@ -52,7 +52,7 @@ function BailleurListingsContent() {
   const [search,      setSearch]      = useState('');
   const [page,        setPage]        = useState(1);
   const [verifModal,  setVerifModal]  = useState<VerifModal | null>(null);
-  const [verifForm,   setVerifForm]   = useState({ auditType: 'BASIC', scheduledAt: '', preferredAgentId: '' });
+  const [verifForm,   setVerifForm]   = useState({ scheduledAt: '', preferredAgentId: '' });
   const [verifLoading,setVerifLoading]= useState(false);
   const [agents,      setAgents]      = useState<AgentOption[]>([]);
   const [agentsLoaded,setAgentsLoaded]= useState(false);
@@ -149,7 +149,6 @@ function BailleurListingsContent() {
     try {
       const res = await api.post<{ payment_url?: string }>('/verifications', {
         listingId: verifModal.listingId,
-        auditType: verifForm.auditType,
         scheduledAt: new Date(verifForm.scheduledAt).toISOString(),
         ...(verifForm.preferredAgentId ? { preferredAgentId: verifForm.preferredAgentId } : {}),
       }, token);
@@ -160,14 +159,20 @@ function BailleurListingsContent() {
         redirectPaymentTab(paymentTab, res.payment_url);
         return;
       }
-      // PRO actif ou admin — gratuit, Verification créée directement
+      // PRO actif/admin (gratuit) ou crédit de re-soumission consommé —
+      // Verification créée directement sans passer par PayDunya. On rafraîchit
+      // le badge sidebar "AlloVérifié" par précaution (no-op si pas de crédit).
       closePaymentTab(paymentTab);
       toast.success(t('verifSuccess', { title: verifModal.title }));
       setVerifModal(null);
-      setVerifForm({ auditType: 'BASIC', scheduledAt: '', preferredAgentId: '' });
-    } catch {
+      setVerifForm({ scheduledAt: '', preferredAgentId: '' });
+      window.dispatchEvent(new CustomEvent('aa-badges-updated', { detail: { kind: 'BAILLEUR_CREDIT' } }));
+    } catch (err: unknown) {
       closePaymentTab(paymentTab);
-      toast.error(t('verifError'));
+      const msg = (err as { status?: number; message?: string })?.status === 409
+        ? (err as { message?: string }).message
+        : undefined;
+      toast.error(msg ?? t('verifError'));
     } finally {
       setVerifLoading(false);
     }
@@ -351,7 +356,7 @@ function BailleurListingsContent() {
               key={key}
               onClick={() => setFilter(key)}
               className={`rounded-2xl border p-4 text-left transition-colors ${
-                isActive ? 'border-gold-dark bg-gold-pale/30' : 'border-line bg-card hover:border-gold-dark/40'
+                isActive ? 'border-gold-dark bg-gold-pale/30 dark:bg-gold-dark/10' : 'border-line bg-card hover:border-gold-dark/40'
               }`}
             >
               <div className="flex items-center justify-between mb-3">
@@ -466,26 +471,14 @@ function BailleurListingsContent() {
               <p className="text-xs text-sub mb-4">{t('verifPriceNote')}</p>
             )}
             <div className="flex flex-col gap-4">
-              <div>
-                <label className="block text-xs font-medium text-sub mb-1.5">{t('verifAuditType')}</label>
-                <div className="flex gap-3">
-                  {([
-                    { value: 'BASIC', label: t('verifAuditBasic'), desc: t('verifAuditBasicDesc') },
-                    { value: 'FULL',  label: t('verifAuditFull'),  desc: t('verifAuditFullDesc')  },
-                  ] as const).map((opt) => (
-                    <button key={opt.value} type="button"
-                      onClick={() => setVerifForm((f) => ({ ...f, auditType: opt.value }))}
-                      className={`flex-1 rounded-xl border p-3 text-left transition-colors ${
-                        verifForm.auditType === opt.value ? 'border-gold-dark bg-gold-pale' : 'border-line bg-bg hover:border-gold-dark'
-                      }`}>
-                      <p className={`text-sm font-medium ${verifForm.auditType === opt.value ? 'text-gold-dark' : 'text-text'}`}>{opt.label}</p>
-                      <p className="text-xs text-sub mt-0.5">{opt.desc}</p>
-                      <p className={`text-xs font-semibold mt-1.5 ${verifForm.auditType === opt.value ? 'text-gold-dark' : 'text-sub'}`}>
-                        {isProActive ? t('verifFreeBadge') : `${AUDIT_PRICE_XOF[opt.value].toLocaleString('fr-FR')} FCFA`}
-                      </p>
-                    </button>
-                  ))}
+              <div className="rounded-xl border border-line bg-bg p-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-text">{t('verifAuditType')}</p>
+                  <p className="text-xs text-sub mt-0.5">{t('verifAuditBasicDesc')}</p>
                 </div>
+                <p className="text-sm font-semibold text-gold-dark shrink-0">
+                  {isProActive ? t('verifFreeBadge') : `${AUDIT_PRICE_XOF.toLocaleString('fr-FR')} FCFA`}
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-sub mb-1.5">{t('verifDateLabel')}</label>
@@ -514,14 +507,14 @@ function BailleurListingsContent() {
               </div>
             </div>
             <div className="flex gap-3 mt-6 justify-end">
-              <button onClick={() => { setVerifModal(null); setVerifForm({ auditType: 'BASIC', scheduledAt: '', preferredAgentId: '' }); }}
+              <button onClick={() => { setVerifModal(null); setVerifForm({ scheduledAt: '', preferredAgentId: '' }); }}
                 className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
                 {t('cancel')}
               </button>
               <button onClick={requestVerif} disabled={!verifForm.scheduledAt || verifLoading} className="btn-gold text-sm disabled:opacity-50">
                 {verifLoading
                   ? <i className="fa-solid fa-spinner fa-spin" />
-                  : (isProActive ? t('verifSubmit') : t('verifSubmitPay', { amount: AUDIT_PRICE_XOF[verifForm.auditType as 'BASIC' | 'FULL'].toLocaleString('fr-FR') }))}
+                  : (isProActive ? t('verifSubmit') : t('verifSubmitPay', { amount: AUDIT_PRICE_XOF.toLocaleString('fr-FR') }))}
               </button>
             </div>
           </div>
@@ -541,7 +534,7 @@ function BailleurListingsContent() {
             </div>
 
             <div className="p-6">
-              <div className="flex items-center justify-between rounded-2xl border border-gold/30 bg-gold-pale/60 px-5 py-4 mb-5">
+              <div className="flex items-center justify-between rounded-2xl border border-gold/30 dark:border-gold/20 bg-gold-pale/60 dark:bg-gold-dark/10 px-5 py-4 mb-5">
                 <div>
                   <p className="text-xs font-bold text-sub uppercase tracking-wider">{t('boostPriceLabel')}</p>
                   {isProActive ? (

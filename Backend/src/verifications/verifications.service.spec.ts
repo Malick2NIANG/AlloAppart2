@@ -32,12 +32,18 @@ describe('VerificationsService', () => {
       findFirst: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
+      count: jest.Mock;
     };
     verificationPayment: {
       findFirst: jest.Mock;
       findUniqueOrThrow: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
+    };
+    verificationCredit: {
+      findFirst: jest.Mock;
+      create: jest.Mock;
+      count: jest.Mock;
     };
     agentRating: { findUnique: jest.Mock };
     listing: { findUnique: jest.Mock; updateMany: jest.Mock };
@@ -54,6 +60,7 @@ describe('VerificationsService', () => {
     listingId: 'listing1',
     agentId: 'agent1',
     status: VerifStatus.IN_PROGRESS,
+    listing: { id: 'listing1', title: 'Test listing', owner: { id: 'owner1' } },
   };
 
   beforeEach(async () => {
@@ -64,12 +71,18 @@ describe('VerificationsService', () => {
         findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        count: jest.fn(),
       },
       verificationPayment: {
         findFirst: jest.fn(),
         findUniqueOrThrow: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+      },
+      verificationCredit: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+        count: jest.fn(),
       },
       agentRating: { findUnique: jest.fn() },
       listing: { findUnique: jest.fn(), updateMany: jest.fn() },
@@ -87,7 +100,10 @@ describe('VerificationsService', () => {
         { provide: PrismaService, useValue: prismaMock },
         {
           provide: NotificationsService,
-          useValue: { notifyAdminNewVerificationRequest: jest.fn() },
+          useValue: {
+            notifyAdminNewVerificationRequest: jest.fn(),
+            notifyVerifRejectedWithCredit: jest.fn(),
+          },
         },
         { provide: ConfigService, useValue: configMock },
         { provide: PaydunyaSoftpayService, useValue: softpayMock },
@@ -99,8 +115,7 @@ describe('VerificationsService', () => {
               proPriceFcfaMonthly: 150_000,
               nightlyCommissionRate: 0.1,
               monthlyCommissionMonths: 1,
-              auditBasicPriceFcfa: AUDIT_PRICE_XOF.BASIC,
-              auditFullPriceFcfa: AUDIT_PRICE_XOF.FULL,
+              auditBasicPriceFcfa: AUDIT_PRICE_XOF,
               boostPriceFcfa: 5_000,
             }),
           },
@@ -116,7 +131,6 @@ describe('VerificationsService', () => {
   describe('create', () => {
     const dto = {
       listingId: 'listing1',
-      auditType: 'BASIC' as const,
       scheduledAt: '2026-12-01T10:00:00.000Z',
     };
     const listing = { id: 'listing1', ownerId: 'owner1' };
@@ -142,7 +156,8 @@ describe('VerificationsService', () => {
         roles: [Role.ADMIN],
         subscription: null,
       });
-      prismaMock.verification.findFirst.mockResolvedValueOnce(null);
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de mission en cours
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de rejet récent (carence 48h)
       prismaMock.verification.create.mockResolvedValueOnce({
         id: 'v1',
         ...dto,
@@ -164,7 +179,8 @@ describe('VerificationsService', () => {
           status: SubscriptionStatus.ACTIVE,
         },
       });
-      prismaMock.verification.findFirst.mockResolvedValueOnce(null);
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de mission en cours
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de rejet récent (carence 48h)
       prismaMock.verification.create.mockResolvedValueOnce({
         id: 'v1',
         ...dto,
@@ -186,7 +202,9 @@ describe('VerificationsService', () => {
           status: SubscriptionStatus.ACTIVE,
         },
       });
-      prismaMock.verification.findFirst.mockResolvedValueOnce(null);
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de mission en cours
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de rejet récent (carence 48h)
+      prismaMock.verificationCredit.findFirst.mockResolvedValueOnce(null); // pas de crédit disponible
       prismaMock.verificationPayment.findFirst.mockResolvedValueOnce(null);
       configMock.get.mockImplementation((key: string) => {
         if (key === 'NODE_ENV') return 'test';
@@ -196,7 +214,6 @@ describe('VerificationsService', () => {
       prismaMock.verificationPayment.create.mockResolvedValueOnce({
         id: 'vp1',
         listingId: 'listing1',
-        auditType: 'BASIC',
         scheduledAt: new Date(dto.scheduledAt),
         preferredAgentId: null,
         verificationId: null,
@@ -204,7 +221,6 @@ describe('VerificationsService', () => {
       prismaMock.verificationPayment.findUniqueOrThrow.mockResolvedValueOnce({
         id: 'vp1',
         listingId: 'listing1',
-        auditType: 'BASIC',
         scheduledAt: new Date(dto.scheduledAt),
         preferredAgentId: null,
         verificationId: null,
@@ -222,7 +238,7 @@ describe('VerificationsService', () => {
         expect.objectContaining({
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           data: expect.objectContaining({
-            amount: AUDIT_PRICE_XOF.BASIC,
+            amount: AUDIT_PRICE_XOF,
             status: 'CONFIRMED',
           }),
         }),
@@ -237,7 +253,9 @@ describe('VerificationsService', () => {
         roles: [Role.BAILLEUR],
         subscription: null,
       });
-      prismaMock.verification.findFirst.mockResolvedValueOnce(null);
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de mission en cours
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de rejet récent (carence 48h)
+      prismaMock.verificationCredit.findFirst.mockResolvedValueOnce(null); // pas de crédit disponible
       prismaMock.verificationPayment.findFirst.mockResolvedValueOnce(null);
       configMock.get.mockImplementation((key: string) => {
         if (key === 'NODE_ENV') return 'test';
@@ -247,7 +265,6 @@ describe('VerificationsService', () => {
       prismaMock.verificationPayment.create.mockResolvedValueOnce({
         id: 'vp2',
         listingId: 'listing1',
-        auditType: 'BASIC',
         scheduledAt: new Date(dto.scheduledAt),
         preferredAgentId: null,
         verificationId: null,
@@ -255,7 +272,6 @@ describe('VerificationsService', () => {
       prismaMock.verificationPayment.findUniqueOrThrow.mockResolvedValueOnce({
         id: 'vp2',
         listingId: 'listing1',
-        auditType: 'BASIC',
         scheduledAt: new Date(dto.scheduledAt),
         preferredAgentId: null,
         verificationId: null,
@@ -279,7 +295,9 @@ describe('VerificationsService', () => {
         roles: [Role.BAILLEUR],
         subscription: null,
       });
-      prismaMock.verification.findFirst.mockResolvedValueOnce(null);
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de mission en cours
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de rejet récent (carence 48h)
+      prismaMock.verificationCredit.findFirst.mockResolvedValueOnce(null); // pas de crédit disponible
       prismaMock.verificationPayment.findFirst.mockResolvedValueOnce({
         id: 'vp-pending',
         status: 'PENDING',
@@ -309,6 +327,54 @@ describe('VerificationsService', () => {
         ConflictException,
       );
       expect(prismaMock.verification.create).not.toHaveBeenCalled();
+    });
+
+    // Confirmation utilisateur 2026-09-24 : carence de 48h après un rejet
+    // avant de pouvoir redemander une vérification pour la même annonce.
+    it('refuse une nouvelle demande moins de 48h après un rejet pour cette annonce', async () => {
+      prismaMock.listing.findUnique.mockResolvedValueOnce(listing);
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'owner1',
+        roles: [Role.PRO_AGENCE],
+        subscription: {
+          plan: SubscriptionPlan.PRO,
+          status: SubscriptionStatus.ACTIVE,
+        },
+      });
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de mission en cours
+      prismaMock.verification.findFirst.mockResolvedValueOnce({
+        id: 'rejected1',
+        status: VerifStatus.REJECTED,
+        updatedAt: new Date(Date.now() - 10 * 60 * 60 * 1000), // rejeté il y a 10h
+      });
+
+      await expect(service.create('owner1', dto)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(prismaMock.verification.create).not.toHaveBeenCalled();
+    });
+
+    it('autorise une nouvelle demande plus de 48h après un rejet pour cette annonce', async () => {
+      prismaMock.listing.findUnique.mockResolvedValueOnce(listing);
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'admin1',
+        roles: [Role.ADMIN],
+        subscription: null,
+      });
+      prismaMock.verification.findFirst.mockResolvedValueOnce(null); // pas de mission en cours
+      prismaMock.verification.findFirst.mockResolvedValueOnce({
+        id: 'rejected1',
+        status: VerifStatus.REJECTED,
+        updatedAt: new Date(Date.now() - 72 * 60 * 60 * 1000), // rejeté il y a 72h
+      });
+      prismaMock.verification.create.mockResolvedValueOnce({
+        id: 'v1',
+        ...dto,
+      });
+
+      const result = await service.create('admin1', dto);
+
+      expect(result).toMatchObject({ id: 'v1' });
     });
   });
 
@@ -349,7 +415,6 @@ describe('VerificationsService', () => {
       prismaMock.verificationPayment.findUniqueOrThrow.mockResolvedValueOnce({
         id: 'vp1',
         listingId: 'listing1',
-        auditType: 'BASIC',
         scheduledAt: new Date(),
         preferredAgentId: null,
         verificationId: null,
@@ -419,6 +484,7 @@ describe('VerificationsService', () => {
         ...baseVerification,
         status: VerifStatus.REJECTED,
       });
+      prismaMock.verificationPayment.findFirst.mockResolvedValueOnce(null); // pas payé (gratuit PRO/admin) — pas de crédit à émettre
 
       await expect(
         service.reject('verif1', agent, 'accès impossible'),
@@ -445,6 +511,54 @@ describe('VerificationsService', () => {
       await expect(service.reject('verif1', admin, 'raison')).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    // Confirmation utilisateur 2026-09-24 : "si le même paiement a deux
+    // refus on ne rembourse pas" — un crédit n'est émis que si CETTE
+    // vérification était directement adossée à un paiement confirmé. Une
+    // vérification consommée via un crédit (re-soumission gratuite) n'a pas
+    // de VerificationPayment propre, donc son rejet n'émet pas de second
+    // crédit — le bailleur devra repayer pour une 3e tentative.
+    it("n'émet pas de crédit si la vérification rejetée n'était pas directement payée (ex. déjà issue d'un crédit)", async () => {
+      prismaMock.verification.findUniqueOrThrow.mockResolvedValueOnce({
+        ...baseVerification,
+      });
+      prismaMock.verification.update.mockResolvedValueOnce({
+        ...baseVerification,
+        status: VerifStatus.REJECTED,
+      });
+      prismaMock.verificationPayment.findFirst.mockResolvedValueOnce(null); // aucun VerificationPayment lié à CETTE vérification
+
+      await service.reject('verif1', agent, 'toujours non conforme');
+
+      expect(prismaMock.verificationCredit.create).not.toHaveBeenCalled();
+    });
+
+    it('émet un crédit si la vérification rejetée était directement payée', async () => {
+      prismaMock.verification.findUniqueOrThrow.mockResolvedValueOnce({
+        ...baseVerification,
+      });
+      prismaMock.verification.update.mockResolvedValueOnce({
+        ...baseVerification,
+        status: VerifStatus.REJECTED,
+      });
+      prismaMock.verificationPayment.findFirst.mockResolvedValueOnce({
+        id: 'vp1',
+        status: 'CONFIRMED',
+      });
+      prismaMock.verificationCredit.create.mockResolvedValueOnce({
+        id: 'credit1',
+      });
+
+      await service.reject('verif1', agent, 'non conforme');
+
+      expect(prismaMock.verificationCredit.create).toHaveBeenCalledWith({
+        data: {
+          ownerId: 'owner1',
+          listingId: 'listing1',
+          sourceVerificationId: 'verif1',
+        },
+      });
     });
   });
 
@@ -528,6 +642,34 @@ describe('VerificationsService', () => {
       prismaMock.listing.updateMany.mockResolvedValueOnce({ count: 0 });
 
       await expect(service.expireOldBadges()).resolves.toBeUndefined();
+    });
+  });
+
+  // Badges sidebar "action requise" — agent et bailleur (extension du
+  // 2026-09-24 au-delà de l'admin, cf. pendingCount ci-dessus).
+  describe('agentPendingCount', () => {
+    it('compte les missions SCHEDULED assignées à cet agent', async () => {
+      prismaMock.verification.count.mockResolvedValueOnce(2);
+
+      const result = await service.agentPendingCount('agent1');
+
+      expect(prismaMock.verification.count).toHaveBeenCalledWith({
+        where: { agentId: 'agent1', status: VerifStatus.SCHEDULED },
+      });
+      expect(result).toEqual({ count: 2 });
+    });
+  });
+
+  describe('bailleurActionCount', () => {
+    it('compte les crédits de re-soumission non utilisés de ce bailleur', async () => {
+      prismaMock.verificationCredit.count.mockResolvedValueOnce(1);
+
+      const result = await service.bailleurActionCount('owner1');
+
+      expect(prismaMock.verificationCredit.count).toHaveBeenCalledWith({
+        where: { ownerId: 'owner1', used: false },
+      });
+      expect(result).toEqual({ count: 1 });
     });
   });
 });

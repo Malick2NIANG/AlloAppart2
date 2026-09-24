@@ -108,6 +108,7 @@ export default function BailleurDashboardPage() {
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const [reportMonth, setReportMonth]       = useState(defaultMonth);
   const [downloadingReport, setDownloading] = useState(false);
+  const [unverifiedDismissed, setUnverifiedDismissed] = useState(false);
 
   const BOOKING_STATUS_LABELS = useMemo<Record<BookingStatus, string>>(() => ({
     PENDING:    t('bookingStatusPending'),
@@ -265,7 +266,7 @@ export default function BailleurDashboardPage() {
       {/* Contextual alerts */}
       <div className="flex flex-col gap-3">
         {pendingCount > 0 && (
-          <div className="rounded-2xl border border-gold-dark/30 bg-gold-pale/40 p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="rounded-2xl border border-gold-dark/30 dark:border-gold-dark/20 bg-gold-pale/40 dark:bg-gold-dark/10 p-4 flex items-center justify-between gap-3 flex-wrap">
             <p className="text-sm font-medium text-text">
               <i className="fa-solid fa-clock text-gold-dark mr-2" />
               {t('alertPending', { count: pendingCount })}
@@ -276,15 +277,25 @@ export default function BailleurDashboardPage() {
           </div>
         )}
 
-        {unverifiedCount > 0 && (
-          <div className="rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 p-4 flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-sm font-medium text-amber-800">
+        {unverifiedCount > 0 && !unverifiedDismissed && (
+          <div className="rounded-2xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-4 flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-300">
               <i className="fa-solid fa-shield-halved mr-2" />
               {t('alertUnverified', { count: unverifiedCount })}
             </p>
-            <Link href="/bailleur/listings" className="text-sm font-semibold text-amber-800 hover:underline shrink-0">
-              {t('alertUnverifiedSee')} <i className="fa-solid fa-arrow-right text-xs ml-1" />
-            </Link>
+            <div className="flex items-center gap-4 shrink-0">
+              <Link href="/bailleur/listings" className="text-sm font-semibold text-amber-900 dark:text-amber-300 hover:underline">
+                {t('alertUnverifiedSee')} <i className="fa-solid fa-arrow-right text-xs ml-1" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setUnverifiedDismissed(true)}
+                aria-label={t('alertUnverifiedDismiss')}
+                className="text-amber-900/60 dark:text-amber-300/60 hover:text-amber-900 dark:hover:text-amber-300"
+              >
+                <i className="fa-solid fa-xmark text-sm" />
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -297,24 +308,46 @@ export default function BailleurDashboardPage() {
         <KpiCard icon="fa-solid fa-shield-halved"  label={t('kpiAlloVerifie')} sub={t('kpiAlloVerifieSub')} value={String(verifiedCount)}                                  href="/bailleur/verifications" />
       </div>
 
-      {/* PDF Report */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <input
-          type="month"
-          value={reportMonth}
-          onChange={(e) => setReportMonth(e.target.value)}
-          className="rounded-xl border border-line bg-card px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold-dark"
-        />
-        <button
-          onClick={() => void downloadReport()}
-          disabled={downloadingReport}
-          className="btn-gold text-sm disabled:opacity-50"
-        >
-          {downloadingReport
-            ? <><i className="fa-solid fa-spinner fa-spin mr-2" />{t('reportGenerating')}</>
-            : <><i className="fa-solid fa-file-pdf mr-2" />{t('reportPdf')}</>
-          }
-        </button>
+      {/* PDF Report — même gabarit que bailleur/analytics (icône en badge,
+          label au-dessus du champ mois, bouton aligné sur le bas du champ),
+          en jaune/or plutôt qu'en rouge pour rester cohérent avec le reste
+          du tableau de bord. */}
+      <div className="rounded-2xl border border-line bg-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-pale dark:bg-gold-dark/20">
+            <i className="fa-solid fa-file-pdf text-gold-dark text-sm" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-text">{t('reportPdf')}</p>
+            <p className="text-[11px] text-sub">{t('analyticsReportDesc')}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="dashboard-report-month" className="text-[11px] font-medium text-sub">
+              {t('analyticsReportMonthLabel')}
+            </label>
+            {/* Icône native du sélecteur de mois recolorée en jaune/or via
+                filtre CSS (voir même technique + note dans analytics/page.tsx). */}
+            <input
+              id="dashboard-report-month"
+              type="month"
+              value={reportMonth}
+              onChange={(e) => setReportMonth(e.target.value)}
+              className="rounded-xl border border-line bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold-dark [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:[filter:invert(59%)_sepia(69%)_saturate(639%)_hue-rotate(332deg)_brightness(127%)_contrast(171%)]"
+            />
+          </div>
+          <button
+            onClick={() => void downloadReport()}
+            disabled={downloadingReport}
+            className="btn-gold text-sm disabled:opacity-50"
+          >
+            {downloadingReport
+              ? <><i className="fa-solid fa-spinner fa-spin mr-2" />{t('reportGenerating')}</>
+              : <><i className="fa-solid fa-file-pdf mr-2" />{t('reportPdf')}</>
+            }
+          </button>
+        </div>
       </div>
 
       {/* Revenue chart */}
@@ -588,8 +621,8 @@ function KpiCard({ label, sub, value, icon, href, badge }: {
       </div>
       <div className="mt-3">
         <p className="text-xl font-bold text-gold-dark">{value ?? '—'}</p>
-        <p className="mt-0.5 text-xs font-semibold text-text">{label}</p>
-        <p className="text-[10px] text-sub mt-0.5">{sub}</p>
+        <p className="mt-0.5 text-xs font-semibold text-gray-800">{label}</p>
+        <p className="text-[10px] text-gray-500 mt-0.5">{sub}</p>
       </div>
     </Link>
   );
