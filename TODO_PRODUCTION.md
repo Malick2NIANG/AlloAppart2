@@ -6,14 +6,15 @@ Checklist technique avant déploiement et retest en conditions réelles. Les dé
 
 ## Qualité de code
 
-- [ ] **Eslint test** — passe eslint sur l'intégralité du Backend et du Frontend (pas seulement fichier par fichier au fur et à mesure), pour attraper d'éventuelles règles qui n'auraient été vérifiées que localement.
+- [x] **Eslint test** — eslint complet passé sur l'intégralité du Backend (`{src,apps,libs,test}/**/*.ts`) et du Frontend (`npm run lint`) : 0 erreur, 0 warning des deux côtés.
 - [ ] **Code review** — relecture du code (soi-même à froid, ou une autre paire d'yeux) sur les zones sensibles : paiements, authentification, permissions par rôle, webhooks.
 - [ ] **Unit test** — élargir la couverture de tests automatisés. Le Backend a 17 fichiers `.spec.ts` ; le Frontend n'en a aucun actuellement (vérifié uniquement par tsc/eslint + tests manuels).
 
 ## Sécurité
 
 - [ ] **Security review** — relecture des points listés dans `SECURITY.md` (RLS non applicable / contrôle au niveau applicatif, gestion des mots de passe via Clerk) + vérifier qu'aucune clé, token ou secret n'est commité dans le dépôt.
-- [ ] **Vulnérability test** — scan de vulnérabilités (dépendances npm via `npm audit` côté Backend et Frontend, éventuellement un scan applicatif type OWASP ZAP une fois en staging).
+- [x] **Vulnérability test (npm audit)** — Frontend à 0 vulnérabilité (Next.js RCE critique corrigée via 16.3.6, sharp, js-yaml). Backend passé de 12 à 4 (nodemailer, multer, qs, fast-uri, js-yaml corrigés ; Prisma aligné en 7.10.0). Les 4 restantes (`deepmerge-ts`/`@prisma/config`/`mysql2`) sont des dépendances du CLI Prisma, pas sur le chemin des requêtes API — acceptées en attendant une release stable de Prisma 8. **À revérifier `npm audit` Backend une fois Prisma 8 stable publié.** CI verte sur commit `3a7173a` (run [36195849716](https://github.com/Malick2NIANG/AlloAppart2/actions/runs/36195849716)).
+- [ ] **Vulnérability test (scan applicatif)** — scan type OWASP ZAP une fois en staging.
 
 ## Bascule en mode production
 
