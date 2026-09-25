@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Booking, BookingStatus } from '@/types';
@@ -175,18 +176,11 @@ export default function LocataireBookingsPage() {
         </p>
       </div>
 
-      {bookings.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
-            <i className="fa-solid fa-calendar-check text-2xl text-gold-dark" />
-          </div>
-          <p className="font-semibold text-text">{t('noBookings')}</p>
-          <p className="mt-1 text-sm text-sub">{t('noBookingsHint')}</p>
-        </div>
-      ) : active && (
+      {active && (
         <>
           {/* Stats par statut — doublent aussi de filtre cliquable (même
-              pattern que les pages admin). */}
+              pattern que les pages admin) — toujours visibles, même à 0, pour
+              rester cohérent avec AlloVérifié/boost. */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
             {tabs.map((tab) => (
               <StatFilterCard
@@ -217,7 +211,14 @@ export default function LocataireBookingsPage() {
           {/* Grille de l'onglet actif */}
           {filteredItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <p className="text-sm text-sub">{t('noSearchResults')}</p>
+              <p className="text-sm text-sub">
+                {q ? t('noSearchResults') : bookings.length === 0 ? t('noBookingsHint') : t('noSearchResults')}
+              </p>
+              {!q && bookings.length === 0 && (
+                <Link href="/" className="mt-5 inline-flex items-center gap-2 rounded-full bg-gold-dark px-5 py-2.5 text-sm font-semibold text-white transition hover:brightness-110">
+                  <i className="fa-solid fa-magnifying-glass text-xs" /> {t('browseBtn')}
+                </Link>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

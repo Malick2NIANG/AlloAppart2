@@ -739,6 +739,7 @@
     "emailNote": "L'email ne peut pas être modifié ici.",
     "phone": "Téléphone",
     "save": "Enregistrer",
+    "saveError": "Impossible d'enregistrer. Réessayez.",
     "saving": "Enregistrement…",
     "saved": "Modifications enregistrées",
     "signInRequired": "Connectez-vous pour accéder à votre profil.",
@@ -844,6 +845,14 @@
     "unreadCount": "{count, plural, one {# non lue} other {# non lues}}",
     "filterAll": "Toutes",
     "filterUnread": "Non lues",
+    "filterSelected": "Sélectionné",
+    "back": "Fermer",
+    "searchPlaceholder": "Rechercher par titre ou contenu…",
+    "rowsLabel": "Lignes :",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "pageOf": "Page {page} sur {total}",
+    "noSearchResults": "Aucune notification ne correspond à votre recherche.",
     "emptyUnread": "Aucune notification non lue",
     "emptyUnreadDesc": "Toutes vos notifications ont été lues.",
     "emptyDesc": "Vous recevrez ici les alertes réservations, avis et vérifications.",
@@ -1124,7 +1133,7 @@
     "commissionSignature": "Commission à la signature uniquement",
     "commissionSignatureDesc": "L'équivalent d'un demi-mois de loyer, prélevé sur le bailleur à la signature du bail. Zéro frais pour le locataire. Zéro abonnement mensuel pour vous.",
     "verifiedBadgeTitle": "Badge AlloVérifié™ — optionnel",
-    "verifiedBadgeDesc": "Un agent se déplace pour certifier votre bien physiquement. 25 000 FCFA (audit basique) · 60 000 FCFA (audit complet + rapport juridique). Les biens certifiés apparaissent en priorité dans les résultats.",
+    "verifiedBadgeDesc": "Un agent se déplace pour certifier votre bien physiquement. 25 000 FCFA par vérification. Les biens certifiés apparaissent en priorité dans les résultats.",
     "boostTitle": "Boost — optionnel",
     "boostDesc": "Remontez votre annonce en tête des résultats pendant 7 jours. 5 000 FCFA par boost.",
     "activateBailleur": "Activer mon espace bailleur — gratuit",
@@ -1278,6 +1287,22 @@
     "showPassword": "Afficher",
     "hidePassword": "Masquer"
   },
+  "verificationAdmin": {
+    "title": "Vérification en 2 étapes",
+    "subtitle": "Un code à 6 chiffres a été envoyé à {email}.",
+    "codeLabel": "Code de vérification",
+    "verify": "Vérifier",
+    "verifying": "Vérification…",
+    "sending": "Envoi du code…",
+    "resend": "Renvoyer le code",
+    "resendIn": "Renvoyer dans {seconds}s",
+    "sent": "Un nouveau code a été envoyé.",
+    "invalidCode": "Code invalide ou expiré.",
+    "sendError": "Impossible d'envoyer le code. Réessayez.",
+    "sessionExpired": "Session expirée. Reconnectez-vous.",
+    "backToSignIn": "Retour à la connexion",
+    "close": "Fermer"
+  },
   "acceptTerms": {
     "title": "Conditions d'utilisation",
     "subtitle": "Pour continuer, veuillez accepter les conditions générales d'utilisation d'AlloAppart.",
@@ -1293,6 +1318,11 @@
     "spaceLabel": "Mon espace locataire",
     "welcomeTitle": "Bienvenue sur AlloAppart",
     "welcomeDesc": "Retrouvez vos réservations, vos favoris et vos messages depuis votre tableau de bord.",
+    "you": "vous",
+    "loadError": "Impossible de charger le tableau de bord.",
+    "retry": "Réessayer",
+    "alertPendingBooking": "{count, plural, one {# réservation en attente de confirmation} other {# réservations en attente de confirmation}}",
+    "alertPendingBookingSee": "Voir",
     "statBookings": "Réservations",
     "statBookingsSub": "Voir mes séjours",
     "statActive": "En cours",
@@ -1392,6 +1422,7 @@
     "paymentStatusLabel": "Statut",
     "paymentRefLabel": "Référence",
     "viewReceiptLink": "Voir le reçu de paiement",
+    "viewBookingLink": "Voir la réservation",
     "yourReviewSection": "Votre avis",
     "leaveReviewAction": "Laisser un avis",
     "cancelReservationBtn": "Annuler la réservation",
@@ -1421,6 +1452,14 @@
     "viewBtn": "Voir",
     "removedFromFavorites": "Retiré des favoris",
     "removeError": "Erreur lors de la suppression.",
+    "favoritesFilterAll": "Toutes",
+    "favoritesFilterVerified": "AlloVérifié",
+    "favoritesFilterNightly": "Nuitée",
+    "favoritesFilterMonthly": "Mensuel",
+    "favoritesNoResults": "Aucun favori ne correspond à votre recherche.",
+    "featuredBadge": "En vedette",
+    "perNight": "nuit",
+    "perMonth": "mois",
     "paymentsTitle": "Mes paiements",
     "paymentsDesc": "Historique de toutes vos transactions sur AlloAppart",
     "paymentsError": "Impossible de charger vos paiements.",
@@ -2744,7 +2783,7 @@
       },
       "destinataires": {
         "title": "6. Destinataires des données",
-        "body": "Vos données peuvent être partagées avec :\n• Les agents AlloVérifié™ chargés de la vérification terrain des biens.\n• PayDunya, notre prestataire de paiement agréé, qui traite les transactions effectuées via Orange Money, Wave, Mixx by Yas ou carte bancaire.\n• Clerk, notre prestataire d'authentification, qui héberge vos identifiants de connexion (AlloAppart ne stocke jamais votre mot de passe — voir Article 9).\n• Cloudinary, notre prestataire de stockage, pour l'hébergement des photos d'annonces et des documents (contrats de location).\n• Notre hébergeur et autres prestataires techniques soumis à des obligations de confidentialité strictes.\nNous ne vendons jamais vos données à des tiers à des fins commerciales."
+        "body": "Vos données peuvent être partagées avec :\n• Les agents AlloVérifié™ chargés de la vérification terrain des biens.\n• PayDunya, notre prestataire de paiement agréé, qui traite les transactions effectuées via Orange Money, Wave, Mixx by Yas ou carte bancaire.\n• Clerk, notre prestataire d'authentification, qui héberge vos identifiants de connexion (AlloAppart ne stocke jamais votre mot de passe — voir Article 9).\n• Cloudinary, notre prestataire de stockage, pour l'hébergement des photos d'annonces et des documents (contrats de location).\n• Twilio, notre prestataire de messagerie, pour l'envoi de notifications WhatsApp au numéro de téléphone que vous renseignez (nouveau message, mise à jour de réservation).\n• OneSignal, notre prestataire de notifications push, pour l'envoi de notifications sur votre appareil (jeton d'appareil uniquement — aucune autre donnée personnelle n'est partagée).\n• Notre hébergeur et autres prestataires techniques soumis à des obligations de confidentialité strictes.\nNous ne vendons jamais vos données à des tiers à des fins commerciales."
       },
       "droits": {
         "title": "7. Droits des utilisateurs",
@@ -2817,7 +2856,7 @@
       "necessaires": {
         "badge": "Toujours actifs",
         "title": "2. Cookies strictement nécessaires",
-        "body": "Ces cookies sont indispensables au fonctionnement de la plateforme et ne peuvent pas être désactivés. Ils comprennent notamment :\n• Cookies de session utilisateur (maintien de la connexion).\n• Cookies d'authentification (sécurisation de votre espace personnel).\n• Jetons de sécurité CSRF (protection contre les attaques inter-sites).\n\nAucun consentement n'est requis pour ces cookies."
+        "body": "Ces cookies sont indispensables au fonctionnement de la plateforme et ne peuvent pas être désactivés. Ils comprennent notamment :\n• Le cookie de session géré par Clerk, notre prestataire d'authentification (maintien de la connexion et sécurisation de votre espace personnel).\n\nAucun consentement n'est requis pour ces cookies."
       },
       "performance": {
         "badge": "Consentement requis",
@@ -2832,7 +2871,7 @@
       "tiers": {
         "badge": "Tiers",
         "title": "5. Cookies tiers",
-        "body": "Nous utilisons Google Maps pour afficher la carte interactive des annonces immobilières. Ce service tiers peut déposer ses propres cookies sur votre appareil, soumis à la politique de confidentialité de Google (policies.google.com).\n\nNous vous encourageons à consulter la politique de Google pour comprendre comment ces données sont utilisées."
+        "body": "Nous utilisons OpenStreetMap (via la bibliothèque Leaflet) pour afficher la carte interactive des annonces immobilières. Ce service ne dépose aucun cookie de suivi sur votre appareil ; le chargement des tuiles cartographiques peut toutefois transmettre votre adresse IP aux serveurs d'OpenStreetMap, conformément à leur politique de confidentialité (osmfoundation.org/wiki/Privacy_Policy).\n\nUn lien « Ouvrir dans Google Maps » est également proposé sur chaque annonce pour vous permettre d'ouvrir l'itinéraire dans l'application Google Maps de votre choix ; il s'agit d'un simple lien externe, aucune carte Google n'est intégrée sur nos pages."
       }
     }
   },

@@ -17,10 +17,12 @@ import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { VerifyAdminLoginOtpDto } from './dto/verify-admin-login-otp.dto';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { CreateProAgenceDto } from './dto/create-pro-agence.dto';
 import { AdminFilterDto } from './dto/admin-filter.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { CurrentSessionId } from '../common/decorators/current-session-id.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { type User, Role } from '@prisma/client';
@@ -63,6 +65,38 @@ export class AuthController {
   @Get('me')
   getMe(@CurrentUser() user: User) {
     return this.authService.getMe(user.id);
+  }
+
+  // ── 2FA email admin (remplace le TOTP Clerk payant, cf. décision du
+  // 2026-09-25) — volontairement SANS @Roles(Role.ADMIN) : ces routes sont
+  // celles qui permettent justement de valider l'accès admin, un guard qui
+  // exigerait déjà la vérification créerait une impasse. Le rôle ADMIN est
+  // vérifié manuellement dans le service.
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('admin-mfa/send')
+  sendAdminLoginOtp(@CurrentUser() user: User) {
+    return this.authService.sendAdminLoginOtp(user);
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('admin-mfa/verify')
+  verifyAdminLoginOtp(
+    @CurrentUser() user: User,
+    @CurrentSessionId() sessionId: string | undefined,
+    @Body() dto: VerifyAdminLoginOtpDto,
+  ) {
+    return this.authService.verifyAdminLoginOtp(user, sessionId, dto.code);
+  }
+
+  @Get('admin-mfa/status')
+  async getAdminLoginOtpStatus(
+    @CurrentUser() user: User,
+    @CurrentSessionId() sessionId: string | undefined,
+  ) {
+    const verified = user.roles.includes(Role.ADMIN)
+      ? await this.authService.isAdminLoginSessionVerified(user.id, sessionId)
+      : true;
+    return { verified };
   }
 
   @Patch('me')

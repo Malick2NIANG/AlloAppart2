@@ -17,12 +17,18 @@ export default async function EspaceLayout({ children }: { children: React.React
 
   if (!me.roles.includes('ADMIN')) redirect('/');
 
-  // 2FA obligatoire pour accéder à l'espace admin — cf. RolesGuard côté
-  // backend, qui bloquerait de toute façon le premier appel API. On coupe
-  // court ici pour rediriger directement vers l'activation plutôt que de
-  // laisser l'utilisateur atterrir sur un espace qui plantera au premier
-  // fetch.
-  if (!me.twoFactorEnabled) redirect('/profil/securite?require2fa=1');
+  // 2FA obligatoire pour accéder à l'espace admin — un code envoyé par email
+  // doit être validé à CHAQUE connexion (remplace le TOTP Clerk, payant sur
+  // ce plan, cf. décision du 2026-09-25). Le statut est propre à la session
+  // Clerk courante (pas un flag permanent sur le compte) — cf. RolesGuard
+  // côté backend, qui bloquerait de toute façon le premier appel API. On
+  // coupe court ici pour rediriger directement vers la saisie du code
+  // plutôt que de laisser l'utilisateur atterrir sur un espace qui
+  // plantera au premier fetch.
+  const mfaStatus = await api
+    .get<{ verified: boolean }>('/auth/admin-mfa/status', token ?? undefined)
+    .catch(() => ({ verified: false }));
+  if (!mfaStatus.verified) redirect('/verification-admin');
 
   return <>{children}</>;
 }

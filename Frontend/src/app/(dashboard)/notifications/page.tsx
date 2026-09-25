@@ -1,9 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
+import { StatFilterCard } from '@/components/bookings/StatFilterCard';
+import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
+import { BookingPagination } from '@/components/bookings/BookingPagination';
 
 interface Notif {
   id: string;
@@ -35,8 +39,11 @@ const DEFAULT_STYLE = { icon: 'fa-circle-dot', color: 'text-sub', bg: 'bg-bg', l
 
 type Filter = 'all' | 'unread';
 
+const PER_PAGE_OPTIONS = [10, 20, 50] as const;
+
 export default function NotificationsPage() {
   const { getToken } = useAuth();
+  const router    = useRouter();
   const t         = useTranslations('notifications');
   const locale    = useLocale();
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
@@ -45,6 +52,17 @@ export default function NotificationsPage() {
   const [loading,  setLoading]  = useState(true);
   const [filter,   setFilter]   = useState<Filter>('all');
   const [marking,  setMarking]  = useState(false);
+  const [search,   setSearch]   = useState('');
+  const [perPage,  setPerPage]  = useState<number>(PER_PAGE_OPTIONS[0]);
+  const [page,     setPage]     = useState(1);
+  // Notifications dont le texte (tronqué à 2 lignes par défaut) a été
+  // déplié — clé = id de la notif, même pattern que NotificationBell.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // Notifications dont le texte dépasse réellement 2 lignes (donc tronqué
+  // visuellement) — mesuré au DOM plutôt qu'estimé sur le nombre de
+  // caractères, pour éviter les faux négatifs (texte proche de la limite
+  // selon la largeur d'écran/police). N'affiche "Voir plus" que si besoin.
+  const [truncated, setTruncated] = useState<Record<string, boolean>>({});
 
   const relativeTime = (dateStr: string): string => {
     // eslint-disable-next-line react-hooks/purity -- lecture de l'heure courante pour un affichage "il y a X min/h/j", snapshot voulu au rendu
@@ -97,16 +115,27 @@ export default function NotificationsPage() {
     } catch {}
   };
 
-  const displayed = filter === 'unread' ? notifs.filter((n) => !n.isRead) : notifs;
   const unreadCount = notifs.filter((n) => !n.isRead).length;
 
-  const FILTERS: [Filter, string][] = [
-    ['all',    t('filterAll')],
-    ['unread', t('filterUnread')],
-  ];
+  const q = search.trim().toLowerCase();
+  const filtered = notifs
+    .filter((n) => (filter === 'unread' ? !n.isRead : true))
+    .filter((n) => !q || n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q));
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
+  const safePage  = Math.min(page, pageCount);
+  const displayed = filtered.slice((safePage - 1) * perPage, safePage * perPage);
 
   return (
     <div>
+      {/* Fermer */}
+      <button
+        onClick={() => router.back()}
+        className="mb-4 flex items-center gap-2 text-sm text-sub transition hover:text-text"
+      >
+        <i className="fa-solid fa-xmark text-xs" /> {t('back')}
+      </button>
+
       {/* En-tête */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -129,25 +158,40 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {/* Filtres */}
-      <div className="flex gap-2 mb-5">
-        {FILTERS.map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setFilter(key)}
-            className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-all ${
-              filter === key
-                ? 'border-gold-dark bg-gold-dark text-white'
-                : 'border-line bg-card text-sub hover:border-gold-dark/40 hover:text-text'
-            }`}
-          >
-            {label}
-            {key === 'unread' && unreadCount > 0 && (
-              <span className="ml-1.5 text-xs">({unreadCount})</span>
-            )}
-          </button>
-        ))}
+      {/* Filtres — même gabarit cartes stats/filtre que le reste de l'app */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <StatFilterCard
+          icon="fa-bell"
+          label={t('filterAll')}
+          value={notifs.length}
+          color="text-gold-dark"
+          bg="bg-gold-pale dark:bg-gold-dark/20"
+          active={filter === 'all'}
+          onClick={() => { setFilter('all'); setPage(1); }}
+          selectedLabel={t('filterSelected')}
+        />
+        <StatFilterCard
+          icon="fa-envelope"
+          label={t('filterUnread')}
+          value={unreadCount}
+          color="text-blue-600 dark:text-blue-400"
+          bg="bg-blue-50 dark:bg-blue-950/30"
+          active={filter === 'unread'}
+          onClick={() => { setFilter('unread'); setPage(1); }}
+          selectedLabel={t('filterSelected')}
+        />
       </div>
+
+      {/* Recherche + lignes par page */}
+      <BookingSearchRow
+        search={search}
+        onSearchChange={(v) => { setSearch(v); setPage(1); }}
+        searchPlaceholder={t('searchPlaceholder')}
+        perPage={perPage}
+        onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+        perPageOptions={PER_PAGE_OPTIONS}
+        rowsLabel={t('rowsLabel')}
+      />
 
       {/* Liste */}
       {loading ? (
@@ -156,19 +200,21 @@ export default function NotificationsPage() {
             <div key={i} className="h-20 rounded-2xl border border-line bg-card animate-pulse" />
           ))}
         </div>
-      ) : displayed.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-pale">
             <i className="fa-solid fa-bell text-2xl text-gold-dark" />
           </div>
           <p className="font-semibold text-text">
-            {filter === 'unread' ? t('emptyUnread') : t('empty')}
+            {q ? t('noSearchResults') : filter === 'unread' ? t('emptyUnread') : t('empty')}
           </p>
-          <p className="mt-1 text-sm text-sub">
-            {filter === 'unread' ? t('emptyUnreadDesc') : t('emptyDesc')}
-          </p>
-          {filter === 'unread' && (
-            <button onClick={() => setFilter('all')} className="mt-4 text-sm font-medium text-gold-dark hover:underline">
+          {!q && (
+            <p className="mt-1 text-sm text-sub">
+              {filter === 'unread' ? t('emptyUnreadDesc') : t('emptyDesc')}
+            </p>
+          )}
+          {!q && filter === 'unread' && (
+            <button onClick={() => { setFilter('all'); setPage(1); }} className="mt-4 text-sm font-medium text-gold-dark hover:underline">
               {t('seeAll')}
             </button>
           )}
@@ -176,7 +222,8 @@ export default function NotificationsPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {displayed.map((n) => {
-            const style = TYPE_STYLE[n.type] ?? DEFAULT_STYLE;
+            const style      = TYPE_STYLE[n.type] ?? DEFAULT_STYLE;
+            const isExpanded = !!expanded[n.id];
             return (
               <div
                 key={n.id}
@@ -210,13 +257,47 @@ export default function NotificationsPage() {
                       <span className="text-[11px] text-sub whitespace-nowrap">{relativeTime(n.createdAt)}</span>
                     </div>
                   </div>
-                  <p className="text-sm text-sub mt-0.5 leading-relaxed">{n.body}</p>
+                  <p
+                    ref={(el) => {
+                      // Mesuré une seule fois (tant que replié) : si le texte
+                      // dépasse la hauteur visible sous line-clamp-2, il est
+                      // réellement tronqué et mérite un bouton "Voir plus".
+                      if (el && !isExpanded && truncated[n.id] === undefined) {
+                        const overflowing = el.scrollHeight > el.clientHeight + 1;
+                        if (overflowing) setTruncated((prev) => ({ ...prev, [n.id]: true }));
+                      }
+                    }}
+                    className={`text-sm text-sub mt-0.5 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}
+                  >
+                    {n.body}
+                  </p>
+                  {truncated[n.id] && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpanded((prev) => ({ ...prev, [n.id]: !prev[n.id] }));
+                      }}
+                      className="mt-1 text-xs font-semibold text-gold-dark hover:underline"
+                    >
+                      {isExpanded ? t('seeLessText') : t('seeMoreText')}
+                      <i className={`fa-solid fa-chevron-down text-[9px] ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      <BookingPagination
+        page={safePage}
+        pageCount={pageCount}
+        onPageChange={setPage}
+        previousLabel={t('previous')}
+        nextLabel={t('next')}
+        pageOfLabel={t('pageOf', { page: safePage, total: pageCount })}
+      />
     </div>
   );
 }

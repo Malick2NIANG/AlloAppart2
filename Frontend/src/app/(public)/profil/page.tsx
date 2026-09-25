@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import AvatarCropper from '@/components/ui/AvatarCropper';
 import PhoneInput from '@/components/ui/PhoneInput';
+import { useToast } from '@/components/ui/Toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -15,6 +16,7 @@ export default function ProfilPage() {
   const { isSignedIn, getToken } = useAuth();
   const { user, isLoaded } = useUser();
   const t = useTranslations('profil');
+  const { toast } = useToast();
 
   const [firstName,       setFirstName]       = useState('');
   const [lastName,        setLastName]        = useState('');
@@ -26,27 +28,50 @@ export default function ProfilPage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [cropSrc,         setCropSrc]         = useState<string | null>(null);
 
+  // Instantané des valeurs chargées — sert à savoir si le formulaire a
+  // réellement changé, pour désactiver "Enregistrer" tant que rien n'a bougé.
+  const [initialValues, setInitialValues] = useState<{
+    firstName: string; lastName: string; phone: string; bio: string; avatar: string;
+  } | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* Charger les données Clerk + API au montage */
   useEffect(() => {
     if (!user) return;
+    const fn = user.firstName ?? '';
+    const ln = user.lastName ?? '';
     // eslint-disable-next-line react-hooks/set-state-in-effect -- état synchronisé depuis l'objet user de Clerk
-    setFirstName(user.firstName ?? '');
-    setLastName(user.lastName ?? '');
-    setPhone(user.phoneNumbers?.[0]?.phoneNumber ?? '');
+    setFirstName(fn);
+    setLastName(ln);
 
     getToken().then((token) => {
-      if (!token) return;
-      api.get<{ bio?: string | null; avatar?: string | null }>('/auth/me', token)
+      if (!token) { setInitialValues({ firstName: fn, lastName: ln, phone: '', bio: '', avatar: '' }); return; }
+      // Le numéro (comme la bio et l'avatar) est sauvegardé côté backend via
+      // PATCH /auth/me — pas dans Clerk — donc c'est là qu'il faut le relire,
+      // pas dans user.phoneNumbers (qui reste vide, on ne l'alimente jamais).
+      api.get<{ phone?: string | null; bio?: string | null; avatar?: string | null }>('/auth/me', token)
         .then((me) => {
-          setBio(me.bio ?? '');
-          setAvatar(me.avatar ?? '');
+          const ph = me.phone ?? '';
+          const b  = me.bio ?? '';
+          const av = me.avatar ?? '';
+          setPhone(ph);
+          setBio(b);
+          setAvatar(av);
+          setInitialValues({ firstName: fn, lastName: ln, phone: ph, bio: b, avatar: av });
         })
-        .catch(() => {});
+        .catch(() => setInitialValues({ firstName: fn, lastName: ln, phone: '', bio: '', avatar: '' }));
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const isDirty = initialValues != null && (
+    firstName !== initialValues.firstName ||
+    lastName  !== initialValues.lastName  ||
+    phone     !== initialValues.phone     ||
+    bio       !== initialValues.bio       ||
+    avatar    !== initialValues.avatar
+  );
 
   if (!isSignedIn) {
     return (
@@ -105,21 +130,35 @@ export default function ProfilPage() {
     setSaving(true);
     try {
       const token = await getToken().catch(() => null);
-      await Promise.all([
+      if (!token) throw new Error();
+
+      const [, apiRes] = await Promise.all([
         user?.update({ firstName, lastName }),
-        token
-          ? fetch(`${API_URL}/auth/me`, {
-              method:  'PATCH',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body:    JSON.stringify({ firstName, lastName, phone: phone || null, bio: bio || null, avatar: avatar || null }),
-            }).catch(() => null)
-          : null,
+        fetch(`${API_URL}/auth/me`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body:    JSON.stringify({ firstName, lastName, phone: phone || null, bio: bio || null, avatar: avatar || null }),
+        }),
       ]);
+
+      if (!apiRes.ok) {
+        // 409 = numéro déjà utilisé par un autre compte (cf. auth.service.ts
+        // updateMe) — on affiche le message renvoyé par le backend plutôt
+        // qu'un message générique.
+        const body = await apiRes.json().catch(() => null) as { message?: string } | null;
+        throw new Error(body?.message ?? undefined);
+      }
+
+      setInitialValues({ firstName, lastName, phone, bio, avatar });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
       window.dispatchEvent(new Event('aa-profile-updated'));
-    } catch { /* ignore */ }
-    finally { setSaving(false); }
+    } catch (err: unknown) {
+      const msg = err instanceof Error && err.message ? err.message : t('saveError');
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -232,7 +271,7 @@ export default function ProfilPage() {
 
           <div className="flex items-center gap-3 pt-1">
             <button
-              type="submit" disabled={saving}
+              type="submit" disabled={saving || !isDirty}
               className="btn-gold rounded-full px-6 py-2 text-sm disabled:opacity-50 flex items-center gap-2"
             >
               {saving

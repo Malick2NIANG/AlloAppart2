@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { COUNTRIES, DEFAULT_COUNTRY_ISO2, type CountryDialCode } from '@/lib/countries';
 
@@ -66,9 +67,42 @@ export default function PhoneInput({
   const [local, setLocal] = useState(initial.local);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number; maxListHeight: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const lastEmitted = useRef(value);
+
+  // Portail : on ne peut rendre createPortal(..., document.body) qu'une fois
+  // côté client (document n'existe pas au SSR) — valeur volontairement
+  // absente au premier rendu pour rester SSR-safe.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
+  // Recalcule la position du menu (coordonnées écran, indépendantes de tout
+  // ancêtre overflow/flex) à l'ouverture et au scroll/resize.
+  useEffect(() => {
+    if (!open) return;
+    const updatePos = () => {
+      const r = wrapRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const top = r.bottom + 4;
+      // Réserve ~46px pour la barre de recherche + une marge de 12px en bas
+      // de viewport, pour que la liste ne déborde jamais de l'écran.
+      const maxListHeight = Math.max(120, Math.min(256, window.innerHeight - top - 46 - 12));
+      setMenuPos({ top, left: r.left, width: Math.max(r.width, 288), maxListHeight });
+    };
+    updatePos();
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [open]);
 
   // Resynchronise si la valeur externe change (ex. chargement async après le
   // montage) — sans écraser une saisie locale déjà en cours.
@@ -83,7 +117,10 @@ export default function PhoneInput({
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      const inWrap = wrapRef.current?.contains(target);
+      const inMenu = menuRef.current?.contains(target);
+      if (!inWrap && !inMenu) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -122,43 +159,47 @@ export default function PhoneInput({
   }, [search]);
 
   return (
-    <div ref={wrapRef} className={`relative flex items-stretch gap-2 ${className ?? ''}`}>
-      <button
-        type="button"
-        onClick={() => {
-          if (disabled) return;
-          setSearch('');
-          setOpen((o) => !o);
-        }}
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={t('countryButtonLabel')}
-        className="flex shrink-0 items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2.5 text-sm font-medium text-text hover:border-gold/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <FlagImg iso2={country.iso2} />
-        <span className="text-xs text-sub">+{country.dial}</span>
-        <i className={`fa-solid fa-chevron-down text-[9px] text-sub transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+    <div ref={wrapRef} className={`relative ${className ?? ''}`}>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            if (disabled) return;
+            setSearch('');
+            setOpen((o) => !o);
+          }}
+          disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={t('countryButtonLabel')}
+          className="flex shrink-0 items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2.5 text-sm font-medium text-text hover:border-gold/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <FlagImg iso2={country.iso2} />
+          <span className="text-xs text-sub">+{country.dial}</span>
+          <i className={`fa-solid fa-chevron-down text-[9px] text-sub transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
 
-      <input
-        id={id}
-        type="tel"
-        inputMode="numeric"
-        autoComplete="tel-national"
-        value={local}
-        onChange={(e) => handleLocalChange(e.target.value)}
-        placeholder={placeholder ?? t('numberPlaceholder')}
-        disabled={disabled}
-        autoFocus={autoFocus}
-        className="w-full min-w-0 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50 disabled:cursor-not-allowed"
-      />
+        <input
+          id={id}
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          value={local}
+          onChange={(e) => handleLocalChange(e.target.value)}
+          placeholder={placeholder ?? t('numberPlaceholder')}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          className="w-full min-w-0 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50 disabled:cursor-not-allowed"
+        />
+      </div>
 
-      {open && (
+      {open && mounted && menuPos && createPortal(
         <div
+          ref={menuRef}
           role="listbox"
           aria-label={t('countryButtonLabel')}
-          className="absolute left-0 top-[calc(100%+4px)] z-50 w-72 max-w-[90vw] overflow-hidden rounded-xl border border-line bg-card shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
+          style={{ top: menuPos.top, left: menuPos.left, width: Math.min(menuPos.width, 288) }}
+          className="fixed z-[1000] max-w-[90vw] overflow-hidden rounded-xl border border-line bg-card shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
         >
           <div className="border-b border-line p-2">
             <input
@@ -169,7 +210,7 @@ export default function PhoneInput({
               className="w-full rounded-lg border border-line bg-bg px-3 py-1.5 text-xs text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40"
             />
           </div>
-          <div className="max-h-64 overflow-y-auto py-1">
+          <div className="overflow-y-auto py-1" style={{ maxHeight: menuPos.maxListHeight }}>
             {filtered.length === 0 ? (
               <p className="px-4 py-3 text-center text-xs text-sub">{t('noResults')}</p>
             ) : (
@@ -191,7 +232,8 @@ export default function PhoneInput({
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

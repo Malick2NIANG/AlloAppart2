@@ -134,7 +134,10 @@ export default function BailleurDashboardPage() {
     setError(null);
     try {
       const token = await getToken();
-      if (!token) throw new Error();
+      // Pas de token : session en cours de fermeture (ex. "Se déconnecter",
+      // redirection Clerk en vol) — pas une vraie erreur, on ne montre rien
+      // plutôt que de flasher un écran d'erreur pendant la redirection.
+      if (!token) { setLoading(false); return; }
 
       const me = await api.get<User>('/auth/me', token);
       const isPro  = me.roles.includes('PRO_AGENCE');
@@ -226,7 +229,7 @@ export default function BailleurDashboardPage() {
     );
   }
 
-  if (error || !data) {
+  if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
@@ -237,6 +240,10 @@ export default function BailleurDashboardPage() {
       </div>
     );
   }
+
+  // Ni erreur, ni données : session en cours de fermeture (cf. commentaire
+  // dans load()) — on ne rend rien plutôt qu'un écran d'erreur.
+  if (!data) return null;
 
   const { me, isDual, stats, bookings, listings, monthly, reviews,
           locataireBookings, locataireStats, unreadMessages } = data;

@@ -51,7 +51,18 @@ export default function RedirectPage() {
           // Tous les rôles atterrissent sur leur tableau de bord respectif
           // (racine de leur espace), jamais directement sur une sous-page.
           const roles = me.roles ?? [];
-          if (roles.includes('ADMIN'))         { router.replace('/espace'); return; }
+          if (roles.includes('ADMIN')) {
+            // 2FA email obligatoire à CHAQUE connexion admin (remplace le
+            // TOTP Clerk, payant sur ce plan) — cf. décision du 2026-09-25.
+            // espace/layout.tsx revérifie de toute façon (défense en
+            // profondeur), mais on route directement ici pour éviter un
+            // aller-retour inutile par /espace.
+            const mfa = await api
+              .get<{ verified: boolean }>('/auth/admin-mfa/status', token)
+              .catch(() => ({ verified: false }));
+            router.replace(mfa.verified ? '/espace' : '/verification-admin');
+            return;
+          }
           if (roles.includes('AGENT_TERRAIN')) { router.replace('/agent');  return; }
           if (roles.includes('PRO_AGENCE'))    { router.replace('/bailleur'); return; }
           if (roles.includes('BAILLEUR'))      { router.replace('/bailleur'); return; }

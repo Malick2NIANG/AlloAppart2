@@ -571,3 +571,40 @@ model AdminConfigOtp {
   @@index([adminId])
   @@map("admin_config_otps")
 }
+
+/**
+ * Code de connexion à usage unique envoyé par email à un ADMIN, en
+ * remplacement du TOTP Clerk (fonctionnalité payante sur ce plan Clerk,
+ * cf. décision du 2026-09-25). Un nouveau code est requis à chaque
+ * connexion (chaque nouvelle session Clerk) — voir AdminVerifiedSession
+ * pour la validité une fois le code vérifié.
+ */
+model AdminLoginOtp {
+  id         String    @id @default(uuid())
+  adminId    String
+  adminEmail String
+  codeHash   String
+  codeSalt   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([adminId])
+  @@map("admin_login_otps")
+}
+
+/**
+ * Marque une session Clerk (claim "sid" du JWT) comme ayant passé la
+ * vérification du code de connexion admin — évite de redemander le code à
+ * chaque requête tant que la session Clerk elle-même reste active.
+ */
+model AdminVerifiedSession {
+  id         String   @id @default(uuid())
+  adminId    String
+  sessionId  String
+  verifiedAt DateTime @default(now())
+  expiresAt  DateTime
+
+  @@unique([adminId, sessionId])
+  @@map("admin_verified_sessions")
+}

@@ -739,6 +739,7 @@
     "emailNote": "Email cannot be changed here.",
     "phone": "Phone",
     "save": "Save changes",
+    "saveError": "Couldn't save. Please try again.",
     "saving": "Saving…",
     "saved": "Changes saved",
     "signInRequired": "Sign in to access your profile.",
@@ -844,6 +845,14 @@
     "unreadCount": "{count, plural, one {# unread} other {# unread}}",
     "filterAll": "All",
     "filterUnread": "Unread",
+    "filterSelected": "Selected",
+    "back": "Close",
+    "searchPlaceholder": "Search by title or content…",
+    "rowsLabel": "Rows:",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page} of {total}",
+    "noSearchResults": "No notification matches your search.",
     "emptyUnread": "No unread notifications",
     "emptyUnreadDesc": "You have read all your notifications.",
     "emptyDesc": "Booking, review and verification alerts will appear here.",
@@ -1124,7 +1133,7 @@
     "commissionSignature": "Commission on signing only",
     "commissionSignatureDesc": "Equivalent to half a month's rent, deducted from the landlord upon lease signing. Zero fees for tenants. Zero monthly subscription for you.",
     "verifiedBadgeTitle": "AlloVérifié™ badge — optional",
-    "verifiedBadgeDesc": "An agent visits to physically certify your property. 25,000 FCFA (basic audit) · 60,000 FCFA (full audit + legal report). Verified properties appear first in results.",
+    "verifiedBadgeDesc": "An agent visits to physically certify your property. 25,000 FCFA per verification. Verified properties appear first in results.",
     "boostTitle": "Boost — optional",
     "boostDesc": "Move your listing to the top of results for 7 days. 5,000 FCFA per boost.",
     "activateBailleur": "Activate my landlord space — free",
@@ -1278,6 +1287,22 @@
     "showPassword": "Show",
     "hidePassword": "Hide"
   },
+  "verificationAdmin": {
+    "title": "Two-step verification",
+    "subtitle": "A 6-digit code was sent to {email}.",
+    "codeLabel": "Verification code",
+    "verify": "Verify",
+    "verifying": "Verifying…",
+    "sending": "Sending code…",
+    "resend": "Resend code",
+    "resendIn": "Resend in {seconds}s",
+    "sent": "A new code has been sent.",
+    "invalidCode": "Invalid or expired code.",
+    "sendError": "Couldn't send the code. Please try again.",
+    "sessionExpired": "Session expired. Please sign in again.",
+    "backToSignIn": "Back to sign in",
+    "close": "Close"
+  },
   "acceptTerms": {
     "title": "Terms of Service",
     "subtitle": "To continue, please accept AlloAppart's terms of service.",
@@ -1293,6 +1318,11 @@
     "spaceLabel": "My tenant space",
     "welcomeTitle": "Welcome to AlloAppart",
     "welcomeDesc": "Access your bookings, favorites and messages from your dashboard.",
+    "you": "there",
+    "loadError": "Couldn't load the dashboard.",
+    "retry": "Retry",
+    "alertPendingBooking": "{count, plural, one {# booking awaiting confirmation} other {# bookings awaiting confirmation}}",
+    "alertPendingBookingSee": "View",
     "statBookings": "Bookings",
     "statBookingsSub": "View my stays",
     "statActive": "Active",
@@ -1397,6 +1427,7 @@
     "paymentStatusLabel": "Status",
     "paymentRefLabel": "Reference",
     "viewReceiptLink": "View payment receipt",
+    "viewBookingLink": "View booking",
     "yourReviewSection": "Your review",
     "leaveReviewAction": "Leave a review",
     "cancelReservationBtn": "Cancel booking",
@@ -1426,6 +1457,14 @@
     "viewBtn": "View",
     "removedFromFavorites": "Removed from favorites",
     "removeError": "Error removing favorite.",
+    "favoritesFilterAll": "All",
+    "favoritesFilterVerified": "AlloVerified",
+    "favoritesFilterNightly": "Nightly",
+    "favoritesFilterMonthly": "Monthly",
+    "favoritesNoResults": "No favorite matches your search.",
+    "featuredBadge": "Featured",
+    "perNight": "night",
+    "perMonth": "month",
     "paymentsTitle": "My payments",
     "paymentsDesc": "History of all your transactions on AlloAppart",
     "paymentsError": "Unable to load your payments.",
@@ -2744,7 +2783,7 @@
       },
       "destinataires": {
         "title": "6. Data recipients",
-        "body": "Your data may be shared with:\n• AlloVerified™ agents responsible for on-site property inspections.\n• PayDunya, our approved payment partner, which processes transactions made via Orange Money, Wave, Mixx by Yas or credit/debit card.\n• Clerk, our authentication provider, which hosts your login credentials (AlloAppart never stores your password — see Section 9).\n• Cloudinary, our storage provider, for hosting listing photos and documents (lease contracts).\n• Our hosting provider and other technical subcontractors, bound by strict confidentiality obligations.\nWe never sell your data to third parties for commercial purposes."
+        "body": "Your data may be shared with:\n• AlloVerified™ agents responsible for on-site property inspections.\n• PayDunya, our approved payment partner, which processes transactions made via Orange Money, Wave, Mixx by Yas or credit/debit card.\n• Clerk, our authentication provider, which hosts your login credentials (AlloAppart never stores your password — see Section 9).\n• Cloudinary, our storage provider, for hosting listing photos and documents (lease contracts).\n• Twilio, our messaging provider, to deliver WhatsApp notifications to the phone number you provide (new message, booking update).\n• OneSignal, our push notification provider, to deliver notifications to your device (device token only — no other personal data is shared).\n• Our hosting provider and other technical subcontractors, bound by strict confidentiality obligations.\nWe never sell your data to third parties for commercial purposes."
       },
       "droits": {
         "title": "7. User rights",
@@ -2817,7 +2856,7 @@
       "necessaires": {
         "badge": "Always active",
         "title": "2. Strictly necessary cookies",
-        "body": "These cookies are essential for the platform to work and cannot be disabled. They include in particular:\n• User session cookies (keeping you signed in).\n• Authentication cookies (securing your personal space).\n• CSRF security tokens (protection against cross-site attacks).\n\nNo consent is required for these cookies."
+        "body": "These cookies are essential for the platform to work and cannot be disabled. They include in particular:\n• The session cookie managed by Clerk, our authentication provider (keeping you signed in and securing your personal space).\n\nNo consent is required for these cookies."
       },
       "performance": {
         "badge": "Consent required",
@@ -2832,7 +2871,7 @@
       "tiers": {
         "badge": "Third party",
         "title": "5. Third-party cookies",
-        "body": "We use Google Maps to display the interactive map of property listings. This third-party service may place its own cookies on your device, subject to Google's privacy policy (policies.google.com).\n\nWe encourage you to read Google's policy to understand how this data is used."
+        "body": "We use OpenStreetMap (via the Leaflet library) to display the interactive map of property listings. This service does not place any tracking cookie on your device; loading the map tiles may however send your IP address to OpenStreetMap's servers, in accordance with their privacy policy (osmfoundation.org/wiki/Privacy_Policy).\n\nAn \"Open in Google Maps\" link is also available on each listing so you can open directions in your preferred Google Maps app; this is a plain outbound link — no Google map is embedded on our pages."
       }
     }
   },

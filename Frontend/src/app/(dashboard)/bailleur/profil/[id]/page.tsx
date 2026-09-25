@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
@@ -63,21 +64,21 @@ export default function ProfilPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
+      <div className="space-y-4 animate-pulse">
+        <div className="h-32 bg-line rounded-2xl" />
+        <div className="h-24 bg-line rounded-2xl" />
       </div>
     );
   }
 
   if (error || !user) {
     return (
-      <div className="max-w-lg mx-auto mt-16 text-center">
-        <div className="h-16 w-16 rounded-2xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center mx-auto mb-4">
-          <i className="fa-solid fa-user-slash text-2xl text-red-400" />
-        </div>
-        <p className="font-semibold text-text">{error ?? t('profilNotFound')}</p>
-        <button onClick={() => router.back()} className="mt-4 text-sm text-gold-dark hover:underline">
-          ← {t('profilBack')}
+      <div className="max-w-2xl mx-auto text-center py-20">
+        <i className="fa-solid fa-user-slash text-4xl text-line mb-4" />
+        <p className="text-sub">{error || t('profilNotFound')}</p>
+        <button onClick={() => router.back()} className="mt-4 inline-flex items-center gap-1.5 text-sm text-gold-dark hover:underline">
+          <i className="fa-solid fa-arrow-left text-xs" />
+          {t('profilBack')}
         </button>
       </div>
     );
@@ -89,86 +90,87 @@ export default function ProfilPage() {
   const isAgent    = user.roles.includes('AGENT_TERRAIN');
 
   return (
-    <div className="py-10 px-4">
-      {/* Back */}
-      <button onClick={() => router.back()} className="flex items-center gap-2 text-sm text-sub hover:text-text transition-colors mb-6">
-        <i className="fa-solid fa-arrow-left text-xs" /> {t('profilBack')}
+    <div className="space-y-5">
+
+      {/* Back — revient à la page d'origine (ex. la discussion où "Voir le
+          profil" a été cliqué), pas systématiquement à une liste. */}
+      <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors">
+        <i className="fa-solid fa-arrow-left text-xs" />
+        {t('profilBack')}
       </button>
 
-      <div className="rounded-2xl border border-line bg-card shadow-sm overflow-hidden">
-        {/* Header */}
-        <div className="h-32 bg-gradient-to-r from-gold-pale to-gold/20" />
-
-        <div className="px-8 pb-8">
+      {/* Profile card */}
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <div className="flex items-start gap-5">
           {/* Avatar */}
-          <div className="-mt-14 mb-5">
-            {user.avatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={user.avatar}
-                alt={fullName}
-                className="h-28 w-28 rounded-2xl object-cover border-4 border-card shadow-sm"
-              />
-            ) : (
-              <div className="h-28 w-28 rounded-2xl bg-gold-pale flex items-center justify-center text-2xl font-bold text-gold-dark border-4 border-card shadow-sm">
-                {initials}
-              </div>
-            )}
-          </div>
+          {user.avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={user.avatar}
+              alt={fullName}
+              className="h-20 w-20 rounded-2xl object-cover border border-line shrink-0"
+            />
+          ) : (
+            <div className="h-20 w-20 rounded-2xl bg-gold-pale flex items-center justify-center text-2xl font-bold text-gold-dark shrink-0">
+              {initials}
+            </div>
+          )}
 
-          {/* Name + roles */}
-          <div className="mb-5">
-            <h1 className="text-2xl font-bold text-text">{fullName}</h1>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <h1 className="text-xl font-extrabold text-text">{fullName}</h1>
+            </div>
             {user.agencyName && (
-              <p className="text-sm text-sub mt-1">
+              <p className="text-xs text-sub">
                 <i className="fa-solid fa-building text-[10px] mr-1 text-gold-dark/60" />
                 {user.agencyName}
               </p>
             )}
-            <div className="flex flex-wrap gap-1.5 mt-2.5">
+            <div className="flex flex-wrap gap-1.5 mt-2">
               {user.roles.map((role) => (
                 <span key={role} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[role] ?? 'bg-gray-100 dark:bg-gray-950/40 text-gray-600 dark:text-gray-400'}`}>
                   {ROLE_LABELS[role] ?? role}
                 </span>
               ))}
             </div>
-          </div>
 
-          {/* Bio */}
-          {user.bio && (
-            <div className="mb-5">
-              <p className="text-sm text-text leading-relaxed">{user.bio}</p>
-            </div>
-          )}
-
-          {/* Info — pas de téléphone ici : tout contact direct doit passer par
-              la messagerie interne (anti-contournement, cf. Article 12 des
-              CGU et Task #123/#124). Même si le backend le renvoie pour un
-              viewer qualifiant, cette page ne l'affiche volontairement jamais. */}
-          <div className="space-y-2.5 border-t border-line pt-5">
-            <div className="flex items-center gap-3 text-sm text-sub">
-              <i className="fa-regular fa-calendar w-4 text-center text-gold-dark/60" />
-              {t('profilMemberSince', { date: memberSince })}
-            </div>
-            <div className="flex items-center gap-3 text-sm text-sub">
-              <i className="fa-solid fa-comment-dots w-4 text-center text-gold-dark/60" />
-              {t('profilContactViaMessaging')}
+            {/* Info — pas de téléphone ici : tout contact direct doit passer
+                par la messagerie interne (anti-contournement, cf. Article 12
+                des CGU et Task #123/#124). Même si le backend le renvoie pour
+                un viewer qualifiant, cette page ne l'affiche volontairement
+                jamais. */}
+            <div className="flex items-center gap-4 mt-3">
+              <div className="flex items-center gap-1.5 text-xs text-sub">
+                <i className="fa-regular fa-calendar text-[10px] text-gold-dark/60" />
+                {t('profilMemberSince', { date: memberSince })}
+              </div>
+              <Link href="/bailleur/messages" className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
+                <i className="fa-solid fa-message text-[10px]" />
+                {t('profilContactViaMessaging')}
+              </Link>
             </div>
           </div>
-
-          {/* CTA agent */}
-          {isAgent && (
-            <div className="mt-5">
-              <a
-                href={`/bailleur/agents/${user.id}`}
-                className="flex items-center justify-center gap-2 w-full rounded-xl bg-gold-pale text-gold-dark text-sm font-semibold py-2.5 hover:bg-gold/20 transition-colors"
-              >
-                <i className="fa-solid fa-shield-halved text-xs" />
-                {t('profilAgentCta')}
-              </a>
-            </div>
-          )}
         </div>
+
+        {/* Bio */}
+        {user.bio && (
+          <div className="mt-5 pt-4 border-t border-line">
+            <p className="text-sm text-text leading-relaxed">{user.bio}</p>
+          </div>
+        )}
+
+        {/* CTA agent */}
+        {isAgent && (
+          <div className="mt-4">
+            <Link
+              href={`/bailleur/agents/${user.id}`}
+              className="flex items-center justify-center gap-2 w-full rounded-xl bg-gold-pale text-gold-dark text-sm font-semibold py-2.5 hover:bg-gold/20 transition-colors"
+            >
+              <i className="fa-solid fa-shield-halved text-xs" />
+              {t('profilAgentCta')}
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

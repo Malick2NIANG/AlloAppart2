@@ -7,7 +7,7 @@
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomInt, scryptSync, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -169,6 +169,22 @@ export class AuthService {
     if (current.roles.includes(Role.AGENT_TERRAIN)) {
       delete safeDto.firstName;
       delete safeDto.lastName;
+    }
+
+    // Un même numéro ne doit pas pouvoir être rattaché à deux comptes — sinon
+    // rien n'empêche un utilisateur de "voler" le numéro (donc l'identité
+    // de contact) d'un autre. On ne vérifie que si le numéro change
+    // réellement, pour ne pas bloquer un simple ré-enregistrement du profil.
+    if (safeDto.phone && safeDto.phone !== current.phone) {
+      const existing = await this.prisma.user.findFirst({
+        where: { phone: safeDto.phone, id: { not: userId } },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictException(
+          'Ce numéro de téléphone est déjà utilisé par un autre compte.',
+        );
+      }
     }
 
     let agencySlug: string | undefined;
@@ -815,4 +831,113 @@ export class AuthService {
       data: { roles: newRoles },
     });
   }
+
+  // ── 2FA email admin — remplace le TOTP Clerk (fonctionnalité payante sur
+  // ce plan), cf. décision du 2026-09-25. Un code est requis à chaque
+  // nouvelle session Clerk (claim "sid" du JWT) plutôt qu'un flag permanent
+  // sur le compte, pour se comporter comme un vrai 2FA "à chaque connexion".
+
+  async sendAdminLoginOtp(
+    admin: Pick<User, 'id' | 'email' | 'locale' | 'roles'>,
+  ): Promise<{ sent: boolean; expiresInSeconds: number }> {
+    if (!admin.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Admin only');
+    }
+    const code = String(randomInt(100_000, 1_000_000));
+    const salt = makeSalt();
+    await this.prisma.adminLoginOtp.create({
+      data: {
+        adminId: admin.id,
+        adminEmail: admin.email,
+        codeHash: hashCode(code, salt),
+        codeSalt: salt,
+        expiresAt: new Date(Date.now() + ADMIN_OTP_TTL_MS),
+      },
+    });
+    await this.mail.sendAdminLoginOtp({
+      to: admin.email,
+      code,
+      locale: admin.locale,
+    });
+    this.logger.log(`Code OTP connexion admin envoyé à ${admin.email}`);
+    return { sent: true, expiresInSeconds: ADMIN_OTP_TTL_MS / 1000 };
+  }
+
+  async verifyAdminLoginOtp(
+    admin: Pick<User, 'id' | 'roles'>,
+    sessionId: string | undefined,
+    code: string,
+  ): Promise<{ verified: true }> {
+    if (!admin.roles.includes(Role.ADMIN)) {
+      throw new ForbiddenException('Admin only');
+    }
+    if (!sessionId) {
+      throw new BadRequestException('Session Clerk introuvable.');
+    }
+
+    const otp = await this.prisma.adminLoginOtp.findFirst({
+      where: {
+        adminId: admin.id,
+        consumedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!otp || !safeEqual(hashCode(code, otp.codeSalt), otp.codeHash)) {
+      throw new BadRequestException('Code invalide ou expiré.');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.adminLoginOtp.update({
+        where: { id: otp.id },
+        data: { consumedAt: new Date() },
+      }),
+      this.prisma.adminVerifiedSession.upsert({
+        where: { adminId_sessionId: { adminId: admin.id, sessionId } },
+        create: {
+          adminId: admin.id,
+          sessionId,
+          expiresAt: new Date(Date.now() + ADMIN_SESSION_VERIFIED_TTL_MS),
+        },
+        update: {
+          verifiedAt: new Date(),
+          expiresAt: new Date(Date.now() + ADMIN_SESSION_VERIFIED_TTL_MS),
+        },
+      }),
+    ]);
+
+    return { verified: true };
+  }
+
+  async isAdminLoginSessionVerified(
+    adminId: string,
+    sessionId: string | undefined,
+  ): Promise<boolean> {
+    if (!sessionId) return false;
+    const row = await this.prisma.adminVerifiedSession.findUnique({
+      where: { adminId_sessionId: { adminId, sessionId } },
+    });
+    return !!row && row.expiresAt > new Date();
+  }
+}
+
+const ADMIN_OTP_TTL_MS = 10 * 60 * 1000;
+// Durée de vie d'une session admin validée — plafond de sécurité, calé sur
+// la durée de vie habituelle d'une session Clerk ; en pratique, une
+// nouvelle connexion (nouveau "sid") redemande de toute façon un code.
+const ADMIN_SESSION_VERIFIED_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function makeSalt(): string {
+  return randomBytes(16).toString('hex');
+}
+
+function hashCode(code: string, salt: string): string {
+  return scryptSync(code, salt, 64).toString('hex');
+}
+
+function safeEqual(candidateHex: string, expectedHex: string): boolean {
+  const a = Buffer.from(candidateHex, 'hex');
+  const b = Buffer.from(expectedHex, 'hex');
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }

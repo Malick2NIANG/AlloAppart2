@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
+import Greeting from '@/components/ui/Greeting';
+import type { User } from '@/types';
 
 interface Booking {
   id: string;
@@ -23,12 +25,19 @@ interface Stats {
   unreadMessages: number;
 }
 
+interface DashboardData {
+  me: User;
+  bookings: Booking[];
+  stats: Stats | null;
+}
+
 export default function LocataireDashboardPage() {
   const { getToken } = useAuth();
   const t = useTranslations('locataire');
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [stats, setStats]       = useState<Stats | null>(null);
-  const [loading, setLoading]   = useState(true);
+
+  const [data, setData]       = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
 
   const BOOKING_STATUS_LABEL = useMemo<Record<string, { label: string; color: string }>>(() => ({
     PENDING:   { label: t('statusPending'),   color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40'       },
@@ -37,122 +46,158 @@ export default function LocataireDashboardPage() {
     CANCELLED: { label: t('statusCancelled'), color: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/40'             },
   }), [t]);
 
-  useEffect(() => {
-    (async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
       const token = await getToken();
-      if (!token) return;
-      try {
-        const [bkRes, stRes] = await Promise.allSettled([
-          api.get<Booking[]>('/bookings/mine', token),
-          api.get<Stats>('/analytics/locataire', token),
-        ]);
-        if (bkRes.status === 'fulfilled') setBookings((bkRes.value ?? []).slice(0, 3));
-        if (stRes.status === 'fulfilled') setStats(stRes.value);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [getToken]);
+      // Pas de token : session en cours de fermeture (ex. clic sur
+      // "Se déconnecter", redirection Clerk en vol) — pas une vraie erreur,
+      // on ne montre rien plutôt que de flasher un écran d'erreur pendant
+      // la redirection vers /sign-in.
+      if (!token) { setLoading(false); return; }
 
-  return (
-    <div className="space-y-8">
+      const [me, bookings, stats] = await Promise.all([
+        api.get<User>('/auth/me', token),
+        api.get<Booking[]>('/bookings/mine', token).catch(() => []),
+        api.get<Stats>('/analytics/locataire', token).catch(() => null),
+      ]);
 
-      {/* En-tête */}
-      <div>
-        <p className="mb-0.5 text-xs font-semibold uppercase tracking-widest text-gold-dark">
-          {t('spaceLabel')}
-        </p>
-        <h1 className="text-2xl font-extrabold text-text sm:text-3xl">
-          {t('welcomeTitle')}
-        </h1>
-        <p className="mt-1 text-sm text-sub">
-          {t('welcomeDesc')}
-        </p>
-      </div>
+      setData({ me, bookings, stats });
+    } catch {
+      setError(t('loadError'));
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
+  useEffect(() => { void load(); }, [load]);
 
-      {/* Cartes navigation + stats */}
-      {loading ? (
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-8">
+        <div className="h-8 w-64 rounded-lg bg-card animate-pulse" />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="animate-pulse rounded-2xl border border-line bg-card p-5 h-28" />
           ))}
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <NavStatCard
-            icon="fa-calendar-check"
-            label={t('statBookings')}
-            sub={t('statBookingsSub')}
-            value={String(stats?.totalBookings ?? 0)}
-            href="/locataire/bookings"
-          />
-          <NavStatCard
-            icon="fa-clock"
-            label={t('statActive')}
-            sub={t('statActiveSub')}
-            value={String(stats?.activeBookings ?? 0)}
-            href="/locataire/bookings"
-          />
-          <NavStatCard
-            icon="fa-heart"
-            label={t('statFavorites')}
-            sub={t('statFavoritesSub')}
-            value={String(stats?.favorites ?? 0)}
-            href="/locataire/favorites"
-          />
-          <NavStatCard
-            icon="fa-comment-dots"
-            label={t('statMessages')}
-            sub={t('statMessagesSub')}
-            value={String(stats?.unreadMessages ?? 0)}
-            href="/locataire/messages"
-          />
+        <div className="h-40 rounded-2xl border border-line bg-card animate-pulse" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
+        <p className="text-sm text-sub">{error}</p>
+        <button onClick={() => void load()} className="mt-4 btn-gold text-sm">
+          <i className="fa-solid fa-rotate-right mr-1.5" />{t('retry')}
+        </button>
+      </div>
+    );
+  }
+
+  // Ni erreur, ni données : session en cours de fermeture (cf. commentaire
+  // dans load()) — on ne rend rien plutôt qu'un écran d'erreur.
+  if (!data) return null;
+
+  const { me, stats } = data;
+  const recentBookings = data.bookings.slice(0, 3);
+  const pendingCount   = data.bookings.filter((b) => b.status === 'PENDING').length;
+
+  return (
+    <div className="flex flex-col gap-8">
+
+      {/* Header */}
+      <div>
+        <Greeting firstName={me.firstName ?? t('you')} />
+        <p className="mt-1 text-sm text-sub">{t('welcomeDesc')}</p>
+      </div>
+
+      {/* Contextual alerts */}
+      {pendingCount > 0 && (
+        <div className="rounded-2xl border border-blue-100 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 p-4 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm font-medium text-text">
+            <i className="fa-solid fa-clock text-blue-600 dark:text-blue-400 mr-2" />
+            {t('alertPendingBooking', { count: pendingCount })}
+          </p>
+          <Link href="/locataire/bookings" className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline shrink-0">
+            {t('alertPendingBookingSee')} <i className="fa-solid fa-arrow-right text-xs ml-1" />
+          </Link>
         </div>
       )}
+
+      {/* Cartes navigation + stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <NavStatCard
+          icon="fa-calendar-check"
+          label={t('statBookings')}
+          sub={t('statBookingsSub')}
+          value={String(stats?.totalBookings ?? 0)}
+          href="/locataire/bookings"
+        />
+        <NavStatCard
+          icon="fa-clock"
+          label={t('statActive')}
+          sub={t('statActiveSub')}
+          value={String(stats?.activeBookings ?? 0)}
+          href="/locataire/bookings"
+        />
+        <NavStatCard
+          icon="fa-heart"
+          label={t('statFavorites')}
+          sub={t('statFavoritesSub')}
+          value={String(stats?.favorites ?? 0)}
+          href="/locataire/favorites"
+        />
+        <NavStatCard
+          icon="fa-comment-dots"
+          label={t('statMessages')}
+          sub={t('statMessagesSub')}
+          value={String(stats?.unreadMessages ?? 0)}
+          href="/locataire/messages"
+        />
+      </div>
 
       {/* Dernières réservations */}
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold text-text">{t('recentBookings')}</h2>
-          <Link href="/locataire/bookings" className="text-xs font-medium text-gold-dark hover:underline">
+          <h2 className="text-sm font-semibold text-sub">{t('recentBookings')}</h2>
+          <Link href="/locataire/bookings" className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">
             {t('seeAllLink')}
           </Link>
         </div>
 
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="animate-pulse rounded-xl border border-line bg-card h-20" />
-            ))}
-          </div>
-        ) : bookings.length === 0 ? (
+        {recentBookings.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-card py-12 text-center">
-            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-gold-pale">
-              <i className="fa-solid fa-calendar-xmark text-xl text-gold-dark" />
+            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/30">
+              <i className="fa-solid fa-calendar-xmark text-xl text-blue-600 dark:text-blue-400" />
             </div>
             <p className="text-sm font-medium text-text">{t('noBookingsYet')}</p>
             <p className="mt-1 text-xs text-sub">{t('exploreHint')}</p>
             <Link
               href="/"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold-pale px-4 py-2 text-xs font-medium text-gold-dark transition hover:bg-gold/20"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 px-4 py-2 text-xs font-medium text-blue-600 dark:text-blue-400 transition hover:border-blue-300"
             >
               <i className="fa-solid fa-magnifying-glass text-xs" />
               {t('browseBtn')}
             </Link>
           </div>
         ) : (
-          <div className="space-y-3">
-            {bookings.map((b) => {
+          <div className="flex flex-col gap-2">
+            {recentBookings.map((b) => {
               const s = BOOKING_STATUS_LABEL[b.status] ?? { label: b.status, color: 'text-sub bg-bg border-line' };
               return (
                 <Link
                   key={b.id}
                   href="/locataire/bookings"
-                  className="flex items-center gap-4 rounded-xl border border-line bg-card p-4 transition hover:border-gold/40"
+                  className="flex items-center gap-4 rounded-xl border border-line bg-card p-4 transition hover:border-blue-200 dark:hover:border-blue-900/40"
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-pale">
-                    <i className="fa-solid fa-house text-gold-dark text-sm" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30">
+                    <i className="fa-solid fa-house text-blue-600 dark:text-blue-400 text-sm" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-text">{b.listing.title}</p>
@@ -170,7 +215,6 @@ export default function LocataireDashboardPage() {
           </div>
         )}
       </div>
-
 
     </div>
   );

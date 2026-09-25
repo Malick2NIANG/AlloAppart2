@@ -108,36 +108,6 @@ export default function AdminDashboardPage() {
     return () => clearInterval(id);
   }, []);
 
-  // Rafraîchissement automatique discret des données (toutes les 4 minutes) —
-  // ne touche ni `loading` ni `refreshing` ni `error` : pas de skeleton, pas
-  // de spinner, pas d'écran d'erreur en cas d'échec ponctuel (on retente
-  // simplement au cycle suivant). Seuls les chiffres et "Actualisé à" se
-  // mettent à jour silencieusement en arrière-plan.
-  useEffect(() => {
-    const id = setInterval(() => {
-      void (async () => {
-        const token = await getToken();
-        if (!token) return;
-        try {
-          const [s, e, m, a] = await Promise.all([
-            api.get<AdminStats>('/analytics/admin', token),
-            api.get<AdminExtended>('/analytics/admin/extended', token),
-            api.get<MonthlyTrendPoint[]>('/analytics/admin/monthly', token),
-            api.get<AdminAlerts>('/analytics/admin/alerts', token),
-          ]);
-          setStats(s);
-          setExtended(e);
-          setMonthly(m);
-          setAlerts(a);
-          setLastRefresh(new Date());
-        } catch {
-          // Échec silencieux — nouvelle tentative au prochain cycle.
-        }
-      })();
-    }, 4 * 60 * 1000);
-    return () => clearInterval(id);
-  }, [getToken]);
-
   const timeFmt = (d: Date) => d.toLocaleTimeString(numLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   return (
@@ -145,18 +115,6 @@ export default function AdminDashboardPage() {
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-emerald-500/40" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            </span>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-600/90 dark:text-emerald-400/90">
-              {t('analyticsLive')}
-            </span>
-            <span className="text-[10px] uppercase tracking-[0.15em] text-sub/80">
-              · {t('analyticsSystemOnline')}
-            </span>
-          </div>
           <h1 className="text-xl sm:text-2xl font-semibold text-text tracking-tight">
             {t('overviewTitle')}
           </h1>

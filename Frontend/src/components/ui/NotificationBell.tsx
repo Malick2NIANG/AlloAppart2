@@ -198,7 +198,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
                     className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${
                       isBroadcast
                         ? 'bg-gold-pale/50 dark:bg-gold-dark/10 border-l-2 border-gold-dark hover:bg-gold-pale/70 dark:hover:bg-gold-dark/20'
-                        : `hover:bg-bg ${!n.isRead ? 'bg-blue-50 dark:bg-blue-950/30/40' : ''}`
+                        : `hover:bg-bg ${!n.isRead ? 'bg-blue-50 dark:bg-blue-950/40' : ''}`
                     }`}
                   >
                     <div className={`shrink-0 h-8 w-8 rounded-xl flex items-center justify-center mt-0.5 ${

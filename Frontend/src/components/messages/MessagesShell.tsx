@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import Pusher from 'pusher-js';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Message, MessageRoom, User } from '@/types';
@@ -164,6 +164,8 @@ export default function MessagesShell({ emptyHint, space }: Props) {
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
   const searchParams = useSearchParams();
   const roomFromUrl  = searchParams.get('room');
+  const router       = useRouter();
+  const pathname     = usePathname();
 
   const [me,           setMe]           = useState<User | null>(null);
   const [rooms,        setRooms]        = useState<MessageRoom[]>([]);
@@ -180,6 +182,14 @@ export default function MessagesShell({ emptyHint, space }: Props) {
   const [editOriginal, setEditOriginal] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [archivingId,  setArchivingId]  = useState<string | null>(null);
+
+  // Ouvre une discussion en reflétant son id dans l'URL (?room=...) — ainsi
+  // le bouton "Retour" depuis la page profil d'un participant (router.back())
+  // restaure exactement cette discussion au lieu de revenir sur la liste vide.
+  const openRoom = useCallback((id: string | null) => {
+    setActiveRoomId(id);
+    router.replace(id ? `${pathname}?room=${id}` : pathname, { scroll: false });
+  }, [router, pathname]);
 
   /* ── Voice recording ──────────────────────────────────────────────────── */
   const [recording,      setRecording]      = useState(false);
@@ -369,7 +379,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
     setArchivingId(roomId);
     /* Optimiste : on met à jour tout de suite, la room disparaît/réapparaît */
     setRooms((prev) => prev.map((r) => (r.id === roomId ? { ...r, archived } : r)));
-    if (archived && activeRoomId === roomId) setActiveRoomId(null);
+    if (archived && activeRoomId === roomId) openRoom(null);
     try {
       if (archived) await api.post(`/messages/rooms/${roomId}/archive`, {}, token);
       else await api.delete(`/messages/rooms/${roomId}/archive`, token);
@@ -579,7 +589,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                     key={room.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setActiveRoomId(room.id)}
+                    onClick={() => openRoom(room.id)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveRoomId(room.id); }
                     }}
@@ -667,14 +677,23 @@ export default function MessagesShell({ emptyHint, space }: Props) {
           {/* Chat header */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-line bg-card shrink-0">
             <button
-              onClick={() => setActiveRoomId(null)}
+              onClick={() => openRoom(null)}
               className="md:hidden flex h-8 w-8 items-center justify-center rounded-full hover:bg-gold-pale text-sub hover:text-gold-dark transition-colors"
             >
               <i className="fa-solid fa-arrow-left text-sm" />
             </button>
-            <div className="h-9 w-9 shrink-0 rounded-full bg-gold-pale flex items-center justify-center text-sm font-bold text-gold-dark">
-              {getInitials(otherName)}
-            </div>
+            {(otherParticipants[0] as { avatar?: string | null } | undefined)?.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={(otherParticipants[0] as { avatar?: string | null }).avatar ?? undefined}
+                alt={otherName}
+                className="h-9 w-9 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-9 w-9 shrink-0 rounded-full bg-gold-pale flex items-center justify-center text-sm font-bold text-gold-dark">
+                {getInitials(otherName)}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-text truncate text-sm">{otherName}</p>
               {activeRoom?.listing && (

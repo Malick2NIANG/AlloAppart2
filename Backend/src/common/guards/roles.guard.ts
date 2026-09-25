@@ -5,8 +5,6 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ConfigService } from '@nestjs/config';
-import { createClerkClient } from '@clerk/backend';
 import { type User, Role } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ROLES_KEY } from '../decorators/roles.decorator';
@@ -14,17 +12,10 @@ import { Request } from 'express';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  private clerkClient;
-
   constructor(
     private readonly reflector: Reflector,
-    private readonly config: ConfigService,
     private readonly prisma: PrismaService,
-  ) {
-    this.clerkClient = createClerkClient({
-      secretKey: this.config.get<string>('CLERK_SECRET_KEY'),
-    });
-  }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
@@ -36,7 +27,7 @@ export class RolesGuard implements CanActivate {
 
     const request = context
       .switchToHttp()
-      .getRequest<Request & { user: User }>();
+      .getRequest<Request & { user: User; clerkSessionId?: string }>();
     const user = request.user;
 
     // L'utilisateur doit avoir au moins un des rôles requis dans son tableau de rôles
@@ -46,17 +37,23 @@ export class RolesGuard implements CanActivate {
 
     // 2FA obligatoire pour le rôle ADMIN — l'espace admin est le plus
     // sensible de la plateforme (config tarifaire, litiges, comptes...).
-    // Ne bloque que les routes explicitement réservées à ADMIN : un compte
+    // Depuis le 2026-09-25 : code envoyé par email à CHAQUE connexion
+    // (remplace le TOTP Clerk, payant) — validité vérifiée par session
+    // Clerk (claim "sid"), pas par un flag permanent sur le compte. Ne
+    // bloque que les routes explicitement réservées à ADMIN : un compte
     // admin garde l'accès aux routes génériques (ex. /auth/me,
-    // /auth/me PATCH) pour pouvoir activer sa 2FA depuis /profil/securite.
+    // /auth/admin-mfa/*) pour pouvoir saisir son code depuis le frontend.
     if (requiredRoles.includes(Role.ADMIN) && user.roles.includes(Role.ADMIN)) {
-      const twoFactorOk = await this.ensureAdminTwoFactor(user);
-      if (!twoFactorOk) {
+      const verified = await this.isAdminSessionVerified(
+        user.id,
+        request.clerkSessionId,
+      );
+      if (!verified) {
         throw new ForbiddenException({
           statusCode: 403,
-          code: '2FA_REQUIRED',
+          code: 'ADMIN_MFA_REQUIRED',
           message:
-            "L'authentification à deux facteurs (2FA) doit être activée sur ce compte administrateur avant d'accéder à l'espace admin.",
+            'Un code de connexion doit être validé avant d’accéder à l’espace administrateur.',
         });
       }
     }
@@ -64,29 +61,14 @@ export class RolesGuard implements CanActivate {
     return true;
   }
 
-  // Vérifie si la 2FA (TOTP) est active sur ce compte ADMIN. Fait confiance
-  // au flag local (synchronisé par le webhook Clerk user.updated) quand il
-  // est déjà à true — aucun appel réseau dans le cas normal, une fois la 2FA
-  // activée. Quand il est à false, revérifie en direct auprès de Clerk (source
-  // de vérité) avant de bloquer, au cas où le webhook n'aurait pas encore
-  // tourné (ou pas configuré en dev) — et auto-corrige le flag local si Clerk
-  // dit que c'est bien actif.
-  private async ensureAdminTwoFactor(user: User): Promise<boolean> {
-    if (user.twoFactorEnabled) return true;
-
-    try {
-      const clerkUser = await this.clerkClient.users.getUser(user.clerkId);
-      if (clerkUser.twoFactorEnabled) {
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: { twoFactorEnabled: true },
-        });
-        return true;
-      }
-    } catch {
-      // Clerk injoignable — on retombe sur l'état local connu (false)
-    }
-
-    return false;
+  private async isAdminSessionVerified(
+    adminId: string,
+    sessionId: string | undefined,
+  ): Promise<boolean> {
+    if (!sessionId) return false;
+    const row = await this.prisma.adminVerifiedSession.findUnique({
+      where: { adminId_sessionId: { adminId, sessionId } },
+    });
+    return !!row && row.expiresAt > new Date();
   }
 }

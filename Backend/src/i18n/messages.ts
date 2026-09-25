@@ -66,6 +66,15 @@ const fr = {
   mailConfigOtpIgnore:
     'Si vous n’êtes pas à l’origine de cette demande, ignorez cet email et vérifiez l’accès à votre compte admin.',
 
+  /* Email — code de connexion admin (remplace le TOTP Clerk, cf. décision du 2026-09-25) */
+  mailAdminLoginOtpSubject: 'Votre code de connexion AlloAppart',
+  mailAdminLoginOtpTitle: 'Code de connexion',
+  mailAdminLoginOtpBody:
+    'Une connexion à l’espace administrateur AlloAppart a été demandée. Utilisez ce code pour la valider :',
+  mailAdminLoginOtpExpiry: 'Ce code expire dans 10 minutes.',
+  mailAdminLoginOtpIgnore:
+    'Si vous n’êtes pas à l’origine de cette connexion, ignorez cet email et changez votre mot de passe par sécurité.',
+
   /* Email — changement de tarification (préavis CGU Article 7) */
   mailConfigChangedSubject: 'Mise à jour de la tarification AlloAppart',
   mailConfigChangedIntro:
@@ -339,6 +348,15 @@ const en: Record<MessageKey, string> = {
   mailConfigOtpExpiry: 'This code expires in 10 minutes.',
   mailConfigOtpIgnore:
     'If you didn’t request this, ignore this email and check access to your admin account.',
+
+  /* Email — admin login code (replaces Clerk TOTP, cf. decision of 2026-09-25) */
+  mailAdminLoginOtpSubject: 'Your AlloAppart sign-in code',
+  mailAdminLoginOtpTitle: 'Sign-in code',
+  mailAdminLoginOtpBody:
+    'A sign-in to the AlloAppart admin area was requested. Use this code to confirm it:',
+  mailAdminLoginOtpExpiry: 'This code expires in 10 minutes.',
+  mailAdminLoginOtpIgnore:
+    'If you didn’t request this sign-in, ignore this email and change your password as a precaution.',
 
   /* Email — pricing change (notice period, Terms Article 7) */
   mailConfigChangedSubject: 'AlloAppart pricing update',

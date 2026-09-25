@@ -37,12 +37,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const navItems: NavItem[] = [
     ...(isDual ? [
       // ── Commun ──
-      { label: td('navOverview'),        href: '/bailleur', icon: 'fa-solid fa-gauge', exact: true },
+      { label: td('navOverview'),        href: '/bailleur',          icon: 'fa-solid fa-gauge',        exact: true },
+      // Boîte de réception unique (partagée bailleur+locataire, cf. décision
+      // du 2026-09-25 — /messages/rooms n'est pas filtré par contexte, donc
+      // une seule entrée de nav suffit au lieu d'une par section).
+      { label: td('navMessages'),        href: '/bailleur/messages', icon: 'fa-solid fa-comment-dots'  },
       // ── Bailleur ──
       { label: td('navLandlordSection'), href: '/bailleur',               icon: 'fa-solid fa-gauge',         exact: true, separator: true },
       { label: td('navMyListings'),      href: '/bailleur/listings',      icon: 'fa-solid fa-house'          },
       { label: td('navReceivedBookings'),href: '/bailleur/bookings',      icon: 'fa-solid fa-calendar-check' },
-      { label: td('navMessages'),        href: '/bailleur/messages',      icon: 'fa-solid fa-comment-dots'   },
       { label: td('navAlloVerifie'),     href: '/bailleur/verifications', icon: 'fa-solid fa-shield-halved'  },
       { label: td('navBoost'),           href: '/bailleur/boost',         icon: 'fa-solid fa-rocket'         },
       ...(isProAgence ? [
@@ -55,7 +58,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
       { label: td('navMyBookings'),     href: '/locataire/bookings',     icon: 'fa-solid fa-calendar-check' },
       { label: td('navFavorites'),      href: '/locataire/favorites',    icon: 'fa-solid fa-heart'          },
       { label: td('navMyPayments'),     href: '/locataire/paiements',    icon: 'fa-solid fa-wallet'         },
-      { label: td('navMessages'),       href: '/locataire/messages',     icon: 'fa-solid fa-comment-dots'   },
     ] : []),
     ...(!isDual && isLocataire ? [
       { label: td('navOverview'),       href: '/locataire',           icon: 'fa-solid fa-gauge',             exact: true },

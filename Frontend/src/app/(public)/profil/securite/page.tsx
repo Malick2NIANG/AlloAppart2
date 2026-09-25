@@ -1,20 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 export default function SecuritePage() {
   const { isSignedIn } = useAuth();
   const { user, isLoaded } = useUser();
   const t = useTranslations('securite');
-  // Renvoyé par espace/layout.tsx quand un ADMIN sans 2FA active tente
-  // d'accéder à l'espace admin (voir aussi RolesGuard côté backend, qui
-  // bloquerait de toute façon le premier appel API — cette redirection
-  // évite juste l'aller-retour raté).
-  const require2fa = useSearchParams().get('require2fa') === '1';
 
   /* Password form */
   const [currentPwd,  setCurrentPwd]  = useState('');
@@ -24,20 +18,9 @@ export default function SecuritePage() {
   const [showNew,     setShowNew]     = useState(false);
   const [pwdSaving,   setPwdSaving]   = useState(false);
   const [pwdFlash,    setPwdFlash]    = useState<{ type: 'ok' | 'err'; msg: string } | null>(null);
-
-  /* 2FA */
-  const [totpUri,     setTotpUri]     = useState<string | null>(null);
-  const [totpCode,    setTotpCode]    = useState('');
-  const [totpSaving,  setTotpSaving]  = useState(false);
-  const [totpFlash,   setTotpFlash]   = useState<{ type: 'ok' | 'err'; msg: string } | null>(null);
-  const [totpEnabled, setTotpEnabled] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 2FA state synced from user object
-      setTotpEnabled(user.twoFactorEnabled ?? false);
-    }
-  }, [user]);
+  // Les 3 champs partent toujours vides (jamais pré-remplis) — "modifié"
+  // signifie donc simplement que l'un d'eux a été saisi.
+  const pwdDirty = currentPwd !== '' || newPwd !== '' || confirmPwd !== '';
 
   if (!isSignedIn) {
     return (
@@ -77,52 +60,6 @@ export default function SecuritePage() {
     }
   };
 
-  /* ── TOTP setup ── */
-  const startTotp = async () => {
-    if (!user) return;
-    setTotpSaving(true);
-    try {
-      const totp = await user.createTOTP();
-      setTotpUri(totp.uri ?? null);
-    } catch {
-      setTotpFlash({ type: 'err', msg: t('totpError') });
-    } finally {
-      setTotpSaving(false);
-    }
-  };
-
-  const verifyTotp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    setTotpSaving(true);
-    try {
-      await user.verifyTOTP({ code: totpCode });
-      setTotpEnabled(true);
-      setTotpUri(null);
-      setTotpCode('');
-      setTotpFlash({ type: 'ok', msg: t('totpSuccess') });
-    } catch {
-      setTotpFlash({ type: 'err', msg: t('totpInvalid') });
-    } finally {
-      setTotpSaving(false);
-      setTimeout(() => setTotpFlash(null), 4000);
-    }
-  };
-
-  const disableTotp = async () => {
-    if (!user) return;
-    try {
-      const factor = user.totpEnabled ? user.twoFactorEnabled : null;
-      if (factor) await user.disableTOTP();
-      setTotpEnabled(false);
-      setTotpFlash({ type: 'ok', msg: t('totpDisabled') });
-    } catch {
-      setTotpFlash({ type: 'err', msg: t('totpError') });
-    } finally {
-      setTimeout(() => setTotpFlash(null), 4000);
-    }
-  };
-
   return (
     <main className="py-10 px-4 bg-bg min-h-screen">
       <div className="aa-container max-w-2xl space-y-6">
@@ -137,13 +74,6 @@ export default function SecuritePage() {
         <h1 className="text-xl font-extrabold text-text flex items-center gap-2">
           <i className="fa-solid fa-shield-halved text-gold-dark" /> {t('title')}
         </h1>
-
-        {require2fa && !totpEnabled && (
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-300 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
-            <i className="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400 mt-0.5 text-sm" />
-            <p className="text-sm text-amber-800 dark:text-amber-300">{t('require2faBanner')}</p>
-          </div>
-        )}
 
         {/* ── Mot de passe ── */}
         <section className="rounded-2xl border border-line bg-card p-6 space-y-4">
@@ -168,7 +98,7 @@ export default function SecuritePage() {
 
               {pwdFlash && <Flash flash={pwdFlash} />}
 
-              <button type="submit" disabled={pwdSaving || !isLoaded}
+              <button type="submit" disabled={pwdSaving || !isLoaded || !pwdDirty}
                 className="btn-gold rounded-full px-5 py-2 text-sm flex items-center gap-2 disabled:opacity-50">
                 {pwdSaving
                   ? <><i className="fa-solid fa-spinner fa-spin" /> {t('saving')}</>
@@ -176,85 +106,6 @@ export default function SecuritePage() {
                 }
               </button>
             </form>
-        </section>
-
-        {/* ── Double authentification ── */}
-        <section className="rounded-2xl border border-line bg-card p-6 space-y-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-semibold text-text flex items-center gap-2">
-                <i className="fa-solid fa-mobile-screen text-gold-dark text-xs" /> {t('totpTitle')}
-              </h2>
-              <p className="mt-1 text-xs text-sub max-w-sm">{t('totpDesc')}</p>
-            </div>
-            <span className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold border ${
-              totpEnabled
-                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40'
-                : 'bg-gray-50 dark:bg-gray-950/30 text-gray-500 border-gray-200 dark:border-gray-900/40'
-            }`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${totpEnabled ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-              {totpEnabled ? t('active') : t('inactive')}
-            </span>
-          </div>
-
-          {totpEnabled ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
-                <i className="fa-solid fa-shield-check" />
-                <span>{t('totpActiveDesc')}</span>
-              </div>
-              {totpFlash && <Flash flash={totpFlash} />}
-              <button onClick={disableTotp}
-                className="rounded-full border border-red-200 dark:border-red-900/40 px-4 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition">
-                {t('totpDisable')}
-              </button>
-            </div>
-          ) : totpUri ? (
-            <div className="space-y-4">
-              <p className="text-xs text-sub">{t('totpScan')}</p>
-              {/* QR code via Google Charts API */}
-              <div className="flex justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element -- external QR API, next/image requires configured domains */}
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(totpUri)}`}
-                  alt="QR code 2FA"
-                  className="rounded-xl border border-line"
-                  width={180} height={180}
-                />
-              </div>
-              <form onSubmit={verifyTotp} className="space-y-3">
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-sub uppercase tracking-wide">{t('totpCode')}</label>
-                  <input
-                    type="text" inputMode="numeric" maxLength={6} value={totpCode}
-                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
-                    placeholder="123456" required
-                    className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-center text-xl font-bold tracking-[0.5em] text-text outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition"
-                  />
-                </div>
-                {totpFlash && <Flash flash={totpFlash} />}
-                <button type="submit" disabled={totpSaving || totpCode.length < 6}
-                  className="btn-gold rounded-full px-5 py-2 text-sm flex items-center gap-2 disabled:opacity-50">
-                  {totpSaving
-                    ? <><i className="fa-solid fa-spinner fa-spin" /> {t('verifying')}</>
-                    : <><i className="fa-solid fa-check" /> {t('verify')}</>
-                  }
-                </button>
-              </form>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs text-sub">{t('totpInactiveDesc')}</p>
-              {totpFlash && <Flash flash={totpFlash} />}
-              <button onClick={startTotp} disabled={totpSaving || !isLoaded}
-                className="btn-gold rounded-full px-5 py-2 text-sm flex items-center gap-2 disabled:opacity-50">
-                {totpSaving
-                  ? <><i className="fa-solid fa-spinner fa-spin" /> {t('loading')}</>
-                  : <><i className="fa-solid fa-mobile-screen" /> {t('totpEnable')}</>
-                }
-              </button>
-            </div>
-          )}
         </section>
 
       </div>

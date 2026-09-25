@@ -1261,21 +1261,6 @@ function MesDemandesTab({
     );
   }
 
-  if (verifs.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center rounded-2xl border border-line bg-card">
-        <div className="h-16 w-16 rounded-2xl bg-gold-pale flex items-center justify-center mb-4">
-          <i className="fa-solid fa-shield-halved text-3xl text-gold-dark" />
-        </div>
-        <h2 className="text-lg font-bold text-text mb-1">{t('verifEmpty')}</h2>
-        <p className="text-sm text-sub max-w-xs mb-5">{t('verifEmptyHint')}</p>
-        <Link href="/bailleur/listings" className="btn-gold rounded-full px-6 py-2.5 text-sm">
-          {t('verifRequestBtn')}
-        </Link>
-      </div>
-    );
-  }
-
   return (
     <>
       {/* Sous-filtre par statut — même pattern StatFilterCard que bailleur/bookings */}
@@ -1325,7 +1310,9 @@ function MesDemandesTab({
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-sm text-sub">{q ? t('noResultsFor', { search }) : t('verifFilterEmpty')}</p>
+          <p className="text-sm text-sub">
+            {q ? t('noResultsFor', { search }) : verifs.length === 0 ? t('verifEmptyHint') : t('verifFilterEmpty')}
+          </p>
           {q && (
             <button onClick={() => setSearch('')} className="mt-3 text-sm text-gold-dark hover:underline">
               {t('clearSearch')}

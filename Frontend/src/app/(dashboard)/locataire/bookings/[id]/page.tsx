@@ -64,6 +64,7 @@ export default function BookingDetailPage() {
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string | null>(null);
   const [canceling, setCanceling] = useState(false);
+  const [downloadingReceipt, setDownloadingReceipt] = useState(false);
 
   /* Review modal */
   const [showReview,    setShowReview]    = useState(false);
@@ -105,6 +106,31 @@ export default function BookingDetailPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  const downloadReceipt = async () => {
+    if (!booking) return;
+    const token = await getToken();
+    if (!token) return;
+    setDownloadingReceipt(true);
+    try {
+      const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+      const res = await fetch(`${API}/bookings/${booking.id}/receipt`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('error');
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `recu-${booking.id.slice(0, 8)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error(t('receiptError'));
+    } finally {
+      setDownloadingReceipt(false);
+    }
+  };
 
   const cancel = async () => {
     if (!booking || canceling) return;
@@ -272,13 +298,17 @@ export default function BookingDetailPage() {
           </div>
         )}
         <div className="pt-1">
-          <Link
-            href={`/bookings/${booking.id}?status=success`}
-            className="text-xs text-gold-dark hover:underline flex items-center gap-1"
+          <button
+            type="button"
+            onClick={() => void downloadReceipt()}
+            disabled={downloadingReceipt}
+            className="text-xs text-gold-dark hover:underline flex items-center gap-1 disabled:opacity-50"
           >
-            <i className="fa-solid fa-file-pdf text-[11px]" />
+            {downloadingReceipt
+              ? <i className="fa-solid fa-spinner fa-spin text-[11px]" />
+              : <i className="fa-solid fa-file-pdf text-[11px]" />}
             {t('viewReceiptLink')}
-          </Link>
+          </button>
         </div>
       </div>
 

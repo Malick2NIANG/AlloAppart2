@@ -28,7 +28,7 @@ export class ClerkAuthGuard implements CanActivate {
 
     const request = context
       .switchToHttp()
-      .getRequest<Request & { user?: unknown }>();
+      .getRequest<Request & { user?: unknown; clerkSessionId?: string }>();
     const authHeader = request.headers.authorization;
 
     if (!authHeader?.startsWith('Bearer ')) {
@@ -49,6 +49,12 @@ export class ClerkAuthGuard implements CanActivate {
       const clerkId = payload.sub;
 
       if (!clerkId) throw new UnauthorizedException('Token sans sub');
+
+      // Claim "sid" du JWT — identifie la session Clerk courante (une par
+      // connexion). Utilisé par RolesGuard pour savoir si CETTE session a
+      // déjà passé la vérification du code de connexion admin (2FA email),
+      // cf. décision du 2026-09-25.
+      request.clerkSessionId = payload.sid;
 
       // Cherche l'utilisateur en base
       let user = await this.prisma.user.findUnique({ where: { clerkId } });

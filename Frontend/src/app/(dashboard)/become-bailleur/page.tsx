@@ -36,7 +36,6 @@ export default function BecomeBailleurPage() {
   const [step,       setStep]       = useState(0);
   const [dir,        setDir]        = useState(1);
   const [loaded,     setLoaded]     = useState(false);
-  const [phoneReady, setPhoneReady] = useState(false);
   const [accepted,   setAccepted]   = useState(false);
   const [busy,       setBusy]       = useState(false);
   const [error,      setError]      = useState<string | null>(null);
@@ -59,7 +58,7 @@ export default function BecomeBailleurPage() {
     [t],
   );
 
-  const { control, handleSubmit, formState: { errors } } = useForm<PhoneForm>({
+  const { control, handleSubmit, setValue, formState: { errors } } = useForm<PhoneForm>({
     resolver: zodResolver(phoneSchema),
     defaultValues: { phone: '' },
   });
@@ -82,14 +81,13 @@ export default function BecomeBailleurPage() {
           router.replace('/agent/verifications');
           return;
         }
-        if (!!me.phone) {
-          setPhoneReady(true);
-          setStep(1); // sauter l'étape téléphone si déjà renseigné
+        if (me.phone) {
+          setValue('phone', me.phone);
         }
       } catch { /* ignore */ }
       setLoaded(true);
     });
-  }, [getToken, router]);
+  }, [getToken, router, setValue]);
 
   const go = (next: number) => {
     setDir(next > step ? 1 : -1);
@@ -141,6 +139,13 @@ export default function BecomeBailleurPage() {
   return (
     <div className="py-6">
 
+      {step > 0 && (
+        <button onClick={() => go(0)}
+          className="mb-6 flex items-center gap-2 text-sm text-sub transition hover:text-text">
+          <i className="fa-solid fa-arrow-left text-xs" /> {t('back')}
+        </button>
+      )}
+
       {/* ── Stepper ── */}
       <div className="mb-8 flex items-center justify-center">
         {STEPS.map((s, i) => {
@@ -166,7 +171,7 @@ export default function BecomeBailleurPage() {
         })}
       </div>
 
-      <div className="overflow-hidden">
+      <div className="overflow-x-hidden">
         <AnimatePresence mode="wait" custom={dir}>
 
           {/* ── Step 0 : Téléphone ── */}
@@ -219,8 +224,6 @@ export default function BecomeBailleurPage() {
               initial="enter" animate="center" exit="exit"
               transition={{ duration: 0.22 }}>
 
-              {!phoneReady && <BackBtn onClick={() => go(0)} label={t('back')} />}
-
               <div className="mb-6 text-center">
                 <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-gold-pale">
                   <i className="fa-solid fa-file-signature text-xl text-gold-dark" />
@@ -268,15 +271,6 @@ export default function BecomeBailleurPage() {
         </AnimatePresence>
       </div>
     </div>
-  );
-}
-
-function BackBtn({ onClick, label }: { onClick: () => void; label: string }) {
-  return (
-    <button onClick={onClick}
-      className="mb-5 flex items-center gap-2 text-sm text-sub transition hover:text-text">
-      <i className="fa-solid fa-arrow-left text-xs" /> {label}
-    </button>
   );
 }
 

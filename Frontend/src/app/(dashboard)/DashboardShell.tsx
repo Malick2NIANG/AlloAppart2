@@ -165,11 +165,17 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
   const [open, setOpen]           = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [tooltip, setTooltip]     = useState<{ label: string; top: number } | null>(null);
-  // Messages non lus, comptés séparément selon le "chapeau" porté dans chaque
-  // room (propriétaire de l'annonce vs participant) — cf. fetchUnread ci-dessous.
-  const [unreadOwnerCount,       setUnreadOwnerCount]       = useState(0);
-  const [unreadParticipantCount, setUnreadParticipantCount] = useState(0);
-  const [now, setNow]             = useState(new Date());
+  // Messages non lus — une seule entrée "Messages" dans la nav (même pour les
+  // comptes dual bailleur+locataire depuis le 2026-09-25), donc un total
+  // unique suffit — cf. fetchUnread ci-dessous.
+  const [unreadCount, setUnreadCount] = useState(0);
+  // Initialisé à null (et non `new Date()`) : un Date() calculé au rendu
+  // diffère forcément entre le serveur (SSR) et le client (hydratation
+  // quelques centaines de ms/secondes plus tard), ce qui provoque une
+  // erreur d'hydratation React dès que la minute change entre les deux.
+  // On ne calcule "now" qu'après montage (useEffect ci-dessous), donc le
+  // premier rendu client est identique au rendu serveur (texte absent).
+  const [now, setNow]             = useState<Date | null>(null);
   const pathname = usePathname();
   const isAdmin    = roles.includes('ADMIN');
   const isAgent    = roles.includes('AGENT_TERRAIN');
@@ -205,30 +211,30 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
     return () => setHasCustomOverlay(false);
   }, [setHasCustomOverlay]);
 
-  /* ── Horloge (mise à jour chaque minute) ── */
+  /* ── Horloge (valeur initiale posée côté client uniquement, puis mise à
+     jour chaque minute) ── */
   useEffect(() => {
+    // Valeur volontairement absente au premier rendu (SSR-safe) — posée ici
+    // dès le montage côté client uniquement, pour éviter un mismatch d'hydratation.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNow(new Date());
     const t = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(t);
   }, []);
 
   /* ── Badge messages non lus ──────────────────────────────────────────────
-     Compté séparément selon le "chapeau" porté dans chaque room (propriétaire
-     de l'annonce vs participant/locataire) — un compte dual bailleur+locataire
-     a deux entrées "Messages" dans la nav (une par section) qui pointent vers
-     la MÊME boîte de réception globale (/messages/rooms n'est pas filtré par
-     contexte). Sans ce découpage les deux entrées affichaient le même total,
-     ce qui laissait croire à deux pools de non-lus distincts. Cf. décision du
-     2026-09-24. */
+     Une seule boîte de réception globale (/messages/rooms n'est pas filtré
+     par contexte) et, depuis le 2026-09-25, une seule entrée "Messages" dans
+     la nav même pour les comptes dual bailleur+locataire — donc un total
+     unique tous rôles confondus. Cf. décision du 2026-09-24 (découpage
+     précédent, abandonné le 2026-09-25 avec la fusion des deux entrées). */
   const fetchUnread = useCallback(async () => {
     const token = await getToken().catch(() => null);
     if (!token) return;
     try {
       const rooms = await api.get<MessageRoom[]>('/messages/rooms', token);
       const isUnread = (r: MessageRoom) => !!r.messages?.[0] && !r.messages[0].readAt && r.messages[0].senderId !== userId;
-      const owner      = rooms.filter((r) => isUnread(r) && r.listing?.ownerId === userId).length;
-      const participant = rooms.filter((r) => isUnread(r) && r.listing?.ownerId !== userId).length;
-      setUnreadOwnerCount(owner);
-      setUnreadParticipantCount(participant);
+      setUnreadCount(rooms.filter(isUnread).length);
     } catch {}
   }, [getToken, userId]);
 
@@ -392,7 +398,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
 
   /* ── Last sign-in relative time ── */
   const lastSignInText = (() => {
-    if (user?.lastSignInAt == null) return null;
+    if (now == null || user?.lastSignInAt == null) return null;
     const diff = now.getTime() - new Date(user.lastSignInAt).getTime();
     const min  = Math.floor(diff / 60_000);
     const h    = Math.floor(min / 60);
@@ -569,13 +575,9 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
               const active = item.exact
                 ? pathname === item.href
                 : pathname === item.href || pathname.startsWith(item.href + '/');
-              // "/bailleur/messages" pointe vers les rooms où l'utilisateur est
-              // propriétaire de l'annonce, toute autre entrée "Messages"
-              // (/locataire/messages, /agent/messages) vers celles où il est
-              // participant — cf. fetchUnread (compte dual bailleur+locataire).
-              const messagesCount = item.href === '/bailleur/messages' ? unreadOwnerCount
-                : item.href.includes('/messages') ? unreadParticipantCount
-                : 0;
+              // Une seule entrée "Messages" par nav (même pour les comptes dual
+              // bailleur+locataire, cf. layout.tsx) → total unique.
+              const messagesCount = item.href.includes('/messages') ? unreadCount : 0;
               // Badges ambre "action requise" — un seul par item, admin (3
               // compteurs) ou agent/bailleur (1 chacun), jamais les deux à la
               // fois pour un même href donné, cf. décision du 2026-09-24.
@@ -718,12 +720,12 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
             <div className="flex items-center gap-2">
               <i className="fa-regular fa-calendar text-gold-dark text-[11px]" />
               <span className="text-xs font-medium text-text capitalize">
-                {now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                {now && now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </span>
               <span className="h-3 w-px bg-line" />
               <i className="fa-regular fa-clock text-gold-dark text-[11px]" />
               <span className="text-xs font-semibold text-text">
-                {now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                {now && now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
             {lastSignInText != null && (
