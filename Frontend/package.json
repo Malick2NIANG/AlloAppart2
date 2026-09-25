@@ -16,7 +16,7 @@
     "framer-motion": "^12.39.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.16.0",
-    "next": "16.3.1",
+    "next": "^16.3.6",
     "next-intl": "^4.12.0",
     "pusher-js": "^8.5.0",
     "qrcode.react": "^4.2.0",
