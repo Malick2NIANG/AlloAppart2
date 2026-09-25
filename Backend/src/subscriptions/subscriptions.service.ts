@@ -229,6 +229,20 @@ export class SubscriptionsService {
     }
 
     if (confirm.status === 'completed') {
+      // Le montant reçu de PayDunya doit correspondre au tarif de
+      // l'abonnement fixé à l'initiation (`monthlyFee`) — sans ce contrôle,
+      // un token PayDunya valide mais d'un montant différent (ex. une
+      // facture à quelques francs) suffirait à activer l'abonnement, le
+      // hash de signature étant une valeur fixe potentiellement rejouable
+      // (cf. commentaire de `verifyAndParseCallback`).
+      const expectedAmount = Number(subscription.monthlyFee);
+      if (Math.abs(confirm.totalAmount - expectedAmount) > 1) {
+        this.logger.warn(
+          `PayDunya montant incohérent : attendu ${expectedAmount}, recu ${confirm.totalAmount} pour subscription ${subscriptionId}`,
+        );
+        throw new BadRequestException('Inconsistent payment amount');
+      }
+
       const now = new Date();
       const endDate = new Date(now);
       endDate.setDate(endDate.getDate() + 30);

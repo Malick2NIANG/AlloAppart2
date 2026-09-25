@@ -794,6 +794,22 @@ export class ListingsService {
     }
 
     if (confirm.status === 'completed') {
+      // Le montant reçu de PayDunya doit correspondre au tarif du boost —
+      // sans ce contrôle, un token PayDunya valide mais d'un montant
+      // différent suffirait à confirmer le boost, le hash de signature
+      // étant une valeur fixe potentiellement rejouable (cf. commentaire de
+      // `verifyAndParseCallback`). `BoostPayment` ne stocke pas le prix payé
+      // à l'initiation (pas de colonne `amount`), donc on compare au tarif
+      // courant plutôt qu'à un montant figé.
+      const { boostPriceFcfa: expectedAmount } =
+        await this.platformConfig.getPricing();
+      if (Math.abs(confirm.totalAmount - expectedAmount) > 1) {
+        this.logger.warn(
+          `PayDunya montant incohérent : attendu ${expectedAmount}, recu ${confirm.totalAmount} pour boostPayment ${bp.id}`,
+        );
+        throw new BadRequestException('Inconsistent payment amount');
+      }
+
       const listing = await this.prisma.listing.findUniqueOrThrow({
         where: { id: listingId },
       });

@@ -369,6 +369,19 @@ export class VerificationsService {
     }
 
     if (confirm.status === 'completed') {
+      // Le montant reçu de PayDunya doit correspondre au tarif fixé à
+      // l'initiation (`vp.amount`) — sans ce contrôle, un token PayDunya
+      // valide mais d'un montant différent suffirait à confirmer la
+      // vérification, le hash de signature étant une valeur fixe
+      // potentiellement rejouable (cf. commentaire de `verifyAndParseCallback`).
+      const expectedAmount = Number(vp.amount);
+      if (Math.abs(confirm.totalAmount - expectedAmount) > 1) {
+        this.logger.warn(
+          `PayDunya montant incohérent : attendu ${expectedAmount}, recu ${confirm.totalAmount} pour verificationPayment ${vp.id}`,
+        );
+        throw new BadRequestException('Inconsistent payment amount');
+      }
+
       await this.prisma.verificationPayment.update({
         where: { id: vp.id },
         data: { status: 'CONFIRMED', paymentRef: 'PD-' + token },
