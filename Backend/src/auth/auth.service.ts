@@ -8,6 +8,7 @@
   UnauthorizedException,
 } from '@nestjs/common';
 import { randomBytes, randomInt, scryptSync, timingSafeEqual } from 'crypto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -875,6 +876,26 @@ export class AuthService {
       throw new BadRequestException('Session Clerk introuvable.');
     }
 
+    // Verrouillage anti-brute-force — indépendant du @Throttle par IP de la
+    // route, qu'un attaquant distribuant ses requêtes sur plusieurs IP
+    // pourrait contourner. Compte les échecs consécutifs tous codes
+    // confondus (redemander un code ne réinitialise pas le compteur).
+    const current = await this.prisma.user.findUniqueOrThrow({
+      where: { id: admin.id },
+      select: { adminOtpFailedAttempts: true, adminOtpLockedUntil: true },
+    });
+    if (
+      current.adminOtpLockedUntil &&
+      current.adminOtpLockedUntil > new Date()
+    ) {
+      const minutesLeft = Math.ceil(
+        (current.adminOtpLockedUntil.getTime() - Date.now()) / 60_000,
+      );
+      throw new ForbiddenException(
+        `Trop de tentatives échouées. Réessayez dans ${minutesLeft} min.`,
+      );
+    }
+
     const otp = await this.prisma.adminLoginOtp.findFirst({
       where: {
         adminId: admin.id,
@@ -883,7 +904,33 @@ export class AuthService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    if (!otp || !safeEqual(hashCode(code, otp.codeSalt), otp.codeHash)) {
+    const isValid =
+      !!otp && safeEqual(hashCode(code, otp.codeSalt), otp.codeHash);
+
+    if (!isValid) {
+      const attempts = current.adminOtpFailedAttempts + 1;
+      const lockedOut = attempts >= ADMIN_OTP_MAX_ATTEMPTS;
+      await this.prisma.user.update({
+        where: { id: admin.id },
+        data: {
+          adminOtpFailedAttempts: lockedOut ? 0 : attempts,
+          ...(lockedOut
+            ? {
+                adminOtpLockedUntil: new Date(
+                  Date.now() + ADMIN_OTP_LOCKOUT_MS,
+                ),
+              }
+            : {}),
+        },
+      });
+      if (lockedOut) {
+        this.logger.warn(
+          `Verrouillage 2FA admin — ${ADMIN_OTP_MAX_ATTEMPTS} échecs consécutifs pour adminId=${admin.id}`,
+        );
+        throw new ForbiddenException(
+          `Trop de tentatives échouées. Réessayez dans ${Math.round(ADMIN_OTP_LOCKOUT_MS / 60_000)} min.`,
+        );
+      }
       throw new BadRequestException('Code invalide ou expiré.');
     }
 
@@ -904,6 +951,10 @@ export class AuthService {
           expiresAt: new Date(Date.now() + ADMIN_SESSION_VERIFIED_TTL_MS),
         },
       }),
+      this.prisma.user.update({
+        where: { id: admin.id },
+        data: { adminOtpFailedAttempts: 0, adminOtpLockedUntil: null },
+      }),
     ]);
 
     return { verified: true };
@@ -919,6 +970,31 @@ export class AuthService {
     });
     return !!row && row.expiresAt > new Date();
   }
+
+  // Purge quotidienne des codes OTP admin et sessions vérifiées expirés —
+  // pur ménage (aucune des deux tables n'est jamais lue par date, seulement
+  // par adminId/sessionId + comparaison à `now`), pour ne pas laisser
+  // grossir indéfiniment ces tables sur une plateforme censée tourner des
+  // années.
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async cleanupExpiredAdminAuthRecords(): Promise<void> {
+    const now = new Date();
+    const [otps, sessions] = await Promise.all([
+      this.prisma.adminLoginOtp.deleteMany({
+        where: {
+          OR: [{ expiresAt: { lt: now } }, { consumedAt: { not: null } }],
+        },
+      }),
+      this.prisma.adminVerifiedSession.deleteMany({
+        where: { expiresAt: { lt: now } },
+      }),
+    ]);
+    if (otps.count || sessions.count) {
+      this.logger.log(
+        `Purge 2FA admin : ${otps.count} code(s) OTP, ${sessions.count} session(s) vérifiée(s) expiré(s)`,
+      );
+    }
+  }
 }
 
 const ADMIN_OTP_TTL_MS = 10 * 60 * 1000;
@@ -926,6 +1002,11 @@ const ADMIN_OTP_TTL_MS = 10 * 60 * 1000;
 // la durée de vie habituelle d'une session Clerk ; en pratique, une
 // nouvelle connexion (nouveau "sid") redemande de toute façon un code.
 const ADMIN_SESSION_VERIFIED_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// Anti-brute-force du code de connexion admin — indépendant du throttle par
+// IP de la route (contournable en distribuant les requêtes sur plusieurs
+// IP) : au-delà de ce nombre d'échecs consécutifs, verrouillage temporaire.
+const ADMIN_OTP_MAX_ATTEMPTS = 5;
+const ADMIN_OTP_LOCKOUT_MS = 15 * 60 * 1000;
 
 function makeSalt(): string {
   return randomBytes(16).toString('hex');

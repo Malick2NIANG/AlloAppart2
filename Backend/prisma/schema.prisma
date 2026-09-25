@@ -50,6 +50,15 @@ model User {
   // Sert à imposer la 2FA obligatoire pour le rôle ADMIN (espace sensible) :
   // voir RolesGuard.ensureAdminTwoFactor.
   twoFactorEnabled         Boolean        @default(false)
+  // Verrouillage anti-brute-force du code de connexion admin (2FA email,
+  // cf. AuthService.verifyAdminLoginOtp) — indépendant du throttle par IP
+  // (@Throttle sur la route), qu'un attaquant distribuant ses requêtes sur
+  // plusieurs IP pourrait contourner. Compte les échecs consécutifs tous
+  // codes confondus (pas seulement sur le code le plus récent, sinon
+  // redemander un code remettrait le compteur à zéro) ; au-delà du seuil,
+  // verrouillé jusqu'à adminOtpLockedUntil. Remis à zéro à chaque succès.
+  adminOtpFailedAttempts   Int            @default(0)
+  adminOtpLockedUntil      DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   bookings              Booking[]      @relation("TenantBookings")

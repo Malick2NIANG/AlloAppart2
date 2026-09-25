@@ -33,6 +33,8 @@ const owner: User = {
   isSuspended: false,
   mustChangePassword: false,
   twoFactorEnabled: false,
+  adminOtpFailedAttempts: 0,
+  adminOtpLockedUntil: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -63,6 +65,8 @@ const tenant: User = {
   isSuspended: false,
   mustChangePassword: false,
   twoFactorEnabled: false,
+  adminOtpFailedAttempts: 0,
+  adminOtpLockedUntil: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
