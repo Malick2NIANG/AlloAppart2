@@ -44,8 +44,9 @@ export default async function ListingsPage({
   let total = 0;
 
   if (isFavorisTab) {
-    listings = favoriteListings;
+    // L'API renvoie tous les favoris d'un coup : on pagine ici.
     total = favoriteListings.length;
+    listings = favoriteListings.slice((currentPage - 1) * perPage, currentPage * perPage);
   } else {
     try {
       const { api } = await import('@/lib/api');
@@ -76,6 +77,7 @@ export default async function ListingsPage({
 
   const pageUrl = (p: number) => {
     const params = new URLSearchParams();
+    if (isFavorisTab) params.set('tab', 'favoris');
     if (q)         params.set('q', q);
     if (city)      params.set('city', city);
     if (type)      params.set('type', type);
@@ -93,6 +95,7 @@ export default async function ListingsPage({
   // Nombre d'annonces par page — conserve les filtres, repart page 1.
   const perPageUrl = (n: number) => {
     const params = new URLSearchParams();
+    if (isFavorisTab) params.set('tab', 'favoris');
     if (q)         params.set('q', q);
     if (city)      params.set('city', city);
     if (type)      params.set('type', type);
@@ -292,9 +295,32 @@ export default async function ListingsPage({
               })}
             </div>
 
+            {/* Pied de liste : « Par page » à gauche, pagination centrée, sur la même ligne */}
+            <div className="mt-12 grid items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
+
+            {/* Par page — réglage rare, hors de la barre de filtres */}
+            {total > 6 ? (
+              <div className="flex items-center justify-start gap-2">
+                <span className="text-xs text-sub">{t('perPage')}</span>
+                <div className="flex items-center gap-1 rounded-full border border-line bg-card p-1">
+                  {[6, 12, 24].map((n) => (
+                    <Link
+                      key={n}
+                      href={perPageUrl(n)}
+                      className={`flex h-7 w-9 items-center justify-center rounded-full text-xs font-semibold transition-all duration-200 ${
+                        perPage === n ? 'bg-gold text-gray-900 shadow-sm' : 'text-sub hover:text-gold-dark'
+                      }`}
+                    >
+                      {n}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : <div className="hidden sm:block" />}
+
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="mt-12 flex items-center justify-center gap-2">
+            {totalPages > 1 ? (
+              <div className="flex items-center justify-center gap-2">
 
                 {currentPage > 1 ? (
                   <Link href={pageUrl(currentPage - 1)}
@@ -343,27 +369,11 @@ export default async function ListingsPage({
                   </span>
                 )}
               </div>
-            )}
+            ) : <div className="hidden sm:block" />}
 
-            {/* Par page — déplacé sous la liste (réglage rare, hors de la barre de filtres) */}
-            {!isFavorisTab && total > 6 && (
-              <div className="mt-8 flex items-center justify-center gap-2">
-                <span className="text-xs text-sub">{t('perPage')}</span>
-                <div className="flex items-center gap-1 rounded-full border border-line bg-card p-1">
-                  {[6, 12, 24].map((n) => (
-                    <Link
-                      key={n}
-                      href={perPageUrl(n)}
-                      className={`flex h-7 w-9 items-center justify-center rounded-full text-xs font-semibold transition-all duration-200 ${
-                        perPage === n ? 'bg-gold text-gray-900 shadow-sm' : 'text-sub hover:text-gold-dark'
-                      }`}
-                    >
-                      {n}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Colonne vide : garde la pagination centrée */}
+            <div className="hidden sm:block" />
+            </div>
           </>
         )}
       </div>
