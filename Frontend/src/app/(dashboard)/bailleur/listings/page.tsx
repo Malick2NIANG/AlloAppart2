@@ -890,6 +890,9 @@ function ListingCard({
 
         {listing.status === 'DRAFT' && (
           <>
+            <Link href={`/listings/${listing.id}`} className="text-sm font-medium text-gold-dark hover:underline">
+              {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
+            </Link>
             <Link href={`/bailleur/listings/${listing.id}/edit`}
               className="text-sm font-medium text-sub hover:text-text transition-colors">
               <i className="fa-solid fa-pen-to-square text-xs mr-1" />{t('actionEdit')}
@@ -912,6 +915,9 @@ function ListingCard({
 
         {listing.status === 'SUSPENDED' && (
           <>
+            <Link href={`/listings/${listing.id}`} className="text-sm font-medium text-gold-dark hover:underline">
+              {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
+            </Link>
             <button
               onClick={() => onRestore(listing.id, listing.title, 'DRAFT')}
               className="text-sm font-medium text-sub hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
