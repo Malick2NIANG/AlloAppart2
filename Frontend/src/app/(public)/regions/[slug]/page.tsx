@@ -17,8 +17,10 @@ export default async function RegionPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const [{ slug }, { page = '1' }] = await Promise.all([params, searchParams]);
-  const region = decodeURIComponent(slug);
   const regionData = getRegion(slug);
+  // Le filtre API est sensible à la casse : on utilise le nom canonique
+  // (« Dakar ») et non le slug brut de l'URL (« dakar »).
+  const region = regionData?.name ?? decodeURIComponent(slug);
   const currentPage = Math.max(1, parseInt(page, 10) || 1);
   const [t, locale] = await Promise.all([getTranslations('region'), getLocale()]);
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
@@ -79,19 +81,12 @@ export default async function RegionPage({
             <span className="text-text font-medium">{region}</span>
           </div>
 
-          {regionData?.coverImage && (
-            <div className="relative h-40 w-full overflow-hidden rounded-2xl mb-5">
-              <Image src={regionData.coverImage} alt={region} fill className="object-cover" sizes="100vw" />
-              <div aria-hidden className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
-              <h1 className="absolute bottom-4 left-5 text-3xl font-bold text-white drop-shadow">
-                {t('title')} {region}
-              </h1>
-            </div>
-          )}
-
-          {!regionData?.coverImage && (
-            <h1 className="text-3xl font-bold text-text">{t('title')} {region}</h1>
-          )}
+          {/* Bannière sans image distante : pas de photo cassée possible. */}
+          <div className="relative flex h-32 w-full items-end overflow-hidden rounded-2xl mb-5 bg-linear-to-br from-gold-dark via-gold to-gold-pale">
+            <h1 className="p-5 text-3xl font-bold text-gray-900">
+              {t('title')} {region}
+            </h1>
+          </div>
 
           {regionData?.description && (
             <p className="mt-2 text-sm text-sub max-w-2xl">{regionData.description}</p>
