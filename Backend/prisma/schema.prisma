@@ -513,6 +513,10 @@ model BoostPayment {
   paymentRef   String   @unique
   status       String   @default("PENDING")
   durationDays Int      @default(7)
+  /// Tarif (FCFA) figé à l'initiation du paiement — le webhook compare le montant
+  /// reçu de PayDunya à celui-ci, pas au tarif courant (modifiable par l'admin).
+  /// Nullable : les paiements antérieurs à cette colonne retombent sur le tarif courant.
+  amount       Int?
   createdAt    DateTime @default(now())
   listing      Listing  @relation(fields: [listingId], references: [id])
 

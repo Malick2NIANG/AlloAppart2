@@ -762,6 +762,7 @@ export class ListingsService {
           paymentRef,
           status: 'PAID',
           durationDays: BOOST_DAYS,
+          amount: boostPriceFcfa,
         },
       });
       await this.prisma.listing.update({
@@ -855,6 +856,7 @@ export class ListingsService {
         paymentRef,
         status: 'PENDING',
         durationDays: BOOST_DAYS,
+        amount: boostPriceFcfa,
       },
     });
     return {
@@ -907,11 +909,12 @@ export class ListingsService {
       // sans ce contrôle, un token PayDunya valide mais d'un montant
       // différent suffirait à confirmer le boost, le hash de signature
       // étant une valeur fixe potentiellement rejouable (cf. commentaire de
-      // `verifyAndParseCallback`). `BoostPayment` ne stocke pas le prix payé
-      // à l'initiation (pas de colonne `amount`), donc on compare au tarif
-      // courant plutôt qu'à un montant figé.
-      const { boostPriceFcfa: expectedAmount } =
-        await this.platformConfig.getPricing();
+      // `verifyAndParseCallback`). On compare au tarif figé à l'initiation
+      // (`bp.amount`) : un changement de prix par l'admin pendant qu'un
+      // paiement est en attente ne doit pas le faire rejeter. Les paiements
+      // antérieurs à cette colonne (`amount` null) retombent sur le tarif courant.
+      const expectedAmount =
+        bp.amount ?? (await this.platformConfig.getPricing()).boostPriceFcfa;
       if (Math.abs(confirm.totalAmount - expectedAmount) > 1) {
         this.logger.warn(
           `PayDunya montant incohérent : attendu ${expectedAmount}, recu ${confirm.totalAmount} pour boostPayment ${bp.id}`,

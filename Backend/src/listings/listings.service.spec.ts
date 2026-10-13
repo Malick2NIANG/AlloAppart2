@@ -662,6 +662,85 @@ describe('ListingsService', () => {
       expect(prismaMock.listing.update).toHaveBeenCalled();
     });
 
+    // Montant figé à l'initiation (BoostPayment.amount) : le webhook compare à
+    // celui-ci, pas au tarif courant que l'admin peut avoir modifié entre-temps.
+    it("accepte un paiement au montant figé à l'initiation même si le tarif courant a changé", async () => {
+      softpayMock.verifyAndParseCallback.mockReturnValue({
+        token: 'tok1',
+        customData: { listing_id: 'l1' },
+      });
+      prismaMock.boostPayment.findFirst.mockResolvedValueOnce({
+        id: 'bp1',
+        listingId: 'l1',
+        status: 'PENDING',
+        amount: 3_000, // ancien tarif ; le tarif courant (mock) est 5 000
+      });
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'l1',
+        boostScore: 0,
+      });
+      softpayMock.confirmInvoiceStatus.mockResolvedValueOnce({
+        status: 'completed',
+        totalAmount: 3_000,
+        customData: {},
+      });
+
+      await service.handleBoostWebhookPayDunya({});
+
+      expect(prismaMock.boostPayment.update).toHaveBeenCalledWith({
+        where: { id: 'bp1' },
+        data: { status: 'CONFIRMED', paymentRef: 'PD-tok1' },
+      });
+      expect(prismaMock.listing.update).toHaveBeenCalled();
+    });
+
+    it('rejette un paiement dont le montant diffère du montant figé, sans appliquer le boost', async () => {
+      softpayMock.verifyAndParseCallback.mockReturnValue({
+        token: 'tok1',
+        customData: { listing_id: 'l1' },
+      });
+      prismaMock.boostPayment.findFirst.mockResolvedValueOnce({
+        id: 'bp1',
+        listingId: 'l1',
+        status: 'PENDING',
+        amount: 5_000,
+      });
+      softpayMock.confirmInvoiceStatus.mockResolvedValueOnce({
+        status: 'completed',
+        totalAmount: 100,
+        customData: {},
+      });
+
+      await expect(service.handleBoostWebhookPayDunya({})).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prismaMock.boostPayment.update).not.toHaveBeenCalled();
+      expect(prismaMock.listing.update).not.toHaveBeenCalled();
+    });
+
+    it('retombe sur le tarif courant pour un ancien paiement sans montant figé (amount null) et rejette un montant incohérent', async () => {
+      softpayMock.verifyAndParseCallback.mockReturnValue({
+        token: 'tok1',
+        customData: { listing_id: 'l1' },
+      });
+      prismaMock.boostPayment.findFirst.mockResolvedValueOnce({
+        id: 'bp1',
+        listingId: 'l1',
+        status: 'PENDING',
+        amount: null,
+      });
+      softpayMock.confirmInvoiceStatus.mockResolvedValueOnce({
+        status: 'completed',
+        totalAmount: 100,
+        customData: {},
+      });
+
+      await expect(service.handleBoostWebhookPayDunya({})).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prismaMock.listing.update).not.toHaveBeenCalled();
+    });
+
     it("marque le BoostPayment FAILED si PayDunya confirme 'failed'", async () => {
       softpayMock.verifyAndParseCallback.mockReturnValue({
         token: 'tok1',
@@ -747,7 +826,9 @@ describe('ListingsService', () => {
 
       expect(result).not.toHaveProperty('free');
       expect(result).toHaveProperty('payment_url');
-      expect(prismaMock.boostPayment.create).toHaveBeenCalled();
+      expect(prismaMock.boostPayment.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ amount: 5_000 }) as unknown,
+      });
     });
 
     it('passe par PayDunya pour un bailleur individuel sans abonnement', async () => {
