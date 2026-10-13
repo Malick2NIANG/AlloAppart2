@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
+import { apiErrorDetail } from '@/lib/apiError';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import LocationPicker, { type MapFocus } from '@/components/map/LocationPicker';
 import { getListingProfile, sanitizeForType, TERRAIN_AMENITY_ICONS } from '@/lib/listingProfile';
@@ -502,7 +503,10 @@ export default function PublierPage() {
       if (errBody?.code === 'ACTIVE_LISTING_LIMIT') {
         setUpgradeModal({ limit: errBody.limit ?? 10 });
       } else {
-        setApiError(t('apiError'));
+        // Erreur de validation (400) : on affiche le détail renvoyé par l'API
+        // pour que l'utilisateur sache quoi corriger ; sinon message générique.
+        const detail = apiErrorDetail(err);
+        setApiError(detail ? `${t('apiError')} ${detail}` : t('apiError'));
       }
     }
   };
