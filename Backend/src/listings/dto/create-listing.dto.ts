@@ -134,7 +134,9 @@ export class CreateListingDto {
   /** Tarif par nuit — requis en mode NIGHTLY ou MIXED */
   @ValidateIf(
     (o: CreateListingDto) =>
-      o.rentalMode === RentalMode.NIGHTLY || o.rentalMode === RentalMode.MIXED,
+      o.transactionType !== TransactionType.VENTE &&
+      (o.rentalMode === RentalMode.NIGHTLY ||
+        o.rentalMode === RentalMode.MIXED),
   )
   @IsNotEmpty()
   @IsNumber()
@@ -170,7 +172,9 @@ export class CreateListingDto {
   /** Caution exprimée en nombre de mois de loyer — requis en mode MONTHLY ou MIXED */
   @ValidateIf(
     (o: CreateListingDto) =>
-      o.rentalMode === RentalMode.MONTHLY || o.rentalMode === RentalMode.MIXED,
+      o.transactionType !== TransactionType.VENTE &&
+      (o.rentalMode === RentalMode.MONTHLY ||
+        o.rentalMode === RentalMode.MIXED),
   )
   @IsNotEmpty()
   @IsInt()
@@ -190,7 +194,11 @@ export class CreateListingDto {
    * séjour reste facturé au tarif nuitée, au-delà il bascule vers la demande
    * de location au mois (caution). Voir bookings.service.ts#create.
    */
-  @ValidateIf((o: CreateListingDto) => o.rentalMode === RentalMode.MIXED)
+  @ValidateIf(
+    (o: CreateListingDto) =>
+      o.transactionType !== TransactionType.VENTE &&
+      o.rentalMode === RentalMode.MIXED,
+  )
   @IsNotEmpty()
   @IsInt()
   @Min(1)

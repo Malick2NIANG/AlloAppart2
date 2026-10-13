@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { getListingProfile, sanitizeForType, type ListingTypeKey } from './listingProfile';
+import {
+  getListingProfile,
+  sanitizeForType,
+  type ListingTypeKey,
+} from './listingProfile';
 
 const ALL_TYPES: ListingTypeKey[] = [
-  'APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU', 'TERRAIN', 'MAISON', 'LOCAL_COMMERCIAL',
+  'APPARTEMENT',
+  'VILLA',
+  'STUDIO',
+  'CHAMBRE',
+  'BUREAU',
+  'TERRAIN',
+  'MAISON',
+  'LOCAL_COMMERCIAL',
 ];
 
 describe('getListingProfile', () => {
@@ -31,19 +42,31 @@ describe('getListingProfile', () => {
 
   it("un bureau n'a pas de lits ; un local commercial n'a ni lits ni pièces", () => {
     expect(getListingProfile('BUREAU').beds).toBe(false);
-    expect(getListingProfile('LOCAL_COMMERCIAL')).toMatchObject({ rooms: false, beds: false, baths: true });
+    expect(getListingProfile('LOCAL_COMMERCIAL')).toMatchObject({
+      rooms: false,
+      beds: false,
+      baths: true,
+    });
   });
 
   it('retombe sur le profil appartement pour un type inconnu ou absent', () => {
-    expect(getListingProfile(undefined)).toEqual(getListingProfile('APPARTEMENT'));
-    expect(getListingProfile('INCONNU')).toEqual(getListingProfile('APPARTEMENT'));
+    expect(getListingProfile(undefined)).toEqual(
+      getListingProfile('APPARTEMENT'),
+    );
+    expect(getListingProfile('INCONNU')).toEqual(
+      getListingProfile('APPARTEMENT'),
+    );
   });
 });
 
 describe('sanitizeForType', () => {
   it('retire pièces/chambres/sdb et équipements de logement quand on passe de Maison à Terrain', () => {
     const result = sanitizeForType({
-      type: 'TERRAIN', rooms: 4, beds: 3, baths: 2, amenities: ['wifi', 'piscine', 'eau', 'cloture'],
+      type: 'TERRAIN',
+      rooms: 4,
+      beds: 3,
+      baths: 2,
+      amenities: ['wifi', 'piscine', 'eau', 'cloture'],
     });
     expect(result.rooms).toBeUndefined();
     expect(result.beds).toBeUndefined();
@@ -53,19 +76,82 @@ describe('sanitizeForType', () => {
 
   it('conserve tout pour un type qui supporte ces champs', () => {
     const result = sanitizeForType({
-      type: 'VILLA', rooms: 5, beds: 3, baths: 2, amenities: ['wifi', 'piscine'],
+      type: 'VILLA',
+      rooms: 5,
+      beds: 3,
+      baths: 2,
+      amenities: ['wifi', 'piscine'],
     });
-    expect(result).toMatchObject({ rooms: 5, beds: 3, baths: 2, amenities: ['wifi', 'piscine'] });
+    expect(result).toMatchObject({
+      rooms: 5,
+      beds: 3,
+      baths: 2,
+      amenities: ['wifi', 'piscine'],
+    });
   });
 
   it('retire les équipements de terrain sur un appartement', () => {
-    const result = sanitizeForType({ type: 'APPARTEMENT', amenities: ['clim', 'titre_foncier'] });
+    const result = sanitizeForType({
+      type: 'APPARTEMENT',
+      amenities: ['clim', 'titre_foncier'],
+    });
     expect(result.amenities).toEqual(['clim']);
   });
 
+  it('retire les champs de location en vente directe', () => {
+    const result = sanitizeForType({
+      type: 'TERRAIN',
+      transactionType: 'VENTE',
+      price: 5000000,
+      rentalMode: 'MONTHLY',
+      depositMonths: 2,
+      pricePerNight: 10000,
+      minLeaseMonths: 3,
+      amenities: [],
+    } as {
+      type: string;
+      transactionType: string;
+      amenities: string[];
+      price: number;
+      rentalMode?: string;
+      depositMonths?: number;
+      pricePerNight?: number;
+      minLeaseMonths?: number;
+    });
+    expect(result.rentalMode).toBeUndefined();
+    expect(result.depositMonths).toBeUndefined();
+    expect(result.pricePerNight).toBeUndefined();
+    expect(result.minLeaseMonths).toBeUndefined();
+    expect(result.price).toBe(5000000);
+  });
+
+  it('conserve les champs de location en LOCATION', () => {
+    const result = sanitizeForType({
+      type: 'VILLA',
+      transactionType: 'LOCATION',
+      rentalMode: 'MONTHLY',
+      depositMonths: 2,
+      amenities: [],
+    } as {
+      type: string;
+      transactionType: string;
+      amenities: string[];
+      rentalMode?: string;
+      depositMonths?: number;
+    });
+    expect(result.rentalMode).toBe('MONTHLY');
+    expect(result.depositMonths).toBe(2);
+  });
+
   it('ne perd pas les autres champs du formulaire', () => {
-    const result = sanitizeForType({ type: 'TERRAIN', title: 'Terrain 300 m²', amenities: [] } as {
-      type: string; title: string; amenities: string[];
+    const result = sanitizeForType({
+      type: 'TERRAIN',
+      title: 'Terrain 300 m²',
+      amenities: [],
+    } as {
+      type: string;
+      title: string;
+      amenities: string[];
     });
     expect(result.title).toBe('Terrain 300 m²');
   });

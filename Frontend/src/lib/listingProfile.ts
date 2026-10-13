@@ -29,31 +29,90 @@ export interface ListingProfile {
 }
 
 const HOME_AMENITIES = [
-  'wifi', 'clim', 'tv', 'cuisine', 'douche', 'gardien', 'parking', 'piscine', 'balcon', 'generateur',
+  'wifi',
+  'clim',
+  'tv',
+  'cuisine',
+  'douche',
+  'gardien',
+  'parking',
+  'piscine',
+  'balcon',
+  'generateur',
 ] as const;
 
 const PROFILES: Record<ListingTypeKey, ListingProfile> = {
-  APPARTEMENT: { rooms: true, beds: true, baths: true, surfaceRequired: false, amenities: HOME_AMENITIES },
-  VILLA: { rooms: true, beds: true, baths: true, surfaceRequired: false, amenities: HOME_AMENITIES },
-  MAISON: { rooms: true, beds: true, baths: true, surfaceRequired: false, amenities: HOME_AMENITIES },
-  STUDIO: { rooms: false, beds: true, baths: true, surfaceRequired: false, amenities: HOME_AMENITIES },
-  CHAMBRE: { rooms: false, beds: true, baths: true, surfaceRequired: false, amenities: HOME_AMENITIES },
+  APPARTEMENT: {
+    rooms: true,
+    beds: true,
+    baths: true,
+    surfaceRequired: false,
+    amenities: HOME_AMENITIES,
+  },
+  VILLA: {
+    rooms: true,
+    beds: true,
+    baths: true,
+    surfaceRequired: false,
+    amenities: HOME_AMENITIES,
+  },
+  MAISON: {
+    rooms: true,
+    beds: true,
+    baths: true,
+    surfaceRequired: false,
+    amenities: HOME_AMENITIES,
+  },
+  STUDIO: {
+    rooms: false,
+    beds: true,
+    baths: true,
+    surfaceRequired: false,
+    amenities: HOME_AMENITIES,
+  },
+  CHAMBRE: {
+    rooms: false,
+    beds: true,
+    baths: true,
+    surfaceRequired: false,
+    amenities: HOME_AMENITIES,
+  },
   BUREAU: {
-    rooms: true, beds: false, baths: true, surfaceRequired: false,
+    rooms: true,
+    beds: false,
+    baths: true,
+    surfaceRequired: false,
     amenities: ['wifi', 'clim', 'parking', 'gardien', 'generateur', 'cuisine'],
   },
   LOCAL_COMMERCIAL: {
-    rooms: false, beds: false, baths: true, surfaceRequired: false,
+    rooms: false,
+    beds: false,
+    baths: true,
+    surfaceRequired: false,
     amenities: ['clim', 'parking', 'gardien', 'generateur', 'wifi'],
   },
   TERRAIN: {
-    rooms: false, beds: false, baths: false, surfaceRequired: true,
-    amenities: ['viabilise', 'eau', 'electricite', 'titre_foncier', 'cloture', 'acces_route'],
+    rooms: false,
+    beds: false,
+    baths: false,
+    surfaceRequired: true,
+    amenities: [
+      'viabilise',
+      'eau',
+      'electricite',
+      'titre_foncier',
+      'cloture',
+      'acces_route',
+    ],
   },
 };
 
-export function getListingProfile(type: string | undefined | null): ListingProfile {
-  return PROFILES[(type ?? 'APPARTEMENT') as ListingTypeKey] ?? PROFILES.APPARTEMENT;
+export function getListingProfile(
+  type: string | undefined | null,
+): ListingProfile {
+  return (
+    PROFILES[(type ?? 'APPARTEMENT') as ListingTypeKey] ?? PROFILES.APPARTEMENT
+  );
 }
 
 /** Icônes des équipements propres aux terrains (les autres sont déjà connus des pages). */
@@ -72,14 +131,40 @@ export const TERRAIN_AMENITY_ICONS: Record<string, string> = {
  * ne doivent pas être envoyées) et filtre les équipements non proposés.
  */
 export function sanitizeForType<
-  T extends { type?: string; rooms?: number; beds?: number; baths?: number; amenities?: string[] },
+  T extends {
+    type?: string;
+    transactionType?: string;
+    rooms?: number;
+    beds?: number;
+    baths?: number;
+    amenities?: string[];
+  },
 >(values: T): T {
   const profile = getListingProfile(values.type);
+  // En vente directe, les champs propres à la location (mode, tarifs nuitée,
+  // caution, bail…) n'ont aucun sens : on ne les envoie pas, sinon l'API les
+  // valide à tort (ex. depositMonths) à cause du rentalMode par défaut du formulaire.
+  const rentalOnly =
+    values.transactionType === 'VENTE'
+      ? {
+          rentalMode: undefined,
+          pricePerNight: undefined,
+          minimumNights: undefined,
+          maximumNights: undefined,
+          cleaningFee: undefined,
+          depositMonths: undefined,
+          chargesIncluded: undefined,
+          minLeaseMonths: undefined,
+        }
+      : {};
   return {
     ...values,
+    ...rentalOnly,
     rooms: profile.rooms ? values.rooms : undefined,
     beds: profile.beds ? values.beds : undefined,
     baths: profile.baths ? values.baths : undefined,
-    amenities: (values.amenities ?? []).filter((a) => profile.amenities.includes(a)),
+    amenities: (values.amenities ?? []).filter((a) =>
+      profile.amenities.includes(a),
+    ),
   };
 }
