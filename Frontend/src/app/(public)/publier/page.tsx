@@ -381,7 +381,7 @@ export default function PublierPage() {
             <p className="mt-2 text-sm text-sub">{t('becomeSubtitle')}</p>
           </div>
 
-          <div className="mb-5 rounded-2xl border border-line bg-card p-5">
+          <div className="mb-8">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-sub">{t('becomeFeatureTitle')}</p>
             <ul className="space-y-3">
               {BECOME_FEATURES.map(({ icon, text }) => (
