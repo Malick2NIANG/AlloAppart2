@@ -14,7 +14,14 @@ const TYPES = [
   { key: 'STUDIO',      icon: 'fa-door-open',     tKey: 'filterStudios' },
   { key: 'CHAMBRE',     icon: 'fa-bed',           tKey: 'filterRooms'   },
   { key: 'BUREAU',      icon: 'fa-briefcase',     tKey: 'filterOffices' },
+  // Types réservés à la vente directe (agences abonnées).
+  { key: 'TERRAIN',          icon: 'fa-map',          tKey: 'filterLand'       },
+  { key: 'MAISON',           icon: 'fa-house',        tKey: 'filterHouses'     },
+  { key: 'LOCAL_COMMERCIAL', icon: 'fa-store',        tKey: 'filterCommercial' },
 ];
+
+const LOCATION_ONLY_KEYS = ['STUDIO', 'CHAMBRE', 'BUREAU'];
+const VENTE_ONLY_KEYS = ['TERRAIN', 'MAISON', 'LOCAL_COMMERCIAL'];
 
 const REGIONS = [
   'Dakar', 'Thiès', 'Saint-Louis', 'Ziguinchor',
@@ -53,13 +60,24 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   const isVerifiedOnly = urlParams.get('verified') === 'true';
   const verified = isVerifiedOnly ? 'true' : undefined;
 
-  const hasFilters = !!(type || region || q || city || minPrice || maxPrice || ownerType || isVerifiedOnly);
+  // Bascule À louer / À vendre : gérée par la page (liens), simplement conservée ici.
+  const rawTransaction = urlParams.get('transactionType');
+  const transactionType = rawTransaction === 'LOCATION' || rawTransaction === 'VENTE' ? rawTransaction : undefined;
+
+  const hasFilters = !!(type || region || q || city || minPrice || maxPrice || ownerType || isVerifiedOnly || transactionType);
   const activeType = type ?? '';
   const activeOwnerType = ownerType ?? '';
 
+  // Les types spécifiques à l'autre mode n'ont pas de sens : on les masque.
+  const visibleTypes = TYPES.filter((ty) => {
+    if (transactionType === 'VENTE') return !LOCATION_ONLY_KEYS.includes(ty.key);
+    if (transactionType === 'LOCATION') return !VENTE_ONLY_KEYS.includes(ty.key);
+    return true;
+  });
+
   const push = (overrides: Record<string, string | undefined>) => {
     const params = new URLSearchParams();
-    const merged = { q, city, minPrice, maxPrice, type, region, ownerType, verified, limit: String(limit), page: '1', ...overrides };
+    const merged = { q, city, minPrice, maxPrice, type, region, ownerType, verified, transactionType, limit: String(limit), page: '1', ...overrides };
     Object.entries(merged).forEach(([k, v]) => { if (v) params.set(k, v); });
     router.push(`/listings?${params.toString()}`);
   };
@@ -119,7 +137,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
         className="flex gap-2 overflow-x-auto pb-1"
         style={{ scrollbarWidth: 'none' }}
       >
-        {TYPES.map((typ) => {
+        {visibleTypes.map((typ) => {
           const isActive = activeType === typ.key;
           return (
             <button

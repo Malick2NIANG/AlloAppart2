@@ -438,7 +438,7 @@ function ListingBoostCard({
         </p>
         <p className="mt-1 text-xs font-medium text-text">
           {getListingPriceAmounts(listing)
-            .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA${t(e.unit === 'night' ? 'priceUnitNight' : 'priceUnitMonth')}`)
+            .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA${e.unit === 'sale' ? '' : t(e.unit === 'night' ? 'priceUnitNight' : 'priceUnitMonth')}`)
             .join(' · ')}
         </p>
         {listing.boostScore > 0 && (

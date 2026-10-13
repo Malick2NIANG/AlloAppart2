@@ -37,6 +37,10 @@ export default function MaVitrinePage() {
   const [agencyName,    setAgencyName]    = useState('');
   const [bio,           setBio]           = useState('');
   const [phone,         setPhone]         = useState('');
+  // Contact direct affiché sur les annonces en vente (transactionType VENTE),
+  // à la place de la messagerie interne — pas de repli sur `phone` (contrairement
+  // à agencyPhone) : WhatsApp est un nouveau champ, sans équivalent historique.
+  const [whatsapp,      setWhatsapp]      = useState('');
   const [avatar,        setAvatar]        = useState('');
   const [agencyAddress, setAgencyAddress] = useState('');
   const [agencyColor,   setAgencyColor]   = useState('gold');
@@ -59,7 +63,7 @@ export default function MaVitrinePage() {
   // isDirtyRef, lui, n'est lu que dans des handlers/effets (jamais au
   // rendu) — il évite de ré-attacher les listeners DOM à chaque frappe.
   type VitrineSnapshot = {
-    agencyName: string; bio: string; phone: string;
+    agencyName: string; bio: string; phone: string; whatsapp: string;
     avatar: string; agencyAddress: string; agencyColor: string;
   };
   const [saved, setSaved] = useState<VitrineSnapshot | null>(null);
@@ -84,6 +88,7 @@ export default function MaVitrinePage() {
       // .resolveVitrineFields côté back, même logique de repli).
       setBio(me.agencyBio ?? me.bio ?? '');
       setPhone(me.agencyPhone ?? me.phone ?? '');
+      setWhatsapp(me.agencyWhatsapp ?? '');
       setAvatar(me.agencyAvatar ?? me.avatar ?? '');
       setAgencyAddress(me.agencyAddress ?? '');
       setAgencyColor(me.agencyColor ?? 'gold');
@@ -91,6 +96,7 @@ export default function MaVitrinePage() {
         agencyName: me.agencyName ?? '',
         bio: me.agencyBio ?? me.bio ?? '',
         phone: me.agencyPhone ?? me.phone ?? '',
+        whatsapp: me.agencyWhatsapp ?? '',
         avatar: me.agencyAvatar ?? me.avatar ?? '',
         agencyAddress: me.agencyAddress ?? '',
         agencyColor: me.agencyColor ?? 'gold',
@@ -163,15 +169,16 @@ export default function MaVitrinePage() {
     setSaving(true);
     try {
       const updated = await api.patch<User>('/auth/me', {
-        agencyName:    agencyName.trim()    || undefined,
-        agencyBio:     bio.trim()           || undefined,
-        agencyPhone:   phone.trim()         || undefined,
-        agencyAvatar:  avatar               || undefined,
-        agencyAddress: agencyAddress.trim() || undefined,
+        agencyName:     agencyName.trim()    || undefined,
+        agencyBio:      bio.trim()           || undefined,
+        agencyPhone:    phone.trim()         || undefined,
+        agencyWhatsapp: whatsapp.trim()      || undefined,
+        agencyAvatar:   avatar               || undefined,
+        agencyAddress:  agencyAddress.trim() || undefined,
         agencyColor,
       }, token);
       setUser(updated);
-      setSaved({ agencyName, bio, phone, avatar, agencyAddress, agencyColor });
+      setSaved({ agencyName, bio, phone, whatsapp, avatar, agencyAddress, agencyColor });
       toastRef.current.success(t('vitrineSaved'));
       // Invalide le cache ISR de /agences et /agences/:slug — sinon la vitrine
       // publique garde l'ancienne version jusqu'à la prochaine revalidation
@@ -188,6 +195,7 @@ export default function MaVitrinePage() {
     agencyName    !== saved.agencyName ||
     bio           !== saved.bio ||
     phone         !== saved.phone ||
+    whatsapp      !== saved.whatsapp ||
     avatar        !== saved.avatar ||
     agencyAddress !== saved.agencyAddress ||
     agencyColor   !== saved.agencyColor
@@ -371,6 +379,12 @@ export default function MaVitrinePage() {
             </div>
 
             <div>
+              <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">{t('vitrineWhatsapp')}</label>
+              <PhoneInput value={whatsapp} onChange={setWhatsapp} />
+              <p className="mt-1.5 text-xs text-sub">{t('vitrineWhatsappDesc')}</p>
+            </div>
+
+            <div>
               <label className="text-[11px] font-bold text-sub uppercase tracking-wide mb-1.5 block">{t('vitrineAddressLabel')}</label>
               <div className="relative">
                 <i className="fa-solid fa-location-dot absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-xs" />
@@ -433,6 +447,12 @@ export default function MaVitrinePage() {
                     <span className="flex items-center gap-1">
                       <i className="fa-solid fa-phone text-[10px]" style={{ color: color.hex }} />
                       {phone}
+                    </span>
+                  )}
+                  {whatsapp && (
+                    <span className="flex items-center gap-1">
+                      <i className="fa-brands fa-whatsapp text-[10px]" style={{ color: color.hex }} />
+                      {whatsapp}
                     </span>
                   )}
                 </div>

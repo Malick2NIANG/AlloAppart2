@@ -54,6 +54,14 @@ export class UpdateProfileDto {
   @IsPhoneNumber()
   agencyPhone?: string;
 
+  /**
+   * Contact direct affiché sur les annonces en vente (transactionType VENTE),
+   * à la place de la messagerie interne — distinct d'agencyPhone (appel).
+   */
+  @IsOptional()
+  @IsPhoneNumber()
+  agencyWhatsapp?: string;
+
   /** Adresse affichée sur la vitrine — distincte de l'adresse des annonces. */
   @IsOptional()
   @IsString()

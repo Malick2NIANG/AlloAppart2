@@ -14,8 +14,15 @@ import LocationPicker from '@/components/map/LocationPicker';
 
 /* ── Constants (no translations needed) ───────────────────────────────── */
 
-const LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
+// Types valides en mode LOCATION (historique) vs VENTE directe (agences
+// abonnées actives uniquement) — APPARTEMENT/VILLA restent valides dans les
+// deux modes, le reste est réservé à un seul mode (cf. listings.service.ts
+// backend, assertValidTransactionTypeUsage, règle identique).
+const LOCATION_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
+const VENTE_TYPES = ['APPARTEMENT', 'VILLA', 'TERRAIN', 'MAISON', 'LOCAL_COMMERCIAL'] as const;
+const ALL_LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU', 'TERRAIN', 'MAISON', 'LOCAL_COMMERCIAL'] as const;
 const RENTAL_MODES = ['NIGHTLY', 'MONTHLY', 'MIXED'] as const;
+const TRANSACTION_TYPES = ['LOCATION', 'VENTE'] as const;
 
 const SENEGAL_REGIONS = [
   'Dakar', 'Thiès', 'Saint-Louis', 'Ziguinchor', 'Kaolack',
@@ -25,11 +32,14 @@ const SENEGAL_REGIONS = [
 
 // Only icon values at module level — labels come from t() inside component
 const TYPE_ICONS: Record<string, string> = {
-  APPARTEMENT: 'fa-building',
-  VILLA:       'fa-house-chimney',
-  STUDIO:      'fa-door-open',
-  CHAMBRE:     'fa-bed',
-  BUREAU:      'fa-briefcase',
+  APPARTEMENT:      'fa-building',
+  VILLA:            'fa-house-chimney',
+  STUDIO:           'fa-door-open',
+  CHAMBRE:          'fa-bed',
+  BUREAU:           'fa-briefcase',
+  TERRAIN:          'fa-map-location-dot',
+  MAISON:           'fa-house',
+  LOCAL_COMMERCIAL: 'fa-store',
 };
 
 const AMENITY_ICONS: Record<string, string> = {
@@ -54,7 +64,8 @@ type DemoRole = 'visitor' | 'locataire' | 'bailleur' | 'dual' | 'admin' | 'agent
 
 function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
   return z.object({
-    type:        z.enum(LISTING_TYPES),
+    type:        z.enum(ALL_LISTING_TYPES),
+    transactionType: z.enum(TRANSACTION_TYPES),
     title:       z.string().min(5,  t('zTitleShort')),
     description: z.string().min(20, t('zDescShort')),
     surface:     z.number().positive().optional(),
@@ -67,7 +78,8 @@ function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
     address:     z.string().min(5, t('zAddressRequired')),
     lat:         z.number(),
     lng:         z.number(),
-    rentalMode:    z.enum(RENTAL_MODES),
+    // Sans objet en mode VENTE (prix de vente unique, pas de mode locatif).
+    rentalMode:    z.enum(RENTAL_MODES).optional(),
     price:         z.number().positive(t('zPricePositive')).optional(),
     pricePerNight: z.number().positive(t('zPriceNightPositive')).optional(),
     minimumNights: z.number().int().min(1, t('zMinNights')).optional(),
@@ -78,6 +90,14 @@ function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
     minLeaseMonths:  z.number().int().min(1).optional(),
     images:      z.array(z.string()).min(1, t('zPhotoRequired')),
   }).superRefine((data, ctx) => {
+    // ── Mode VENTE : un seul champ requis, le prix de vente (réutilise `price`) ──
+    if (data.transactionType === 'VENTE') {
+      if (!(data.price && data.price > 0)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price'], message: t('zSalePricePositive') });
+      }
+      return;
+    }
+    // ── Mode LOCATION : validations historiques selon rentalMode ──
     const needsNightly = data.rentalMode === 'NIGHTLY' || data.rentalMode === 'MIXED';
     const needsMonthly = data.rentalMode === 'MONTHLY' || data.rentalMode === 'MIXED';
     if (needsNightly && !(data.pricePerNight && data.pricePerNight > 0)) {
@@ -109,7 +129,7 @@ type FormValues = z.infer<ReturnType<typeof makeSchema>>;
 
 /* Champs validés par étape */
 const STEP_FIELDS: (keyof FormValues)[][] = [
-  ['type', 'title', 'description'],
+  ['type', 'transactionType', 'title', 'description'],
   ['surface', 'rooms', 'beds', 'baths', 'amenities'],
   ['region', 'city', 'address', 'lat', 'lng'],
   ['rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'],
@@ -130,12 +150,20 @@ export default function PublierPage() {
   const [mounted,       setMounted]       = useState(false);
   const [success,       setSuccess]       = useState<'published' | 'draft' | false>(false);
   const [apiError,      setApiError]      = useState<string | null>(null);
-  // Plafond STARTER atteint (10 annonces) — bloque une simple erreur générique
-  // au profit d'une invite claire à passer au plan PRO (limit vient du corps
-  // structuré renvoyé par le backend, ex: { code: 'STARTER_LISTING_LIMIT', limit: 10 }).
+  // Plafond de 10 annonces actives atteint (compte particulier, sans
+  // abonnement) — bloque une simple erreur générique au profit d'une invite
+  // claire à devenir agence professionnelle (limit vient du corps structuré
+  // renvoyé par le backend, ex: { code: 'ACTIVE_LISTING_LIMIT', limit: 10 }).
+  // Ce code ne concerne jamais les agences : avec un abonnement actif
+  // (STARTER ou PRO), elles n'ont aucune limite de nombre d'annonces.
   const [upgradeModal,  setUpgradeModal]  = useState<{ limit: number } | null>(null);
   const [userRoles,     setUserRoles]     = useState<string[]>([]);
   const [rolesLoaded,   setRolesLoaded]   = useState(false);
+  // Vente directe réservée aux agences PRO_AGENCE avec abonnement actif (peu
+  // importe le plan — même règle que la publication, cf. assertCanPublish()
+  // backend). /subscriptions/me renvoie 403 pour un non-PRO_AGENCE, traité
+  // comme "pas éligible" (même schéma défensif qu'ailleurs dans l'app).
+  const [canUseVenteMode, setCanUseVenteMode] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
   const [submitMode,    setSubmitMode]    = useState<'draft' | 'publish'>('publish');
 
@@ -143,11 +171,19 @@ export default function PublierPage() {
 
   // Type/amenity meta computed from translations
   const TYPE_META = useMemo(() => ({
-    APPARTEMENT: { icon: 'fa-building',      label: t('typeAppartement') },
-    VILLA:       { icon: 'fa-house-chimney', label: t('typeVilla')       },
-    STUDIO:      { icon: 'fa-door-open',     label: t('typeStudio')      },
-    CHAMBRE:     { icon: 'fa-bed',           label: t('typeChambre')     },
-    BUREAU:      { icon: 'fa-briefcase',     label: t('typeBureau')      },
+    APPARTEMENT:      { icon: 'fa-building',           label: t('typeAppartement')     },
+    VILLA:            { icon: 'fa-house-chimney',      label: t('typeVilla')           },
+    STUDIO:           { icon: 'fa-door-open',          label: t('typeStudio')          },
+    CHAMBRE:          { icon: 'fa-bed',                label: t('typeChambre')         },
+    BUREAU:           { icon: 'fa-briefcase',          label: t('typeBureau')          },
+    TERRAIN:          { icon: 'fa-map-location-dot',   label: t('typeTerrain')         },
+    MAISON:           { icon: 'fa-house',              label: t('typeMaison')          },
+    LOCAL_COMMERCIAL: { icon: 'fa-store',               label: t('typeLocalCommercial') },
+  }), [t]);
+
+  const TRANSACTION_TYPE_META = useMemo(() => ({
+    LOCATION: { icon: 'fa-key',    label: t('transactionTypeLocation'), desc: t('transactionTypeLocationDesc') },
+    VENTE:    { icon: 'fa-sack-dollar', label: t('transactionTypeVente'),    desc: t('transactionTypeVenteDesc')    },
   }), [t]);
 
   const RENTAL_MODE_META = useMemo(() => ({
@@ -185,6 +221,7 @@ export default function PublierPage() {
     resolver: zodResolver(schema) as Resolver<FormValues>,
     defaultValues: {
       type: 'APPARTEMENT',
+      transactionType: 'LOCATION',
       rentalMode: 'MONTHLY',
       amenities: [],
       images: [],
@@ -240,6 +277,14 @@ export default function PublierPage() {
         if (me.roles.includes('ADMIN')) { router.replace('/espace'); return; }
         if (me.roles.includes('AGENT_TERRAIN')) { router.replace('/agent/verifications'); return; }
         setUserRoles(me.roles);
+        if (me.roles.includes('PRO_AGENCE')) {
+          try {
+            const sub = await apiLib.get<{ status: string } | null>('/subscriptions/me', token);
+            setCanUseVenteMode(sub?.status === 'ACTIVE');
+          } catch {
+            setCanUseVenteMode(false);
+          }
+        }
       } catch {
         setUserRoles([]);
       } finally {
@@ -253,6 +298,8 @@ export default function PublierPage() {
   const isDemo    = !isSignedIn && demoRole !== 'visitor';
   const canAccess = isSignedIn || demoRole !== 'visitor';
   const isBailleur = isDemo || userRoles.some((r) => ['BAILLEUR', 'PRO_AGENCE'].includes(r));
+  // En démo, on affiche le choix VENTE pour l'aperçu UI même sans abonnement réel.
+  const canShowVenteToggle = isDemo || canUseVenteMode;
 
   if (!mounted) return null;
 
@@ -417,11 +464,11 @@ export default function PublierPage() {
       localStorage.removeItem(DRAFT_KEY);
       setSuccess(submitMode === 'draft' ? 'draft' : 'published');
     } catch (err: unknown) {
-      // Le plafond du plan STARTER renvoie un code structuré (pas juste un
-      // message texte) pour qu'on puisse afficher une vraie invite à
-      // l'upgrade plutôt qu'un message d'erreur générique.
+      // Le plafond d'annonces actives (compte particulier) renvoie un code
+      // structuré (pas juste un message texte) pour qu'on puisse afficher une
+      // vraie invite à devenir agence plutôt qu'un message d'erreur générique.
       const errBody = (err as { data?: { code?: string; limit?: number } } | undefined)?.data;
-      if (errBody?.code === 'STARTER_LISTING_LIMIT') {
+      if (errBody?.code === 'ACTIVE_LISTING_LIMIT') {
         setUpgradeModal({ limit: errBody.limit ?? 10 });
       } else {
         setApiError(t('apiError'));
@@ -483,10 +530,41 @@ export default function PublierPage() {
               <>
                 <StepHeader title={STEP_HEADERS[0].title} sub={STEP_HEADERS[0].sub} />
 
+                {canShowVenteToggle && (
+                  <div>
+                    <FieldLabel label={t('transactionTypeLabel')} required />
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      {TRANSACTION_TYPES.map((tx) => {
+                        const active = values.transactionType === tx;
+                        const meta = TRANSACTION_TYPE_META[tx];
+                        return (
+                          <button key={tx} type="button" onClick={() => {
+                              setValue('transactionType', tx);
+                              // Le type de bien choisi doit rester cohérent avec le
+                              // nouveau mode (cf. LOCATION_TYPES/VENTE_TYPES) — sinon
+                              // on repart sur APPARTEMENT, valide dans les deux modes.
+                              const validTypes: readonly string[] = tx === 'VENTE' ? VENTE_TYPES : LOCATION_TYPES;
+                              if (!validTypes.includes(values.type)) setValue('type', 'APPARTEMENT');
+                            }}
+                            className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all ${
+                              active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
+                            }`}>
+                            <span className="flex items-center gap-2">
+                              <i className={`fa-solid ${meta.icon} ${active ? 'text-gold-dark' : 'text-sub'}`} />
+                              <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>{meta.label}</span>
+                            </span>
+                            <span className="text-[11px] text-sub">{meta.desc}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <FieldLabel label={t('fieldTypeLabel')} required />
                   <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
-                    {LISTING_TYPES.map((type) => {
+                    {(values.transactionType === 'VENTE' ? VENTE_TYPES : LOCATION_TYPES).map((type) => {
                       const active = values.type === type;
                       const meta   = TYPE_META[type];
                       return (
@@ -605,7 +683,34 @@ export default function PublierPage() {
             )}
 
             {/* ── Étape 3 : Mode de location & Prix ── */}
-            {step === 3 && (
+            {step === 3 && values.transactionType === 'VENTE' && (
+              <>
+                <StepHeader title={t('step3HeaderVente')} sub={t('step3SubVente')} />
+
+                <Field label={t('fieldSalePrice')} error={errors.price?.message} required>
+                  <div className="relative">
+                    <input type="number" min={0} {...register('price', {
+                      setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+                    })} placeholder={t('fieldSalePricePh')} className="input-field pr-16" />
+                    <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-sub">
+                      FCFA
+                    </span>
+                  </div>
+                </Field>
+
+                {Number(values.price) > 0 && (
+                  <div className="rounded-2xl border border-gold/30 bg-gold-pale px-5 py-4">
+                    <p className="text-xs text-sub mb-1">{t('pricePreviewLabel')}</p>
+                    <p className="text-3xl font-extrabold text-gold-dark">
+                      {Number(values.price).toLocaleString(numLocale)}
+                      <span className="ml-2 text-base font-semibold text-sub">FCFA</span>
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {step === 3 && values.transactionType !== 'VENTE' && (
               <>
                 <StepHeader title={STEP_HEADERS[3].title} sub={STEP_HEADERS[3].sub} />
 
@@ -834,7 +939,7 @@ export default function PublierPage() {
         </form>
       </div>
 
-      {/* Plafond STARTER atteint — invite à l'upgrade plutôt qu'une erreur brute */}
+      {/* Plafond de 10 annonces actives atteint (compte particulier) — invite à devenir agence plutôt qu'une erreur brute */}
       {upgradeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden">
@@ -966,21 +1071,32 @@ function RecapCard({
           <i className={`fa-solid ${meta.icon} text-gold-dark`} /> {meta.label}
         </span>
         <span className="text-right">
-          {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && Number(values.price) > 0 && (
-            <span className="block text-xl font-extrabold text-gold-dark">
-              {Number(values.price).toLocaleString(numLocale)}
-              <span className="ml-1 text-sm font-semibold text-sub"> {t('fieldRentUnit')}</span>
-            </span>
-          )}
-          {(values.rentalMode === 'NIGHTLY' || values.rentalMode === 'MIXED') && Number(values.pricePerNight) > 0 && (
-            <span className="block text-xs font-semibold text-sub">
-              {t('recapPriceNight')} : {Number(values.pricePerNight).toLocaleString(numLocale)} {t('fcfaPerNight')}
-            </span>
-          )}
-          {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && values.depositMonths !== undefined && (
-            <span className="block text-xs font-semibold text-sub">
-              {t('recapDeposit')} : {values.depositMonths} {t('recapDepositUnit')}
-            </span>
+          {values.transactionType === 'VENTE' ? (
+            Number(values.price) > 0 && (
+              <span className="block text-xl font-extrabold text-gold-dark">
+                {Number(values.price).toLocaleString(numLocale)}
+                <span className="ml-1 text-sm font-semibold text-sub"> FCFA</span>
+              </span>
+            )
+          ) : (
+            <>
+              {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && Number(values.price) > 0 && (
+                <span className="block text-xl font-extrabold text-gold-dark">
+                  {Number(values.price).toLocaleString(numLocale)}
+                  <span className="ml-1 text-sm font-semibold text-sub"> {t('fieldRentUnit')}</span>
+                </span>
+              )}
+              {(values.rentalMode === 'NIGHTLY' || values.rentalMode === 'MIXED') && Number(values.pricePerNight) > 0 && (
+                <span className="block text-xs font-semibold text-sub">
+                  {t('recapPriceNight')} : {Number(values.pricePerNight).toLocaleString(numLocale)} {t('fcfaPerNight')}
+                </span>
+              )}
+              {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && values.depositMonths !== undefined && (
+                <span className="block text-xs font-semibold text-sub">
+                  {t('recapDeposit')} : {values.depositMonths} {t('recapDepositUnit')}
+                </span>
+              )}
+            </>
           )}
         </span>
       </div>

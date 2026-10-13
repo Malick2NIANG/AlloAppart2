@@ -121,7 +121,11 @@ describe('ListingsService', () => {
         expect(prismaMock.listing.create).not.toHaveBeenCalled();
       });
 
-      it('rejette si plan STARTER déjà au plafond, avec un code structuré pour le frontend', async () => {
+      it('une agence avec abonnement STARTER actif n’a aucun plafond de nombre d’annonces (2026-10-02)', async () => {
+        // Avant le 2026-10-02, le plan STARTER était plafonné à 10 annonces.
+        // Ce plafond a été retiré : un abonnement actif, STARTER ou PRO,
+        // donne un nombre d'annonces illimité. Seuls AlloVérifié/Boost
+        // restent payants en STARTER (voir isProActive).
         prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
           ...proAgenceOwner,
           subscription: {
@@ -129,21 +133,18 @@ describe('ListingsService', () => {
             plan: SubscriptionPlan.STARTER,
           },
         });
-        prismaMock.listing.count.mockResolvedValueOnce(10);
+        prismaMock.listing.create.mockResolvedValueOnce({
+          id: 'l11',
+          status: ListingStatus.ACTIVE,
+        });
 
-        // Le code structuré (et non un simple message texte) permet au
-        // frontend d'afficher une invite à l'upgrade plutôt qu'une erreur
-        // générique — voir /publier page.tsx.
         await expect(
           service.create('owner1', { status: ListingStatus.ACTIVE } as never),
-        ).rejects.toMatchObject({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          response: expect.objectContaining({
-            code: 'STARTER_LISTING_LIMIT',
-            limit: 10,
-          }),
-        });
-        expect(prismaMock.listing.create).not.toHaveBeenCalled();
+        ).resolves.toBeDefined();
+        expect(prismaMock.listing.create).toHaveBeenCalled();
+        // Plus de plafond à vérifier : le compte des annonces existantes ne
+        // doit même plus être interrogé pour une agence abonnée.
+        expect(prismaMock.listing.count).not.toHaveBeenCalled();
       });
 
       it("autorise la création en DRAFT sans jamais vérifier l'abonnement", async () => {
@@ -160,12 +161,13 @@ describe('ListingsService', () => {
         expect(prismaMock.listing.create).toHaveBeenCalled();
       });
 
-      it('un BAILLEUR individuel (non PRO_AGENCE) publie sans abonnement', async () => {
+      it('un BAILLEUR individuel (non PRO_AGENCE) publie sans abonnement, sous le plafond de 10 annonces actives', async () => {
         prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
           id: 'owner1',
           roles: [Role.BAILLEUR],
           subscription: null,
         });
+        prismaMock.listing.count.mockResolvedValueOnce(9);
         prismaMock.listing.create.mockResolvedValueOnce({
           id: 'l1',
           status: ListingStatus.ACTIVE,
@@ -174,6 +176,33 @@ describe('ListingsService', () => {
         await expect(
           service.create('owner1', { status: ListingStatus.ACTIVE } as never),
         ).resolves.toBeDefined();
+        expect(prismaMock.listing.count).toHaveBeenCalledWith({
+          where: { ownerId: 'owner1', status: ListingStatus.ACTIVE },
+        });
+      });
+
+      it('un BAILLEUR au plafond de 10 annonces actives est rejeté (2026-10-02)', async () => {
+        // Avant le 2026-10-02, un bailleur particulier n'avait aucune limite.
+        // Un plafond fixe de 10 annonces actives a été introduit, indépendant
+        // de tout système d'abonnement (les bailleurs particuliers n'en ont
+        // pas).
+        prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+          id: 'owner1',
+          roles: [Role.BAILLEUR],
+          subscription: null,
+        });
+        prismaMock.listing.count.mockResolvedValueOnce(10);
+
+        await expect(
+          service.create('owner1', { status: ListingStatus.ACTIVE } as never),
+        ).rejects.toMatchObject({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          response: expect.objectContaining({
+            code: 'ACTIVE_LISTING_LIMIT',
+            limit: 10,
+          }),
+        });
+        expect(prismaMock.listing.create).not.toHaveBeenCalled();
       });
     });
 
@@ -268,6 +297,219 @@ describe('ListingsService', () => {
 
         expect(prismaMock.user.findUniqueOrThrow).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  // Nouveau (2026-10-02) : mode VENTE (vente directe), réservé aux agences
+  // PRO_AGENCE avec abonnement actif — vérifié dès la création, y compris en
+  // DRAFT, et indépendamment de assertCanPublish() (qui ne couvre que le
+  // passage en ACTIVE). Couvre aussi la cohérence type de bien ↔ mode.
+  describe('mode VENTE (vente directe)', () => {
+    it('rejette une création VENTE pour un BAILLEUR individuel (non PRO_AGENCE)', async () => {
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'owner1',
+        roles: [Role.BAILLEUR],
+        subscription: null,
+      });
+
+      await expect(
+        service.create('owner1', {
+          transactionType: 'VENTE',
+          type: 'APPARTEMENT',
+          status: ListingStatus.DRAFT,
+        } as never),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prismaMock.listing.create).not.toHaveBeenCalled();
+    });
+
+    it('rejette une création VENTE pour une agence PRO_AGENCE sans abonnement actif', async () => {
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'owner1',
+        roles: [Role.PRO_AGENCE],
+        subscription: {
+          status: SubscriptionStatus.CANCELLED,
+          plan: SubscriptionPlan.PRO,
+        },
+      });
+
+      await expect(
+        service.create('owner1', {
+          transactionType: 'VENTE',
+          type: 'APPARTEMENT',
+          status: ListingStatus.DRAFT,
+        } as never),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prismaMock.listing.create).not.toHaveBeenCalled();
+    });
+
+    it('autorise une création VENTE en DRAFT pour une agence avec abonnement STARTER actif', async () => {
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'owner1',
+        roles: [Role.PRO_AGENCE],
+        subscription: {
+          status: SubscriptionStatus.ACTIVE,
+          plan: SubscriptionPlan.STARTER,
+        },
+      });
+      prismaMock.listing.create.mockResolvedValueOnce({
+        id: 'l1',
+        status: ListingStatus.DRAFT,
+        transactionType: 'VENTE',
+      });
+
+      await expect(
+        service.create('owner1', {
+          transactionType: 'VENTE',
+          type: 'TERRAIN',
+          price: 45_000_000,
+          status: ListingStatus.DRAFT,
+        } as never),
+      ).resolves.toBeDefined();
+      expect(prismaMock.listing.create).toHaveBeenCalledWith({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: expect.objectContaining({
+          transactionType: 'VENTE',
+          price: 45_000_000,
+          status: ListingStatus.DRAFT,
+        }),
+      });
+      // assertValidNightsRange/resolveMonthlyPrice (logique location) ne
+      // doivent jamais entrer en jeu pour une annonce en vente.
+      expect(prismaMock.listing.count).not.toHaveBeenCalled();
+    });
+
+    it('rejette un type réservé à la location (CHAMBRE) combiné avec transactionType VENTE', async () => {
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'owner1',
+        roles: [Role.PRO_AGENCE],
+        subscription: {
+          status: SubscriptionStatus.ACTIVE,
+          plan: SubscriptionPlan.PRO,
+        },
+      });
+
+      await expect(
+        service.create('owner1', {
+          transactionType: 'VENTE',
+          type: 'CHAMBRE',
+          price: 1000,
+          status: ListingStatus.DRAFT,
+        } as never),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.listing.create).not.toHaveBeenCalled();
+    });
+
+    it('rejette un type réservé à la vente (TERRAIN) combiné avec transactionType LOCATION (par défaut)', async () => {
+      await expect(
+        service.create('owner1', {
+          type: 'TERRAIN',
+          rentalMode: 'MONTHLY',
+          price: 1000,
+          status: ListingStatus.DRAFT,
+        } as never),
+      ).rejects.toThrow(BadRequestException);
+      expect(prismaMock.listing.create).not.toHaveBeenCalled();
+      // LOCATION est le défaut (pas de PRO_AGENCE à vérifier) : seul le
+      // contrôle de cohérence de type se déclenche, pas de fetch owner.
+      expect(prismaMock.user.findUniqueOrThrow).not.toHaveBeenCalled();
+    });
+  });
+
+  // Régression (2026-10-02) : restoreListing() faisait passer une annonce
+  // SUSPENDED → ACTIVE sans jamais appeler assertCanPublish(), contrairement
+  // à create()/update()/publishListing() — un bailleur au plafond pouvait
+  // contourner la limite de 10 annonces actives en archivant puis restaurant.
+  describe('restoreListing', () => {
+    it('restaure en ACTIVE un bailleur particulier sous le plafond', async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'l1',
+        ownerId: 'owner1',
+        status: ListingStatus.SUSPENDED,
+      });
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'owner1',
+        roles: [Role.BAILLEUR],
+        subscription: null,
+      });
+      prismaMock.listing.count.mockResolvedValueOnce(9);
+      prismaMock.listing.update.mockResolvedValueOnce({
+        id: 'l1',
+        status: ListingStatus.ACTIVE,
+      });
+
+      await expect(
+        service.restoreListing('l1', 'owner1', 'ACTIVE'),
+      ).resolves.toBeDefined();
+      expect(prismaMock.listing.count).toHaveBeenCalledWith({
+        where: { ownerId: 'owner1', status: ListingStatus.ACTIVE },
+      });
+    });
+
+    it('rejette la restauration en ACTIVE si le bailleur particulier est au plafond de 10', async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'l1',
+        ownerId: 'owner1',
+        status: ListingStatus.SUSPENDED,
+      });
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'owner1',
+        roles: [Role.BAILLEUR],
+        subscription: null,
+      });
+      prismaMock.listing.count.mockResolvedValueOnce(10);
+
+      await expect(
+        service.restoreListing('l1', 'owner1', 'ACTIVE'),
+      ).rejects.toMatchObject({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        response: expect.objectContaining({
+          code: 'ACTIVE_LISTING_LIMIT',
+          limit: 10,
+        }),
+      });
+      expect(prismaMock.listing.update).not.toHaveBeenCalled();
+    });
+
+    it('une agence avec abonnement actif restaure en ACTIVE sans vérifier le plafond', async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'l1',
+        ownerId: 'owner1',
+        status: ListingStatus.SUSPENDED,
+      });
+      prismaMock.user.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'owner1',
+        roles: [Role.PRO_AGENCE],
+        subscription: {
+          status: SubscriptionStatus.ACTIVE,
+          plan: SubscriptionPlan.STARTER,
+        },
+      });
+      prismaMock.listing.update.mockResolvedValueOnce({
+        id: 'l1',
+        status: ListingStatus.ACTIVE,
+      });
+
+      await expect(
+        service.restoreListing('l1', 'owner1', 'ACTIVE'),
+      ).resolves.toBeDefined();
+      expect(prismaMock.listing.count).not.toHaveBeenCalled();
+    });
+
+    it('restaurer en DRAFT ne vérifie jamais le plafond (pas un chemin vers ACTIVE)', async () => {
+      prismaMock.listing.findUniqueOrThrow.mockResolvedValueOnce({
+        id: 'l1',
+        ownerId: 'owner1',
+        status: ListingStatus.SUSPENDED,
+      });
+      prismaMock.listing.update.mockResolvedValueOnce({
+        id: 'l1',
+        status: ListingStatus.DRAFT,
+      });
+
+      await expect(
+        service.restoreListing('l1', 'owner1', 'DRAFT'),
+      ).resolves.toBeDefined();
+      expect(prismaMock.user.findUniqueOrThrow).not.toHaveBeenCalled();
     });
   });
 

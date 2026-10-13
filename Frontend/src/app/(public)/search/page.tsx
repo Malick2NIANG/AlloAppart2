@@ -125,7 +125,9 @@ export default async function SearchPage({
                 <p className="mt-3 font-extrabold text-gold-dark">
                   {priceToNumber(listing.price).toLocaleString(numLocale)}
                   <span className="ml-1 text-xs font-semibold text-sub">
-                    {t('priceUnit')}/{t('pricePerMonth')}
+                    {listing.transactionType === 'VENTE'
+                      ? t('priceUnit')
+                      : `${t('priceUnit')}/${t('pricePerMonth')}`}
                   </span>
                 </p>
               </div>

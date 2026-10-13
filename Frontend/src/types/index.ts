@@ -2,10 +2,20 @@
 
 export type Role = 'LOCATAIRE' | 'BAILLEUR' | 'AGENT_TERRAIN' | 'PRO_AGENCE' | 'ADMIN';
 
-export type ListingType = 'APPARTEMENT' | 'VILLA' | 'STUDIO' | 'CHAMBRE' | 'BUREAU';
+export type ListingType =
+  | 'APPARTEMENT' | 'VILLA' | 'STUDIO' | 'CHAMBRE' | 'BUREAU'
+  // Réservés au mode VENTE (transactionType) — cf. TransactionType.
+  | 'TERRAIN' | 'MAISON' | 'LOCAL_COMMERCIAL';
 export type ListingStatus = 'DRAFT' | 'ACTIVE' | 'RENTED' | 'SUSPENDED';
 export type RentalMode = 'NIGHTLY' | 'MONTHLY' | 'MIXED';
 export type BookingType = 'NIGHTLY' | 'MONTHLY';
+/**
+ * LOCATION = comportement historique (loyer récurrent). VENTE = mise en
+ * relation uniquement : prix unique (`price`), pas de réservation, contact
+ * direct agence (WhatsApp/téléphone) à la place de la messagerie interne.
+ * Réservé aux PRO_AGENCE avec abonnement actif (contrôlé côté backend).
+ */
+export type TransactionType = 'LOCATION' | 'VENTE';
 
 export type BookingStatus =
   | 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED'
@@ -39,6 +49,8 @@ export interface User {
   agencyBio?: string | null;
   agencyAvatar?: string | null;
   agencyPhone?: string | null;
+  /** Contact direct (annonces VENTE) — distinct d'agencyPhone (appel). */
+  agencyWhatsapp?: string | null;
   /** Adresse affichée sur la vitrine — distincte de l'adresse des annonces. */
   agencyAddress?: string | null;
   /** Clé de palette prédéfinie (cf. lib/agencyColors.ts) — pas de hex libre. */
@@ -61,6 +73,7 @@ export interface Listing {
   depositMonths?: number | null;          // Caution en nombre de mois (mode MONTHLY/MIXED)
   chargesIncluded?: boolean | null;       // Charges incluses dans le loyer mensuel
   minLeaseMonths?: number | null;         // Durée minimale de bail en mois
+  transactionType: TransactionType;       // LOCATION (défaut) ou VENTE
   type: ListingType;
   status: ListingStatus;
   isVerified: boolean;
@@ -79,7 +92,7 @@ export interface Listing {
   images: string[];
   amenities: string[];
   ownerId: string;
-  owner?: Pick<User, 'id' | 'firstName' | 'lastName' | 'agencyName' | 'agencySlug' | 'avatar' | 'roles' | 'phone'>;
+  owner?: Pick<User, 'id' | 'firstName' | 'lastName' | 'agencyName' | 'agencySlug' | 'avatar' | 'roles' | 'phone' | 'agencyPhone' | 'agencyWhatsapp'>;
   _count?: { reviews: number; bookings?: number };
   avgRating?: number | null;
   verification?: Verification;
@@ -95,7 +108,8 @@ export function priceToNumber(price: string | number): number {
   return typeof price === 'string' ? parseFloat(price) : price;
 }
 
-export type ListingPriceUnit = 'night' | 'month';
+/** 'sale' = prix de vente unique (transactionType VENTE), sans unité de période. */
+export type ListingPriceUnit = 'night' | 'month' | 'sale';
 
 export interface ListingPriceAmount {
   amount: number;
@@ -111,9 +125,15 @@ export interface ListingPriceAmount {
  * 2 entrées, mensuel puis nuit (MIXED).
  */
 export function getListingPriceAmounts(
-  listing: Pick<Listing, 'rentalMode' | 'price' | 'pricePerNight'>,
+  listing: Pick<Listing, 'price' | 'pricePerNight'> & {
+    rentalMode?: Listing['rentalMode'] | null;
+    transactionType?: TransactionType;
+  },
 ): ListingPriceAmount[] {
   const monthly = priceToNumber(listing.price);
+  if (listing.transactionType === 'VENTE') {
+    return [{ amount: monthly, unit: 'sale' }];
+  }
   const nightly = listing.pricePerNight != null ? priceToNumber(listing.pricePerNight) : null;
 
   if (listing.rentalMode === 'NIGHTLY') {

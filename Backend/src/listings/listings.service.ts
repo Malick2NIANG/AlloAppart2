@@ -13,10 +13,12 @@ import { UpdateListingDto } from './dto/update-listing.dto';
 import { FilterListingsDto } from './dto/filter-listings.dto';
 import {
   ListingStatus,
+  ListingType,
   RentalMode,
   Role,
   SubscriptionPlan,
   SubscriptionStatus,
+  TransactionType,
   User,
 } from '@prisma/client';
 import { CreateReportDto } from './dto/create-report.dto';
@@ -28,7 +30,27 @@ import { PlatformConfigService } from '../platform-config/platform-config.servic
 const BOOST_DAYS = 7;
 const BOOST_SCORE_GAIN = 10;
 const BOOST_SCORE_MAX = 100;
-const STARTER_MAX_LISTINGS = 10;
+// Plafond d'annonces ACTIVES pour les comptes sans abonnement (bailleurs
+// particuliers). Une agence PRO_AGENCE avec un abonnement actif — STARTER ou
+// PRO, peu importe lequel — n'a aucune limite de nombre d'annonces ; la seule
+// différence entre les deux plans porte sur AlloVérifié/Boost (voir
+// isProActive), pas sur le volume d'annonces.
+const MAX_ACTIVE_LISTINGS = 10;
+
+// Types de bien qui n'ont de sens qu'en vente directe (transactionType VENTE)
+// — à l'inverse, APPARTEMENT/VILLA restent valides dans les deux modes.
+const VENTE_ONLY_TYPES: ListingType[] = [
+  ListingType.TERRAIN,
+  ListingType.MAISON,
+  ListingType.LOCAL_COMMERCIAL,
+];
+// Types qui n'ont de sens qu'en location (une chambre ou un bureau ne se
+// vendent pas via AlloAppart — seulement en location).
+const LOCATION_ONLY_TYPES: ListingType[] = [
+  ListingType.CHAMBRE,
+  ListingType.STUDIO,
+  ListingType.BUREAU,
+];
 
 @Injectable()
 export class ListingsService {
@@ -82,6 +104,7 @@ export class ListingsService {
       region,
       city,
       type,
+      transactionType,
       minPrice,
       maxPrice,
       isVerified,
@@ -100,6 +123,7 @@ export class ListingsService {
       ...(region && { region }),
       ...(city && { city }),
       ...(type && { type }),
+      ...(transactionType && { transactionType }),
       ...(isVerified !== undefined && { isVerified }),
       ...(minPrice !== undefined || maxPrice !== undefined
         ? {
@@ -243,6 +267,11 @@ export class ListingsService {
             agencySlug: true,
             avatar: true,
             roles: true,
+            phone: true,
+            // Contact direct (annonces VENTE) — à la place de la messagerie
+            // interne, cf. ListingContactCard.tsx.
+            agencyPhone: true,
+            agencyWhatsapp: true,
           },
         },
         _count: { select: { reviews: true } },
@@ -301,39 +330,89 @@ export class ListingsService {
   }
 
   /**
-   * Vérifie qu'un propriétaire PRO_AGENCE a le droit de publier une annonce
-   * de plus (abonnement actif + respect du plafond STARTER). Centralisé ici
-   * car trois chemins mènent à un statut ACTIVE — create(), publishListing()
-   * et update() — et doivent tous appliquer la même règle : sinon un bailleur
-   * peut créer une annonce en DRAFT (autorisé sans abonnement) puis la publier
-   * via un chemin qui ne vérifie rien, contournant complètement l'abonnement.
+   * Vérifie qu'un propriétaire a le droit de publier une annonce de plus.
+   * Centralisé ici car quatre chemins mènent à un statut ACTIVE — create(),
+   * publishListing(), update() et restoreListing() (restauration directe en
+   * ACTIVE) — et doivent tous appliquer la même règle : sinon un bailleur
+   * peut créer une annonce en DRAFT (toujours autorisé) puis la publier via
+   * un chemin qui ne vérifie rien, contournant la règle.
+   *
+   * Règle (2026-10-02) :
+   * - Agence PRO_AGENCE sans abonnement actif : publication bloquée.
+   * - Agence PRO_AGENCE avec abonnement actif (STARTER ou PRO) : aucune
+   *   limite de nombre d'annonces. Les deux plans ne se distinguent que sur
+   *   AlloVérifié/Boost (voir isProActive), pas sur le volume d'annonces.
+   * - Bailleur particulier (pas d'abonnement) : plafonné à
+   *   MAX_ACTIVE_LISTINGS annonces au statut ACTIVE, pour éviter les abus.
    */
   private async assertCanPublish(ownerId: string): Promise<void> {
     const owner = await this.prisma.user.findUniqueOrThrow({
       where: { id: ownerId },
       include: { subscription: true },
     });
-    if (!owner.roles.includes(Role.PRO_AGENCE)) return;
 
-    if (owner.subscription?.status !== SubscriptionStatus.ACTIVE) {
-      throw new ForbiddenException(
-        'Un abonnement actif est requis pour publier des annonces',
-      );
-    }
-    if (owner.subscription.plan === SubscriptionPlan.STARTER) {
-      const count = await this.prisma.listing.count({ where: { ownerId } });
-      if (count >= STARTER_MAX_LISTINGS) {
-        // `code` structuré (plutôt qu'un simple message) pour que le frontend
-        // puisse distinguer cette limite de plan d'une erreur de validation
-        // classique et afficher une invite à l'upgrade plutôt qu'un message
-        // d'erreur générique.
-        throw new BadRequestException({
-          statusCode: 400,
-          code: 'STARTER_LISTING_LIMIT',
-          message: `Le plan STARTER est limité à ${STARTER_MAX_LISTINGS} annonces. Passez au plan PRO pour publier davantage.`,
-          limit: STARTER_MAX_LISTINGS,
-        });
+    if (owner.roles.includes(Role.PRO_AGENCE)) {
+      if (owner.subscription?.status !== SubscriptionStatus.ACTIVE) {
+        throw new ForbiddenException(
+          'Un abonnement actif est requis pour publier des annonces',
+        );
       }
+      // Abonnement actif, quel que soit le plan : pas de plafond.
+      return;
+    }
+
+    const activeCount = await this.prisma.listing.count({
+      where: { ownerId, status: ListingStatus.ACTIVE },
+    });
+    if (activeCount >= MAX_ACTIVE_LISTINGS) {
+      // `code` structuré (plutôt qu'un simple message) pour que le frontend
+      // puisse distinguer cette limite d'une erreur de validation classique
+      // et afficher une invite adaptée plutôt qu'un message générique.
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'ACTIVE_LISTING_LIMIT',
+        message: `Vous avez atteint la limite de ${MAX_ACTIVE_LISTINGS} annonces actives pour un compte particulier.`,
+        limit: MAX_ACTIVE_LISTINGS,
+      });
+    }
+  }
+
+  /**
+   * Vérifie qu'une annonce en mode VENTE est bien créée/modifiée par une
+   * agence PRO_AGENCE avec abonnement actif, et que le `type` choisi est
+   * cohérent avec le mode (transactionType). Appelée inconditionnellement
+   * dans create()/update() dès qu'une annonce est en (ou passe en) VENTE —
+   * y compris en DRAFT, contrairement à assertCanPublish() qui ne s'applique
+   * qu'au passage en ACTIVE : la vente directe est réservée aux agences
+   * abonnées dès la création, pas seulement à la publication.
+   */
+  private async assertValidTransactionTypeUsage(
+    ownerId: string,
+    transactionType: TransactionType,
+    type: ListingType | undefined,
+  ): Promise<void> {
+    if (transactionType === TransactionType.VENTE) {
+      const owner = await this.prisma.user.findUniqueOrThrow({
+        where: { id: ownerId },
+        include: { subscription: true },
+      });
+      if (
+        !owner.roles.includes(Role.PRO_AGENCE) ||
+        owner.subscription?.status !== SubscriptionStatus.ACTIVE
+      ) {
+        throw new ForbiddenException(
+          'La vente directe est réservée aux agences avec un abonnement actif.',
+        );
+      }
+      if (type && LOCATION_ONLY_TYPES.includes(type)) {
+        throw new BadRequestException(
+          `Le type ${type} n'est pas disponible en mode vente.`,
+        );
+      }
+    } else if (type && VENTE_ONLY_TYPES.includes(type)) {
+      throw new BadRequestException(
+        `Le type ${type} est réservé aux annonces en mode vente.`,
+      );
     }
   }
 
@@ -375,18 +454,30 @@ export class ListingsService {
   }
 
   async create(ownerId: string, dto: CreateListingDto) {
+    const transactionType = dto.transactionType ?? TransactionType.LOCATION;
+    await this.assertValidTransactionTypeUsage(
+      ownerId,
+      transactionType,
+      dto.type,
+    );
+
     const wantsToPublish = dto.status === ListingStatus.ACTIVE;
     if (wantsToPublish) await this.assertCanPublish(ownerId);
 
-    this.assertValidNightsRange(dto.minimumNights, dto.maximumNights);
-    const price = this.resolveMonthlyPrice(
-      dto.rentalMode,
-      dto.price,
-      dto.pricePerNight,
-    );
+    const isVente = transactionType === TransactionType.VENTE;
+    let price: number | undefined = dto.price;
+    if (!isVente) {
+      this.assertValidNightsRange(dto.minimumNights, dto.maximumNights);
+      price = this.resolveMonthlyPrice(
+        dto.rentalMode ?? RentalMode.NIGHTLY,
+        dto.price,
+        dto.pricePerNight,
+      );
+    }
     const listing = await this.prisma.listing.create({
       data: {
         ...dto,
+        transactionType,
         ...(price !== undefined ? { price } : {}),
         ownerId,
         status: wantsToPublish ? ListingStatus.ACTIVE : ListingStatus.DRAFT,
@@ -401,6 +492,13 @@ export class ListingsService {
     if (listing.ownerId !== user.id && !user.roles.includes(Role.ADMIN)) {
       throw new ForbiddenException('Not authorized');
     }
+    const transactionType = dto.transactionType ?? listing.transactionType;
+    await this.assertValidTransactionTypeUsage(
+      listing.ownerId,
+      transactionType,
+      dto.type ?? listing.type,
+    );
+
     // Defense-in-depth : un appelant interne pourrait passer status=ACTIVE via
     // un cast (le DTO l'exclut, mais on vérifie quand même au runtime).
     const rawDto = dto as Record<string, unknown>;
@@ -410,16 +508,20 @@ export class ListingsService {
     ) {
       await this.assertCanPublish(listing.ownerId);
     }
-    this.assertValidNightsRange(
-      dto.minimumNights ?? listing.minimumNights ?? undefined,
-      dto.maximumNights ?? listing.maximumNights ?? undefined,
-    );
-    const price = this.resolveMonthlyPrice(
-      dto.rentalMode ?? listing.rentalMode,
-      dto.price,
-      dto.pricePerNight ??
-        (listing.pricePerNight ? Number(listing.pricePerNight) : undefined),
-    );
+    const isVente = transactionType === TransactionType.VENTE;
+    let price: number | undefined = dto.price;
+    if (!isVente) {
+      this.assertValidNightsRange(
+        dto.minimumNights ?? listing.minimumNights ?? undefined,
+        dto.maximumNights ?? listing.maximumNights ?? undefined,
+      );
+      price = this.resolveMonthlyPrice(
+        dto.rentalMode ?? listing.rentalMode,
+        dto.price,
+        dto.pricePerNight ??
+          (listing.pricePerNight ? Number(listing.pricePerNight) : undefined),
+      );
+    }
     const updated = await this.prisma.listing.update({
       where: { id },
       data: { ...dto, ...(price !== undefined ? { price } : {}) },
@@ -460,6 +562,13 @@ export class ListingsService {
       throw new ForbiddenException('Not authorized');
     if (listing.status !== ListingStatus.SUSPENDED)
       throw new BadRequestException('Only archived listings can be restored');
+    // Restaurer directement en ACTIVE est un chemin vers ACTIVE comme
+    // create()/update()/publishListing() — doit respecter la même règle
+    // (plafond de 10 annonces actives pour un compte sans abonnement actif),
+    // sinon elle est contournable en archivant puis restaurant une annonce.
+    if (targetStatus === 'ACTIVE') {
+      await this.assertCanPublish(userId);
+    }
     const updated = await this.prisma.listing.update({
       where: { id },
       data: {

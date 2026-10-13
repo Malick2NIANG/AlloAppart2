@@ -41,6 +41,10 @@ function BailleurListingsContent() {
   const { getToken } = useAuth();
   const { toast } = useToast();
   const t = useTranslations('bailleur');
+  // Modal "upgrade" réutilisé tel quel depuis /publier (même clés i18n, même
+  // design) — évite de dupliquer le texte entre les deux endroits qui peuvent
+  // déclencher ACTIVE_LISTING_LIMIT.
+  const tUpgrade = useTranslations('publish');
   const toastRef = useRef(toast);
   useEffect(() => { toastRef.current = toast; }, [toast]);
   const searchParams = useSearchParams();
@@ -60,10 +64,27 @@ function BailleurListingsContent() {
   const [deleteModal,  setDeleteModal]  = useState<{ listingId: string; title: string } | null>(null);
   const [boostModal,   setBoostModal]   = useState<{ listingId: string; title: string } | null>(null);
   const [boosting,     setBoosting]     = useState<string | null>(null);
+  // Plafond de 10 annonces actives (compte particulier) atteint via "publier"
+  // ou "restaurer" — même modal que sur /publier (code ACTIVE_LISTING_LIMIT).
+  const [upgradeModal, setUpgradeModal] = useState<{ limit: number } | null>(null);
   // Abonnement PRO actif = boost illimité gratuit + AlloVérifié gratuit (cf. isProActive() backend).
   // /subscriptions/me est réservé PRO_AGENCE/ADMIN : un simple BAILLEUR reçoit un 403, traité
   // ici comme "pas PRO" (même schéma défensif que fetchSubscription() dans bailleur/abonnement).
   const [isProActive, setIsProActive] = useState(false);
+  // Un bailleur particulier (pas PRO_AGENCE) est plafonné à 10 annonces actives
+  // (cf. assertCanPublish() backend) — la bannière ne concerne que lui, jamais
+  // une agence (abonnée, elle n'a aucune limite de nombre d'annonces).
+  const [isAgence, setIsAgence] = useState(false);
+  const LIMIT_BANNER_KEY = 'aa-dismissed-listing-limit-banner';
+  const [bannerDismissed, setBannerDismissed] = useState(true); // true tant que non résolu côté client, pour éviter un flash au montage
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture localStorage (système externe), setState après résolution
+    setBannerDismissed(window.localStorage.getItem(LIMIT_BANNER_KEY) === '1');
+  }, []);
+  const dismissBanner = () => {
+    setBannerDismissed(true);
+    window.localStorage.setItem(LIMIT_BANNER_KEY, '1');
+  };
 
   const FILTER_LABELS = useMemo<Record<ListingStatus, string>>(() => ({
     ACTIVE:    t('filterActive'),
@@ -100,6 +121,15 @@ function BailleurListingsContent() {
       api.get<{ plan: string; status: string }>('/subscriptions/me', token)
         .then((sub) => setIsProActive(sub?.plan === 'PRO' && sub?.status === 'ACTIVE'))
         .catch(() => setIsProActive(false));
+    });
+  }, [getToken]);
+
+  useEffect(() => {
+    getToken().then((token) => {
+      if (!token) return;
+      api.get<{ roles: string[] }>('/auth/me', token)
+        .then((me) => setIsAgence(me.roles.includes('PRO_AGENCE')))
+        .catch(() => setIsAgence(false));
     });
   }, [getToken]);
 
@@ -209,8 +239,13 @@ function BailleurListingsContent() {
       );
       patchLocal(listingId, { status: targetStatus });
       triggerRevalidation();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('restoreError'));
+    } catch (err: unknown) {
+      const errBody = (err as { data?: { code?: string; limit?: number } } | undefined)?.data;
+      if (errBody?.code === 'ACTIVE_LISTING_LIMIT') {
+        setUpgradeModal({ limit: errBody.limit ?? 10 });
+      } else {
+        toast.error(err instanceof Error ? err.message : t('restoreError'));
+      }
     }
   };
 
@@ -250,8 +285,13 @@ function BailleurListingsContent() {
       toast.success(t('publishSuccess', { title }));
       patchLocal(listingId, { status: 'ACTIVE' });
       triggerRevalidation();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('publishError'));
+    } catch (err: unknown) {
+      const errBody = (err as { data?: { code?: string; limit?: number } } | undefined)?.data;
+      if (errBody?.code === 'ACTIVE_LISTING_LIMIT') {
+        setUpgradeModal({ limit: errBody.limit ?? 10 });
+      } else {
+        toast.error(err instanceof Error ? err.message : t('publishError'));
+      }
     }
   };
 
@@ -345,6 +385,21 @@ function BailleurListingsContent() {
           <i className="fa-solid fa-plus text-sm" /> {t('newListing')}
         </Link>
       </div>
+
+      {/* Bannière limite 10 annonces actives — bailleur particulier uniquement, jamais une agence */}
+      {!isAgence && !bannerDismissed && (
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-gold/30 bg-gold-pale/40 dark:bg-gold-dark/10 px-4 py-3">
+          <i className="fa-solid fa-circle-info text-gold-dark text-sm mt-0.5 shrink-0" />
+          <p className="flex-1 text-sm text-text">{t('listingLimitBannerText')}</p>
+          <button
+            onClick={dismissBanner}
+            aria-label={t('listingLimitBannerDismiss')}
+            className="shrink-0 text-sub hover:text-text transition-colors"
+          >
+            <i className="fa-solid fa-xmark text-sm" />
+          </button>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
@@ -640,6 +695,58 @@ function BailleurListingsContent() {
           </div>
         </div>
       )}
+
+      {/* Plafond de 10 annonces actives atteint (compte particulier) — même modal que sur /publier */}
+      {upgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-gold to-gold-light px-6 py-5 text-center">
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 mb-3">
+                <i className="fa-solid fa-crown text-white text-2xl" />
+              </div>
+              <h2 className="text-xl font-extrabold text-gray-900">{tUpgrade('upgradeModalTitle')}</h2>
+              <p className="text-sm text-gray-800/80 mt-1">
+                {tUpgrade('upgradeModalLimitReached', { limit: upgradeModal.limit })}
+              </p>
+            </div>
+
+            <div className="p-6">
+              <p className="text-sm text-sub mb-4">{tUpgrade('upgradeModalDesc')}</p>
+              <div className="space-y-2.5 mb-6">
+                {[
+                  { icon: 'fa-infinity',      text: tUpgrade('upgradeBenefitUnlimited') },
+                  { icon: 'fa-chart-line',    text: tUpgrade('upgradeBenefitAnalytics') },
+                  { icon: 'fa-shield-halved', text: tUpgrade('upgradeBenefitBadge') },
+                  { icon: 'fa-headset',       text: tUpgrade('upgradeBenefitSupport') },
+                ].map((item) => (
+                  <div key={item.icon} className="flex items-center gap-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line text-gold-dark">
+                      <i className={`fa-solid ${item.icon} text-xs`} />
+                    </span>
+                    <p className="text-sm text-text">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setUpgradeModal(null)}
+                  className="flex-1 rounded-xl border border-line py-3 text-sm font-medium text-sub hover:text-text hover:border-text/30 transition-colors"
+                >
+                  {tUpgrade('upgradeModalLater')}
+                </button>
+                <Link
+                  href="/bailleur/abonnement"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 text-sm transition-colors"
+                >
+                  <i className="fa-solid fa-crown text-xs" />
+                  {tUpgrade('upgradeModalCta')}
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -666,6 +773,9 @@ export default function BailleurListingsPage() {
 function priceLabel(listing: Listing, t: ReturnType<typeof useTranslations<'bailleur'>>): string {
   const perNight = listing.pricePerNight != null ? formatPrice(listing.pricePerNight) : null;
   const perMonth = formatPrice(listing.price);
+
+  // Vente directe : prix unique, sans unité de période.
+  if (listing.transactionType === 'VENTE') return perMonth;
 
   if (listing.rentalMode === 'NIGHTLY') {
     return perNight ? `${perNight}${t('priceUnitNight')}` : `${perMonth}${t('priceUnitMonth')}`;

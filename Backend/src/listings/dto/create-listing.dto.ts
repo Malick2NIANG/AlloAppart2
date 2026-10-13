@@ -14,7 +14,12 @@
   Min,
   ValidateIf,
 } from 'class-validator';
-import { ListingStatus, ListingType, RentalMode } from '@prisma/client';
+import {
+  ListingStatus,
+  ListingType,
+  RentalMode,
+  TransactionType,
+} from '@prisma/client';
 import { Type } from 'class-transformer';
 
 export class CreateListingDto {
@@ -29,11 +34,20 @@ export class CreateListingDto {
   description!: string;
 
   /**
-   * Tarif mensuel (référence principale). Requis pour MONTHLY/MIXED — pour
-   * NIGHTLY seul, le service le calcule automatiquement (pricePerNight × 30)
-   * si absent, car le champ n'a pas de sens à faire remplir par le bailleur.
+   * Tarif mensuel en mode LOCATION (référence principale). Requis pour
+   * MONTHLY/MIXED — pour NIGHTLY seul, le service le calcule automatiquement
+   * (pricePerNight × 30) si absent, car le champ n'a pas de sens à faire
+   * remplir par le bailleur.
+   *
+   * En mode VENTE, ce même champ est réutilisé comme prix de vente unique
+   * (pas de colonne dédiée) — toujours requis dans ce cas, indépendamment de
+   * `rentalMode` qui n'a alors aucune pertinence.
    */
-  @ValidateIf((o: CreateListingDto) => o.rentalMode !== RentalMode.NIGHTLY)
+  @ValidateIf(
+    (o: CreateListingDto) =>
+      o.transactionType === TransactionType.VENTE ||
+      o.rentalMode !== RentalMode.NIGHTLY,
+  )
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
@@ -43,9 +57,26 @@ export class CreateListingDto {
   @IsEnum(ListingType)
   type!: ListingType;
 
-  /** Mode de location proposé par le bailleur : nuitée, mensuel, ou les deux */
+  /**
+   * LOCATION (défaut, comportement historique) ou VENTE (vente directe,
+   * réservée aux agences PRO_AGENCE avec abonnement actif — contrôle fait au
+   * niveau service, pas ici). Optionnel : absent = LOCATION.
+   */
+  @IsOptional()
+  @IsEnum(TransactionType)
+  transactionType?: TransactionType;
+
+  /**
+   * Mode de location proposé par le bailleur : nuitée, mensuel, ou les deux.
+   * Sans objet en mode VENTE (le prix de vente ne dépend d'aucun mode
+   * locatif) — donc requis uniquement quand `transactionType !== VENTE`.
+   */
+  @ValidateIf(
+    (o: CreateListingDto) => o.transactionType !== TransactionType.VENTE,
+  )
+  @IsNotEmpty()
   @IsEnum(RentalMode)
-  rentalMode!: RentalMode;
+  rentalMode?: RentalMode;
 
   @IsNumber()
   @Min(-90)

@@ -348,7 +348,7 @@ export default async function HomePage() {
                     <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
                       {getListingPriceAmounts(l).map((e) => (
                         <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
-                          {e.amount.toLocaleString(numLocale)} FCFA/{t(e.unit === 'night' ? 'perNight' : 'perMonth')}
+                          {e.amount.toLocaleString(numLocale)} FCFA{e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}
                         </span>
                       ))}
                     </div>
@@ -610,6 +610,14 @@ export default async function HomePage() {
                   </Link>
                 )}
               </div>
+              {!isProAgence && (
+                <p className="mt-6 text-sm text-gray-400">
+                  {t('ctaAgencyPrompt')}{' '}
+                  <a href="mailto:alloappart221@gmail.com" className="text-gold hover:underline font-medium">
+                    {t('ctaAgencyLink')}
+                  </a>
+                </p>
+              )}
             </>
           ) : isAgentTerrain ? (
             /* ── Agent terrain ── */
@@ -649,6 +657,12 @@ export default async function HomePage() {
                   <i className="fa-solid fa-calendar-check text-sm" /> {t('ctaMyBookings')}
                 </Link>
               </div>
+              <p className="mt-6 text-sm text-gray-400">
+                {t('ctaAgencyPrompt')}{' '}
+                <a href="mailto:alloappart221@gmail.com" className="text-gold hover:underline font-medium">
+                  {t('ctaAgencyLink')}
+                </a>
+              </p>
             </>
           ) : (
             /* ── Visiteur anonyme ── */
@@ -668,6 +682,12 @@ export default async function HomePage() {
                   {t('ctaVisitorBrowse')}
                 </Link>
               </div>
+              <p className="mt-6 text-sm text-gray-400">
+                {t('ctaAgencyPrompt')}{' '}
+                <a href="mailto:alloappart221@gmail.com" className="text-gold hover:underline font-medium">
+                  {t('ctaAgencyLink')}
+                </a>
+              </p>
             </>
           )}
 

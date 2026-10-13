@@ -8,7 +8,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { ListingType } from '@prisma/client';
+import { ListingType, TransactionType } from '@prisma/client';
 import { Type, Transform } from 'class-transformer';
 
 export type OwnerType = 'PARTICULIER' | 'AGENCE';
@@ -29,6 +29,11 @@ export class FilterListingsDto {
   @IsOptional()
   @IsEnum(ListingType)
   type?: ListingType;
+
+  /** Location ou vente directe — absent = les deux. */
+  @IsOptional()
+  @IsEnum(TransactionType)
+  transactionType?: TransactionType;
 
   @IsOptional()
   @IsNumber()

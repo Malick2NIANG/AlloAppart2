@@ -383,7 +383,7 @@ function AdminListingCard({
           <i className="fa-solid fa-location-dot text-gold-dark text-xs mr-1" />
           {listing.city} ·{' '}
           {getListingPriceAmounts(listing)
-            .map((e) => `${formatPrice(e.amount)}${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`)
+            .map((e) => `${formatPrice(e.amount)}${e.unit === 'sale' ? '' : t(e.unit === 'night' ? 'perNight' : 'perMonth')}`)
             .join(' · ')}
         </p>
         <p className="text-xs text-sub mt-1">

@@ -34,6 +34,11 @@ model User {
   agencyBio                String?        @db.Text
   agencyAvatar             String?
   agencyPhone              String?
+  // Numéro WhatsApp Business de l'agence, distinct de agencyPhone (certaines
+  // agences ont un numéro WhatsApp différent de leur numéro d'appel) — utilisé
+  // pour le bouton de contact direct des annonces en vente (transactionType
+  // VENTE), à la place de la messagerie interne.
+  agencyWhatsapp           String?
   agencyAddress            String?        @db.VarChar(200) // Adresse affichée sur la vitrine (distincte de l'adresse des annonces)
   // Clé de palette prédéfinie (cf. agency-color-palette.ts / lib/agencyColors.ts)
   // — pas de hex libre, pour garantir un rendu toujours lisible sur la vitrine.
@@ -93,6 +98,9 @@ model Listing {
   chargesIncluded Boolean?                     // Charges (eau/électricité) incluses dans le loyer mensuel ou non
   minLeaseMonths Int?                          // Durée minimale de bail en mois (mode MONTHLY ou MIXED)
   type         ListingType
+  // Cf. enum TransactionType — LOCATION par défaut, comportement inchangé
+  // pour toutes les annonces existantes.
+  transactionType TransactionType @default(LOCATION)
   status       ListingStatus @default(DRAFT)
   isVerified   Boolean       @default(false)
   verifiedAt   DateTime?
@@ -352,6 +360,21 @@ enum ListingType {
   CHAMBRE
   STUDIO
   BUREAU
+  // Types réservés à la vente directe (transactionType VENTE), agences
+  // abonnées actives uniquement — cf. TransactionType.
+  TERRAIN
+  MAISON
+  LOCAL_COMMERCIAL
+}
+
+// LOCATION = comportement historique (loyer récurrent, Booking/Contract).
+// VENTE = mise en relation uniquement : prix unique (réutilise `price`),
+// pas de Booking/Contract, contact direct agence (WhatsApp/téléphone) à la
+// place de la messagerie interne. Réservé aux PRO_AGENCE avec abonnement
+// actif, imposé au niveau service (pas du schéma).
+enum TransactionType {
+  LOCATION
+  VENTE
 }
 
 enum ListingStatus {

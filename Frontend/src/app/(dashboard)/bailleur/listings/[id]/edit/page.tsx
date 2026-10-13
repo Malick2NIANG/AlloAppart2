@@ -12,8 +12,13 @@ import type { Listing } from '@/types';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import LocationPicker from '@/components/map/LocationPicker';
 
-const LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
+// Types valides en mode LOCATION vs VENTE — cf. publier/page.tsx (même règle,
+// miroir du backend listings.service.ts#assertValidTransactionTypeUsage).
+const LOCATION_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
+const VENTE_TYPES = ['APPARTEMENT', 'VILLA', 'TERRAIN', 'MAISON', 'LOCAL_COMMERCIAL'] as const;
+const ALL_LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU', 'TERRAIN', 'MAISON', 'LOCAL_COMMERCIAL'] as const;
 const RENTAL_MODES = ['NIGHTLY', 'MONTHLY', 'MIXED'] as const;
+const TRANSACTION_TYPES = ['LOCATION', 'VENTE'] as const;
 
 const SENEGAL_REGIONS = [
   'Dakar', 'Thiès', 'Saint-Louis', 'Ziguinchor', 'Kaolack',
@@ -23,11 +28,14 @@ const SENEGAL_REGIONS = [
 
 // Icônes de type — mêmes valeurs que publier/page.tsx (icon-chips au lieu d'un <select>).
 const TYPE_ICONS: Record<string, string> = {
-  APPARTEMENT: 'fa-building',
-  VILLA:       'fa-house-chimney',
-  STUDIO:      'fa-door-open',
-  CHAMBRE:     'fa-bed',
-  BUREAU:      'fa-briefcase',
+  APPARTEMENT:      'fa-building',
+  VILLA:            'fa-house-chimney',
+  STUDIO:           'fa-door-open',
+  CHAMBRE:          'fa-bed',
+  BUREAU:           'fa-briefcase',
+  TERRAIN:          'fa-map-location-dot',
+  MAISON:           'fa-house',
+  LOCAL_COMMERCIAL: 'fa-store',
 };
 
 const AMENITY_KEYS = [
@@ -55,12 +63,19 @@ export default function EditListingPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [loadError, setLoadError]     = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Vente directe réservée aux agences PRO_AGENCE avec abonnement actif (peu
+  // importe le plan) — même règle que publier/page.tsx et assertCanPublish()
+  // backend. /subscriptions/me renvoie 403 pour un non-PRO_AGENCE, traité
+  // comme "pas éligible" (même schéma défensif qu'ailleurs dans l'app).
+  const [canUseVenteMode, setCanUseVenteMode] = useState(false);
 
   const schema = useMemo(() => z.object({
     title:         z.string().min(5, t('zTitleTooShort')),
     description:   z.string().min(20, t('zDescTooShort')),
-    type:          z.enum(LISTING_TYPES),
-    rentalMode:      z.enum(RENTAL_MODES),
+    type:          z.enum(ALL_LISTING_TYPES),
+    transactionType: z.enum(TRANSACTION_TYPES),
+    // Sans objet en mode VENTE (prix de vente unique, pas de mode locatif).
+    rentalMode:      z.enum(RENTAL_MODES).optional(),
     price:           z.number().positive(t('zPricePositive')).optional(),
     pricePerNight:   z.number().positive(t('zPriceNightPositive')).optional(),
     minimumNights:   z.number().int().min(1, t('zMinNights')).optional(),
@@ -81,6 +96,12 @@ export default function EditListingPage() {
     amenities:     z.array(z.string()).default([]),
     images:        z.array(z.string()).min(1, t('zImageRequired')),
   }).superRefine((data, ctx) => {
+    if (data.transactionType === 'VENTE') {
+      if (!(data.price && data.price > 0)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price'], message: t('zSalePricePositive') });
+      }
+      return;
+    }
     const needsNightly = data.rentalMode === 'NIGHTLY' || data.rentalMode === 'MIXED';
     const needsMonthly = data.rentalMode === 'MONTHLY' || data.rentalMode === 'MIXED';
     if (needsNightly && !(data.pricePerNight && data.pricePerNight > 0)) {
@@ -112,6 +133,7 @@ export default function EditListingPage() {
     title:         t('fieldTitle'),
     description:   t('fieldDescription'),
     type:          t('fieldType'),
+    transactionType: t('transactionTypeLabel'),
     rentalMode:      t('rentalModeLabel'),
     price:           t('fieldPrice'),
     pricePerNight:   t('fieldPriceNight'),
@@ -135,7 +157,7 @@ export default function EditListingPage() {
   }), [t]);
 
   const STEPS = useMemo(() => [
-    { label: t('stepBasicInfo'),       fields: ['title', 'description', 'type', 'rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'], icon: 'fa-tag' },
+    { label: t('stepBasicInfo'),       fields: ['title', 'description', 'type', 'transactionType', 'rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'], icon: 'fa-tag' },
     { label: t('stepLocation'),         fields: ['address', 'city', 'region', 'lat', 'lng'], icon: 'fa-location-dot' },
     { label: t('stepDetails'),          fields: ['surface', 'rooms', 'beds', 'baths'], icon: 'fa-list-check' },
     { label: t('stepAmenitiesPhotos'),  fields: ['amenities', 'images'], icon: 'fa-images' },
@@ -145,11 +167,19 @@ export default function EditListingPage() {
   const AMENITIES = useMemo(() => AMENITY_KEYS.map((a) => ({ key: a.key, icon: a.icon, label: t(a.tKey as Parameters<typeof t>[0]) })), [t]);
 
   const TYPE_META = useMemo(() => ({
-    APPARTEMENT: { icon: TYPE_ICONS.APPARTEMENT, label: t('typeAppartement') },
-    VILLA:       { icon: TYPE_ICONS.VILLA,       label: t('typeVilla')       },
-    STUDIO:      { icon: TYPE_ICONS.STUDIO,      label: t('typeStudio')      },
-    CHAMBRE:     { icon: TYPE_ICONS.CHAMBRE,     label: t('typeChambre')     },
-    BUREAU:      { icon: TYPE_ICONS.BUREAU,      label: t('typeBureau')      },
+    APPARTEMENT:      { icon: TYPE_ICONS.APPARTEMENT,      label: t('typeAppartement')     },
+    VILLA:            { icon: TYPE_ICONS.VILLA,            label: t('typeVilla')           },
+    STUDIO:           { icon: TYPE_ICONS.STUDIO,           label: t('typeStudio')          },
+    CHAMBRE:          { icon: TYPE_ICONS.CHAMBRE,          label: t('typeChambre')         },
+    BUREAU:           { icon: TYPE_ICONS.BUREAU,           label: t('typeBureau')          },
+    TERRAIN:          { icon: TYPE_ICONS.TERRAIN,          label: t('typeTerrain')         },
+    MAISON:           { icon: TYPE_ICONS.MAISON,           label: t('typeMaison')          },
+    LOCAL_COMMERCIAL: { icon: TYPE_ICONS.LOCAL_COMMERCIAL, label: t('typeLocalCommercial') },
+  }), [t]);
+
+  const TRANSACTION_TYPE_META = useMemo(() => ({
+    LOCATION: { icon: 'fa-key',         label: t('transactionTypeLocation'), desc: t('transactionTypeLocationDesc') },
+    VENTE:    { icon: 'fa-sack-dollar', label: t('transactionTypeVente'),    desc: t('transactionTypeVenteDesc')    },
   }), [t]);
 
   const {
@@ -170,6 +200,7 @@ export default function EditListingPage() {
   const images      = watch('images') ?? [];
   const description = watch('description') ?? '';
   const type        = watch('type');
+  const transactionType = watch('transactionType');
   const rentalMode  = watch('rentalMode');
   const priceWatch  = watch('price');
   const depositMonthsWatch = watch('depositMonths');
@@ -199,6 +230,7 @@ export default function EditListingPage() {
           title:         listing.title,
           description:   listing.description,
           type:          listing.type,
+          transactionType: listing.transactionType ?? 'LOCATION',
           rentalMode:      listing.rentalMode ?? 'MONTHLY',
           price:         typeof listing.price === 'string' ? parseFloat(listing.price) : listing.price,
           pricePerNight: listing.pricePerNight != null
@@ -236,6 +268,20 @@ export default function EditListingPage() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, getToken]);
+
+  useEffect(() => {
+    getToken().then(async (token) => {
+      if (!token) return;
+      try {
+        const me = await api.get<{ roles: string[] }>('/auth/me', token);
+        if (!me.roles.includes('PRO_AGENCE')) return;
+        const sub = await api.get<{ status: string } | null>('/subscriptions/me', token);
+        setCanUseVenteMode(sub?.status === 'ACTIVE');
+      } catch {
+        setCanUseVenteMode(false);
+      }
+    });
+  }, [getToken]);
 
   const stepFields = STEPS[step].fields;
   const stepErrors = stepFields
@@ -321,10 +367,38 @@ export default function EditListingPage() {
               <p className="mt-1 text-right text-xs text-sub">{t('fieldCharCount', { count: description.length })}</p>
             </Field>
 
+            {canUseVenteMode && (
+              <div>
+                <FieldLabel label={t('transactionTypeLabel')} />
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {TRANSACTION_TYPES.map((tx) => {
+                    const active = transactionType === tx;
+                    const meta = TRANSACTION_TYPE_META[tx];
+                    return (
+                      <button key={tx} type="button" onClick={() => {
+                          setValue('transactionType', tx);
+                          const validTypes: readonly string[] = tx === 'VENTE' ? VENTE_TYPES : LOCATION_TYPES;
+                          if (!validTypes.includes(type)) setValue('type', 'APPARTEMENT');
+                        }}
+                        className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all ${
+                          active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
+                        }`}>
+                        <span className="flex items-center gap-2">
+                          <i className={`fa-solid ${meta.icon} ${active ? 'text-gold-dark' : 'text-sub'}`} />
+                          <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>{meta.label}</span>
+                        </span>
+                        <span className="text-[11px] text-sub">{meta.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div>
               <FieldLabel label={t('fieldType')} />
               <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
-                {LISTING_TYPES.map((tp) => {
+                {(transactionType === 'VENTE' ? VENTE_TYPES : LOCATION_TYPES).map((tp) => {
                   const active = type === tp;
                   const meta   = TYPE_META[tp];
                   return (
@@ -342,6 +416,20 @@ export default function EditListingPage() {
               </div>
             </div>
 
+            {transactionType === 'VENTE' ? (
+              <Field label={t('fieldSalePrice')} error={errors.price?.message}>
+                <div className="relative">
+                  <input
+                    type="number"
+                    {...register('price', { setValueAs: asNumberOrUndefined })}
+                    placeholder="45000000"
+                    className="input-field pr-16"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-sub">FCFA</span>
+                </div>
+              </Field>
+            ) : (
+            <>
             <div>
               <FieldLabel label={t('rentalModeLabel')} />
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
@@ -477,6 +565,8 @@ export default function EditListingPage() {
                 </Field>
               </div>
             )}
+            </>
+            )}
           </>
         )}
 
@@ -602,14 +692,25 @@ export default function EditListingPage() {
         )}
 
         <div className="flex items-center justify-between mt-2">
-          <button
-            type="button"
-            onClick={goBack}
-            disabled={step === 0}
-            className="rounded-xl border border-line bg-card px-4 py-2.5 text-sm font-medium text-sub hover:text-text disabled:opacity-40 transition"
-          >
-            <i className="fa-solid fa-arrow-left mr-1.5" />{t('editBack')}
-          </button>
+          {step > 0 ? (
+            <button
+              type="button"
+              onClick={goBack}
+              className="rounded-xl border border-line bg-card px-4 py-2.5 text-sm font-medium text-sub hover:text-text transition"
+            >
+              <i className="fa-solid fa-arrow-left mr-1.5" />{t('editBack')}
+            </button>
+          ) : (
+            // Pas d'étape précédente à l'étape 0 — le bouton quitte l'édition
+            // au lieu d'être désactivé sans alternative (cf. publier/page.tsx).
+            <button
+              type="button"
+              onClick={() => router.push('/bailleur/listings')}
+              className="rounded-xl border border-line bg-card px-4 py-2.5 text-sm font-medium text-sub hover:text-text transition"
+            >
+              <i className="fa-solid fa-arrow-left mr-1.5" />{t('editBack')}
+            </button>
+          )}
 
           {step < STEPS.length - 1 ? (
             <button type="button" onClick={() => void goNext()} className="btn-gold">
@@ -716,7 +817,7 @@ function RecapCard({
     type: string; title: string; description: string;
     surface?: number; rooms?: number; beds?: number; baths?: number;
     city: string; region: string; address: string;
-    rentalMode: string; price?: number; pricePerNight?: number;
+    transactionType?: string; rentalMode?: string; price?: number; pricePerNight?: number;
     depositMonths?: number; amenities?: string[]; images?: string[];
   };
   typeMeta: Record<string, { icon: string; label: string }>;
@@ -750,21 +851,32 @@ function RecapCard({
           <i className={`fa-solid ${meta.icon} text-gold-dark`} /> {meta.label}
         </span>
         <span className="text-right">
-          {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && Number(values.price) > 0 && (
-            <span className="block text-xl font-extrabold text-gold-dark">
-              {Number(values.price).toLocaleString('fr-FR')}
-              <span className="ml-1 text-sm font-semibold text-sub"> {t('fcfaPerMonth')}</span>
-            </span>
-          )}
-          {(values.rentalMode === 'NIGHTLY' || values.rentalMode === 'MIXED') && Number(values.pricePerNight) > 0 && (
-            <span className="block text-xs font-semibold text-sub">
-              {Number(values.pricePerNight).toLocaleString('fr-FR')} {t('fcfaPerNight')}
-            </span>
-          )}
-          {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && values.depositMonths !== undefined && (
-            <span className="block text-xs font-semibold text-sub">
-              {t('fieldDepositMonths')} : {values.depositMonths} {t('monthsShort')}
-            </span>
+          {values.transactionType === 'VENTE' ? (
+            Number(values.price) > 0 && (
+              <span className="block text-xl font-extrabold text-gold-dark">
+                {Number(values.price).toLocaleString('fr-FR')}
+                <span className="ml-1 text-sm font-semibold text-sub"> FCFA</span>
+              </span>
+            )
+          ) : (
+            <>
+              {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && Number(values.price) > 0 && (
+                <span className="block text-xl font-extrabold text-gold-dark">
+                  {Number(values.price).toLocaleString('fr-FR')}
+                  <span className="ml-1 text-sm font-semibold text-sub"> {t('fcfaPerMonth')}</span>
+                </span>
+              )}
+              {(values.rentalMode === 'NIGHTLY' || values.rentalMode === 'MIXED') && Number(values.pricePerNight) > 0 && (
+                <span className="block text-xs font-semibold text-sub">
+                  {Number(values.pricePerNight).toLocaleString('fr-FR')} {t('fcfaPerNight')}
+                </span>
+              )}
+              {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && values.depositMonths !== undefined && (
+                <span className="block text-xs font-semibold text-sub">
+                  {t('fieldDepositMonths')} : {values.depositMonths} {t('monthsShort')}
+                </span>
+              )}
+            </>
           )}
         </span>
       </div>

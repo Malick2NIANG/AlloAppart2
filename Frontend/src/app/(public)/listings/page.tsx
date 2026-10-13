@@ -10,9 +10,10 @@ import { type Listing, type ListingsResponse, getListingPriceAmounts } from '@/t
 export default async function ListingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; city?: string; type?: string; q?: string; minPrice?: string; maxPrice?: string; region?: string; limit?: string; tab?: string; ownerType?: string; verified?: string }>;
+  searchParams: Promise<{ page?: string; city?: string; type?: string; q?: string; minPrice?: string; maxPrice?: string; region?: string; limit?: string; tab?: string; ownerType?: string; verified?: string; transactionType?: string }>;
 }) {
-  const { page = '1', city, type, q, minPrice, maxPrice, region, limit: limitParam, tab, ownerType, verified } = await searchParams;
+  const { page = '1', city, type, q, minPrice, maxPrice, region, limit: limitParam, tab, ownerType, verified, transactionType: rawTransactionType } = await searchParams;
+  const transactionType = rawTransactionType === 'LOCATION' || rawTransactionType === 'VENTE' ? rawTransactionType : undefined;
   const isFavorisTab = tab === 'favoris';
   const currentPage = Math.max(1, parseInt(page, 10) || 1);
   const perPage     = [6, 12, 24].includes(parseInt(limitParam ?? '', 10)) ? parseInt(limitParam!, 10) : 6;
@@ -57,6 +58,7 @@ export default async function ListingsPage({
         ...(maxPrice  ? { maxPrice }             : {}),
         ...(region    ? { region }               : {}),
         ...(ownerType ? { ownerType }            : {}),
+        ...(transactionType ? { transactionType } : {}),
         ...(verified  ? { isVerified: 'true' }   : {}),
       });
       const res = await api.get<ListingsResponse>(`/listings?${params}`);
@@ -81,11 +83,34 @@ export default async function ListingsPage({
     if (maxPrice)  params.set('maxPrice', maxPrice);
     if (region)    params.set('region', region);
     if (ownerType) params.set('ownerType', ownerType);
+    if (transactionType) params.set('transactionType', transactionType);
     if (verified)  params.set('verified', verified);
     params.set('limit', String(perPage));
     params.set('page', String(p));
     return `/listings?${params.toString()}`;
   };
+
+  // Bascule Tout / À louer / À vendre — conserve les autres filtres, repart page 1.
+  const transactionUrl = (value?: 'LOCATION' | 'VENTE') => {
+    const params = new URLSearchParams();
+    if (q)         params.set('q', q);
+    if (city)      params.set('city', city);
+    if (type)      params.set('type', type);
+    if (minPrice)  params.set('minPrice', minPrice);
+    if (maxPrice)  params.set('maxPrice', maxPrice);
+    if (region)    params.set('region', region);
+    if (ownerType) params.set('ownerType', ownerType);
+    if (verified)  params.set('verified', verified);
+    if (value)     params.set('transactionType', value);
+    params.set('limit', String(perPage));
+    const qs = params.toString();
+    return `/listings?${qs}`;
+  };
+  const transactionTabs: { value?: 'LOCATION' | 'VENTE'; label: string }[] = [
+    { value: undefined, label: t('transactionAll') },
+    { value: 'LOCATION', label: t('transactionLocation') },
+    { value: 'VENTE', label: t('transactionVente') },
+  ];
 
   const pageNums: number[] = [];
   const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
@@ -140,6 +165,26 @@ export default async function ListingsPage({
                 </span>
               )}
             </Link>
+          </div>
+        )}
+
+        {/* Bascule À louer / À vendre (onglet Toutes uniquement) */}
+        {!isFavorisTab && (
+          <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1 dark:bg-transparent">
+            {transactionTabs.map((tab) => {
+              const active = tab.value === transactionType;
+              return (
+                <Link
+                  key={tab.value ?? 'all'}
+                  href={transactionUrl(tab.value)}
+                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                    active ? 'bg-gold-dark text-white' : 'text-sub hover:text-text'
+                  }`}
+                >
+                  {tab.label}
+                </Link>
+              );
+            })}
           </div>
         )}
 
@@ -207,7 +252,7 @@ export default async function ListingsPage({
                         <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
                           {getListingPriceAmounts(listing).map((e) => (
                             <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
-                              {e.amount.toLocaleString(numLocale)} FCFA/{t(e.unit === 'night' ? 'perNight' : 'perMonth')}
+                              {e.amount.toLocaleString(numLocale)} FCFA{e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}
                             </span>
                           ))}
                         </div>

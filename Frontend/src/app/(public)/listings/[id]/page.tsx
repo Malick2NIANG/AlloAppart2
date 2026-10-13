@@ -89,11 +89,18 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
     }
   } catch { /* non connecté ou erreur → isOwner reste false */ }
 
+  // Annonce en vente directe (agence abonnée) : prix unique, pas de mode de
+  // location — on n'utilise pas getListingPriceAmounts (toute sa logique est
+  // location-only : nuitée/mensuel/mixte, sans objet pour un prix de vente).
+  const isVente = listing.transactionType === 'VENTE';
+
   // Tarif(s) affiché(s) selon le mode de location — nuitée si NIGHTLY, mensuel
   // si MONTHLY, les deux si MIXED (cf. getListingPriceAmounts, types/index.ts).
-  const price = getListingPriceAmounts(listing)
-    .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`)
-    .join(' · ');
+  const price = isVente
+    ? `${priceToNumber(listing.price).toLocaleString(numLocale)} FCFA`
+    : getListingPriceAmounts(listing)
+        .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA${e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}`)
+        .join(' · ');
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const isNew = (now - new Date(listing.createdAt).getTime()) < 10 * 24 * 60 * 60 * 1000;
@@ -249,16 +256,19 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             </div>
           </div>
 
-          {/* Conditions de location : mode, règles du bailleur, règles générales */}
-          <RentalTermsCard
-            rentalMode={listing.rentalMode}
-            minimumNights={listing.minimumNights ?? null}
-            maximumNights={listing.maximumNights ?? null}
-            minLeaseMonths={listing.minLeaseMonths ?? null}
-            depositMonths={listing.depositMonths ?? null}
-            chargesIncluded={listing.chargesIncluded ?? null}
-            cleaningFee={listing.cleaningFee != null ? priceToNumber(listing.cleaningFee) : null}
-          />
+          {/* Conditions de location : mode, règles du bailleur, règles générales
+              — sans objet pour une annonce en vente (pas de bail/location). */}
+          {!isVente && (
+            <RentalTermsCard
+              rentalMode={listing.rentalMode}
+              minimumNights={listing.minimumNights ?? null}
+              maximumNights={listing.maximumNights ?? null}
+              minLeaseMonths={listing.minLeaseMonths ?? null}
+              depositMonths={listing.depositMonths ?? null}
+              chargesIncluded={listing.chargesIncluded ?? null}
+              cleaningFee={listing.cleaningFee != null ? priceToNumber(listing.cleaningFee) : null}
+            />
+          )}
 
           {/* Location */}
           <div className={CARD}>
@@ -329,7 +339,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                       <p className="text-xs text-sub">{s.city}</p>
                       <p className="text-gold-dark font-semibold mt-1 text-sm">
                         {getListingPriceAmounts(s)
-                          .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`)
+                          .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA${e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}`)
                           .join(' · ')}
                       </p>
                     </div>
@@ -356,21 +366,28 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               priceEntries={getListingPriceAmounts(listing)}
               numLocale={numLocale}
               isOwner={isOwner}
+              isVente={isVente}
+              agencyPhone={listing.owner?.agencyPhone ?? null}
+              agencyWhatsapp={listing.owner?.agencyWhatsapp ?? null}
             />
 
-            {/* Demande de réservation */}
-            <ListingBookingCard
-              listingId={listing.id}
-              listingStatus={listing.status}
-              rentalMode={listing.rentalMode}
-              pricePerMonth={priceToNumber(listing.price)}
-              pricePerNight={listing.pricePerNight != null ? priceToNumber(listing.pricePerNight) : null}
-              minimumNights={listing.minimumNights ?? null}
-              maximumNights={listing.maximumNights ?? null}
-              depositMonths={listing.depositMonths ?? null}
-              minLeaseMonths={listing.minLeaseMonths ?? null}
-              numLocale={numLocale}
-            />
+            {/* Demande de réservation — sans objet pour une annonce en vente
+                (mise en relation directe via le contact agence ci-dessus,
+                pas de réservation/paiement in-app). */}
+            {!isVente && (
+              <ListingBookingCard
+                listingId={listing.id}
+                listingStatus={listing.status}
+                rentalMode={listing.rentalMode}
+                pricePerMonth={priceToNumber(listing.price)}
+                pricePerNight={listing.pricePerNight != null ? priceToNumber(listing.pricePerNight) : null}
+                minimumNights={listing.minimumNights ?? null}
+                maximumNights={listing.maximumNights ?? null}
+                depositMonths={listing.depositMonths ?? null}
+                minLeaseMonths={listing.minLeaseMonths ?? null}
+                numLocale={numLocale}
+              />
+            )}
 
             {/* Guarantees */}
             <div className="bg-card backdrop-blur-xl border border-line rounded-3xl p-5 shadow">

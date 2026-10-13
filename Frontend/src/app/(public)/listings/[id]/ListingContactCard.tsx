@@ -21,12 +21,17 @@ interface Props {
   priceEntries: ListingPriceAmount[];
   numLocale: string;
   isOwner?: boolean;
+  /** Annonce en vente directe : contact WhatsApp/tél agence au lieu de la messagerie interne. */
+  isVente?: boolean;
+  agencyPhone?: string | null;
+  agencyWhatsapp?: string | null;
 }
 
 export default function ListingContactCard({
   listingId, landlordName, landlordAvatar, landlordPhone,
   isAgency = false, agencyName, agencySlug,
   priceEntries, numLocale, isOwner = false,
+  isVente = false, agencyPhone, agencyWhatsapp,
 }: Props) {
   const { isSignedIn } = useUser();
   const { getToken } = useAuth();
@@ -106,7 +111,9 @@ export default function ListingContactCard({
                 <p className="text-2xl font-extrabold text-text">
                   {e.amount.toLocaleString(numLocale)} FCFA
                 </p>
-                <p className="text-xs text-sub -mt-0.5">{t(e.unit === 'night' ? 'perNight' : 'perMonth')}</p>
+                <p className="text-xs text-sub -mt-0.5">
+                  {isVente ? t('salePriceLabel') : t(e.unit === 'night' ? 'perNight' : 'perMonth')}
+                </p>
               </div>
             ))}
           </div>
@@ -128,12 +135,41 @@ export default function ListingContactCard({
           </button>
         </div>
 
-        {/* Contact form — masqué si l'user est le propriétaire */}
+        {/* Contact — masqué si l'user est le propriétaire. En mode VENTE,
+            contact direct WhatsApp/téléphone agence au lieu de la messagerie
+            interne (pas de mise en relation via l'app pour une vente). */}
         <div className="mt-4">
           {isOwner ? (
             <div className="flex items-center gap-2.5 rounded-xl border border-gold/30 bg-gold-pale px-4 py-3 text-sm text-gold-dark">
               <i className="fa-solid fa-house-chimney-user shrink-0" />
               <span className="font-medium">{t('yourListing')}</span>
+            </div>
+          ) : isVente ? (
+            <div className="space-y-2">
+              {agencyWhatsapp && (
+                <a
+                  href={`https://wa.me/${agencyWhatsapp.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 text-sm transition-colors"
+                >
+                  <i className="fa-brands fa-whatsapp" /> {t('contactWhatsapp')}
+                </a>
+              )}
+              {agencyPhone && (
+                <a
+                  href={`tel:${agencyPhone}`}
+                  className="w-full flex items-center justify-center gap-2 rounded-full border border-line hover:border-gold/50 text-text font-semibold py-2.5 text-sm transition-colors"
+                >
+                  <i className="fa-solid fa-phone text-gold-dark" /> {t('contactCall')}
+                </a>
+              )}
+              {!agencyWhatsapp && !agencyPhone && (
+                <div className="flex items-center gap-2.5 rounded-xl border border-line bg-bg px-4 py-3 text-sm text-sub">
+                  <i className="fa-solid fa-circle-info shrink-0" />
+                  {t('saleContactUnavailable')}
+                </div>
+              )}
             </div>
           ) : sent ? (
             <div className="flex items-center gap-2 rounded-xl border border-green-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/30 px-4 py-3 text-sm text-green-700 dark:text-green-400">
@@ -241,14 +277,33 @@ export default function ListingContactCard({
         <div className="mx-auto max-w-md rounded-2xl shadow-lg border border-line bg-card/90 backdrop-blur-xl p-3 flex items-center justify-between">
           <div>
             <p className="text-base font-extrabold text-text">
-              {priceEntries.map((e) => `${e.amount.toLocaleString(numLocale)} FCFA/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`).join(' · ')}
+              {isVente
+                ? priceEntries.map((e) => `${e.amount.toLocaleString(numLocale)} FCFA`).join(' · ')
+                : priceEntries.map((e) => `${e.amount.toLocaleString(numLocale)} FCFA/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`).join(' · ')}
             </p>
           </div>
-          <button
-            onClick={() => document.getElementById('contact-textarea')?.focus()}
-            className="btn-gold px-4 py-2 rounded-full text-sm font-semibold">
-            {t('contactBtn')}
-          </button>
+          {isVente ? (
+            agencyWhatsapp ? (
+              <a
+                href={`https://wa.me/${agencyWhatsapp.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-gold px-4 py-2 rounded-full text-sm font-semibold"
+              >
+                {t('contactWhatsapp')}
+              </a>
+            ) : agencyPhone ? (
+              <a href={`tel:${agencyPhone}`} className="btn-gold px-4 py-2 rounded-full text-sm font-semibold">
+                {t('contactCall')}
+              </a>
+            ) : null
+          ) : (
+            <button
+              onClick={() => document.getElementById('contact-textarea')?.focus()}
+              className="btn-gold px-4 py-2 rounded-full text-sm font-semibold">
+              {t('contactBtn')}
+            </button>
+          )}
         </div>
       </div>}
     </>
