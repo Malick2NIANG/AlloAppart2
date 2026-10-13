@@ -184,11 +184,13 @@ export default function EditListingPage() {
   }), [t]);
 
   const STEPS = useMemo(() => [
-    { label: t('stepBasicInfo'),       fields: ['title', 'description', 'type', 'transactionType', 'rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'], icon: 'fa-tag' },
-    { label: t('stepLocation'),         fields: ['address', 'city', 'region', 'lat', 'lng'], icon: 'fa-location-dot' },
-    { label: t('stepDetails'),          fields: ['surface', 'rooms', 'beds', 'baths'], icon: 'fa-list-check' },
-    { label: t('stepAmenitiesPhotos'),  fields: ['amenities', 'images'], icon: 'fa-images' },
-    { label: t('stepReview'),           fields: [], icon: 'fa-eye' },
+    // Mêmes étapes, même ordre et mêmes libellés que publier/page.tsx.
+    { label: t('stepTypeTitle'),  fields: ['title', 'description', 'type', 'transactionType'], icon: 'fa-tag' },
+    { label: t('stepFeatures'),   fields: ['surface', 'rooms', 'beds', 'baths', 'amenities'], icon: 'fa-list-check' },
+    { label: t('stepLocation'),   fields: ['address', 'city', 'region', 'lat', 'lng'], icon: 'fa-location-dot' },
+    { label: t('stepPrice'),      fields: ['rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'], icon: 'fa-coins' },
+    { label: t('stepPhotos'),     fields: ['images'], icon: 'fa-images' },
+    { label: t('stepReview'),     fields: [], icon: 'fa-eye' },
   ] as { label: string; fields: string[]; icon: string }[], [t]);
 
   const AMENITIES = useMemo(() => AMENITY_KEYS.map((a) => ({ key: a.key, icon: a.icon, label: t(a.tKey as Parameters<typeof t>[0]) })), [t]);
@@ -445,7 +447,136 @@ export default function EditListingPage() {
                 })}
               </div>
             </div>
+          </>
+        )}
 
+        {/* ── Étape 1 : Caractéristiques ── */}
+        {step === 1 && (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <Field label={type === 'TERRAIN' ? t('fieldSurfaceLand') : t('fieldSurface')} error={errors.surface?.message} required={profile.surfaceRequired}>
+                <input type="number" {...register('surface', { setValueAs: asNumberOrUndefined })} placeholder={type === 'TERRAIN' ? '300' : '85'} className="input-field" />
+              </Field>
+              {profile.rooms && (
+                <Field label={t('fieldRooms')} error={errors.rooms?.message}>
+                  <input type="number" {...register('rooms', { setValueAs: asNumberOrUndefined })} placeholder="3" className="input-field" />
+                </Field>
+              )}
+              {profile.beds && (
+                <Field label={t('fieldBeds')} error={errors.beds?.message}>
+                  <input type="number" {...register('beds', { setValueAs: asNumberOrUndefined })} placeholder="2" className="input-field" />
+                </Field>
+              )}
+              {profile.baths && (
+                <Field label={t('fieldBaths')} error={errors.baths?.message}>
+                  <input type="number" {...register('baths', { setValueAs: asNumberOrUndefined })} placeholder="1" className="input-field" />
+                </Field>
+              )}
+            </div>
+
+            <div>
+              <FieldLabel label={type === 'TERRAIN' ? t('fieldLandFeatures') : t('fieldAmenities')} />
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {profile.amenities
+                  .map((k) => AMENITIES.find((am) => am.key === k))
+                  .filter((am): am is NonNullable<typeof am> => !!am)
+                  .map(({ key, icon, label }) => {
+                  const active = amenities.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        setValue(
+                          'amenities',
+                          active ? amenities.filter((a) => a !== key) : [...amenities, key],
+                        )
+                      }
+                      className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all ${
+                        active
+                          ? 'border-gold bg-gold-pale text-gold-dark'
+                          : 'border-line bg-bg text-sub hover:border-gold/40'
+                      }`}
+                    >
+                      <i className={`fa-solid ${icon} text-sm shrink-0`} />
+                      <span className="font-medium">{label}</span>
+                      {active && <i className="fa-solid fa-check ml-auto text-[10px]" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Étape 2 : Localisation ── */}
+        {step === 2 && (
+          <>
+            <Field label={t('fieldAddress')} error={errors.address?.message}>
+              <input {...register('address')} placeholder={t('fieldAddressPh')} className="input-field" />
+            </Field>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label={t('fieldCity')} error={errors.city?.message}>
+                <input {...register('city')} placeholder={t('fieldCityPh')} className="input-field" />
+              </Field>
+              <Field label={t('fieldRegion')} error={errors.region?.message}>
+                <select
+                  {...register('region', {
+                    // Choisir une région recentre la carte et y place le repère ;
+                    // l'utilisateur affine ensuite en cliquant sur la carte.
+                    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
+                      const c = REGION_CENTERS[e.target.value];
+                      if (!c) return;
+                      setValue('lat', c.lat);
+                      setValue('lng', c.lng);
+                      setMapFocus({ lat: c.lat, lng: c.lng, zoom: c.zoom, nonce: Date.now() });
+                    },
+                  })}
+                  className="input-field"
+                >
+                  <option value="">{t('fieldRegionDefault')}</option>
+                  {SENEGAL_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </Field>
+            </div>
+
+            <div>
+              <FieldLabel label={t('fieldMapPosition')} />
+              <div className="h-64 overflow-hidden rounded-xl border border-line">
+                {mapReady && lat != null && lng != null ? (
+                  <LocationPicker
+                    defaultLat={lat}
+                    defaultLng={lng}
+                    focus={mapFocus}
+                    highlight={getRegionFeature(allValues.region)}
+                    onChange={(la, ln) => {
+                      setValue('lat', la);
+                      setValue('lng', ln);
+                      // La carte fait foi : la région se met à jour toute seule (sans effet
+                      // hors Sénégal ou sans contours — l'erreur du champ le signalera).
+                      const detected = findRegionAt(la, ln);
+                      if (detected) setValue('region', detected);
+                      void trigger('region');
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-bg animate-pulse rounded-xl flex items-center justify-center">
+                    <i className="fa-solid fa-map-location-dot text-2xl text-sub/30" />
+                  </div>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-sub">
+                <i className="fa-solid fa-location-crosshairs mr-1 text-gold-dark" />
+                {t('fieldCoords', { lat: (lat ?? 0).toFixed(4), lng: (lng ?? 0).toFixed(4) })}
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* ── Étape 3 : Prix ── */}
+        {step === 3 && (
+          <>
             {transactionType === 'VENTE' ? (
               <Field label={t('fieldSalePrice')} error={errors.price?.message}>
                 <div className="relative">
@@ -600,128 +731,9 @@ export default function EditListingPage() {
           </>
         )}
 
-        {step === 1 && (
+        {/* ── Étape 4 : Photos ── */}
+        {step === 4 && (
           <>
-            <Field label={t('fieldAddress')} error={errors.address?.message}>
-              <input {...register('address')} placeholder={t('fieldAddressPh')} className="input-field" />
-            </Field>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label={t('fieldCity')} error={errors.city?.message}>
-                <input {...register('city')} placeholder={t('fieldCityPh')} className="input-field" />
-              </Field>
-              <Field label={t('fieldRegion')} error={errors.region?.message}>
-                <select
-                  {...register('region', {
-                    // Choisir une région recentre la carte et y place le repère ;
-                    // l'utilisateur affine ensuite en cliquant sur la carte.
-                    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
-                      const c = REGION_CENTERS[e.target.value];
-                      if (!c) return;
-                      setValue('lat', c.lat);
-                      setValue('lng', c.lng);
-                      setMapFocus({ lat: c.lat, lng: c.lng, zoom: c.zoom, nonce: Date.now() });
-                    },
-                  })}
-                  className="input-field"
-                >
-                  <option value="">{t('fieldRegionDefault')}</option>
-                  {SENEGAL_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </Field>
-            </div>
-
-            <div>
-              <FieldLabel label={t('fieldMapPosition')} />
-              <div className="h-64 overflow-hidden rounded-xl border border-line">
-                {mapReady && lat != null && lng != null ? (
-                  <LocationPicker
-                    defaultLat={lat}
-                    defaultLng={lng}
-                    focus={mapFocus}
-                    highlight={getRegionFeature(allValues.region)}
-                    onChange={(la, ln) => {
-                      setValue('lat', la);
-                      setValue('lng', ln);
-                      // La carte fait foi : la région se met à jour toute seule (sans effet
-                      // hors Sénégal ou sans contours — l'erreur du champ le signalera).
-                      const detected = findRegionAt(la, ln);
-                      if (detected) setValue('region', detected);
-                      void trigger('region');
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-bg animate-pulse rounded-xl flex items-center justify-center">
-                    <i className="fa-solid fa-map-location-dot text-2xl text-sub/30" />
-                  </div>
-                )}
-              </div>
-              <p className="mt-1 text-xs text-sub">
-                <i className="fa-solid fa-location-crosshairs mr-1 text-gold-dark" />
-                {t('fieldCoords', { lat: (lat ?? 0).toFixed(4), lng: (lng ?? 0).toFixed(4) })}
-              </p>
-            </div>
-          </>
-        )}
-
-        {step === 2 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Field label={type === 'TERRAIN' ? t('fieldSurfaceLand') : t('fieldSurface')} error={errors.surface?.message}>
-              <input type="number" {...register('surface', { setValueAs: asNumberOrUndefined })} placeholder={type === 'TERRAIN' ? '300' : '85'} className="input-field" />
-            </Field>
-            {profile.rooms && (
-              <Field label={t('fieldRooms')} error={errors.rooms?.message}>
-                <input type="number" {...register('rooms', { setValueAs: asNumberOrUndefined })} placeholder="3" className="input-field" />
-              </Field>
-            )}
-            {profile.beds && (
-              <Field label={t('fieldBeds')} error={errors.beds?.message}>
-                <input type="number" {...register('beds', { setValueAs: asNumberOrUndefined })} placeholder="2" className="input-field" />
-              </Field>
-            )}
-            {profile.baths && (
-              <Field label={t('fieldBaths')} error={errors.baths?.message}>
-                <input type="number" {...register('baths', { setValueAs: asNumberOrUndefined })} placeholder="1" className="input-field" />
-              </Field>
-            )}
-          </div>
-        )}
-
-        {step === 3 && (
-          <>
-            <div>
-              <FieldLabel label={type === 'TERRAIN' ? t('fieldLandFeatures') : t('fieldAmenities')} />
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {profile.amenities
-                  .map((k) => AMENITIES.find((am) => am.key === k))
-                  .filter((am): am is NonNullable<typeof am> => !!am)
-                  .map(({ key, icon, label }) => {
-                  const active = amenities.includes(key);
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() =>
-                        setValue(
-                          'amenities',
-                          active ? amenities.filter((a) => a !== key) : [...amenities, key],
-                        )
-                      }
-                      className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all ${
-                        active
-                          ? 'border-gold bg-gold-pale text-gold-dark'
-                          : 'border-line bg-bg text-sub hover:border-gold/40'
-                      }`}
-                    >
-                      <i className={`fa-solid ${icon} text-sm shrink-0`} />
-                      <span className="font-medium">{label}</span>
-                      {active && <i className="fa-solid fa-check ml-auto text-[10px]" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             <div>
               <FieldLabel label={t('fieldImages')} />
               <ImageUploadZone
@@ -738,8 +750,8 @@ export default function EditListingPage() {
           </>
         )}
 
-        {/* ── Étape 4 : Récapitulatif ── */}
-        {step === 4 && (
+        {/* ── Étape 5 : Récapitulatif ── */}
+        {step === 5 && (
           <>
             <StepHeader title={t('reviewTitle')} sub={t('reviewSubtitle')} />
             <RecapCard values={allValues} typeMeta={TYPE_META} amenitiesList={AMENITIES} />
