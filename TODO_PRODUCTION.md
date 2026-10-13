@@ -1,38 +1,33 @@
 # À faire avant la mise en production — AlloAppart
 
-Checklist technique avant déploiement et retest en conditions réelles. Les démarches administratives (déclaration de société, NINEA, etc.) sont suivies séparément.
+Seul ce qui reste à faire est listé ici (mis à jour le 2026-10-13). Le code, les tests (Backend 275, Frontend 30), la CI et les audits `npm` en production (0 vulnérabilité) sont à jour et poussés sur `develop`. Voir `DEPLOY.md` pour le détail pas-à-pas.
 
-> Le commit + push du travail en cours n'est pas listé ici : c'est fait en parallèle, indépendamment de cette checklist.
+## Démarches administratives
 
-## Qualité de code
+- [ ] **Mettre à jour les mentions légales (NINEA/RCCM)** une fois l'immatriculation APIX obtenue (tâche #38).
 
-- [x] **Eslint test** — eslint complet passé sur l'intégralité du Backend (`{src,apps,libs,test}/**/*.ts`) et du Frontend (`npm run lint`) : 0 erreur, 0 warning des deux côtés.
-- [x] **Code review — paiements (PayDunya)** — les 4 flux (réservations, abonnements PRO_AGENCE, AlloVérifié, boost) vérifient le hash de signature en `timingSafeEqual` et re-confirment toujours le statut auprès de PayDunya (jamais le payload webhook comme source de vérité). Faille trouvée et corrigée (commit `2427f4b`, CI verte run [36197557443](https://github.com/Malick2NIANG/AlloAppart2/actions/runs/36197557443)) : seul le webhook réservations comparait le montant reçu au montant attendu ; les 3 autres ne le faisaient pas, ce qui aurait permis de confirmer un paiement avec un token PayDunya valide mais d'un montant différent. Contrôle de montant ajouté partout. **Limite boost corrigée (2026-10-13) :** `BoostPayment.amount` (migration `20261013100000_add_boost_payment_amount`, nullable) fige le tarif à l'initiation ; le webhook compare le montant reçu à ce montant figé (repli sur le tarif courant pour les anciens paiements sans `amount`). Tests unitaires ajoutés pour le boost (montant figé accepté, montant incohérent rejeté, repli `amount` null). Reste non couvert par des tests : le rejet de montant incohérent sur les 3 autres handlers (réservations, abonnements, AlloVérifié).
-- [x] **Code review — auth (Clerk + 2FA admin)** — JWT Clerk vérifié cryptographiquement (signature + expiration), ordre des guards correct, routes `admin-mfa/*` sans bypass possible (rôle revérifié côté service), OTP hashé/salé/à usage unique/throttlé. Deux points mineurs relevés puis corrigés (commit `b844397`, CI verte run [36199317614](https://github.com/Malick2NIANG/AlloAppart2/actions/runs/36199317614)) : verrouillage anti-brute-force par compte admin (5 échecs → 15 min de blocage, indépendant du throttle par IP contournable) et purge quotidienne des OTP/sessions expirés.
-- [x] **Code review — permissions par rôle (guards) et webhooks** — tous les webhooks recensés (4 PayDunya + Clerk), toutes les routes `@Public()` passées en revue (rien de sensible exposé), IDOR vérifié par échantillonnage (listings, messages, verifications) : ownership systématiquement contrôlée côté service. Rien à corriger.
-- [x] **Unit test (Frontend, premiers tests)** — mise en place de Vitest (`npm test`), 3 fichiers / 30 tests sur les fonctions pures les plus à risque : `utils.ts` (formatage prix/date, détection email placeholder Clerk), `bookingStatus.ts` (couverture des 9 statuts, aucun oublié), `agencyColors.ts` (repli sur "gold" par défaut). Ajouté à la CI (`npm test` dans le job Frontend). Upgrade vers `vitest@5.0.2` + `@types/node@22` fait (commit `deeca25`), la vulnérabilité dev-only de `@vitest/mocker` est donc corrigée. Backend : 17 fichiers `.spec.ts`, 262 tests, déjà en place. Couverture encore à élargir des deux côtés (au-delà de ces premiers tests).
+## Infrastructure
 
-## Sécurité
-
-- [x] **Security review** — relecture de `SECURITY.md` face à l'implémentation réelle (RLS non applicable confirmé par grep, aucun champ password en base, pas de route de login custom, `PATCH /auth/me/password` bien gardée par `mustChangePassword` + throttle 5/min) : aucune correction nécessaire. Recherche de secrets commités : aucun `.env` réel jamais commité (historique git complet vérifié), aucune clé Clerk/AWS/Twilio/Cloudinary en dur dans le code, seul secret de dev trouvé (`DEV_FALLBACK_VERIFICATION_SECRET`) est explicitement non-sécurisé par nom et bloqué en production par une exception.
-- [x] **Vulnérability test (npm audit)** — Frontend à 0 vulnérabilité (Next.js RCE critique corrigée via 16.3.6, sharp, js-yaml). Backend passé de 12 à 4 (nodemailer, multer, qs, fast-uri, js-yaml corrigés ; Prisma aligné en 7.10.0). Les 4 restantes (`deepmerge-ts`/`@prisma/config`/`mysql2`) sont des dépendances du CLI Prisma, pas sur le chemin des requêtes API — acceptées en attendant une release stable de Prisma 8. **À revérifier `npm audit` Backend une fois Prisma 8 stable publié.** CI verte sur commit `3a7173a` (run [36195849716](https://github.com/Malick2NIANG/AlloAppart2/actions/runs/36195849716)).
-- [ ] **Vulnérability test (scan applicatif)** — scan type OWASP ZAP une fois en staging.
+- [ ] Réserver le nom de domaine `alloappart.sn` (bureau accrédité NIC Sénégal).
+- [ ] Créer le VPS Hetzner (CPX41, décidé le 2026-09-26) et pointer le DNS.
+- [ ] Remplir `.env.prod` à partir de `.env.prod.example` et lancer `docker compose -f docker-compose.prod.yml up -d --build`.
+- [ ] Appliquer les migrations Prisma en prod : `docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy` (47 migrations, dont `add_listing_sale_mode` et `add_boost_payment_amount`).
+- [ ] Vérifier l'obtention du certificat HTTPS (Caddy / Let's Encrypt).
+- [ ] Reconfigurer les webhooks externes vers les URLs de prod (Clerk, PayDunya, et tout callback Cloudinary/OneSignal/Twilio existant).
 
 ## Bascule en mode production
 
 - [ ] Basculer Clerk en clés **Live** (`sk_live_...`, `pk_live_...`) au lieu des clés de test.
 - [ ] Basculer PayDunya en clés **Live** au lieu du sandbox.
-- [ ] Créer/renseigner les comptes tiers manquants dans `.env.prod` : Cloudinary (photos), OneSignal (push), Twilio (WhatsApp), SMTP (`noreply@alloappart.sn`).
-- [ ] **Controlled Live session** — une fois basculé en Live, faire une session de test contrôlée en conditions réelles avant l'ouverture publique : un vrai petit paiement PayDunya de bout en bout (webhook/callback inclus), un compte de chaque rôle (locataire, bailleur, agence, agent terrain, admin), les flux critiques (réservation, messagerie, AlloVérifié, notifications).
+- [ ] Créer/renseigner les comptes tiers manquants dans `.env.prod` : Cloudinary (photos), OneSignal (push), Twilio (WhatsApp), SMTP.
+- [ ] Remplacer l'expéditeur e-mail actuel (compte Gmail de dev) par `noreply@alloappart.sn` (`SMTP_FROM` et config SMTP dans `.env.prod`). L'envoi réel avec nodemailer 10.1.0 a été validé le 2026-10-13.
+- [ ] **Controlled Live session** — une fois basculé en Live, session de test contrôlée avant l'ouverture publique : un vrai petit paiement PayDunya de bout en bout (webhook/callback inclus), un compte de chaque rôle (locataire, bailleur, agence, agent terrain, admin), les flux critiques (réservation, messagerie, AlloVérifié, notifications, vente directe).
 
-## Infrastructure (voir `DEPLOY.md` pour le détail pas-à-pas)
+## Sécurité
 
-- [ ] Réserver le nom de domaine `alloappart.sn` (bureau accrédité NIC Sénégal).
-- [ ] Créer le VPS Hetzner (CPX41, décidé le 2026-09-26) et pointer le DNS.
-- [ ] Remplir `.env.prod` à partir de `.env.prod.example` et lancer `docker compose -f docker-compose.prod.yml up -d --build`.
-- [ ] Appliquer les migrations Prisma en prod (`npx prisma migrate deploy`).
-- [ ] Vérifier l'obtention du certificat HTTPS (Caddy / Let's Encrypt).
-- [ ] Reconfigurer les webhooks externes vers les URLs de prod (Clerk, PayDunya, et tout callback Cloudinary/OneSignal/Twilio existant).
+- [ ] Relancer `npm audit --omit=dev` (Backend et Frontend) juste avant la mise en ligne : de nouveaux avis peuvent apparaître.
+- [ ] Scan applicatif type OWASP ZAP une fois en staging.
+- [ ] Surveiller `braces` (5 alertes dev-only côté Frontend, via `eslint-config-next` ; aucun correctif publié) et `npm audit` Backend une fois Prisma 8 stable publié (les overrides `deepmerge-ts`, `mysql2`, `js-yaml`, `argparse` pourront alors être retirés).
 
 ## Sauvegardes
 
@@ -41,9 +36,15 @@ Checklist technique avant déploiement et retest en conditions réelles. Les dé
 
 ## Performance
 
-- [ ] Lancer le test de charge k6 (`scripts/load-test.js`) contre la prod, montée progressive (20 VUs puis 100 VUs). But : valider que le CPX41 tient réellement le trafic visé. Si CPU/RAM sature quand même, upgrade vers le tier au-dessus (simple, sans migration de données).
+- [ ] Lancer le test de charge k6 (`scripts/load-test.js`) contre la prod, montée progressive (20 VUs puis 100 VUs). But : valider que le CPX41 tient le trafic visé. Si CPU/RAM sature, upgrade vers le tier au-dessus (simple, sans migration de données).
 
 ## Après bascule
 
 - [ ] Recharger le crédit API Anthropic avant d'activer les fonctionnalités IA (actuellement bloquées faute de crédit).
 - [ ] Retest manuel complet, rôle par rôle, une fois tout en ligne.
+
+## Plus tard (non bloquant)
+
+- [ ] Ajouter des tests unitaires pour le rejet de montant incohérent sur les webhooks réservations, abonnements et AlloVérifié (déjà couvert pour le boost).
+- [ ] Élargir la couverture de tests (Backend et Frontend) au-delà des premiers tests.
+- [ ] Migration Google Maps abandonnée (coût) : on garde Leaflet / OpenStreetMap.
