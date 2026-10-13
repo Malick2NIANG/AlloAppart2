@@ -157,12 +157,20 @@ export default function ListingContactCard({
                 </a>
               )}
               {agencyPhone && (
-                <a
-                  href={`tel:${agencyPhone}`}
-                  className="w-full flex items-center justify-center gap-2 rounded-full border border-line hover:border-gold/50 text-text font-semibold py-2.5 text-sm transition-colors"
-                >
-                  <i className="fa-solid fa-phone text-gold-dark" /> {t('contactCall')}
-                </a>
+                <div className="grid grid-cols-2 gap-2">
+                  <a
+                    href={`tel:${agencyPhone}`}
+                    className="flex items-center justify-center gap-2 rounded-full border border-line hover:border-gold/50 text-text font-semibold py-2.5 text-sm transition-colors"
+                  >
+                    <i className="fa-solid fa-phone text-gold-dark" /> {t('contactCallShort')}
+                  </a>
+                  <a
+                    href={`sms:${agencyPhone}`}
+                    className="flex items-center justify-center gap-2 rounded-full border border-line hover:border-gold/50 text-text font-semibold py-2.5 text-sm transition-colors"
+                  >
+                    <i className="fa-solid fa-message text-gold-dark" /> {t('contactSms')}
+                  </a>
+                </div>
               )}
               {!agencyWhatsapp && !agencyPhone && (
                 <div className="flex items-center gap-2.5 rounded-xl border border-line bg-bg px-4 py-3 text-sm text-sub">

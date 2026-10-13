@@ -312,7 +312,8 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           </div>
 
           {/* Reviews + leave-a-review form (auth-gated) */}
-          <ListingReviewForm listingId={listing.id} />
+          {/* Sans objet en vente directe : un avis suppose un séjour. */}
+          {!isVente && <ListingReviewForm listingId={listing.id} />}
 
           {/* Catalogue de l'agence — même lien que la sidebar (ListingContactCard),
               mais dupliqué ici pour rester visible juste après les avis : sur
@@ -323,9 +324,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <h2 className="text-lg font-semibold text-text">
-                    {t('moreFromAgency', { name: listing.owner.agencyName ?? ownerFullName(listing.owner) })}
+                    {t(isVente ? 'moreFromAgencySale' : 'moreFromAgency', { name: listing.owner.agencyName ?? ownerFullName(listing.owner) })}
                   </h2>
-                  <p className="text-sm text-sub mt-0.5">{t('moreFromAgencyDesc')}</p>
+                  <p className="text-sm text-sub mt-0.5">{t(isVente ? 'moreFromAgencySaleDesc' : 'moreFromAgencyDesc')}</p>
                 </div>
                 <Link
                   href={`/agences/${listing.owner.agencySlug}`}
@@ -408,11 +409,18 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             <div className="bg-card backdrop-blur-xl border border-line rounded-3xl p-5 shadow">
               <h3 className="text-sm font-semibold text-text mb-3">{t('guarantees')}</h3>
               <ul className="space-y-2.5 text-sm text-sub">
-                {[
-                  { icon: 'fa-shield-halved', label: t('securePayment')    },
-                  { icon: 'fa-comments',      label: t('messaging')        },
-                  { icon: 'fa-circle-check',  label: t('verifiedListings') },
-                ].map((g) => (
+                {(isVente
+                  // Vente directe : pas de paiement ni de messagerie dans l'app.
+                  ? [
+                      { icon: 'fa-handshake',    label: t('guaranteesDirectContact') },
+                      { icon: 'fa-circle-check', label: t('verifiedListings')        },
+                    ]
+                  : [
+                      { icon: 'fa-shield-halved', label: t('securePayment')    },
+                      { icon: 'fa-comments',      label: t('messaging')        },
+                      { icon: 'fa-circle-check',  label: t('verifiedListings') },
+                    ]
+                ).map((g) => (
                   <li key={g.icon} className="flex items-center gap-2">
                     <i className={`fa-solid ${g.icon} text-gold-dark`} />
                     {g.label}
