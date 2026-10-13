@@ -467,6 +467,9 @@
     "clearFilters": "Effacer",
     "regionAll": "Toutes les régions",
     "perPage": "Par page",
+    "filtersButton": "Filtres",
+    "filtersOwner": "Annonceur",
+    "removeFilter": "Retirer ce filtre",
     "typeLabels": {
       "APPARTEMENT": "Appartements",
       "STUDIO": "Studios",

@@ -90,8 +90,8 @@ export default async function ListingsPage({
     return `/listings?${params.toString()}`;
   };
 
-  // Bascule Tout / À louer / À vendre — conserve les autres filtres, repart page 1.
-  const transactionUrl = (value?: 'LOCATION' | 'VENTE') => {
+  // Nombre d'annonces par page — conserve les filtres, repart page 1.
+  const perPageUrl = (n: number) => {
     const params = new URLSearchParams();
     if (q)         params.set('q', q);
     if (city)      params.set('city', city);
@@ -100,17 +100,11 @@ export default async function ListingsPage({
     if (maxPrice)  params.set('maxPrice', maxPrice);
     if (region)    params.set('region', region);
     if (ownerType) params.set('ownerType', ownerType);
+    if (transactionType) params.set('transactionType', transactionType);
     if (verified)  params.set('verified', verified);
-    if (value)     params.set('transactionType', value);
-    params.set('limit', String(perPage));
-    const qs = params.toString();
-    return `/listings?${qs}`;
+    params.set('limit', String(n));
+    return `/listings?${params.toString()}`;
   };
-  const transactionTabs: { value?: 'LOCATION' | 'VENTE'; label: string }[] = [
-    { value: undefined, label: t('transactionAll') },
-    { value: 'LOCATION', label: t('transactionLocation') },
-    { value: 'VENTE', label: t('transactionVente') },
-  ];
 
   const pageNums: number[] = [];
   const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
@@ -168,27 +162,8 @@ export default async function ListingsPage({
           </div>
         )}
 
-        {/* Bascule À louer / À vendre (onglet Toutes uniquement) */}
-        {!isFavorisTab && (
-          <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1 dark:bg-transparent">
-            {transactionTabs.map((tab) => {
-              const active = tab.value === transactionType;
-              return (
-                <Link
-                  key={tab.value ?? 'all'}
-                  href={transactionUrl(tab.value)}
-                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                    active ? 'bg-gold-dark text-white' : 'text-sub hover:text-text'
-                  }`}
-                >
-                  {tab.label}
-                </Link>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Filtres (onglet Toutes uniquement) */}
+        {/* Filtres : transaction, région, panneau Filtres, types, filtres actifs
+            (onglet Toutes uniquement) */}
         {!isFavorisTab && (
           <ListingsFilters
             type={type}
@@ -367,6 +342,26 @@ export default async function ListingsPage({
                     <i className="fa-solid fa-chevron-right text-xs" />
                   </span>
                 )}
+              </div>
+            )}
+
+            {/* Par page — déplacé sous la liste (réglage rare, hors de la barre de filtres) */}
+            {!isFavorisTab && total > 6 && (
+              <div className="mt-8 flex items-center justify-center gap-2">
+                <span className="text-xs text-sub">{t('perPage')}</span>
+                <div className="flex items-center gap-1 rounded-full border border-line bg-card p-1">
+                  {[6, 12, 24].map((n) => (
+                    <Link
+                      key={n}
+                      href={perPageUrl(n)}
+                      className={`flex h-7 w-9 items-center justify-center rounded-full text-xs font-semibold transition-all duration-200 ${
+                        perPage === n ? 'bg-gold text-gray-900 shadow-sm' : 'text-sub hover:text-gold-dark'
+                      }`}
+                    >
+                      {n}
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
           </>
