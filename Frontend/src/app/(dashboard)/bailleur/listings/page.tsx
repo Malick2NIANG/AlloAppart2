@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Listing, PaginatedResponse, ListingStatus } from '@/types';
 import Link from 'next/link';
+import Image from 'next/image';
 import { formatPrice, openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
@@ -811,6 +812,19 @@ function ListingCard({
 
   return (
     <div className="rounded-xl border border-line bg-card p-4">
+      <div className="flex items-start gap-3">
+      {/* Photo principale — aide à distinguer les annonces d'un coup d'œil
+          (repli sur une icône tant qu'aucune photo n'a été ajoutée). */}
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-bg">
+        {listing.images?.[0] ? (
+          <Image src={listing.images[0]} alt={listing.title} fill className="object-cover" sizes="80px" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-sub/40">
+            <i className="fa-regular fa-image text-xl" />
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
       {/* Row 1 */}
       <div className="flex items-start justify-between gap-3">
         <p className="font-semibold text-text truncate">{listing.title}</p>
@@ -844,6 +858,8 @@ function ListingCard({
           )}
         </div>
       )}
+      </div>
+      </div>
 
       {/* Actions */}
       <div className="flex items-center gap-3 mt-3 flex-wrap">
