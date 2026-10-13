@@ -8,12 +8,7 @@
  *   npx ts-node -r tsconfig-paths/register prisma/seed.pilot.ts
  */
 
-import {
-  PrismaClient,
-  Role,
-  ListingType,
-  ListingStatus,
-} from '@prisma/client';
+import { PrismaClient, Role, ListingType, ListingStatus } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -118,9 +113,7 @@ const PILOT_LISTINGS = [
     surface: 55,
     lat: 14.7224,
     lng: -17.4866,
-    images: [
-      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800',
-    ],
+    images: ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800'],
     amenities: ['Gardien', 'Parking', 'Eau courante', 'Groupe électrogène'],
     status: ListingStatus.ACTIVE,
     ownerKey: 'pilot_bailleur_2',
@@ -143,7 +136,13 @@ const PILOT_LISTINGS = [
     images: [
       'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800',
     ],
-    amenities: ['Piscine', 'Jardin', 'Parking', 'Gardien', 'Groupe électrogène'],
+    amenities: [
+      'Piscine',
+      'Jardin',
+      'Parking',
+      'Gardien',
+      'Groupe électrogène',
+    ],
     status: ListingStatus.ACTIVE,
     ownerKey: 'pilot_bailleur_2',
   },

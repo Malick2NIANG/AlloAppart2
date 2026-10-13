@@ -25,7 +25,8 @@ const prisma = new PrismaClient({ adapter });
 
 const DELETE = process.argv.includes('--delete');
 const keepArgIndex = process.argv.indexOf('--keep');
-const KEEP = keepArgIndex !== -1 ? parseInt(process.argv[keepArgIndex + 1], 10) : 2;
+const KEEP =
+  keepArgIndex !== -1 ? parseInt(process.argv[keepArgIndex + 1], 10) : 2;
 
 async function removeListingCascade(id: string): Promise<void> {
   await prisma.$transaction(async (tx) => {
@@ -73,18 +74,26 @@ async function main() {
   const toKeep = listings.slice(0, KEEP);
   const toDelete = listings.slice(KEEP);
 
-  console.log(`\n✅ ${toKeep.length} annonce(s) conservée(s) (les plus récentes) :`);
+  console.log(
+    `\n✅ ${toKeep.length} annonce(s) conservée(s) (les plus récentes) :`,
+  );
   for (const l of toKeep) {
-    console.log(`   - [${l.id}] "${l.title}" — ${l.city} — ${l.status} — ${l.createdAt.toISOString()} (${l.owner.email})`);
+    console.log(
+      `   - [${l.id}] "${l.title}" — ${l.city} — ${l.status} — ${l.createdAt.toISOString()} (${l.owner.email})`,
+    );
   }
 
   console.log(`\n🗑️  ${toDelete.length} annonce(s) à supprimer :`);
   for (const l of toDelete) {
-    console.log(`   - [${l.id}] "${l.title}" — ${l.city} — ${l.status} — ${l.createdAt.toISOString()} (${l.owner.email})`);
+    console.log(
+      `   - [${l.id}] "${l.title}" — ${l.city} — ${l.status} — ${l.createdAt.toISOString()} (${l.owner.email})`,
+    );
   }
 
   if (!DELETE) {
-    console.log(`\n🔎 Dry-run — rien n'a été supprimé. Relance avec --delete pour supprimer les ${toDelete.length} annonce(s) listées ci-dessus.`);
+    console.log(
+      `\n🔎 Dry-run — rien n'a été supprimé. Relance avec --delete pour supprimer les ${toDelete.length} annonce(s) listées ci-dessus.`,
+    );
     return;
   }
 
@@ -93,9 +102,14 @@ async function main() {
     await removeListingCascade(l.id);
     console.log(`   ✅ supprimée : [${l.id}] "${l.title}"`);
   }
-  console.log(`\n🎉 Terminé. ${toKeep.length} annonce(s) restante(s). N'oublie pas de réindexer la recherche (bouton "Réindexer" dans /espace/config).`);
+  console.log(
+    `\n🎉 Terminé. ${toKeep.length} annonce(s) restante(s). N'oublie pas de réindexer la recherche (bouton "Réindexer" dans /espace/config).`,
+  );
 }
 
 main()
-  .catch((e) => { console.error('❌ Erreur:', e); process.exit(1); })
+  .catch((e) => {
+    console.error('❌ Erreur:', e);
+    process.exit(1);
+  })
   .finally(() => prisma.$disconnect());

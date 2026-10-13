@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs'],
+    // dist/ = code compilé (gitignoré), jamais à linter.
+    ignores: ['eslint.config.mjs', 'dist/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
