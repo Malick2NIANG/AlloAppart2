@@ -28,7 +28,7 @@ Checklist technique avant déploiement et retest en conditions réelles. Les dé
 ## Infrastructure (voir `DEPLOY.md` pour le détail pas-à-pas)
 
 - [ ] Réserver le nom de domaine `alloappart.sn` (bureau accrédité NIC Sénégal).
-- [ ] Créer le VPS Hetzner (CPX21 pour démarrer) et pointer le DNS.
+- [ ] Créer le VPS Hetzner (CPX41, décidé le 2026-09-26) et pointer le DNS.
 - [ ] Remplir `.env.prod` à partir de `.env.prod.example` et lancer `docker compose -f docker-compose.prod.yml up -d --build`.
 - [ ] Appliquer les migrations Prisma en prod (`npx prisma migrate deploy`).
 - [ ] Vérifier l'obtention du certificat HTTPS (Caddy / Let's Encrypt).
@@ -41,7 +41,7 @@ Checklist technique avant déploiement et retest en conditions réelles. Les dé
 
 ## Performance
 
-- [ ] Lancer le test de charge k6 (`scripts/load-test.js`) contre la prod, montée progressive (20 VUs puis 100 VUs). Si CPU/RAM sature, upgrade vers CPX31.
+- [ ] Lancer le test de charge k6 (`scripts/load-test.js`) contre la prod, montée progressive (20 VUs puis 100 VUs). But : valider que le CPX41 tient réellement le trafic visé. Si CPU/RAM sature quand même, upgrade vers le tier au-dessus (simple, sans migration de données).
 
 ## Après bascule
 

@@ -23,6 +23,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Publicité motion design (projet Remotion isolé, cf. motion/README.md).
+    "motion/**",
   ]),
 ]);
 

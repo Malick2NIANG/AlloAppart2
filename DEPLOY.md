@@ -39,13 +39,13 @@ Le `.sn` est un ccTLD géré par NIC Sénégal — l'achat ne se fait pas via un
 
 1. Crée un compte sur **https://www.hetzner.com/cloud/** si ce n'est pas déjà fait.
 2. Crée un nouveau projet, puis un serveur :
-   - **Type** : CPX21 (3 vCPU partagés, 4 Go RAM, 80 Go NVMe, ~9,49 €/mois, 20 To de trafic inclus)
+   - **Type** : CPX41 (8 vCPU partagés, 16 Go RAM, 240 Go NVMe, ~27,25 €/mois, 20 To de trafic inclus) — choisi le 2026-09-26 pour de la marge réelle sous charge, pas juste pour démarrer.
    - **Image** : Ubuntu 24.04
    - **Localisation** : Falkenstein ou Nuremberg (Allemagne) — la plus proche pour la latence Europe/Afrique de l'Ouest
    - **Clé SSH** : ajoute ta clé publique SSH (recommandé) plutôt qu'un mot de passe
 3. Note l'**adresse IP publique** du serveur une fois créé — elle sera nécessaire à l'étape 3.
 
-> Note capacité : le CPX21 (4 Go RAM) est suffisant pour démarrer (7 conteneurs légers), mais si tu vois de la RAM saturée après le test de charge (étape 7), passe au **CPX31** (8 Go RAM, ~15 €/mois) — c'est un simple redimensionnement dans l'interface Hetzner, sans réinstallation.
+> Note capacité : le CPX41 (16 Go RAM) est largement suffisant pour les 7 conteneurs de la stack. Si le test de charge (étape 8) montre malgré tout une saturation CPU/RAM, un passage au tier au-dessus est un simple redimensionnement dans l'interface Hetzner, sans réinstallation ni migration de données.
 
 ---
 
@@ -185,7 +185,7 @@ Pendant le test, surveille la consommation du VPS dans un autre terminal SSH :
 docker stats
 ```
 
-Si la RAM ou le CPU sature avant d'atteindre un trafic réaliste pour ton lancement, c'est le signal pour passer au CPX31 (voir étape 2).
+Si la RAM ou le CPU sature avant d'atteindre un trafic réaliste pour ton lancement, c'est le signal pour passer au tier au-dessus (voir étape 2) — le CPX41 est dimensionné pour l'éviter, mais ce test doit le confirmer en conditions réelles, pas juste sur la fiche technique.
 
 ---
 
