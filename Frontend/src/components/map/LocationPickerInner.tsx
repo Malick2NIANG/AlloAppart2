@@ -1,9 +1,10 @@
 'use client';
 
 import 'leaflet/dist/leaflet.css';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { MapFocus } from './LocationPicker';
 
 const goldPin = L.divIcon({
   html: `<svg width="28" height="40" viewBox="0 0 28 40" xmlns="http://www.w3.org/2000/svg">
@@ -20,14 +21,30 @@ function ClickLayer({ onPick }: { onPick: (lat: number, lng: number) => void }) 
   return null;
 }
 
+/** Recentre la carte quand le formulaire le demande (nouveau `nonce`). */
+function FocusLayer({ focus, onFocused }: { focus?: MapFocus; onFocused: (lat: number, lng: number) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!focus) return;
+    onFocused(focus.lat, focus.lng);
+    map.flyTo([focus.lat, focus.lng], focus.zoom, { duration: 0.8 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.nonce]);
+  return null;
+}
+
 export default function LocationPickerInner({
   defaultLat,
   defaultLng,
   onChange,
+  focus,
+  highlight,
 }: {
   defaultLat: number;
   defaultLng: number;
   onChange: (lat: number, lng: number) => void;
+  focus?: MapFocus;
+  highlight?: unknown;
 }) {
   const [pos, setPos] = useState<[number, number]>([defaultLat, defaultLng]);
 
@@ -47,10 +64,20 @@ export default function LocationPickerInner({
       </div>
       <MapContainer center={pos} zoom={13} scrollWheelZoom className="w-full h-full">
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · Limites : <a href="https://www.geoboundaries.org">geoBoundaries</a> (CC BY 3.0 IGO)'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        {Boolean(highlight) && (
+          <GeoJSON
+            // La clé force le redessin quand la région change.
+            key={JSON.stringify((highlight as { properties?: unknown }).properties ?? 'r')}
+            data={highlight as GeoJSON.GeoJsonObject}
+            style={{ color: '#b58900', weight: 2, dashArray: '6 4', fillOpacity: 0.05 }}
+            interactive={false}
+          />
+        )}
         <ClickLayer onPick={handlePick} />
+        <FocusLayer focus={focus} onFocused={(lat, lng) => setPos([lat, lng])} />
         <Marker position={pos} icon={goldPin} />
       </MapContainer>
     </div>

@@ -4,7 +4,7 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "assets": ["pdf/assets/**/*"],
+    "assets": ["pdf/assets/**/*", "listings/data/*.json"],
     "watchAssets": true
   }
 }

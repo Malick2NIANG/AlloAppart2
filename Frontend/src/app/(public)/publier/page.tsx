@@ -10,8 +10,9 @@ import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
-import LocationPicker from '@/components/map/LocationPicker';
+import LocationPicker, { type MapFocus } from '@/components/map/LocationPicker';
 import { getListingProfile, sanitizeForType, TERRAIN_AMENITY_ICONS } from '@/lib/listingProfile';
+import { REGION_CENTERS, checkRegionConsistency, findRegionAt, getRegionFeature } from '@/lib/senegalRegions';
 
 /* ── Constants (no translations needed) ───────────────────────────────── */
 
@@ -92,6 +93,18 @@ function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
     minLeaseMonths:  z.number().int().min(1).optional(),
     images:      z.array(z.string()).min(1, t('zPhotoRequired')),
   }).superRefine((data, ctx) => {
+    // Région choisie et point sur la carte doivent concorder (contours embarqués,
+    // marge près des frontières — cf. lib/senegalRegions.ts). Erreur affichée sur le champ région.
+    const regionCheck = checkRegionConsistency(data.region, data.lat, data.lng);
+    if (!regionCheck.ok) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['region'],
+        message: regionCheck.reason === 'mismatch'
+          ? t('zRegionMismatch', { detected: regionCheck.detected, region: data.region })
+          : t('zRegionOutside', { region: data.region }),
+      });
+    }
     // Un terrain se décrit avant tout par sa superficie : obligatoire.
     if (getListingProfile(data.type).surfaceRequired && !(data.surface && data.surface > 0)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['surface'], message: t('zSurfaceRequired') });
@@ -171,6 +184,8 @@ export default function PublierPage() {
   // comme "pas éligible" (même schéma défensif qu'ailleurs dans l'app).
   const [canUseVenteMode, setCanUseVenteMode] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
+  // Recentrage de la carte quand l'utilisateur choisit une région (étape Localisation).
+  const [mapFocus, setMapFocus] = useState<MapFocus | undefined>(undefined);
   const [submitMode,    setSubmitMode]    = useState<'draft' | 'publish'>('publish');
 
   const prevSignedIn = useRef<boolean | undefined>(undefined);
@@ -670,7 +685,20 @@ export default function PublierPage() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field label={t('fieldRegion')} error={errors.region?.message} required>
-                    <select {...register('region')} className="input-field">
+                    <select
+                      {...register('region', {
+                        // Choisir une région recentre la carte et y place le repère ;
+                        // l'utilisateur affine ensuite en cliquant sur la carte.
+                        onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
+                          const c = REGION_CENTERS[e.target.value];
+                          if (!c) return;
+                          setValue('lat', c.lat);
+                          setValue('lng', c.lng);
+                          setMapFocus({ lat: c.lat, lng: c.lng, zoom: c.zoom, nonce: Date.now() });
+                        },
+                      })}
+                      className="input-field"
+                    >
                       <option value="">{t('fieldRegionDefault')}</option>
                       {SENEGAL_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
                     </select>
@@ -690,7 +718,17 @@ export default function PublierPage() {
                     <LocationPicker
                       defaultLat={values.lat ?? 14.6937}
                       defaultLng={values.lng ?? -17.4441}
-                      onChange={(lat, lng) => { setValue('lat', lat); setValue('lng', lng); }}
+                      focus={mapFocus}
+                      highlight={getRegionFeature(values.region)}
+                      onChange={(lat, lng) => {
+                        setValue('lat', lat);
+                        setValue('lng', lng);
+                        // La carte fait foi : la région se met à jour toute seule (sans effet
+                        // hors Sénégal ou sans contours — l'erreur du champ le signalera).
+                        const detected = findRegionAt(lat, lng);
+                        if (detected) setValue('region', detected);
+                        void trigger('region');
+                      }}
                     />
                   </div>
                   <p className="mt-1.5 text-xs text-sub">

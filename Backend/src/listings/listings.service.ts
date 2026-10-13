@@ -26,6 +26,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import axios from 'axios';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 import { PlatformConfigService } from '../platform-config/platform-config.service';
+import { checkRegionConsistency } from './region-geo';
 
 const BOOST_DAYS = 7;
 const BOOST_SCORE_GAIN = 10;
@@ -453,6 +454,27 @@ export class ListingsService {
     }
   }
 
+  /**
+   * La région déclarée doit correspondre à la position (lat/lng) — mêmes contours
+   * et même marge de tolérance que le formulaire (cf. region-geo.ts). Sans
+   * contours chargés, ne bloque rien.
+   */
+  private assertRegionMatchesPosition(
+    region: string | undefined | null,
+    lat: number | undefined | null,
+    lng: number | undefined | null,
+  ) {
+    const check = checkRegionConsistency(region, lat, lng);
+    if (check.ok) return;
+    throw new BadRequestException({
+      code: 'REGION_MISMATCH',
+      message:
+        check.reason === 'mismatch'
+          ? `La position est dans la région de ${check.detected}, pas de ${region}.`
+          : `La position n'est pas dans la région de ${region}.`,
+    });
+  }
+
   async create(ownerId: string, dto: CreateListingDto) {
     const transactionType = dto.transactionType ?? TransactionType.LOCATION;
     await this.assertValidTransactionTypeUsage(
@@ -460,6 +482,7 @@ export class ListingsService {
       transactionType,
       dto.type,
     );
+    this.assertRegionMatchesPosition(dto.region, dto.lat, dto.lng);
 
     const wantsToPublish = dto.status === ListingStatus.ACTIVE;
     if (wantsToPublish) await this.assertCanPublish(ownerId);
@@ -498,6 +521,17 @@ export class ListingsService {
       transactionType,
       dto.type ?? listing.type,
     );
+    if (
+      dto.region !== undefined ||
+      dto.lat !== undefined ||
+      dto.lng !== undefined
+    ) {
+      this.assertRegionMatchesPosition(
+        dto.region ?? listing.region,
+        dto.lat ?? Number(listing.lat),
+        dto.lng ?? Number(listing.lng),
+      );
+    }
 
     // Defense-in-depth : un appelant interne pourrait passer status=ACTIVE via
     // un cast (le DTO l'exclut, mais on vérifie quand même au runtime).
