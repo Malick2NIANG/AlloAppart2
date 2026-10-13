@@ -13,10 +13,13 @@ import ReportButton from './ReportButton';
 import MapView from '@/components/map/MapView';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import { type Listing, priceToNumber, ownerFullName, getListingPriceAmounts } from '@/types/listing';
+import { getListingProfile, TERRAIN_AMENITY_ICONS } from '@/lib/listingProfile';
 
 const AMENITY_ICONS: Record<string, string> = {
   wifi: 'fa-wifi', clim: 'fa-snowflake', tv: 'fa-tv',
   cuisine: 'fa-utensils', douche: 'fa-shower', gardien: 'fa-shield-halved',
+  parking: 'fa-car', piscine: 'fa-water', balcon: 'fa-door-open', generateur: 'fa-bolt',
+  ...TERRAIN_AMENITY_ICONS,
 };
 
 const AMENITY_LABELS: Record<string, Record<string, string>> = {
@@ -26,6 +29,16 @@ const AMENITY_LABELS: Record<string, Record<string, string>> = {
   cuisine: { fr: 'Cuisine équipée', en: 'Equipped kitchen' },
   douche:  { fr: 'Douche/Bain',     en: 'Shower/Bath'      },
   gardien: { fr: 'Gardiennage 24h', en: '24h security'     },
+  parking:    { fr: 'Parking',            en: 'Parking'          },
+  piscine:    { fr: 'Piscine',            en: 'Swimming pool'    },
+  balcon:     { fr: 'Balcon / Terrasse',  en: 'Balcony / Terrace' },
+  generateur: { fr: 'Générateur',         en: 'Generator'        },
+  viabilise:     { fr: 'Terrain viabilisé', en: 'Serviced plot'  },
+  eau:           { fr: 'Eau courante',      en: 'Running water'  },
+  electricite:   { fr: 'Électricité',       en: 'Electricity'    },
+  titre_foncier: { fr: 'Titre foncier',     en: 'Land title'     },
+  cloture:       { fr: 'Clôturé',           en: 'Fenced'         },
+  acces_route:   { fr: 'Accès route',       en: 'Road access'    },
 };
 
 
@@ -93,6 +106,8 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   // location — on n'utilise pas getListingPriceAmounts (toute sa logique est
   // location-only : nuitée/mensuel/mixte, sans objet pour un prix de vente).
   const isVente = listing.transactionType === 'VENTE';
+  // Caractéristiques pertinentes selon le type de bien (un terrain n'a ni pièces, ni lits…).
+  const profile = getListingProfile(listing.type);
 
   // Tarif(s) affiché(s) selon le mode de location — nuitée si NIGHTLY, mensuel
   // si MONTHLY, les deux si MIXED (cf. getListingPriceAmounts, types/index.ts).
@@ -178,13 +193,13 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             {/* Characteristics */}
             <div className="mt-5 grid sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               {[
-                { icon: 'fa-bed',            value: listing.beds,                           label: t('beds')    },
-                { icon: 'fa-bath',           value: listing.baths,                          label: t('baths')   },
-                { icon: 'fa-ruler-combined', value: `${listing.surface} m²`,                label: t('surface') },
-                { icon: 'fa-door-open',      value: listing.rooms,                          label: t('rooms')   },
-                { icon: 'fa-city',           value: listing.city,                           label: t('region')  },
-                { icon: 'fa-house',          value: listing.type.charAt(0) + listing.type.slice(1).toLowerCase(), label: t('type') },
-              ].map((item, i) => (
+                { icon: 'fa-bed',            value: listing.beds,                           label: t('beds'),    show: profile.beds  },
+                { icon: 'fa-bath',           value: listing.baths,                          label: t('baths'),   show: profile.baths },
+                { icon: 'fa-ruler-combined', value: `${listing.surface} m²`,                label: t('surface'), show: listing.surface != null },
+                { icon: 'fa-door-open',      value: listing.rooms,                          label: t('rooms'),   show: profile.rooms },
+                { icon: 'fa-city',           value: listing.city,                           label: t('region'),  show: true },
+                { icon: 'fa-house',          value: listing.type.charAt(0) + listing.type.slice(1).toLowerCase().replace(/_/g, ' '), label: t('type'), show: true },
+              ].filter((item) => item.show && item.value != null).map((item, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <span className="h-8 w-8 rounded-full bg-gold-pale text-gold-dark inline-grid place-items-center shrink-0">
                     <i className={`fa-solid ${item.icon} text-xs`} />

@@ -284,9 +284,9 @@ export default async function ListingsPage({
                           </div>
                         )}
                         <div className="mt-3 flex items-center gap-3 text-sm text-sub">
-                          <span className="flex items-center gap-1"><i className="fa-solid fa-bed text-gold-dark text-xs" />{listing.beds}</span>
-                          <span className="flex items-center gap-1"><i className="fa-solid fa-bath text-gold-dark text-xs" />{listing.baths}</span>
-                          <span className="flex items-center gap-1"><i className="fa-solid fa-ruler-combined text-gold-dark text-xs" />{listing.surface} m²</span>
+                          {listing.beds != null && <span className="flex items-center gap-1"><i className="fa-solid fa-bed text-gold-dark text-xs" />{listing.beds}</span>}
+                          {listing.baths != null && <span className="flex items-center gap-1"><i className="fa-solid fa-bath text-gold-dark text-xs" />{listing.baths}</span>}
+                          {listing.surface != null && <span className="flex items-center gap-1"><i className="fa-solid fa-ruler-combined text-gold-dark text-xs" />{listing.surface} m²</span>}
                         </div>
                         <div className="mt-3 flex items-center gap-1 text-xs text-gold-dark/80 group-hover:text-gold-dark transition-colors duration-300">
                           {t('viewMore')}

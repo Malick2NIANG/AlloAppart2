@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import type { Listing } from '@/types';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import LocationPicker from '@/components/map/LocationPicker';
+import { getListingProfile, sanitizeForType } from '@/lib/listingProfile';
 
 // Types valides en mode LOCATION vs VENTE — cf. publier/page.tsx (même règle,
 // miroir du backend listings.service.ts#assertValidTransactionTypeUsage).
@@ -49,6 +50,13 @@ const AMENITY_KEYS = [
   { key: 'piscine',    icon: 'fa-water',         tKey: 'amenityPool'     },
   { key: 'balcon',     icon: 'fa-door-open',     tKey: 'amenityBalcony'  },
   { key: 'generateur', icon: 'fa-bolt',          tKey: 'amenityGenerator'},
+  // Équipements propres aux terrains (cf. lib/listingProfile.ts)
+  { key: 'viabilise',     icon: 'fa-road',           tKey: 'amenityViabilise'    },
+  { key: 'eau',           icon: 'fa-faucet-drip',    tKey: 'amenityEau'          },
+  { key: 'electricite',   icon: 'fa-plug',           tKey: 'amenityElectricite'  },
+  { key: 'titre_foncier', icon: 'fa-file-signature', tKey: 'amenityTitreFoncier' },
+  { key: 'cloture',       icon: 'fa-border-all',     tKey: 'amenityCloture'      },
+  { key: 'acces_route',   icon: 'fa-route',          tKey: 'amenityAccesRoute'   },
 ] as const;
 
 const asNumberOrUndefined = (v: unknown) => (v === '' || v === null || v === undefined ? undefined : Number(v));
@@ -96,6 +104,10 @@ export default function EditListingPage() {
     amenities:     z.array(z.string()).default([]),
     images:        z.array(z.string()).min(1, t('zImageRequired')),
   }).superRefine((data, ctx) => {
+    // Un terrain se décrit avant tout par sa superficie : obligatoire.
+    if (getListingProfile(data.type).surfaceRequired && !(data.surface && data.surface > 0)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['surface'], message: t('zSurfaceRequired') });
+    }
     if (data.transactionType === 'VENTE') {
       if (!(data.price && data.price > 0)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price'], message: t('zSalePricePositive') });
@@ -200,6 +212,8 @@ export default function EditListingPage() {
   const images      = watch('images') ?? [];
   const description = watch('description') ?? '';
   const type        = watch('type');
+  // Champs/équipements affichés selon le type de bien (cf. lib/listingProfile.ts).
+  const profile     = getListingProfile(type);
   const transactionType = watch('transactionType');
   const rentalMode  = watch('rentalMode');
   const priceWatch  = watch('price');
@@ -304,7 +318,8 @@ export default function EditListingPage() {
     const token = await getToken();
     if (!token) return;
     try {
-      await api.patch(`/listings/${id}`, values, token);
+      // Retire pièces/chambres/sdb/équipements sans objet pour ce type de bien.
+      await api.patch(`/listings/${id}`, sanitizeForType(values), token);
       router.push('/bailleur/listings');
       router.refresh();
     } catch (err) {
@@ -613,27 +628,36 @@ export default function EditListingPage() {
 
         {step === 2 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Field label={t('fieldSurface')} error={errors.surface?.message}>
-              <input type="number" {...register('surface', { setValueAs: asNumberOrUndefined })} placeholder="85" className="input-field" />
+            <Field label={type === 'TERRAIN' ? t('fieldSurfaceLand') : t('fieldSurface')} error={errors.surface?.message}>
+              <input type="number" {...register('surface', { setValueAs: asNumberOrUndefined })} placeholder={type === 'TERRAIN' ? '300' : '85'} className="input-field" />
             </Field>
-            <Field label={t('fieldRooms')} error={errors.rooms?.message}>
-              <input type="number" {...register('rooms', { setValueAs: asNumberOrUndefined })} placeholder="3" className="input-field" />
-            </Field>
-            <Field label={t('fieldBeds')} error={errors.beds?.message}>
-              <input type="number" {...register('beds', { setValueAs: asNumberOrUndefined })} placeholder="2" className="input-field" />
-            </Field>
-            <Field label={t('fieldBaths')} error={errors.baths?.message}>
-              <input type="number" {...register('baths', { setValueAs: asNumberOrUndefined })} placeholder="1" className="input-field" />
-            </Field>
+            {profile.rooms && (
+              <Field label={t('fieldRooms')} error={errors.rooms?.message}>
+                <input type="number" {...register('rooms', { setValueAs: asNumberOrUndefined })} placeholder="3" className="input-field" />
+              </Field>
+            )}
+            {profile.beds && (
+              <Field label={t('fieldBeds')} error={errors.beds?.message}>
+                <input type="number" {...register('beds', { setValueAs: asNumberOrUndefined })} placeholder="2" className="input-field" />
+              </Field>
+            )}
+            {profile.baths && (
+              <Field label={t('fieldBaths')} error={errors.baths?.message}>
+                <input type="number" {...register('baths', { setValueAs: asNumberOrUndefined })} placeholder="1" className="input-field" />
+              </Field>
+            )}
           </div>
         )}
 
         {step === 3 && (
           <>
             <div>
-              <FieldLabel label={t('fieldAmenities')} />
+              <FieldLabel label={type === 'TERRAIN' ? t('fieldLandFeatures') : t('fieldAmenities')} />
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {AMENITIES.map(({ key, icon, label }) => {
+                {profile.amenities
+                  .map((k) => AMENITIES.find((am) => am.key === k))
+                  .filter((am): am is NonNullable<typeof am> => !!am)
+                  .map(({ key, icon, label }) => {
                   const active = amenities.includes(key);
                   return (
                     <button
@@ -824,19 +848,21 @@ function RecapCard({
   amenitiesList: { key: string; icon: string; label: string }[];
 }) {
   const t = useTranslations('bailleur');
-  const amenityLabels = (values.amenities || []).map(
-    (a) => amenitiesList.find((am) => am.key === a)?.label ?? a,
-  );
+  // Seuls les champs/équipements pertinents pour ce type de bien sont récapitulés.
+  const profile = getListingProfile(values.type);
+  const amenityLabels = (values.amenities || [])
+    .filter((a) => profile.amenities.includes(a))
+    .map((a) => amenitiesList.find((am) => am.key === a)?.label ?? a);
   const meta = typeMeta[values.type];
 
   const recapItems = [
-    { icon: 'fa-ruler-combined', label: t('fieldSurface'), value: values.surface ? `${values.surface} m²` : '—' },
-    { icon: 'fa-door-open',      label: t('fieldRooms'),   value: values.rooms?.toString() || '—'            },
-    { icon: 'fa-bed',            label: t('fieldBeds'),    value: values.beds?.toString() || '—'             },
-    { icon: 'fa-shower',         label: t('fieldBaths'),   value: values.baths?.toString() || '—'            },
-    { icon: 'fa-location-dot',   label: t('fieldCity'),    value: values.city || '—'                         },
-    { icon: 'fa-map',            label: t('fieldRegion'),  value: values.region || '—'                       },
-  ];
+    { icon: 'fa-ruler-combined', label: t('fieldSurface'), value: values.surface ? `${values.surface} m²` : '—', show: true },
+    { icon: 'fa-door-open',      label: t('fieldRooms'),   value: values.rooms?.toString() || '—',            show: profile.rooms },
+    { icon: 'fa-bed',            label: t('fieldBeds'),    value: values.beds?.toString() || '—',             show: profile.beds },
+    { icon: 'fa-shower',         label: t('fieldBaths'),   value: values.baths?.toString() || '—',            show: profile.baths },
+    { icon: 'fa-location-dot',   label: t('fieldCity'),    value: values.city || '—',                         show: true },
+    { icon: 'fa-map',            label: t('fieldRegion'),  value: values.region || '—',                       show: true },
+  ].filter((item) => item.show);
 
   return (
     <div className="space-y-5">

@@ -11,6 +11,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import LocationPicker from '@/components/map/LocationPicker';
+import { getListingProfile, sanitizeForType, TERRAIN_AMENITY_ICONS } from '@/lib/listingProfile';
 
 /* ── Constants (no translations needed) ───────────────────────────────── */
 
@@ -53,6 +54,7 @@ const AMENITY_ICONS: Record<string, string> = {
   piscine:    'fa-water',
   balcon:     'fa-door-open',
   generateur: 'fa-bolt',
+  ...TERRAIN_AMENITY_ICONS,
 };
 
 const TOTAL_STEPS = 5; // indices 0-4, recap at 5
@@ -90,6 +92,10 @@ function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
     minLeaseMonths:  z.number().int().min(1).optional(),
     images:      z.array(z.string()).min(1, t('zPhotoRequired')),
   }).superRefine((data, ctx) => {
+    // Un terrain se décrit avant tout par sa superficie : obligatoire.
+    if (getListingProfile(data.type).surfaceRequired && !(data.surface && data.surface > 0)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['surface'], message: t('zSurfaceRequired') });
+    }
     // ── Mode VENTE : un seul champ requis, le prix de vente (réutilise `price`) ──
     if (data.transactionType === 'VENTE') {
       if (!(data.price && data.price > 0)) {
@@ -203,6 +209,13 @@ export default function PublierPage() {
     { key: 'piscine',    icon: AMENITY_ICONS.piscine,    label: t('amenityPiscine')        },
     { key: 'balcon',     icon: AMENITY_ICONS.balcon,     label: t('amenityBalconTerrasse') },
     { key: 'generateur', icon: AMENITY_ICONS.generateur, label: t('amenityGenerateur')     },
+    // Équipements propres aux terrains (cf. lib/listingProfile.ts)
+    { key: 'viabilise',     icon: AMENITY_ICONS.viabilise,     label: t('amenityViabilise')    },
+    { key: 'eau',           icon: AMENITY_ICONS.eau,           label: t('amenityEau')          },
+    { key: 'electricite',   icon: AMENITY_ICONS.electricite,   label: t('amenityElectricite')  },
+    { key: 'titre_foncier', icon: AMENITY_ICONS.titre_foncier, label: t('amenityTitreFoncier') },
+    { key: 'cloture',       icon: AMENITY_ICONS.cloture,       label: t('amenityCloture')      },
+    { key: 'acces_route',   icon: AMENITY_ICONS.acces_route,   label: t('amenityAccesRoute')   },
   ], [t]);
 
   const STEP_LABELS = useMemo(() => [
@@ -295,6 +308,8 @@ export default function PublierPage() {
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const values    = watch();
+  // Champs/équipements des étapes suivantes selon le type choisi à l'étape 1.
+  const profile   = getListingProfile(values.type);
   const isDemo    = !isSignedIn && demoRole !== 'visitor';
   const canAccess = isSignedIn || demoRole !== 'visitor';
   const isBailleur = isDemo || userRoles.some((r) => ['BAILLEUR', 'PRO_AGENCE'].includes(r));
@@ -458,7 +473,8 @@ export default function PublierPage() {
     try {
       const token = await getToken();
       await api.post('/listings', {
-        ...data,
+        // Retire pièces/chambres/sdb/équipements sans objet pour ce type de bien.
+        ...sanitizeForType(data),
         status: submitMode === 'publish' ? 'ACTIVE' : 'DRAFT',
       }, token ?? undefined);
       localStorage.removeItem(DRAFT_KEY);
@@ -606,12 +622,12 @@ export default function PublierPage() {
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   {([
-                    { key: 'surface' as const, label: t('fieldSurface'),  ph: '85' },
-                    { key: 'rooms'   as const, label: t('fieldRooms'),    ph: '3'  },
-                    { key: 'beds'    as const, label: t('fieldBeds'),     ph: '2'  },
-                    { key: 'baths'   as const, label: t('fieldBaths'),    ph: '1'  },
-                  ]).map(({ key, label, ph }) => (
-                    <Field key={key} label={label}>
+                    { key: 'surface' as const, label: values.type === 'TERRAIN' ? t('fieldSurfaceLand') : t('fieldSurface'), ph: values.type === 'TERRAIN' ? '300' : '85', show: true,          required: profile.surfaceRequired },
+                    { key: 'rooms'   as const, label: t('fieldRooms'), ph: '3', show: profile.rooms, required: false },
+                    { key: 'beds'    as const, label: t('fieldBeds'),  ph: '2', show: profile.beds,  required: false },
+                    { key: 'baths'   as const, label: t('fieldBaths'), ph: '1', show: profile.baths, required: false },
+                  ]).filter((f) => f.show).map(({ key, label, ph, required }) => (
+                    <Field key={key} label={label} required={required} error={key === 'surface' ? errors.surface?.message : undefined}>
                       <input type="number" min={0} {...register(key, {
                         setValueAs: (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
                       })} placeholder={ph} className="input-field" />
@@ -620,9 +636,12 @@ export default function PublierPage() {
                 </div>
 
                 <div>
-                  <FieldLabel label={t('fieldAmenities')} />
+                  <FieldLabel label={values.type === 'TERRAIN' ? t('fieldLandFeatures') : t('fieldAmenities')} />
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {AMENITIES.map(({ key, icon, label }) => {
+                    {profile.amenities
+                      .map((k) => AMENITIES.find((am) => am.key === k))
+                      .filter((am): am is NonNullable<typeof am> => !!am)
+                      .map(({ key, icon, label }) => {
                       const active = (values.amenities || []).includes(key);
                       return (
                         <button key={key} type="button"
@@ -1044,19 +1063,21 @@ function RecapCard({
   numLocale: string;
 }) {
   const t = useTranslations('publish');
-  const amenityLabels = (values.amenities || []).map(
-    (a) => AMENITIES.find((am) => am.key === a)?.label ?? a
-  );
+  // Seuls les champs/équipements pertinents pour ce type de bien sont récapitulés.
+  const profile = getListingProfile(values.type);
+  const amenityLabels = (values.amenities || [])
+    .filter((a) => profile.amenities.includes(a))
+    .map((a) => AMENITIES.find((am) => am.key === a)?.label ?? a);
   const meta = TYPE_META[values.type];
 
   const recapItems = [
-    { icon: 'fa-ruler-combined', label: t('recapSurface'), value: values.surface ? `${values.surface} m²` : '—' },
-    { icon: 'fa-door-open',      label: t('recapPieces'),  value: values.rooms?.toString() || '—'              },
-    { icon: 'fa-bed',            label: t('recapBeds'),    value: values.beds?.toString() || '—'               },
-    { icon: 'fa-shower',         label: t('recapSdb'),     value: values.baths?.toString() || '—'              },
-    { icon: 'fa-location-dot',   label: t('recapCity'),    value: values.city || '—'                           },
-    { icon: 'fa-map',            label: t('recapRegion'),  value: values.region || '—'                         },
-  ];
+    { icon: 'fa-ruler-combined', label: t('recapSurface'), value: values.surface ? `${values.surface} m²` : '—', show: true },
+    { icon: 'fa-door-open',      label: t('recapPieces'),  value: values.rooms?.toString() || '—',              show: profile.rooms },
+    { icon: 'fa-bed',            label: t('recapBeds'),    value: values.beds?.toString() || '—',               show: profile.beds },
+    { icon: 'fa-shower',         label: t('recapSdb'),     value: values.baths?.toString() || '—',              show: profile.baths },
+    { icon: 'fa-location-dot',   label: t('recapCity'),    value: values.city || '—',                           show: true },
+    { icon: 'fa-map',            label: t('recapRegion'),  value: values.region || '—',                         show: true },
+  ].filter((item) => item.show);
 
   return (
     <div className="space-y-5">
