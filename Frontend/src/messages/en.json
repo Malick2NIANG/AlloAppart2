@@ -20,6 +20,9 @@
     "security": "Security",
     "localityPlaceholder": "Location",
     "mobileSearchPlaceholder": "Neighbourhood, city, keyword…",
+    "home": "Home",
+    "account": "Account",
+    "bottomNavLabel": "Main navigation",
     "selectLanguage": "Select a language"
   },
   "theme": {
@@ -927,6 +930,7 @@
     "navReports": "Reports",
     "navCommunications": "Communications",
     "navConfig": "Configuration",
+    "navMore": "More",
     "roleLocataire": "Tenant",
     "roleBailleur": "Landlord",
     "roleProAgence": "PRO Agency",

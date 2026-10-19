@@ -33,7 +33,10 @@ export default async function Footer() {
   ];
 
   return (
-    <footer className="border-t border-line/60 shadow-inner bg-bg">
+    // Sous 768px : réserve l'espace de la BottomNav (0 si absente, ex. page
+    // immersive) pour qu'elle ne recouvre jamais le pied de page. Sans effet
+    // à partir de 768px.
+    <footer className="border-t border-line/60 shadow-inner bg-bg max-md:pb-(--bottom-nav-h,0px)">
       <div
         aria-hidden
         className="h-0.5 w-full"

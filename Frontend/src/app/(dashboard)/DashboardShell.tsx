@@ -17,6 +17,8 @@ import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 import { useLocaleTransition } from '@/components/ui/LocaleTransition';
 import { SkeletonStatCard } from '@/components/ui/Skeleton';
 import type { Locale } from '@/i18n/config';
+import BottomNav from '@/components/ui/BottomNav';
+import { getBottomNavItems } from '@/lib/getBottomNavItems';
 
 /**
  * Skeleton fidèle à la mise en page du dashboard (sidebar + header + zone de
@@ -180,6 +182,8 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
   const isAdmin    = roles.includes('ADMIN');
   const isAgent    = roles.includes('AGENT_TERRAIN');
   const isBailleur = roles.includes('BAILLEUR') || roles.includes('PRO_AGENCE');
+  // BottomNav (sous 768px) — mêmes href/libellés que `navItems` (layout.tsx).
+  const bottomNav = getBottomNavItems(roles, true);
 
   /* ── Badges "action requise" (admin) — seedés côté serveur (layout.tsx),
      rendus vivants ici via Pusher (événements causés par d'autres
@@ -411,6 +415,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
   })();
 
   return (
+    <>
     <div className="dashboard-viewport flex overflow-hidden bg-bg">
 
       {/* Skeleton pleine page (sidebar + header + zone de travail) pendant
@@ -745,10 +750,23 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
 
         {isProAgence && <SubscriptionAlert />}
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        {/* Sous 768px : réserve l'espace de la BottomNav en plus du padding
+            existant (0 si elle est absente, ex. page immersive) ; inchangé
+            à partir de 768px. */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-md:pb-[calc(1rem+var(--bottom-nav-h,0px))]">
           {children}
         </main>
       </div>
     </div>
+    {/* En dehors de .dashboard-viewport (position:fixed, relative au
+        viewport) — « Plus » réouvre le drawer existant, pas de nouvelle
+        feuille (cf. lot 0c). */}
+    <BottomNav
+      items={bottomNav.items}
+      showMore={bottomNav.showMore}
+      onMoreClick={() => setOpen(true)}
+      unreadMessagesCount={unreadCount}
+    />
+    </>
   );
 }
