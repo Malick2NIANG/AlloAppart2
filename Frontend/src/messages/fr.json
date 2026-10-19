@@ -831,6 +831,11 @@
     "retry": "Réessayer",
     "home": "Accueil"
   },
+  "offline": {
+    "title": "Vous êtes hors connexion",
+    "description": "Impossible de charger cette page sans connexion internet. Vérifiez votre connexion puis réessayez.",
+    "retry": "Réessayer"
+  },
   "redirectPage": {
     "failedTitle": "Impossible de charger votre espace",
     "failedMessage": "Vous êtes bien connecté·e, mais nous n’arrivons pas à joindre nos serveurs pour vous rediriger. Vérifiez votre connexion et réessayez.",

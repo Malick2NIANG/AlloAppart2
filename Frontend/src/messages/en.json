@@ -831,6 +831,11 @@
     "retry": "Try again",
     "home": "Home"
   },
+  "offline": {
+    "title": "You're offline",
+    "description": "This page can't load without an internet connection. Check your connection and try again.",
+    "retry": "Try again"
+  },
   "redirectPage": {
     "failedTitle": "Couldn't load your space",
     "failedMessage": "You're properly signed in, but we can't reach our servers to redirect you. Check your connection and try again.",
