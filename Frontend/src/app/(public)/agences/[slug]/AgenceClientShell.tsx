@@ -245,7 +245,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
             <input
               value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="pl-9 pr-4 py-2 rounded-xl border border-line bg-card text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 w-64"
+              className="pl-9 pr-4 py-2 rounded-xl border border-line bg-card text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 w-64 max-md:text-base"
             />
           </div>
         </div>
@@ -253,7 +253,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
         {/* Filtres — type de bien, mode de location, taille de page */}
         <div className="flex items-center gap-3 mb-6 flex-wrap">
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
-            className="rounded-xl border border-line bg-card text-sm text-text px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gold/40">
+            className="rounded-xl border border-line bg-card text-sm text-text px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gold/40 max-md:text-base">
             <option value="">{t('filterAllTypes')}</option>
             {distinctTypes.map((type) => (
               <option key={type} value={type}>{typeLabels[type] ?? type}</option>
@@ -261,14 +261,14 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
           </select>
 
           <select value={rentalFilter} onChange={(e) => setRentalFilter(e.target.value as RentalFilter)}
-            className="rounded-xl border border-line bg-card text-sm text-text px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gold/40">
+            className="rounded-xl border border-line bg-card text-sm text-text px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gold/40 max-md:text-base">
             <option value="ALL">{t('filterAllModes')}</option>
             <option value="NIGHTLY">{t('filterNightly')}</option>
             <option value="MONTHLY">{t('filterMonthly')}</option>
           </select>
 
           <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}
-            className="ml-auto rounded-xl border border-line bg-card text-sm text-text px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gold/40">
+            className="ml-auto rounded-xl border border-line bg-card text-sm text-text px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gold/40 max-md:text-base">
             {PAGE_SIZE_OPTIONS.map((n) => (
               <option key={n} value={n}>{n} {t('perPageLabel')}</option>
             ))}

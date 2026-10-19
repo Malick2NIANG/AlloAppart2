@@ -193,6 +193,11 @@ h1, h2, h3, h4, h5 {
   border-color: var(--color-gold);
   box-shadow: 0 0 0 3px rgba(250,204,21,0.15);
 }
+/* Sous 768px seulement : 16px évite le zoom automatique de Safari iOS au
+   focus d'un champ. Inchangé à partir de 768px (règle du chantier mobile). */
+@media (max-width: 767px) {
+  .input-field { font-size: 1rem; }
+}
 
 /* ── Animation utilities ───────────────────────────────────────────── */
 .animate-fadeUp     { animation: fadeUp      1s   ease      both; }

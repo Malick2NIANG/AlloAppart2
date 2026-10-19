@@ -261,7 +261,7 @@ function IconInput({ type, value, onChange, icon, placeholder }: {
       <i className={`${icon} absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub`} />
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder} required
-        className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition" />
+        className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition max-md:text-base" />
     </div>
   );
 }
@@ -275,7 +275,7 @@ function PwdInput({ value, onChange, show, onToggle, error = false }: {
       <i className="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
       <input type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)}
         placeholder="••••••••" required
-        className={`w-full rounded-xl border py-2 pl-10 pr-11 text-sm text-text placeholder:text-sub outline-none transition bg-bg ${
+        className={`w-full rounded-xl border py-2 pl-10 pr-11 text-sm text-text placeholder:text-sub outline-none transition bg-bg max-md:text-base ${
           error ? 'border-red-400 focus:border-red-400 focus:ring-1 focus:ring-red-400/40' : 'border-line focus:border-gold focus:ring-1 focus:ring-gold/40'
         }`} />
       <button type="button" onClick={onToggle}

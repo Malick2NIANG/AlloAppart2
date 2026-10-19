@@ -449,14 +449,14 @@ export default function NavbarClient({ locale, labels }: Props) {
             <input type="text" name="q" value={searchVal}
               onChange={(e) => setSearchVal(e.target.value)}
               placeholder={labels.mobileSearchPlaceholder}
-              className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none" />
+              className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none max-md:text-base" />
             <div className="grid grid-cols-2 gap-2">
               <input type="number" name="minPrice" min="0" value={minPrice}
                 onChange={(e) => setMinPrice(e.target.value)} placeholder="Min FCFA"
-                className="rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none" />
+                className="rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none max-md:text-base" />
               <input type="number" name="maxPrice" min="0" value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)} placeholder="Max FCFA"
-                className="rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none" />
+                className="rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none max-md:text-base" />
             </div>
             <button type="submit" className="w-full btn-gold rounded-xl px-4 py-2.5 font-medium justify-center">
               {labels.search}

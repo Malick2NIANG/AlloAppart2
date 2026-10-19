@@ -93,7 +93,18 @@ export default function PhoneInput({
       // Réserve ~46px pour la barre de recherche + une marge de 12px en bas
       // de viewport, pour que la liste ne déborde jamais de l'écran.
       const maxListHeight = Math.max(120, Math.min(256, window.innerHeight - top - 46 - 12));
-      setMenuPos({ top, left: r.left, width: Math.max(r.width, 288), maxListHeight });
+      const width = Math.max(r.width, 288);
+      let left = r.left;
+      // Sous 768px seulement : clampe `left` pour que le menu reste
+      // entièrement visible à l'écran. Le plafond de largeur
+      // (`max-w-[90vw]` dans le JSX) limite déjà l'ampleur d'un
+      // débordement, mais pas la position elle-même. Inchangé à partir de
+      // 768px (comportement identique à aujourd'hui).
+      if (window.innerWidth < 768) {
+        const renderedWidth = Math.min(width, 288);
+        left = Math.max(8, Math.min(left, window.innerWidth - renderedWidth - 8));
+      }
+      setMenuPos({ top, left, width, maxListHeight });
     };
     updatePos();
     window.addEventListener('scroll', updatePos, true);
@@ -189,7 +200,7 @@ export default function PhoneInput({
           placeholder={placeholder ?? t('numberPlaceholder')}
           disabled={disabled}
           autoFocus={autoFocus}
-          className="w-full min-w-0 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full min-w-0 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 disabled:opacity-50 disabled:cursor-not-allowed max-md:text-base"
         />
       </div>
 
@@ -207,7 +218,7 @@ export default function PhoneInput({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="w-full rounded-lg border border-line bg-bg px-3 py-1.5 text-xs text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40"
+              className="w-full rounded-lg border border-line bg-bg px-3 py-1.5 text-xs text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 max-md:text-base"
             />
           </div>
           <div className="overflow-y-auto py-1" style={{ maxHeight: menuPos.maxListHeight }}>

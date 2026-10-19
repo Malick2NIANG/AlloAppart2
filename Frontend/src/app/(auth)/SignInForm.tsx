@@ -272,7 +272,7 @@ export default function SignInForm() {
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                   placeholder="123456"
                   required
-                  className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 tracking-widest transition"
+                  className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 tracking-widest transition max-md:text-base"
                 />
               </div>
             </Field>
@@ -350,7 +350,7 @@ export default function SignInForm() {
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                   placeholder="000000"
                   required
-                  className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 tracking-widest transition"
+                  className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 tracking-widest transition max-md:text-base"
                 />
               </div>
             </Field>
@@ -405,7 +405,7 @@ function IconInput({ type, value, onChange, icon, placeholder }: {
       <i className={`${icon} absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub`} />
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder} required
-        className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition" />
+        className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition max-md:text-base" />
     </div>
   );
 }
@@ -419,7 +419,7 @@ function PwdInput({ value, onChange, show, onToggle }: {
       <i className="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
       <input type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)}
         placeholder="••••••••" required
-        className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-11 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition" />
+        className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-11 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition max-md:text-base" />
       <button type="button" onClick={onToggle}
         className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
         aria-label={show ? ta('hidePassword') : ta('showPassword')}>

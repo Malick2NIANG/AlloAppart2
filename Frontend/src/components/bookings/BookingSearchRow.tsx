@@ -26,7 +26,7 @@ export function BookingSearchRow({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={searchPlaceholder}
-          className="w-full rounded-xl border border-line bg-card pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition"
+          className="w-full rounded-xl border border-line bg-card pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition max-md:text-base"
         />
         {search && (
           <button
