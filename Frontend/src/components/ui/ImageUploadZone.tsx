@@ -323,33 +323,38 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
                 </span>
               )}
 
-              {/* Bouton "Définir comme principale" — visible au hover sur les autres photos */}
+              {/* Bouton "Définir comme principale" — visible au hover sur PC ;
+                  toujours visible sous @media (hover: none) (tactile), car
+                  il n'existe pas d'état :hover persistant au doigt — sans
+                  quoi l'action est invisible sur mobile. N'affecte pas la
+                  souris (hover: none) est faux sur un PC à souris, quelle
+                  que soit sa largeur. Zone ≥44px sous 768px uniquement. */}
               {idx > 0 && item.status === 'done' && (
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setPrimary(item.id); }}
-                  className="absolute left-1.5 top-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-semibold text-white opacity-0 transition group-hover:opacity-100 hover:bg-gold hover:text-gray-900"
+                  className="absolute left-1.5 top-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-semibold text-white opacity-0 transition group-hover:opacity-100 hover:bg-gold hover:text-gray-900 [@media(hover:none)]:opacity-100 max-md:flex max-md:min-h-11 max-md:items-center max-md:px-3"
                 >
                   <i className="fa-solid fa-star text-[8px] mr-1" />{t('primary')}
                 </button>
               )}
 
-              {/* Bouton "Ajuster" — recadrer a posteriori une photo déjà envoyée */}
+              {/* Bouton "Ajuster" — même traitement que « principale » ci-dessus. */}
               {enableCrop && item.status === 'done' && !isVideoUrl(item.url) && (
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); openAdjust(item); }}
-                  className="absolute bottom-1.5 left-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-semibold text-white opacity-0 transition group-hover:opacity-100 hover:bg-gold hover:text-gray-900"
+                  className="absolute bottom-1.5 left-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-semibold text-white opacity-0 transition group-hover:opacity-100 hover:bg-gold hover:text-gray-900 [@media(hover:none)]:opacity-100 max-md:flex max-md:min-h-11 max-md:items-center max-md:px-3"
                 >
                   <i className="fa-solid fa-crop-simple text-[8px] mr-1" />{t('adjustLabel')}
                 </button>
               )}
 
-              {/* Bouton supprimer */}
+              {/* Bouton supprimer — même traitement. */}
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); remove(item.id); }}
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition group-hover:opacity-100 hover:bg-red-500"
+                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition group-hover:opacity-100 hover:bg-red-500 [@media(hover:none)]:opacity-100 max-md:h-11 max-md:w-11"
               >
                 <i className="fa-solid fa-xmark text-[9px]" />
               </button>
