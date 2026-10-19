@@ -32,10 +32,19 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://alloappart.sn';
 // nécessaire pour que env(safe-area-inset-*) se résolve sur les appareils à
 // encoche (sinon toujours 0), utilisé par --safe-bottom ci-dessous. Sans
 // effet sur desktop ni sur un appareil sans encoche.
+// themeColor : couleur de la barre de statut/chrome une fois l'app
+// installée (lot 0d, PWA) — clair = BRAND.gold, sombre = BRAND.navy
+// (identiques à globals.css --aa-bg du thème sombre). N'affecte que les
+// navigateurs/OS qui lisent cette méta ; aucun effet sur l'affichage de la
+// page elle-même.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#facc15' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
+  ],
 };
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -51,6 +60,14 @@ export async function generateMetadata(): Promise<Metadata> {
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
+    apple: '/icons/apple-touch-icon.png',
+  },
+  // PWA (lot 0d) — mode standalone sur iOS (Safari ne lit pas le manifeste
+  // pour ça) : sans effet sur l'affichage normal du site dans un navigateur.
+  appleWebApp: {
+    capable: true,
+    title: 'AlloAppart',
+    statusBarStyle: 'default',
   },
   openGraph: {
     siteName: 'AlloAppart',
