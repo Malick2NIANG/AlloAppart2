@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import BottomSheet from './BottomSheet';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -27,6 +27,7 @@ export function ConfirmModal({
 }: ConfirmModalProps) {
   const t       = useTranslations('modal');
   const [loading, setLoading] = useState(false);
+  const titleId = useId();
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -42,58 +43,38 @@ export function ConfirmModal({
   const resolvedCancelLabel  = cancelLabel  ?? t('cancel');
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.92, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.92, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="w-full max-w-md rounded-2xl border border-line bg-card p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {variant === 'danger' && (
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40">
-                <i className="fa-solid fa-triangle-exclamation text-lg text-red-600 dark:text-red-400" />
-              </div>
-            )}
-            <h2 className="mb-1 text-base font-semibold text-text">{title}</h2>
-            {description && <p className="text-sm text-sub">{description}</p>}
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={loading}
-                className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-sub transition-colors hover:text-text disabled:opacity-50"
-              >
-                {resolvedCancelLabel}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleConfirm()}
-                disabled={loading}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
-                  variant === 'danger'
-                    ? 'bg-red-600 text-white hover:bg-red-700'
-                    : 'bg-gold-dark text-white hover:bg-gold'
-                }`}
-              >
-                {loading ? (
-                  <><i className="fa-solid fa-spinner fa-spin mr-1.5" />{resolvedConfirmLabel}</>
-                ) : resolvedConfirmLabel}
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
+    <BottomSheet open={open} onClose={onClose} titleId={titleId}>
+      {variant === 'danger' && (
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40">
+          <i className="fa-solid fa-triangle-exclamation text-lg text-red-600 dark:text-red-400" />
+        </div>
       )}
-    </AnimatePresence>
+      <h2 id={titleId} className="mb-1 text-base font-semibold text-text">{title}</h2>
+      {description && <p className="text-sm text-sub">{description}</p>}
+      <div className="mt-5 flex justify-end gap-3">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={loading}
+          className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-sub transition-colors hover:text-text disabled:opacity-50"
+        >
+          {resolvedCancelLabel}
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleConfirm()}
+          disabled={loading}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+            variant === 'danger'
+              ? 'bg-red-600 text-white hover:bg-red-700'
+              : 'bg-gold-dark text-white hover:bg-gold'
+          }`}
+        >
+          {loading ? (
+            <><i className="fa-solid fa-spinner fa-spin mr-1.5" />{resolvedConfirmLabel}</>
+          ) : resolvedConfirmLabel}
+        </button>
+      </div>
+    </BottomSheet>
   );
 }
