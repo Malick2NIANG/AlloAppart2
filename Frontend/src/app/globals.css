@@ -236,6 +236,8 @@ h1, h2, h3, h4, h5 {
      60   bannière cookies (CookieConsentBanner) — inchangé
      70   barre de contact/actions (ListingContactCard, page immersive —
           barre du bas absente sur ces pages, pas de conflit)
+     100  feuilles/modales (BottomSheet, lot 0c) — doit couvrir la barre du
+          bas et la bannière cookies, toujours au premier plan quand ouverte
      200  toasts (ToastProvider) — inchangé
      9999 DemoDevBar (dev uniquement) — inchangé
 
