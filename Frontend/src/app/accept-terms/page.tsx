@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -41,16 +42,27 @@ export default function AcceptTermsPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg">
+    // max-md:min-h-dvh (lot 1) : tient compte du clavier virtuel sous 768px.
+    // Sans effet à partir de 768px (min-h-screen inchangé).
+    <div className="flex min-h-screen max-md:min-h-dvh flex-col bg-bg">
       <div
         aria-hidden
         className="h-0.5 w-full shrink-0"
         style={{ background: 'linear-gradient(90deg, #facc15, #b58900, transparent)' }}
       />
 
-      <div className="flex flex-1 items-center justify-center px-6 py-10">
+      {/* Logo — mobile uniquement (lot 1). Sans effet à partir de 768px. */}
+      <div className="md:hidden flex justify-center pt-5 shrink-0">
+        <Image src="/images/LOGO.png" alt="AlloAppart" width={220} height={63} className="h-9 w-auto" priority />
+      </div>
+
+      {/* Marges 16px + padding bas incluant --safe-bottom sous 768px (lot 1) ;
+          px-6/py-10 inchangés à partir de 768px. */}
+      <div className="flex flex-1 items-center justify-center px-4 py-10 md:px-6 max-md:pb-[calc(2.5rem+var(--safe-bottom,0px))]">
         <div className="w-full max-w-sm">
-          <div className="rounded-2xl border border-line bg-card p-6 shadow-lg">
+          {/* Carte flottante retirée sous 768px (mode app) ; inchangée à
+              partir de 768px. */}
+          <div className="rounded-2xl border border-line bg-card p-6 shadow-lg max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none">
             <div className="text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
                 <i className="fa-solid fa-file-signature text-xl text-gold-dark" />

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 import AuthCarousel from './AuthCarousel';
@@ -16,7 +17,11 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
   if (userId) redirect('/redirect');
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    // max-md:h-dvh (lot 1) : 100dvh tient compte du clavier virtuel sur
+    // mobile (100vh classique ne rétrécit pas quand le clavier s'ouvre,
+    // ce qui peut pousser le bouton principal hors champ). Sans effet à
+    // partir de 768px (h-screen inchangé).
+    <div className="flex h-screen max-md:h-dvh overflow-hidden">
 
       {/* ── Panneau gauche ── */}
       <div className="relative flex w-full flex-col lg:w-1/2">
@@ -28,8 +33,15 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           style={{ background: 'linear-gradient(90deg, #facc15, #b58900, transparent)' }}
         />
 
+        {/* Logo — mobile uniquement (lot 1) : le panneau carrousel qui porte
+            déjà le logo est masqué sous lg:, il faut un repère de marque en
+            haut de l'écran pour le mode app. Sans effet à partir de 768px. */}
+        <div className="md:hidden flex justify-center pt-5 shrink-0">
+          <Image src="/images/LOGO.png" alt="AlloAppart" width={220} height={63} className="h-9 w-auto" priority />
+        </div>
+
         {/* Retour accueil */}
-        <div className="shrink-0 px-6 pt-4 sm:px-10">
+        <div className="shrink-0 px-4 pt-4 md:px-10">
           <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors">
             <i className="fa-solid fa-arrow-left text-xs" />
             {t('backToSite')}
@@ -46,14 +58,16 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
             Grid + place-items-center n'a pas ce défaut : le contenu reste
             centré quand il tient dans la hauteur dispo, et devient
             entièrement accessible au scroll (haut compris) sinon. */}
-        <div className="flex-1 grid place-items-center overflow-y-auto px-6 py-6 sm:px-10">
+        <div className="flex-1 grid place-items-center overflow-y-auto px-4 py-6 md:px-10">
           <div className="w-full max-w-sm">
             {children}
           </div>
         </div>
 
-        {/* Footer */}
-        <p className="shrink-0 pb-3 text-center text-xs text-sub">
+        {/* Footer — marge basse incluant --safe-bottom sous 768px (lot 1),
+            pour ne pas coller le texte au bord d'un écran à encoche. Sans
+            effet à partir de 768px. */}
+        <p className="shrink-0 pb-3 text-center text-xs text-sub max-md:pb-[calc(0.75rem+var(--safe-bottom,0px))]">
           © {new Date().getFullYear()} AlloAppart ·{' '}
           <Link href="/confidentialite" className="hover:text-gold-dark transition-colors">{t('privacy')}</Link>
           {' · '}

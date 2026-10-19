@@ -180,7 +180,7 @@ export default function SignInForm() {
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <label className="text-sm font-medium text-text">{t('password')}</label>
-                <button type="button" onClick={() => setView('forgot1')} className="text-xs text-gold-dark hover:underline">
+                <button type="button" onClick={() => setView('forgot1')} className="tap-target text-xs text-gold-dark hover:underline">
                   {ts('forgotPassword')}
                 </button>
               </div>
@@ -282,7 +282,7 @@ export default function SignInForm() {
           <p className="text-center text-xs text-sub">
             {ts('noCodeReceived')}{' '}
             <button type="button" onClick={() => { setView('forgot1'); setFlash(null); }}
-              className="font-medium text-gold-dark hover:underline">
+              className="tap-target font-medium text-gold-dark hover:underline">
               {ts('resend')}
             </button>
           </p>
@@ -421,7 +421,7 @@ function PwdInput({ value, onChange, show, onToggle }: {
         placeholder="••••••••" required
         className="w-full rounded-xl border border-line bg-bg py-2 pl-10 pr-11 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition max-md:text-base" />
       <button type="button" onClick={onToggle}
-        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
+        className="tap-target absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
         aria-label={show ? ta('hidePassword') : ta('showPassword')}>
         <i className={`fa-solid ${show ? 'fa-eye-slash' : 'fa-eye'} text-sm`} />
       </button>
@@ -466,7 +466,7 @@ function GoogleBtn({ onClick, label }: { onClick: () => void; label: string }) {
 
 function BackBtn({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <button onClick={onClick} className="flex w-fit items-center gap-2 text-sm text-sub hover:text-text transition">
+    <button onClick={onClick} className="tap-target flex w-fit items-center gap-2 text-sm text-sub hover:text-text transition">
       <i className="fa-solid fa-arrow-left" /> {label}
     </button>
   );

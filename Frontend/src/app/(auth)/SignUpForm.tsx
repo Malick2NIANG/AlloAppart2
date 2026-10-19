@@ -187,7 +187,7 @@ export default function SignUpForm() {
           transition={{ duration: 0.25 }} className="flex flex-col gap-4">
 
           <button onClick={() => { setView('register'); setFlash(null); }}
-            className="flex w-fit items-center gap-2 text-sm text-sub hover:text-text transition">
+            className="tap-target flex w-fit items-center gap-2 text-sm text-sub hover:text-text transition">
             <i className="fa-solid fa-arrow-left" /> {t('back')}
           </button>
 
@@ -214,7 +214,7 @@ export default function SignUpForm() {
 
           <p className="text-center text-sm text-sub">
             {ts('noCode')}{' '}
-            <button onClick={handleResend} className="font-semibold text-gold-dark hover:underline">
+            <button onClick={handleResend} className="tap-target font-semibold text-gold-dark hover:underline">
               {ts('resend')}
             </button>
           </p>
@@ -279,7 +279,7 @@ function PwdInput({ value, onChange, show, onToggle, error = false }: {
           error ? 'border-red-400 focus:border-red-400 focus:ring-1 focus:ring-red-400/40' : 'border-line focus:border-gold focus:ring-1 focus:ring-gold/40'
         }`} />
       <button type="button" onClick={onToggle}
-        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
+        className="tap-target absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
         aria-label={show ? ta('hidePassword') : ta('showPassword')}>
         <i className={`fa-solid ${show ? 'fa-eye-slash' : 'fa-eye'} text-sm`} />
       </button>
