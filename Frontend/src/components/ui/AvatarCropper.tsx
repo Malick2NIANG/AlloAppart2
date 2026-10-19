@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { pointerToCanvas } from '@/lib/pointerToCanvas';
 
 interface Props {
   src: string;           // object URL de l'image sélectionnée
@@ -75,12 +76,28 @@ export default function AvatarCropper({ src, onConfirm, onCancel }: Props) {
   const onMouseDown = (e: React.MouseEvent) => {
     drag.current = { startX: e.clientX, startY: e.clientY, ox: offset.x, oy: offset.y };
   };
+  /**
+   * Convertit un déplacement en pixels CSS (espace client) en déplacement
+   * dans le repère interne du canvas — nécessaire car le canvas peut
+   * s'afficher plus petit que sa taille intrinsèque sous 768px (voir le
+   * JSX plus bas) ; identité quand le canvas est affiché à sa taille
+   * intrinsèque, donc sans effet à partir de 768px.
+   */
+  const clientDeltaToCanvas = (startX: number, startY: number, clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { dx: clientX - startX, dy: clientY - startY };
+    const rect = canvas.getBoundingClientRect();
+    const dx = pointerToCanvas(clientX, rect.left, rect.width, canvas.width)
+      - pointerToCanvas(startX, rect.left, rect.width, canvas.width);
+    const dy = pointerToCanvas(clientY, rect.top, rect.height, canvas.height)
+      - pointerToCanvas(startY, rect.top, rect.height, canvas.height);
+    return { dx, dy };
+  };
+
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!drag.current) return;
-    setOffset({
-      x: drag.current.ox + (e.clientX - drag.current.startX),
-      y: drag.current.oy + (e.clientY - drag.current.startY),
-    });
+    const { dx, dy } = clientDeltaToCanvas(drag.current.startX, drag.current.startY, e.clientX, e.clientY);
+    setOffset({ x: drag.current.ox + dx, y: drag.current.oy + dy });
   }, []);
   const onMouseUp = useCallback(() => { drag.current = null; }, []);
 
@@ -96,10 +113,8 @@ export default function AvatarCropper({ src, onConfirm, onCancel }: Props) {
     if (!drag.current) return;
     const touch = e.touches[0];
     lastTouch.current = { x: touch.clientX, y: touch.clientY };
-    setOffset({
-      x: drag.current.ox + (touch.clientX - drag.current.startX),
-      y: drag.current.oy + (touch.clientY - drag.current.startY),
-    });
+    const { dx, dy } = clientDeltaToCanvas(drag.current.startX, drag.current.startY, touch.clientX, touch.clientY);
+    setOffset({ x: drag.current.ox + dx, y: drag.current.oy + dy });
   }, []);
 
   useEffect(() => {
@@ -152,13 +167,15 @@ export default function AvatarCropper({ src, onConfirm, onCancel }: Props) {
         <h2 className="text-sm font-bold text-text">{t('title')}</h2>
         <p className="text-xs text-sub -mt-3">{t('hint')}</p>
 
-        {/* Canvas */}
+        {/* Canvas — sous 768px l'affichage se réduit (max-md:*) mais la
+            résolution interne (width/height) et donc le rendu exporté ne
+            changent pas ; voir pointerToCanvas pour la conversion des
+            coordonnées de pointeur que ce rétrécissement impose. */}
         <canvas
           ref={canvasRef}
           width={SIZE}
           height={SIZE}
-          className="rounded-full cursor-grab active:cursor-grabbing select-none"
-          style={{ width: SIZE, height: SIZE }}
+          className="rounded-full cursor-grab active:cursor-grabbing select-none max-md:h-auto max-md:w-full max-md:max-w-80"
           onMouseDown={onMouseDown}
           onTouchStart={onTouchStart}
         />

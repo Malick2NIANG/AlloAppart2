@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { pointerToCanvas } from '@/lib/pointerToCanvas';
 
 interface Props {
   src: string;           // URL ou object URL de l'image à ajuster
@@ -90,12 +91,28 @@ export default function PhotoCropper({ src, onConfirm, onCancel, onError, square
   const onMouseDown = (e: React.MouseEvent) => {
     drag.current = { startX: e.clientX, startY: e.clientY, ox: offset.x, oy: offset.y };
   };
+  /**
+   * Convertit un déplacement en pixels CSS (espace client) en déplacement
+   * dans le repère interne du canvas — nécessaire car le canvas peut
+   * s'afficher plus petit que sa taille intrinsèque sous 768px (voir le
+   * JSX plus bas) ; identité quand le canvas est affiché à sa taille
+   * intrinsèque, donc sans effet à partir de 768px.
+   */
+  const clientDeltaToCanvas = (startX: number, startY: number, clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { dx: clientX - startX, dy: clientY - startY };
+    const rect = canvas.getBoundingClientRect();
+    const dx = pointerToCanvas(clientX, rect.left, rect.width, canvas.width)
+      - pointerToCanvas(startX, rect.left, rect.width, canvas.width);
+    const dy = pointerToCanvas(clientY, rect.top, rect.height, canvas.height)
+      - pointerToCanvas(startY, rect.top, rect.height, canvas.height);
+    return { dx, dy };
+  };
+
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!drag.current) return;
-    setOffset({
-      x: drag.current.ox + (e.clientX - drag.current.startX),
-      y: drag.current.oy + (e.clientY - drag.current.startY),
-    });
+    const { dx, dy } = clientDeltaToCanvas(drag.current.startX, drag.current.startY, e.clientX, e.clientY);
+    setOffset({ x: drag.current.ox + dx, y: drag.current.oy + dy });
   }, []);
   const onMouseUp = useCallback(() => { drag.current = null; }, []);
 
@@ -108,10 +125,8 @@ export default function PhotoCropper({ src, onConfirm, onCancel, onError, square
     e.preventDefault();
     if (!drag.current) return;
     const touch = e.touches[0];
-    setOffset({
-      x: drag.current.ox + (touch.clientX - drag.current.startX),
-      y: drag.current.oy + (touch.clientY - drag.current.startY),
-    });
+    const { dx, dy } = clientDeltaToCanvas(drag.current.startX, drag.current.startY, touch.clientX, touch.clientY);
+    setOffset({ x: drag.current.ox + dx, y: drag.current.oy + dy });
   }, []);
 
   useEffect(() => {
@@ -163,16 +178,22 @@ export default function PhotoCropper({ src, onConfirm, onCancel, onError, square
         <p className="text-xs text-sub -mt-3">{t('hint')}</p>
 
         {!ready ? (
-          <div className="flex items-center justify-center" style={{ width: sizeW, height: sizeH }}>
+          <div
+            className={`flex items-center justify-center ${square ? 'w-80 h-80' : 'w-120 h-90'} max-md:w-full max-md:h-auto ${square ? 'max-md:max-w-80' : 'max-md:max-w-120'}`}
+            style={{ aspectRatio: `${sizeW} / ${sizeH}` }}
+          >
             <i className="fa-solid fa-spinner fa-spin text-gold-dark text-xl" />
           </div>
         ) : (
+          // Sous 768px, l'affichage se réduit (max-md:*) mais la résolution
+          // interne du canvas (width/height) — donc le rendu exporté — ne
+          // change pas ; voir pointerToCanvas pour la conversion des
+          // coordonnées de pointeur que ce rétrécissement impose.
           <canvas
             ref={canvasRef}
             width={sizeW}
             height={sizeH}
-            className="rounded-xl cursor-grab active:cursor-grabbing select-none"
-            style={{ width: sizeW, height: sizeH }}
+            className={`rounded-xl cursor-grab active:cursor-grabbing select-none max-md:h-auto max-md:w-full ${square ? 'max-md:max-w-80' : 'max-md:max-w-120'}`}
             onMouseDown={onMouseDown}
             onTouchStart={onTouchStart}
           />
