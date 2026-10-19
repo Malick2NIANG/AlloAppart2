@@ -38,7 +38,7 @@ export default async function CookiesPage() {
         {/* Bouton retour */}
         <Link
           href="/"
-          className="mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+          className="tap-target mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
         >
           <i className="fa-solid fa-arrow-left text-[10px]" />
           {t('back')}
@@ -63,7 +63,7 @@ export default async function CookiesPage() {
           <i className="fa-solid fa-circle-question text-xs" />
           {t('whatTitle')}
         </h2>
-        <p className="text-sm leading-relaxed text-sub">{t('whatBody')}</p>
+        <p className="text-sm leading-relaxed text-sub max-md:text-base">{t('whatBody')}</p>
 
         {/* Types de cookies */}
         {COOKIE_ORDER.map(({ key, icon, badgeColor }) => {
@@ -81,7 +81,7 @@ export default async function CookiesPage() {
                   {c.badge}
                 </span>
               </div>
-              <p className="text-sm leading-relaxed text-sub whitespace-pre-line">{c.body}</p>
+              <p className="text-sm leading-relaxed text-sub whitespace-pre-line max-md:text-base">{c.body}</p>
             </div>
           );
         })}
@@ -91,7 +91,11 @@ export default async function CookiesPage() {
           <i className="fa-solid fa-clock text-xs" />
           {t('retentionTitle')}
         </h2>
-        <div className="overflow-x-auto rounded-2xl border border-line">
+        {/* Tableau — inchangé à partir de 768px. Sous 768px (lot 1, décision
+            2 de l'audit mobile) : remplacé par des cartes empilées, même
+            contenu, pour éviter le défilement horizontal d'un tableau à deux
+            colonnes sur petit écran. */}
+        <div className="max-md:hidden overflow-x-auto rounded-2xl border border-line">
           <table className="w-full text-sm text-sub">
             <thead>
               <tr className="border-b border-line bg-card">
@@ -109,20 +113,30 @@ export default async function CookiesPage() {
             </tbody>
           </table>
         </div>
+        <div className="hidden max-md:flex max-md:flex-col max-md:gap-2.5">
+          {RETENTION_ROWS.map((r) => (
+            <div key={r.key} className="rounded-2xl border border-line bg-card p-4">
+              <p className="text-xs font-semibold text-text">{t('thType')}</p>
+              <p className="mt-0.5 text-base text-sub">{r.label}</p>
+              <p className="mt-3 text-xs font-semibold text-text">{t('thDuration')}</p>
+              <p className="mt-0.5 text-base text-sub">{r.duration}</p>
+            </div>
+          ))}
+        </div>
 
         {/* Gérer vos cookies */}
         <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-dark flex items-center gap-2">
           <i className="fa-solid fa-sliders text-xs" />
           {t('manageTitle')}
         </h2>
-        <p className="text-sm leading-relaxed text-sub whitespace-pre-line">{t('manageBody')}</p>
+        <p className="text-sm leading-relaxed text-sub whitespace-pre-line max-md:text-base">{t('manageBody')}</p>
 
         {/* Contact */}
         <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-dark flex items-center gap-2">
           <i className="fa-solid fa-envelope text-xs" />
           {t('contactTitle')}
         </h2>
-        <p className="text-sm leading-relaxed text-sub">
+        <p className="text-sm leading-relaxed text-sub max-md:text-base">
           {t('contactBody')}{' '}
           <a href="mailto:alloappart221@gmail.com" className="text-gold-dark hover:underline">
             alloappart221@gmail.com

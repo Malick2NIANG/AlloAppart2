@@ -66,7 +66,7 @@ export default async function PlanDuSitePage() {
         {/* Bouton retour */}
         <Link
           href="/"
-          className="mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+          className="tap-target mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
         >
           <i className="fa-solid fa-arrow-left text-[10px]" />
           {t('back')}

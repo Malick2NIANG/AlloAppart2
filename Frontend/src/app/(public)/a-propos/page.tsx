@@ -20,7 +20,7 @@ export default async function AboutPage() {
         {/* Bouton retour */}
         <Link
           href="/"
-          className="mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+          className="tap-target mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
         >
           <i className="fa-solid fa-arrow-left text-[10px]" />
           {t('back')}
@@ -44,7 +44,7 @@ export default async function AboutPage() {
           <i className="fa-solid fa-circle-dot text-xs" />
           {t('missionHead')}
         </h2>
-        <p className="text-sm leading-relaxed text-sub">
+        <p className="text-sm leading-relaxed text-sub max-md:text-base">
           {t('missionText')}
         </p>
 
@@ -84,7 +84,7 @@ export default async function AboutPage() {
           <i className="fa-solid fa-circle-dot text-xs" />
           {t('joinHead')}
         </h2>
-        <p className="text-sm leading-relaxed text-sub">
+        <p className="text-sm leading-relaxed text-sub max-md:text-base">
           {t('joinText')}
         </p>
         <div className="mt-5">
