@@ -140,7 +140,7 @@ export default function AvailabilityCalendar({ ranges, loading, selectedStart, s
                   type="button"
                   disabled={disabled}
                   onClick={() => onSelectDate(toLocalISODate(day))}
-                  className={`flex items-center justify-center h-9 rounded-lg text-xs font-medium transition ${
+                  className={`tap-target flex items-center justify-center h-9 rounded-lg text-xs font-medium transition ${
                     booked
                       ? 'bg-red-100 dark:bg-red-950/40 text-red-500 line-through cursor-not-allowed'
                       : past

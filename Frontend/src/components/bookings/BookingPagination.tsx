@@ -21,7 +21,7 @@ export function BookingPagination({
       <button
         onClick={() => onPageChange(page - 1)}
         disabled={page === 1}
-        className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
+        className="tap-target border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
       >
         {previousLabel}
       </button>
@@ -29,7 +29,7 @@ export function BookingPagination({
       <button
         onClick={() => onPageChange(page + 1)}
         disabled={page === pageCount}
-        className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
+        className="tap-target border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
       >
         {nextLabel}
       </button>

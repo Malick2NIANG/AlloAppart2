@@ -31,7 +31,7 @@ export function BookingSearchRow({
         {search && (
           <button
             onClick={() => onSearchChange('')}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
+            className="tap-target absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
           >
             <i className="fa-solid fa-xmark text-sm" />
           </button>
@@ -45,7 +45,7 @@ export function BookingSearchRow({
             <button
               key={n}
               onClick={() => onPerPageChange(n)}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              className={`tap-target rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
                 perPage === n ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'
               }`}
             >

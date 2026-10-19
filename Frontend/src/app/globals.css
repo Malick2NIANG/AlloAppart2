@@ -199,6 +199,28 @@ h1, h2, h3, h4, h5 {
   .input-field { font-size: 1rem; }
 }
 
+/* ── Socle mobile (chantier "mode app" sous 768px) ────────────────────
+   --safe-top/--safe-bottom : marges de sécurité des encoches (env()),
+   définies ici mais pas encore consommées par un élément — réservé au lot
+   0b (empilement des barres fixes : DemoDevBar, CookieConsentBanner,
+   ToastProvider, ListingContactCard, future barre de navigation).
+   .tap-target : zone cliquable ≥44×44px, à appliquer explicitement aux
+   éléments interactifs qui en ont besoin (ne s'applique à rien tant que la
+   classe n'est pas posée). Les deux sont sans effet à partir de 768px. */
+@media (max-width: 767px) {
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .tap-target {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 /* ── Animation utilities ───────────────────────────────────────────── */
 .animate-fadeUp     { animation: fadeUp      1s   ease      both; }
 .animate-fadeIn     { animation: fadeIn      0.4s ease-out  both; }
