@@ -73,7 +73,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div
-        className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2 w-80 max-w-[calc(100vw-2.5rem)]"
+        // Sous 768px : garde la marge actuelle (5 = 1.25rem) mais ajoutée à
+        // --bottom-offset au lieu du bord d'écran ; inchangé à partir de 768px.
+        className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2 w-80 max-w-[calc(100vw-2.5rem)] max-md:bottom-[calc(var(--bottom-offset,0)+1.25rem)]"
         aria-live="polite"
       >
         <AnimatePresence initial={false} mode="sync">

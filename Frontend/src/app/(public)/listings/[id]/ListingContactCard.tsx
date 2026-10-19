@@ -281,7 +281,14 @@ export default function ListingContactCard({
       </div>
 
       {/* ── Mobile CTA ─── masqué si propriétaire ──────────────── */}
-      {!isOwner && <div className="fixed bottom-3 inset-x-0 z-40 px-4 md:hidden">
+      {/* Page immersive (voir isImmersiveRoute) : la BottomNav n'est jamais
+          montée ici, --bottom-nav-h reste à 0 et --bottom-offset se réduit à
+          la seule marge de sécurité (encoche) — cette barre reste seule
+          maîtresse du bas d'écran, cf. décision validée du chantier mobile. */}
+      {!isOwner && (
+        <div
+          className="fixed inset-x-0 z-70 px-4 md:hidden bottom-[calc(var(--bottom-offset,0)+0.75rem)]"
+        >
         <div className="mx-auto max-w-md rounded-2xl shadow-lg border border-line bg-card/90 backdrop-blur-xl p-3 flex items-center justify-between">
           <div>
             <p className="text-base font-extrabold text-text">
@@ -313,7 +320,8 @@ export default function ListingContactCard({
             </button>
           )}
         </div>
-      </div>}
+      </div>
+      )}
     </>
   );
 }

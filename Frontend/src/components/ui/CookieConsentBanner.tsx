@@ -74,7 +74,9 @@ export default function CookieConsentBanner() {
   if (!visible) return null;
 
   return (
-    <div ref={ref} className="fixed inset-x-0 bottom-0 z-[60] px-3 pb-3 sm:px-4 sm:pb-4">
+    // Sous 768px : remonte au-dessus de la BottomNav (et de l'encoche) via
+    // --bottom-offset au lieu du bord d'écran ; inchangé à partir de 768px.
+    <div ref={ref} className="fixed inset-x-0 bottom-0 z-[60] px-3 pb-3 sm:px-4 sm:pb-4 max-md:bottom-(--bottom-offset,0px)">
       <div className="mx-auto flex max-w-3xl flex-col items-start gap-3 rounded-2xl border border-line bg-card p-4 shadow-xl sm:flex-row sm:items-center">
         <i className="fa-solid fa-cookie-bite mt-0.5 shrink-0 text-lg text-gold-dark sm:mt-0" />
         <p className="flex-1 text-xs leading-relaxed text-sub sm:text-sm">

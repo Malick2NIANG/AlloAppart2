@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Poppins } from 'next/font/google';
 import { ClerkProvider } from '@clerk/nextjs';
 import { NextIntlClientProvider } from 'next-intl';
@@ -26,6 +26,17 @@ const poppins = Poppins({
 });
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://alloappart.sn';
+
+// width=device-width/initialScale=1 reprennent le viewport par défaut de
+// Next.js (aucun changement) ; viewportFit='cover' est le seul ajout réel —
+// nécessaire pour que env(safe-area-inset-*) se résolve sur les appareils à
+// encoche (sinon toujours 0), utilisé par --safe-bottom ci-dessous. Sans
+// effet sur desktop ni sur un appareil sans encoche.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta');

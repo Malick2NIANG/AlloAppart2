@@ -221,6 +221,40 @@ h1, h2, h3, h4, h5 {
   }
 }
 
+/* ── Lot 0b : barre de navigation du bas + empilement des éléments fixes ──
+   --bottom-nav-h : hauteur de la BottomNav — 0 par défaut, 56px dès que
+   <body data-bottom-nav="on"> (posé par BottomNav.tsx tant qu'elle est
+   montée, c'est-à-dire hors des routes immersives où elle rend null).
+   --bottom-offset : distance totale à réserver au-dessus du bord bas de
+   l'écran pour tout élément fixe bas (barre + encoche) — à utiliser par
+   DemoDevBar/CookieConsentBanner/ToastProvider/ListingContactCard à la
+   place de leur `bottom-N` fixe actuel.
+
+   Échelle de z-index sous 768px (du plus bas au plus haut, documentée ici
+   car répartie sur plusieurs fichiers) :
+     50   barre de navigation du bas (BottomNav)
+     60   bannière cookies (CookieConsentBanner) — inchangé
+     70   barre de contact/actions (ListingContactCard, page immersive —
+          barre du bas absente sur ces pages, pas de conflit)
+     200  toasts (ToastProvider) — inchangé
+     9999 DemoDevBar (dev uniquement) — inchangé
+
+   Tout ce bloc est sans effet à partir de 768px. */
+@media (max-width: 767px) {
+  :root {
+    --bottom-nav-h: 0px;
+  }
+  body {
+    --bottom-offset: calc(var(--bottom-nav-h) + var(--safe-bottom));
+  }
+  body[data-bottom-nav="on"] {
+    --bottom-nav-h: 56px;
+  }
+  body:not([data-bottom-nav="on"]) {
+    padding-bottom: var(--safe-bottom);
+  }
+}
+
 /* ── Animation utilities ───────────────────────────────────────────── */
 .animate-fadeUp     { animation: fadeUp      1s   ease      both; }
 .animate-fadeIn     { animation: fadeIn      0.4s ease-out  both; }
