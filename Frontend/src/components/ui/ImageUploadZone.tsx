@@ -69,6 +69,12 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
   const [sizeError, setSizeError] = useState(false);
   const [adjustError, setAdjustError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Ajout tactile sous 768px (lot 3a) : deux entrées dédiées plutôt que la
+  // zone de glisser-déposer (peu lisible au doigt) — « Prendre une photo »
+  // force l'appareil photo (`capture`), « Galerie » ouvre le sélecteur
+  // standard. Sans effet ≥768px, où la zone de glisser-déposer reste seule.
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // `onChange` (ex. react-hook-form setValue) est recréé à chaque rendu du
   // parent — capturée dans une ref (mise à jour après le rendu, jamais
@@ -252,7 +258,7 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 transition-all ${
+        className={`max-md:hidden flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 transition-all ${
           dragging ? 'border-gold bg-gold-pale dark:bg-gold-dark/15' : 'border-line hover:border-gold/50 hover:bg-gold-pale/30 dark:hover:bg-gold-dark/10'
         }`}
       >
@@ -277,6 +283,44 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
         />
       </div>
 
+      {/* Ajout tactile — sous 768px uniquement, remplace le glisser-déposer
+          ci-dessus (inaccessible au doigt). */}
+      <div className="hidden max-md:grid max-md:grid-cols-2 max-md:gap-3">
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          className="tap-target flex h-24 flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-line text-sub active:bg-gold-pale/40 dark:active:bg-gold-dark/15"
+        >
+          <i className="fa-solid fa-camera text-xl text-gold-dark" />
+          <span className="text-xs font-semibold text-text">{t('takePhoto')}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => galleryInputRef.current?.click()}
+          className="tap-target flex h-24 flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-line text-sub active:bg-gold-pale/40 dark:active:bg-gold-dark/15"
+        >
+          <i className="fa-solid fa-images text-xl text-gold-dark" />
+          <span className="text-xs font-semibold text-text">{t('chooseFromGallery')}</span>
+        </button>
+        <p className="col-span-2 text-center text-[11px] text-sub">{t('photoLimits')}</p>
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => { if (e.target.files?.length) uploadFiles(e.target.files); e.target.value = ''; }}
+        />
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,video/x-msvideo"
+          multiple
+          className="hidden"
+          onChange={(e) => { if (e.target.files?.length) uploadFiles(e.target.files); e.target.value = ''; }}
+        />
+      </div>
+
       {sizeError && (
         <p className="flex items-center gap-1.5 text-xs text-red-500">
           <i className="fa-solid fa-circle-exclamation" /> {t('fileTooLarge')}
@@ -290,7 +334,7 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
       )}
 
       {items.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 max-md:grid-cols-2">
           {items.map((item, idx) => (
             <div key={item.id} className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-line bg-bg">
               {item.status === 'uploading' ? (

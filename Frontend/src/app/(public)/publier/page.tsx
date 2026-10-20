@@ -12,6 +12,8 @@ import { api } from '@/lib/api';
 import { apiErrorDetail } from '@/lib/apiError';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import LocationPicker, { type MapFocus } from '@/components/map/LocationPicker';
+import MobileStepperBar from '@/components/ui/MobileStepperBar';
+import StickyStepActions from '@/components/ui/StickyStepActions';
 import { getListingProfile, sanitizeForType, TERRAIN_AMENITY_ICONS } from '@/lib/listingProfile';
 import { REGION_CENTERS, checkRegionConsistency, findRegionAt, getRegionFeature } from '@/lib/senegalRegions';
 
@@ -296,6 +298,18 @@ export default function PublierPage() {
     setMounted(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sous 768px, l'en-tête compact (MobileStepperBar) est collé en haut mais
+  // le défilement de la page n'est pas réinitialisé par React au changement
+  // d'étape : sans ce correctif, avancer depuis le bas de l'étape précédente
+  // (bouton de StickyStepActions) laisse la nouvelle étape scrollée hors
+  // champ. Sans effet ≥768px, où ce bug n'a jamais existé (StepIndicator en
+  // haut de page, jamais manipulé en scrollant vers le bas).
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      window.scrollTo(0, 0);
+    }
+  }, [step]);
+
   useEffect(() => {
     if (!isSignedIn) return;
     getToken().then(async (token) => {
@@ -520,20 +534,38 @@ export default function PublierPage() {
     { title: t('step5Header'), sub: t('step5Sub') },
   ];
 
+  const isFirstStep = step === 0;
+  const totalSteps = TOTAL_STEPS + 1; // + récapitulatif
+  const mobileStepTitle = STEP_HEADERS[step].title;
+
   return (
-    <main className="py-10 px-4 bg-bg min-h-screen">
-      <div className="aa-container max-w-2xl">
+    <main className="py-10 px-4 bg-bg min-h-screen max-md:min-h-dvh max-md:flex max-md:flex-col max-md:px-0 max-md:py-0">
+      <div className="aa-container max-w-2xl max-md:flex max-md:flex-1 max-md:flex-col">
 
-        {/* Breadcrumb */}
-        <nav className="mb-6 flex items-center gap-1.5 text-xs text-sub">
-          <Link href="/bailleur" className="hover:text-gold-dark transition-colors">{t('breadcrumbSpace')}</Link>
-          <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
-          <span className="text-gold-dark font-medium">{t('pageTitle')}</span>
-        </nav>
+        {/* Breadcrumb + titre — remplacés sous 768px par MobileStepperBar */}
+        <div className="max-md:hidden">
+          <nav className="mb-6 flex items-center gap-1.5 text-xs text-sub">
+            <Link href="/bailleur" className="hover:text-gold-dark transition-colors">{t('breadcrumbSpace')}</Link>
+            <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
+            <span className="text-gold-dark font-medium">{t('pageTitle')}</span>
+          </nav>
 
-        <h1 className="mb-6 flex items-center gap-2 text-xl font-extrabold text-text">
-          <i className="fa-solid fa-circle-plus text-gold-dark" /> {t('pageTitle')}
-        </h1>
+          <h1 className="mb-6 flex items-center gap-2 text-xl font-extrabold text-text">
+            <i className="fa-solid fa-circle-plus text-gold-dark" /> {t('pageTitle')}
+          </h1>
+        </div>
+
+        <MobileStepperBar
+          current={step}
+          total={totalSteps}
+          title={mobileStepTitle}
+          stepLabel={t('stepLabel', { current: step + 1, total: totalSteps })}
+          isFirstStep={isFirstStep}
+          onBack={() => setStep((s) => s - 1)}
+          onQuit={() => router.push('/espace')}
+          quitLabel={t('cancelBtn')}
+          backLabel={t('backBtn')}
+        />
 
         {/* Bannière brouillon restauré */}
         {draftRestored && (
@@ -553,12 +585,14 @@ export default function PublierPage() {
           </div>
         )}
 
-        {/* Indicateur d'étapes */}
-        <StepIndicator current={step} stepLabels={STEP_LABELS} />
+        {/* Indicateur d'étapes — remplacé sous 768px par MobileStepperBar ci-dessus */}
+        <div className="max-md:hidden">
+          <StepIndicator current={step} stepLabels={STEP_LABELS} />
+        </div>
 
         {/* Formulaire */}
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="mt-8 rounded-2xl border border-line bg-card p-6 space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="max-md:flex max-md:flex-1 max-md:flex-col">
+          <div className="mt-8 rounded-2xl border border-line bg-card p-6 space-y-6 max-md:mt-3 max-md:flex-1 max-md:space-y-5 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0">
 
             {/* ── Étape 0 : Type & Titre ── */}
             {step === 0 && (
@@ -581,7 +615,7 @@ export default function PublierPage() {
                               const validTypes: readonly string[] = tx === 'VENTE' ? VENTE_TYPES : LOCATION_TYPES;
                               if (!validTypes.includes(values.type)) setValue('type', 'APPARTEMENT');
                             }}
-                            className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all ${
+                            className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all max-md:min-h-11 ${
                               active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
                             }`}>
                             <span className="flex items-center gap-2">
@@ -604,7 +638,7 @@ export default function PublierPage() {
                       const meta   = TYPE_META[type];
                       return (
                         <button key={type} type="button" onClick={() => setValue('type', type)}
-                          className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-all ${
+                          className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-all max-md:min-h-11 ${
                             active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
                           }`}>
                           <i className={`fa-solid ${TYPE_ICONS[type]} text-xl ${active ? 'text-gold-dark' : 'text-sub'}`} />
@@ -668,7 +702,7 @@ export default function PublierPage() {
                             const cur = values.amenities || [];
                             setValue('amenities', active ? cur.filter((a) => a !== key) : [...cur, key]);
                           }}
-                          className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all ${
+                          className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all max-md:min-h-11 ${
                             active ? 'border-gold bg-gold-pale text-gold-dark' : 'border-line bg-bg text-sub hover:border-gold/40'
                           }`}>
                           <i className={`fa-solid ${icon} text-sm shrink-0`} />
@@ -718,7 +752,7 @@ export default function PublierPage() {
 
                 <div>
                   <p className="mb-2 text-sm font-medium text-text">{t('fieldMapPos')}</p>
-                  <div className="h-64 overflow-hidden rounded-2xl border border-line">
+                  <div className="h-64 max-md:h-72 overflow-hidden rounded-2xl border border-line">
                     <LocationPicker
                       defaultLat={values.lat ?? 14.6937}
                       defaultLng={values.lng ?? -17.4441}
@@ -783,7 +817,7 @@ export default function PublierPage() {
                       const meta = RENTAL_MODE_META[mode];
                       return (
                         <button key={mode} type="button" onClick={() => setValue('rentalMode', mode)}
-                          className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all ${
+                          className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all max-md:min-h-11 ${
                             active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
                           }`}>
                           <span className="flex items-center gap-2">
@@ -951,8 +985,8 @@ export default function PublierPage() {
             )}
           </div>
 
-          {/* Navigation bas de page */}
-          <div className="mt-6 flex items-center justify-between">
+          {/* Navigation bas de page — inchangée ≥768px */}
+          <div className="mt-6 flex items-center justify-between max-md:hidden">
             {step > 0 ? (
               <button type="button" onClick={() => setStep((s) => s - 1)}
                 className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all">
@@ -997,6 +1031,49 @@ export default function PublierPage() {
               </div>
             )}
           </div>
+
+          {/* Barre d'actions mobile — sous 768px uniquement. Le "Précédent" vit
+              dans MobileStepperBar (bouton retour de l'en-tête) ; cette barre
+              ne porte que l'action principale de l'étape. */}
+          <StickyStepActions
+            error={
+              step === 4 && errors.images ? t('photoRequired')
+              : step === 5 && apiError ? apiError
+              : undefined
+            }
+          >
+            {step < TOTAL_STEPS ? (
+              <button type="button" onClick={advance}
+                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold to-gold-light text-sm font-semibold text-gray-900 shadow-md transition active:scale-[0.98]">
+                {t('nextBtn')} <i className="fa-solid fa-arrow-right text-xs" />
+              </button>
+            ) : (
+              <>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  onClick={() => setSubmitMode('draft')}
+                  className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-xl border border-line text-sm font-semibold text-sub transition active:scale-[0.98] disabled:opacity-50"
+                >
+                  {isSubmitting && submitMode === 'draft'
+                    ? <i className="fa-solid fa-spinner fa-spin" />
+                    : <><i className="fa-solid fa-floppy-disk text-xs" /> {t('draftBtn')}</>
+                  }
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  onClick={() => setSubmitMode('publish')}
+                  className="flex h-12 flex-[1.3] items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-gold to-gold-light text-sm font-semibold text-gray-900 shadow-md transition active:scale-[0.98] disabled:opacity-50"
+                >
+                  {isSubmitting && submitMode === 'publish'
+                    ? <i className="fa-solid fa-spinner fa-spin" />
+                    : <><i className="fa-solid fa-paper-plane text-xs" /> {t('publishBtn')}</>
+                  }
+                </button>
+              </>
+            )}
+          </StickyStepActions>
         </form>
       </div>
 

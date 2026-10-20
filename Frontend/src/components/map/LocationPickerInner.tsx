@@ -4,7 +4,9 @@ import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { MapFocus } from './LocationPicker';
+import TouchGuard from './TouchGuard';
 
 const goldPin = L.divIcon({
   html: `<svg width="28" height="40" viewBox="0 0 28 40" xmlns="http://www.w3.org/2000/svg">
@@ -47,6 +49,23 @@ export default function LocationPickerInner({
   highlight?: unknown;
 }) {
   const [pos, setPos] = useState<[number, number]>([defaultLat, defaultLng]);
+  const t = useTranslations('detail');
+  const [isMobile, setIsMobile] = useState(false);
+  const [mapActive, setMapActive] = useState(false);
+
+  // Même garde tactile que la fiche annonce (MapViewInner/TouchGuard) :
+  // évite que glisser pour placer le repère capture le défilement vertical
+  // de la page. Le clic (`ClickLayer`) reste actif en permanence — un tap
+  // sur l'overlay active juste le pan/zoom, un tap suivant sur la carte
+  // place le repère. Sans effet ≥768px (overlay non monté).
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture ponctuelle du viewport au montage (composant ssr:false, pas de risque d'hydratation)
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const handlePick = (lat: number, lng: number) => {
     const rounded: [number, number] = [Math.round(lat * 1e6) / 1e6, Math.round(lng * 1e6) / 1e6];
@@ -79,7 +98,20 @@ export default function LocationPickerInner({
         <ClickLayer onPick={handlePick} />
         <FocusLayer focus={focus} onFocused={(lat, lng) => setPos([lat, lng])} />
         <Marker position={pos} icon={goldPin} />
+        {isMobile && <TouchGuard active={mapActive} />}
       </MapContainer>
+      {isMobile && !mapActive && (
+        <button
+          type="button"
+          onClick={() => setMapActive(true)}
+          className="absolute inset-0 z-[1000] flex items-center justify-center bg-black/5"
+        >
+          <span className="flex items-center gap-2 rounded-full bg-black/70 px-4 py-2.5 text-sm font-medium text-white shadow-lg">
+            <i className="fa-solid fa-hand-pointer" />
+            {t('tapToInteractMap')}
+          </span>
+        </button>
+      )}
     </div>
   );
 }

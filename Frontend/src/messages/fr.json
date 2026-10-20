@@ -2763,7 +2763,9 @@
     "videoSuffix": "1 vidéo",
     "firstIsPrimary": "La première photo sera la principale",
     "adjustLabel": "Ajuster",
-    "adjustUploadError": "Impossible d'enregistrer le recadrage, la photo d'origine a été conservée."
+    "adjustUploadError": "Impossible d'enregistrer le recadrage, la photo d'origine a été conservée.",
+    "takePhoto": "Prendre une photo",
+    "chooseFromGallery": "Choisir dans la galerie"
   },
   "cgu": {
     "breadcrumbHome": "Accueil",

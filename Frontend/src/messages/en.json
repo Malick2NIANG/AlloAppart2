@@ -2763,7 +2763,9 @@
     "videoSuffix": "1 video",
     "firstIsPrimary": "The first photo will be the main one",
     "adjustLabel": "Adjust",
-    "adjustUploadError": "Couldn't save the crop, the original photo was kept."
+    "adjustUploadError": "Couldn't save the crop, the original photo was kept.",
+    "takePhoto": "Take a photo",
+    "chooseFromGallery": "Choose from gallery"
   },
   "cgu": {
     "breadcrumbHome": "Home",

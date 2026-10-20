@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import 'leaflet/dist/leaflet.css';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
+import TouchGuard from './TouchGuard';
 
 const goldPin = L.divIcon({
   html: `<svg width="28" height="40" viewBox="0 0 28 40" xmlns="http://www.w3.org/2000/svg">
@@ -16,30 +17,6 @@ const goldPin = L.divIcon({
   iconAnchor: [14, 40],
   popupAnchor: [0, -42],
 });
-
-/**
- * Désactive les gestes tactiles (glisser/pincer-zoomer) de la carte tant
- * qu'elle n'a pas été "activée" par un tap — évite que la carte capture le
- * défilement vertical de la page sur mobile (lot 2b). Composant monté
- * uniquement sous 768px par le parent ; ce fichier n'est de toute façon
- * jamais rendu côté serveur (MapView l'importe en dynamic ssr:false), une
- * détection JS de largeur ici ne crée donc aucun risque d'hydratation.
- */
-function TouchGuard({ active }: { active: boolean }) {
-  const map = useMap();
-  useEffect(() => {
-    if (active) {
-      map.dragging.enable();
-      map.touchZoom.enable();
-      map.doubleClickZoom.enable();
-    } else {
-      map.dragging.disable();
-      map.touchZoom.disable();
-      map.doubleClickZoom.disable();
-    }
-  }, [active, map]);
-  return null;
-}
 
 export default function MapViewInner({ lat, lng, title }: { lat: number; lng: number; title?: string }) {
   const t = useTranslations('detail');
