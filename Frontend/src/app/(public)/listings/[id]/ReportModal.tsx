@@ -22,6 +22,14 @@ interface Props {
   onClose: () => void;
 }
 
+/**
+ * ≥768px : rendu strictement identique à l'implémentation historique (fix
+ * lot 2b — commit "fix(mobile): ReportModal identique sur PC") — même
+ * Backdrop, mêmes classes, même structure, aucune animation ajoutée.
+ * <768px : BottomSheet (lot 2b, commit "modale de signalement... en bottom
+ * sheet"), avec tap-target et texte 16px sur les contrôles.
+ * Les deux variantes partagent le même état (step/reason/description/...).
+ */
 export default function ReportModal({ listingId, open, onClose }: Props) {
   const { isSignedIn, getToken } = useAuth();
   const router   = useRouter();
@@ -45,161 +53,294 @@ export default function ReportModal({ listingId, open, onClose }: Props) {
     { value: 'OTHER'          as const, label: t('reasonOther'),          icon: 'fa-ellipsis'             },
   ], [t]);
 
-  if (!isSignedIn) {
-    return (
-      <BottomSheet open={open} onClose={onClose} titleId={titleId}>
-        <div className="space-y-4">
-          <h2 id={titleId} className="text-base font-bold text-text flex items-center gap-2">
-            <i className="fa-regular fa-flag text-gold-dark" />
-            {t('title')}
-          </h2>
-          <p className="text-sm text-sub">{t('signInRequired')}</p>
-          <button
-            onClick={() => router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`)}
-            className="btn-gold w-full text-sm"
-          >
-            <i className="fa-solid fa-arrow-right-to-bracket mr-1.5" />
-            {t('signIn')}
-          </button>
-        </div>
-      </BottomSheet>
-    );
-  }
-
-  if (step === 'done') {
-    return (
-      <BottomSheet open={open} onClose={onClose} titleId={titleId}>
-        <div className="space-y-4 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 mx-auto">
-            <i className="fa-solid fa-check text-emerald-600 dark:text-emerald-400 text-xl" />
-          </div>
-          <h2 id={titleId} className="text-base font-bold text-text">{t('doneThanks')}</h2>
-          <p className="text-sm text-sub">{t('doneDesc')}</p>
-          <button onClick={onClose} className="btn-gold w-full text-sm">{t('closeBtn')}</button>
-        </div>
-      </BottomSheet>
-    );
-  }
-
-  if (step === 'confirm') {
-    const selectedReason = REASONS.find((r) => r.value === reason);
-    return (
-      <BottomSheet open={open} onClose={onClose} titleId={titleId}>
-        <div className="space-y-4">
-          <h2 id={titleId} className="text-base font-bold text-text flex items-center gap-2">
-            <i className="fa-regular fa-flag text-red-500" />
-            {t('confirmTitle')}
-          </h2>
-          <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-800 space-y-1">
-            <p className="font-semibold">{t('confirmMotive')} : {selectedReason?.label}</p>
-            {description && <p className="text-amber-700 dark:text-amber-400 text-xs">{description}</p>}
-          </div>
-          <p className="text-xs text-sub">{t('confirmWarning')}</p>
-          {error && (
-            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
-              <i className="fa-solid fa-circle-exclamation" />{error}
-            </p>
-          )}
-          <div className="flex gap-3">
-            <button
-              onClick={() => setStep('form')}
-              className="tap-target flex-1 rounded-xl border border-line bg-card px-4 py-2 text-sm font-medium text-sub hover:text-text transition"
-            >
-              {t('confirmModify')}
-            </button>
-            <button
-              onClick={async () => {
-                if (!reason) return;
-                setSaving(true);
-                setError(null);
-                try {
-                  const token = await getToken();
-                  await api.post(`/listings/${listingId}/report`, { reason, description: description.trim() || undefined }, token ?? undefined);
-                  setStep('done');
-                } catch {
-                  setError(t('error'));
-                } finally {
-                  setSaving(false);
-                }
-              }}
-              disabled={saving}
-              className="tap-target flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
-            >
-              {saving
-                ? <><i className="fa-solid fa-spinner fa-spin mr-1.5" />{t('sending')}</>
-                : <><i className="fa-solid fa-flag mr-1.5" />{t('confirmBtn')}</>
-              }
-            </button>
-          </div>
-        </div>
-      </BottomSheet>
-    );
-  }
+  const submitReport = async () => {
+    if (!reason) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      await api.post(`/listings/${listingId}/report`, { reason, description: description.trim() || undefined }, token ?? undefined);
+      setStep('done');
+    } catch {
+      setError(t('error'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <BottomSheet open={open} onClose={onClose} titleId={titleId}>
-      <div className="space-y-5">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <h2 id={titleId} className="text-base font-bold text-text flex items-center gap-2">
-              <i className="fa-regular fa-flag text-gold-dark" />
-              {t('title')}
-            </h2>
-            <p className="text-xs text-sub mt-0.5">{t('formSubtitle')}</p>
-          </div>
-          <button onClick={onClose} className="tap-target text-sub hover:text-text transition mt-0.5">
-            <i className="fa-solid fa-xmark" />
-          </button>
-        </div>
-
-        {/* Raisons */}
-        <div className="space-y-2">
-          {REASONS.map((r) => (
-            <button
-              key={r.value}
-              type="button"
-              onClick={() => setReason(r.value)}
-              className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-sm text-left transition ${
-                reason === r.value
-                  ? 'border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400'
-                  : 'border-line bg-card text-text hover:border-line/80 hover:bg-gold-pale/30 dark:hover:bg-gold-dark/10'
-              }`}
-            >
-              <i className={`fa-solid ${r.icon} text-xs w-4 shrink-0 ${reason === r.value ? 'text-red-500' : 'text-sub'}`} />
-              <span className="font-medium">{r.label}</span>
-              {reason === r.value && <i className="fa-solid fa-circle-check text-red-500 ml-auto text-xs" />}
-            </button>
-          ))}
-        </div>
-
-        {/* Description optionnelle */}
-        {reason && (
-          <div>
-            <label className="block text-xs font-medium text-sub mb-1.5 uppercase tracking-wide">
-              {t('detailsLabel')} <span className="normal-case">{t('detailsOptional')}</span>
-            </label>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              maxLength={500}
-              placeholder={t('detailsPlaceholder')}
-              className="w-full rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition resize-none max-md:text-base"
-            />
-            <p className="text-right text-[10px] text-sub mt-0.5">{description.length}/500</p>
-          </div>
-        )}
-
-        {/* Bouton suivant */}
-        <button
-          disabled={!reason}
-          onClick={() => setStep('confirm')}
-          className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
+    <>
+      {/* ══════════════════════════════════════════════════════════════
+          ≥768px — rendu HEAD~3 strictement inchangé (classes, structure,
+          Backdrop). Monté/démonté directement via `open`, sans animation,
+          exactement comme avant ce chantier. ══════════════════════════ */}
+      {open && (
+        <div
+          className="hidden md:flex fixed inset-0 z-[70] items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
-          {t('nextBtn')} <i className="fa-solid fa-arrow-right ml-1.5" />
-        </button>
+          {!isSignedIn ? (
+            <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl space-y-4">
+              <h2 className="text-base font-bold text-text flex items-center gap-2">
+                <i className="fa-regular fa-flag text-gold-dark" />
+                {t('title')}
+              </h2>
+              <p className="text-sm text-sub">{t('signInRequired')}</p>
+              <button
+                onClick={() => router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`)}
+                className="btn-gold w-full text-sm"
+              >
+                <i className="fa-solid fa-arrow-right-to-bracket mr-1.5" />
+                {t('signIn')}
+              </button>
+            </div>
+          ) : step === 'done' ? (
+            <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl space-y-4 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 mx-auto">
+                <i className="fa-solid fa-check text-emerald-600 dark:text-emerald-400 text-xl" />
+              </div>
+              <h2 className="text-base font-bold text-text">{t('doneThanks')}</h2>
+              <p className="text-sm text-sub">{t('doneDesc')}</p>
+              <button onClick={onClose} className="btn-gold w-full text-sm">{t('closeBtn')}</button>
+            </div>
+          ) : step === 'confirm' ? (
+            <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl space-y-4">
+              <h2 className="text-base font-bold text-text flex items-center gap-2">
+                <i className="fa-regular fa-flag text-red-500" />
+                {t('confirmTitle')}
+              </h2>
+              <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-800 space-y-1">
+                <p className="font-semibold">{t('confirmMotive')} : {REASONS.find((r) => r.value === reason)?.label}</p>
+                {description && <p className="text-amber-700 dark:text-amber-400 text-xs">{description}</p>}
+              </div>
+              <p className="text-xs text-sub">{t('confirmWarning')}</p>
+              {error && (
+                <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                  <i className="fa-solid fa-circle-exclamation" />{error}
+                </p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStep('form')}
+                  className="flex-1 rounded-xl border border-line bg-card px-4 py-2 text-sm font-medium text-sub hover:text-text transition"
+                >
+                  {t('confirmModify')}
+                </button>
+                <button
+                  onClick={() => void submitReport()}
+                  disabled={saving}
+                  className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
+                >
+                  {saving
+                    ? <><i className="fa-solid fa-spinner fa-spin mr-1.5" />{t('sending')}</>
+                    : <><i className="fa-solid fa-flag mr-1.5" />{t('confirmBtn')}</>
+                  }
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl space-y-5">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h2 className="text-base font-bold text-text flex items-center gap-2">
+                    <i className="fa-regular fa-flag text-gold-dark" />
+                    {t('title')}
+                  </h2>
+                  <p className="text-xs text-sub mt-0.5">{t('formSubtitle')}</p>
+                </div>
+                <button onClick={onClose} className="text-sub hover:text-text transition mt-0.5">
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              </div>
+
+              {/* Raisons */}
+              <div className="space-y-2">
+                {REASONS.map((r) => (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setReason(r.value)}
+                    className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-sm text-left transition ${
+                      reason === r.value
+                        ? 'border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400'
+                        : 'border-line bg-card text-text hover:border-line/80 hover:bg-gold-pale/30 dark:hover:bg-gold-dark/10'
+                    }`}
+                  >
+                    <i className={`fa-solid ${r.icon} text-xs w-4 shrink-0 ${reason === r.value ? 'text-red-500' : 'text-sub'}`} />
+                    <span className="font-medium">{r.label}</span>
+                    {reason === r.value && <i className="fa-solid fa-circle-check text-red-500 ml-auto text-xs" />}
+                  </button>
+                ))}
+              </div>
+
+              {/* Description optionnelle */}
+              {reason && (
+                <div>
+                  <label className="block text-xs font-medium text-sub mb-1.5 uppercase tracking-wide">
+                    {t('detailsLabel')} <span className="normal-case">{t('detailsOptional')}</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    maxLength={500}
+                    placeholder={t('detailsPlaceholder')}
+                    className="w-full rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition resize-none"
+                  />
+                  <p className="text-right text-[10px] text-sub mt-0.5">{description.length}/500</p>
+                </div>
+              )}
+
+              {/* Bouton suivant */}
+              <button
+                disabled={!reason}
+                onClick={() => setStep('confirm')}
+                className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t('nextBtn')} <i className="fa-solid fa-arrow-right ml-1.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          <768px — BottomSheet (lot 2b), sans effet à partir de 768px.
+          ══════════════════════════════════════════════════════════════ */}
+      <div className="md:hidden">
+        {!isSignedIn ? (
+          <BottomSheet open={open} onClose={onClose} titleId={titleId}>
+            <div className="space-y-4">
+              <h2 id={titleId} className="text-base font-bold text-text flex items-center gap-2">
+                <i className="fa-regular fa-flag text-gold-dark" />
+                {t('title')}
+              </h2>
+              <p className="text-sm text-sub">{t('signInRequired')}</p>
+              <button
+                onClick={() => router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`)}
+                className="btn-gold w-full text-sm"
+              >
+                <i className="fa-solid fa-arrow-right-to-bracket mr-1.5" />
+                {t('signIn')}
+              </button>
+            </div>
+          </BottomSheet>
+        ) : step === 'done' ? (
+          <BottomSheet open={open} onClose={onClose} titleId={titleId}>
+            <div className="space-y-4 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 mx-auto">
+                <i className="fa-solid fa-check text-emerald-600 dark:text-emerald-400 text-xl" />
+              </div>
+              <h2 id={titleId} className="text-base font-bold text-text">{t('doneThanks')}</h2>
+              <p className="text-sm text-sub">{t('doneDesc')}</p>
+              <button onClick={onClose} className="btn-gold w-full text-sm">{t('closeBtn')}</button>
+            </div>
+          </BottomSheet>
+        ) : step === 'confirm' ? (
+          <BottomSheet open={open} onClose={onClose} titleId={titleId}>
+            <div className="space-y-4">
+              <h2 id={titleId} className="text-base font-bold text-text flex items-center gap-2">
+                <i className="fa-regular fa-flag text-red-500" />
+                {t('confirmTitle')}
+              </h2>
+              <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-800 space-y-1">
+                <p className="font-semibold">{t('confirmMotive')} : {REASONS.find((r) => r.value === reason)?.label}</p>
+                {description && <p className="text-amber-700 dark:text-amber-400 text-xs">{description}</p>}
+              </div>
+              <p className="text-xs text-sub">{t('confirmWarning')}</p>
+              {error && (
+                <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                  <i className="fa-solid fa-circle-exclamation" />{error}
+                </p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStep('form')}
+                  className="tap-target flex-1 rounded-xl border border-line bg-card px-4 py-2 text-sm font-medium text-sub hover:text-text transition"
+                >
+                  {t('confirmModify')}
+                </button>
+                <button
+                  onClick={() => void submitReport()}
+                  disabled={saving}
+                  className="tap-target flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
+                >
+                  {saving
+                    ? <><i className="fa-solid fa-spinner fa-spin mr-1.5" />{t('sending')}</>
+                    : <><i className="fa-solid fa-flag mr-1.5" />{t('confirmBtn')}</>
+                  }
+                </button>
+              </div>
+            </div>
+          </BottomSheet>
+        ) : (
+          <BottomSheet open={open} onClose={onClose} titleId={titleId}>
+            <div className="space-y-5">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h2 id={titleId} className="text-base font-bold text-text flex items-center gap-2">
+                    <i className="fa-regular fa-flag text-gold-dark" />
+                    {t('title')}
+                  </h2>
+                  <p className="text-xs text-sub mt-0.5">{t('formSubtitle')}</p>
+                </div>
+                <button onClick={onClose} className="tap-target text-sub hover:text-text transition mt-0.5">
+                  <i className="fa-solid fa-xmark" />
+                </button>
+              </div>
+
+              {/* Raisons */}
+              <div className="space-y-2">
+                {REASONS.map((r) => (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setReason(r.value)}
+                    className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-sm text-left transition ${
+                      reason === r.value
+                        ? 'border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400'
+                        : 'border-line bg-card text-text hover:border-line/80 hover:bg-gold-pale/30 dark:hover:bg-gold-dark/10'
+                    }`}
+                  >
+                    <i className={`fa-solid ${r.icon} text-xs w-4 shrink-0 ${reason === r.value ? 'text-red-500' : 'text-sub'}`} />
+                    <span className="font-medium">{r.label}</span>
+                    {reason === r.value && <i className="fa-solid fa-circle-check text-red-500 ml-auto text-xs" />}
+                  </button>
+                ))}
+              </div>
+
+              {/* Description optionnelle */}
+              {reason && (
+                <div>
+                  <label className="block text-xs font-medium text-sub mb-1.5 uppercase tracking-wide">
+                    {t('detailsLabel')} <span className="normal-case">{t('detailsOptional')}</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    maxLength={500}
+                    placeholder={t('detailsPlaceholder')}
+                    className="w-full rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition resize-none max-md:text-base"
+                  />
+                  <p className="text-right text-[10px] text-sub mt-0.5">{description.length}/500</p>
+                </div>
+              )}
+
+              {/* Bouton suivant */}
+              <button
+                disabled={!reason}
+                onClick={() => setStep('confirm')}
+                className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t('nextBtn')} <i className="fa-solid fa-arrow-right ml-1.5" />
+              </button>
+            </div>
+          </BottomSheet>
+        )}
       </div>
-    </BottomSheet>
+    </>
   );
 }
