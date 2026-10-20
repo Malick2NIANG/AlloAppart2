@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useId } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,6 +14,7 @@ import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import LocationPicker, { type MapFocus } from '@/components/map/LocationPicker';
 import MobileStepperBar from '@/components/ui/MobileStepperBar';
 import StickyStepActions from '@/components/ui/StickyStepActions';
+import BottomSheet from '@/components/ui/BottomSheet';
 import { getListingProfile, sanitizeForType, TERRAIN_AMENITY_ICONS } from '@/lib/listingProfile';
 import { REGION_CENTERS, checkRegionConsistency, findRegionAt, getRegionFeature } from '@/lib/senegalRegions';
 
@@ -244,6 +245,15 @@ export default function PublierPage() {
     { icon: 'fa-images',       label: t('step4Label') },
     { icon: 'fa-eye',          label: t('step5Label') },
   ], [t]);
+
+  const UPGRADE_BENEFITS = useMemo(() => [
+    { icon: 'fa-infinity',      text: t('upgradeBenefitUnlimited') },
+    { icon: 'fa-chart-line',    text: t('upgradeBenefitAnalytics') },
+    { icon: 'fa-shield-halved', text: t('upgradeBenefitBadge')     },
+    { icon: 'fa-headset',       text: t('upgradeBenefitSupport')   },
+  ], [t]);
+
+  const upgradeModalTitleId = useId();
 
   const schema = useMemo(() => makeSchema(t), []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1077,9 +1087,11 @@ export default function PublierPage() {
         </form>
       </div>
 
-      {/* Plafond de 10 annonces actives atteint (compte particulier) — invite à devenir agence plutôt qu'une erreur brute */}
+      {/* Plafond de 10 annonces actives atteint (compte particulier) — invite à devenir agence plutôt qu'une erreur brute.
+          ≥768px : rendu historique inchangé (classes identiques à avant ce lot).
+          <768px : BottomSheet (lot 3a), même contenu, mêmes gestionnaires. */}
       {upgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+        <div className="hidden md:flex fixed inset-0 z-50 items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden">
             <div className="bg-gradient-to-r from-gold to-gold-light px-6 py-5 text-center">
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 mb-3">
@@ -1094,12 +1106,7 @@ export default function PublierPage() {
             <div className="p-6">
               <p className="text-sm text-sub mb-4">{t('upgradeModalDesc')}</p>
               <div className="space-y-2.5 mb-6">
-                {[
-                  { icon: 'fa-infinity',       text: t('upgradeBenefitUnlimited') },
-                  { icon: 'fa-chart-line',     text: t('upgradeBenefitAnalytics') },
-                  { icon: 'fa-shield-halved',  text: t('upgradeBenefitBadge') },
-                  { icon: 'fa-headset',        text: t('upgradeBenefitSupport') },
-                ].map((item) => (
+                {UPGRADE_BENEFITS.map((item) => (
                   <div key={item.icon} className="flex items-center gap-3">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line text-gold-dark">
                       <i className={`fa-solid ${item.icon} text-xs`} />
@@ -1128,6 +1135,53 @@ export default function PublierPage() {
           </div>
         </div>
       )}
+      <div className="md:hidden">
+        <BottomSheet open={!!upgradeModal} onClose={() => setUpgradeModal(null)} titleId={upgradeModalTitleId}>
+          {upgradeModal && (
+            <>
+              <div className="-mx-6 rounded-t-xl bg-gradient-to-r from-gold to-gold-light px-6 py-5 text-center">
+                <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 mb-3">
+                  <i className="fa-solid fa-crown text-white text-2xl" />
+                </div>
+                <h2 id={upgradeModalTitleId} className="text-xl font-extrabold text-gray-900">{t('upgradeModalTitle')}</h2>
+                <p className="text-sm text-gray-800/80 mt-1">
+                  {t('upgradeModalLimitReached', { limit: upgradeModal.limit })}
+                </p>
+              </div>
+
+              <div className="pt-5">
+                <p className="text-sm text-sub mb-4">{t('upgradeModalDesc')}</p>
+                <div className="space-y-2.5 mb-6">
+                  {UPGRADE_BENEFITS.map((item) => (
+                    <div key={item.icon} className="flex items-center gap-3">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line text-gold-dark">
+                        <i className={`fa-solid ${item.icon} text-xs`} />
+                      </span>
+                      <p className="text-sm text-text">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setUpgradeModal(null)}
+                    className="tap-target flex-1 rounded-xl border border-line py-3 text-sm font-medium text-sub"
+                  >
+                    {t('upgradeModalLater')}
+                  </button>
+                  <Link
+                    href="/bailleur/abonnement"
+                    className="tap-target flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark text-white font-semibold py-3 text-sm"
+                  >
+                    <i className="fa-solid fa-crown text-xs" />
+                    {t('upgradeModalCta')}
+                  </Link>
+                </div>
+              </div>
+            </>
+          )}
+        </BottomSheet>
+      </div>
     </main>
   );
 }
