@@ -44,7 +44,7 @@ export default async function SearchPage({
               name="q"
               defaultValue={q}
               placeholder={t('placeholder')}
-              className="w-full rounded-2xl border border-line bg-card py-3 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition"
+              className="w-full rounded-2xl border border-line bg-card py-3 pl-10 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition max-md:text-base"
             />
           </div>
           <button

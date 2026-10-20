@@ -82,8 +82,10 @@ export default async function RegionPage({
           </div>
 
           {/* Bannière sans image distante : pas de photo cassée possible. */}
-          <div className="relative flex h-32 w-full items-end overflow-hidden rounded-2xl mb-5 bg-linear-to-br from-gold-dark via-gold to-gold-pale">
-            <h1 className="p-5 text-3xl font-bold text-gray-900">
+          {/* max-md:h-20 (lot 2a) : bannière compacte sous 768px. Sans effet
+              à partir de 768px (h-32 inchangé). */}
+          <div className="relative flex h-32 max-md:h-20 w-full items-end overflow-hidden rounded-2xl mb-5 bg-linear-to-br from-gold-dark via-gold to-gold-pale">
+            <h1 className="p-5 text-3xl font-bold text-gray-900 max-md:p-4 max-md:text-xl">
               {t('title')} {region}
             </h1>
           </div>
@@ -152,7 +154,7 @@ export default async function RegionPage({
                           {locale === 'fr' ? 'Nouveau' : 'New'}
                         </span>
                       )}
-                      <FavoriteButton listingId={listing.id} initialFavorite={favoriteIds.includes(listing.id)} className="absolute top-3 right-3" />
+                      <FavoriteButton listingId={listing.id} initialFavorite={favoriteIds.includes(listing.id)} className="absolute top-3 right-3 max-md:h-11 max-md:w-11" />
                     </div>
 
                     <div className="p-4">
@@ -197,25 +199,25 @@ export default async function RegionPage({
 
                 {currentPage > 1 ? (
                   <Link href={pageUrl(currentPage - 1)}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
+                    className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
                     <i className="fa-solid fa-chevron-left text-xs" />
                   </Link>
                 ) : (
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-line/40 text-sub/30 cursor-not-allowed">
+                  <span className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line/40 text-sub/30 cursor-not-allowed">
                     <i className="fa-solid fa-chevron-left text-xs" />
                   </span>
                 )}
 
                 {start > 1 && (
                   <>
-                    <Link href={pageUrl(1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">1</Link>
+                    <Link href={pageUrl(1)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">1</Link>
                     {start > 2 && <span className="text-sub px-1">…</span>}
                   </>
                 )}
 
                 {pageNums.map((p) => (
                   <Link key={p} href={pageUrl(p)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-medium transition ${
+                    className={`flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border text-sm font-medium transition ${
                       p === currentPage
                         ? 'border-gold bg-gold text-gray-900 shadow-sm'
                         : 'border-line bg-card/80 text-text hover:bg-gold-pale hover:text-gold-dark'
@@ -227,17 +229,17 @@ export default async function RegionPage({
                 {end < totalPages && (
                   <>
                     {end < totalPages - 1 && <span className="text-sub px-1">...</span>}
-                    <Link href={pageUrl(totalPages)} className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">{totalPages}</Link>
+                    <Link href={pageUrl(totalPages)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">{totalPages}</Link>
                   </>
                 )}
 
                 {currentPage < totalPages ? (
                   <Link href={pageUrl(currentPage + 1)}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
+                    className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
                     <i className="fa-solid fa-chevron-right text-xs" />
                   </Link>
                 ) : (
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-line/40 text-sub/30 cursor-not-allowed">
+                  <span className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line/40 text-sub/30 cursor-not-allowed">
                     <i className="fa-solid fa-chevron-right text-xs" />
                   </span>
                 )}

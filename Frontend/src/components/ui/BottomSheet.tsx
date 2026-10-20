@@ -12,6 +12,8 @@ interface BottomSheetProps {
   titleId: string;
   /** Feuille pleine hauteur sous 768px (listes imbriquées, ex. assignation d'agent) — sans effet ≥768px. */
   fullHeight?: boolean;
+  /** Pied de feuille fixe (hors du défilement du contenu), ex. boutons Appliquer/Réinitialiser — optionnel, inchangé si omis (lot 2a). */
+  footer?: React.ReactNode;
 }
 
 const FOCUSABLE_SELECTOR =
@@ -31,7 +33,7 @@ function isRendered(el: HTMLElement | null): el is HTMLElement {
  * (`hidden md:block`, sans effet sur un enfant `position:fixed`) bascule
  * entre les deux variantes sans détection JS de largeur (SSR-safe).
  */
-export default function BottomSheet({ open, onClose, children, titleId, fullHeight = false }: BottomSheetProps) {
+export default function BottomSheet({ open, onClose, children, titleId, fullHeight = false, footer }: BottomSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const desktopContainerRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -133,6 +135,11 @@ export default function BottomSheet({ open, onClose, children, titleId, fullHeig
               <div className="flex-1 overflow-y-auto px-6 pb-6">
                 {children}
               </div>
+              {footer && (
+                <div className="shrink-0 border-t border-line px-6 py-4">
+                  {footer}
+                </div>
+              )}
             </motion.div>
           </div>
 

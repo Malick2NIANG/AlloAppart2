@@ -137,7 +137,7 @@ export default async function ListingsPage({
           <div className="mb-6 flex gap-1 border-b border-line">
             <Link
               href="/listings"
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              className={`flex max-md:min-h-11 items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 !isFavorisTab
                   ? 'border-gold-dark text-gold-dark'
                   : 'border-transparent text-sub hover:text-text'
@@ -148,7 +148,7 @@ export default async function ListingsPage({
             </Link>
             <Link
               href="/listings?tab=favoris"
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              className={`flex max-md:min-h-11 items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 isFavorisTab
                   ? 'border-red-500 text-red-500'
                   : 'border-transparent text-sub hover:text-text'
@@ -234,7 +234,7 @@ export default async function ListingsPage({
                             </span>
                           ))}
                         </div>
-                        <FavoriteButton listingId={listing.id} initialFavorite={favoriteIds.includes(listing.id)} className="absolute top-3 right-3" />
+                        <FavoriteButton listingId={listing.id} initialFavorite={favoriteIds.includes(listing.id)} className="absolute top-3 right-3 max-md:h-11 max-md:w-11" />
                       </div>
 
                       <div className="p-4">
@@ -307,7 +307,7 @@ export default async function ListingsPage({
                     <Link
                       key={n}
                       href={perPageUrl(n)}
-                      className={`flex h-7 w-9 items-center justify-center rounded-full text-xs font-semibold transition-all duration-200 ${
+                      className={`tap-target flex h-7 w-9 items-center justify-center rounded-full text-xs font-semibold transition-all duration-200 ${
                         perPage === n ? 'bg-gold text-gray-900 shadow-sm' : 'text-sub hover:text-gold-dark'
                       }`}
                     >
@@ -324,25 +324,25 @@ export default async function ListingsPage({
 
                 {currentPage > 1 ? (
                   <Link href={pageUrl(currentPage - 1)}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
+                    className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
                     <i className="fa-solid fa-chevron-left text-xs" />
                   </Link>
                 ) : (
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-line/40 text-sub/30 cursor-not-allowed">
+                  <span className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line/40 text-sub/30 cursor-not-allowed">
                     <i className="fa-solid fa-chevron-left text-xs" />
                   </span>
                 )}
 
                 {start > 1 && (
                   <>
-                    <Link href={pageUrl(1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">1</Link>
+                    <Link href={pageUrl(1)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">1</Link>
                     {start > 2 && <span className="text-sub px-1">…</span>}
                   </>
                 )}
 
                 {pageNums.map((p) => (
                   <Link key={p} href={pageUrl(p)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-medium transition ${
+                    className={`flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border text-sm font-medium transition ${
                       p === currentPage
                         ? 'border-gold bg-gold text-gray-900 shadow-sm'
                         : 'border-line bg-card/80 text-text hover:bg-gold-pale hover:text-gold-dark'
@@ -354,17 +354,17 @@ export default async function ListingsPage({
                 {end < totalPages && (
                   <>
                     {end < totalPages - 1 && <span className="text-sub px-1">…</span>}
-                    <Link href={pageUrl(totalPages)} className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">{totalPages}</Link>
+                    <Link href={pageUrl(totalPages)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">{totalPages}</Link>
                   </>
                 )}
 
                 {currentPage < totalPages ? (
                   <Link href={pageUrl(currentPage + 1)}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
+                    className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
                     <i className="fa-solid fa-chevron-right text-xs" />
                   </Link>
                 ) : (
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-line/40 text-sub/30 cursor-not-allowed">
+                  <span className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line/40 text-sub/30 cursor-not-allowed">
                     <i className="fa-solid fa-chevron-right text-xs" />
                   </span>
                 )}

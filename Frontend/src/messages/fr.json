@@ -475,6 +475,12 @@
     "filtersButton": "Filtres",
     "filtersOwner": "Annonceur",
     "removeFilter": "Retirer ce filtre",
+    "applyFilters": "Appliquer",
+    "resetFilters": "Réinitialiser",
+    "filtersTitle": "Filtres",
+    "filtersTransaction": "Transaction",
+    "filtersType": "Type de bien",
+    "filtersRegion": "Région",
     "typeLabels": {
       "APPARTEMENT": "Appartements",
       "STUDIO": "Studios",

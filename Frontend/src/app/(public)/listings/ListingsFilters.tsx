@@ -1,8 +1,9 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useId } from 'react';
 import { useTranslations } from 'next-intl';
+import BottomSheet from '@/components/ui/BottomSheet';
 
 // Ordre + icônes alignés sur le formulaire de publication (source de vérité,
 // cf. (public)/publier/page.tsx TYPE_ICONS) — ne pas diverger d'un fichier à
@@ -132,8 +133,81 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
     });
   }
 
+  // ── Lot 2a : BottomSheet filtres mobile (sous 768px uniquement) ──────
+  // Corrige le bug connu : le panneau « Filtres » absolument positionné
+  // (desktop) élargissait le viewport sous 390px. Le BottomSheet est
+  // toujours cadré sur la largeur de l'écran.
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [draftTransaction, setDraftTransaction] = useState(transactionType ?? '');
+  const [draftType, setDraftType]               = useState(activeType);
+  const [draftRegion, setDraftRegion]            = useState(region ?? '');
+  const [draftOwner, setDraftOwner]              = useState(activeOwnerType);
+  const [draftVerified, setDraftVerified]        = useState(isVerifiedOnly);
+  const filtersTitleId = useId();
+
+  const openMobileFilters = () => {
+    setDraftTransaction(transactionType ?? '');
+    setDraftType(activeType);
+    setDraftRegion(region ?? '');
+    setDraftOwner(activeOwnerType);
+    setDraftVerified(isVerifiedOnly);
+    setMobileFiltersOpen(true);
+  };
+
+  const applyMobileFilters = () => {
+    // Même garde-fou que changeTransaction : un type devenu incohérent avec
+    // la transaction choisie dans le tiroir est abandonné à l'application.
+    let nextType: string | undefined = draftType || undefined;
+    if (draftTransaction === 'VENTE' && nextType && LOCATION_ONLY_KEYS.includes(nextType)) nextType = undefined;
+    if (draftTransaction === 'LOCATION' && nextType && VENTE_ONLY_KEYS.includes(nextType)) nextType = undefined;
+    push({
+      transactionType: draftTransaction || undefined,
+      type: nextType,
+      region: draftRegion || undefined,
+      ownerType: draftOwner || undefined,
+      verified: draftVerified ? 'true' : undefined,
+      page: '1',
+    });
+    setMobileFiltersOpen(false);
+  };
+
+  const resetMobileFilters = () => {
+    setMobileFiltersOpen(false);
+    router.push('/listings');
+  };
+
+  const mobileFilterCount =
+    (activeType ? 1 : 0) + (region ? 1 : 0) + (activeOwnerType ? 1 : 0) +
+    (isVerifiedOnly ? 1 : 0) + (transactionType ? 1 : 0);
+
+  // Types visibles dans le tiroir : dépend du DRAFT de transaction (pas de
+  // l'URL), pour que le choix reste cohérent avant même d'appliquer.
+  const draftVisibleTypes = TYPES.filter((ty) => {
+    if (draftTransaction === 'VENTE') return !LOCATION_ONLY_KEYS.includes(ty.key);
+    if (draftTransaction === 'LOCATION') return !VENTE_ONLY_KEYS.includes(ty.key);
+    return true;
+  });
+
+  // Pastilles mobiles : mêmes pastilles que la barre desktop + transaction
+  // et type (visibles séparément sur desktop, donc absents d'activeChips,
+  // mais nécessaires ici puisque le tiroir mobile les regroupe tous).
+  const mobileChips = [...activeChips];
+  if (type) {
+    const ty = TYPES.find((x) => x.key === type);
+    if (ty) mobileChips.unshift({ key: 'type', icon: ty.icon, label: t(ty.tKey), onRemove: () => push({ type: undefined }) });
+  }
+  if (transactionType) {
+    const tx = TRANSACTIONS.find((x) => x.key === transactionType);
+    if (tx) mobileChips.unshift({ key: 'tx', icon: 'fa-right-left', label: t(tx.tKey), onRemove: () => changeTransaction('') });
+  }
+
   return (
     <div className="mb-8 space-y-3">
+
+      {/* ≥768px : barre de filtres actuelle, inchangée (lot 2a : md:hidden
+          ajouté uniquement sur ce wrapper englobant, sans toucher aux
+          classes internes). Sans effet à partir de 768px. */}
+      <div className="hidden md:block space-y-3">
 
       {/* ── Ligne 1 : transaction + région + panneau Filtres ───── */}
       <div className="flex flex-wrap items-center gap-3">
@@ -316,6 +390,193 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
           ))}
         </div>
       )}
+      </div>
+
+      {/* <768px (lot 2a) : bouton Filtres unique → BottomSheet pleine hauteur.
+          Corrige le bug connu de ListingsFilters (le panneau « Filtres »
+          absolument positionné élargissait le viewport sous 390px) : le
+          BottomSheet est toujours cadré sur la largeur de l'écran, par
+          construction. Sans effet à partir de 768px. */}
+      <div className="md:hidden space-y-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openMobileFilters}
+            className="tap-target flex h-11 items-center gap-2 rounded-full border border-line bg-card px-4 text-sm font-medium text-text"
+          >
+            <i className="fa-solid fa-sliders text-gold-dark text-xs" />
+            {t('filtersButton')}
+            {mobileFilterCount > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-gold-dark px-1.5 text-[11px] font-bold text-white">
+                {mobileFilterCount}
+              </span>
+            )}
+          </button>
+          {hasFilters && (
+            <button
+              onClick={() => router.push('/listings')}
+              className="tap-target flex h-11 items-center gap-1.5 rounded-full px-3 text-sm text-sub hover:text-red-500 transition-colors duration-200"
+            >
+              <i className="fa-solid fa-xmark text-xs" />
+              {t('clearFilters')}
+            </button>
+          )}
+        </div>
+
+        {mobileChips.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            {mobileChips.map((c) => (
+              <span
+                key={c.key}
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-gold/40 bg-gold-pale py-1 pl-3 pr-1.5 text-xs font-medium text-gold-dark"
+              >
+                <i className={`fa-solid ${c.icon} text-[10px]`} />
+                {c.label}
+                <button
+                  onClick={c.onRemove}
+                  aria-label={t('removeFilter')}
+                  className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-gold/20 transition-colors"
+                >
+                  <i className="fa-solid fa-xmark text-[10px]" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <BottomSheet
+        open={mobileFiltersOpen}
+        onClose={() => setMobileFiltersOpen(false)}
+        titleId={filtersTitleId}
+        fullHeight
+        footer={
+          <div className="flex gap-3">
+            <button
+              onClick={resetMobileFilters}
+              className="btn-outline h-12 flex-1 justify-center text-text"
+            >
+              {t('resetFilters')}
+            </button>
+            <button
+              onClick={applyMobileFilters}
+              className="btn-gold h-12 flex-1 justify-center"
+            >
+              {t('applyFilters')}
+            </button>
+          </div>
+        }
+      >
+        <h2 id={filtersTitleId} className="mb-5 text-lg font-bold text-text">{t('filtersTitle')}</h2>
+
+        {/* Transaction */}
+        <div className="mb-6">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sub">{t('filtersTransaction')}</p>
+          <div className="inline-flex rounded-full border border-line bg-bg p-1">
+            {TRANSACTIONS.map((tx) => {
+              const active = draftTransaction === tx.key;
+              return (
+                <button
+                  key={tx.key || 'all'}
+                  onClick={() => setDraftTransaction(tx.key)}
+                  className={`tap-target rounded-full px-4 text-sm font-medium transition-colors ${
+                    active ? 'bg-gold-dark text-white' : 'text-sub hover:text-text'
+                  }`}
+                >
+                  {t(tx.tKey)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Type de bien */}
+        <div className="mb-6">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sub">{t('filtersType')}</p>
+          <div className="flex flex-wrap gap-2">
+            {draftVisibleTypes.map((typ) => {
+              const isActive = draftType === typ.key;
+              return (
+                <button
+                  key={typ.key}
+                  onClick={() => setDraftType(typ.key)}
+                  className={`tap-target ${CHIP_BASE} ${isActive ? CHIP_ON : CHIP_OFF}`}
+                >
+                  <i className={`fa-solid ${typ.icon} text-xs ${isActive ? 'text-gray-900' : 'text-gold-dark'}`} />
+                  {t(typ.tKey)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Région */}
+        <div className="mb-6">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sub">{t('filtersRegion')}</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => setDraftRegion('')}
+              className={`tap-target flex items-center gap-2 rounded-xl px-3 text-sm font-semibold transition ${
+                !draftRegion ? 'bg-gold-pale text-gold-dark' : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+              }`}
+            >
+              <i className="fa-solid fa-globe text-gold-dark text-xs w-4" />
+              {t('regionAll')}
+            </button>
+            {REGIONS.map((r) => (
+              <button
+                key={r}
+                onClick={() => setDraftRegion(r)}
+                className={`tap-target flex items-center gap-1.5 rounded-xl px-2.5 text-sm transition ${
+                  draftRegion === r
+                    ? 'bg-gold-pale text-gold-dark font-semibold'
+                    : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+                }`}
+              >
+                <i className="fa-solid fa-map-pin text-gold-dark text-[10px] shrink-0" />
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Annonceur */}
+        <div className="mb-6">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sub">{t('filtersOwner')}</p>
+          <div className="flex flex-wrap gap-2">
+            {OWNER_TYPES.map((ot) => {
+              const isActive = draftOwner === ot.key;
+              return (
+                <button
+                  key={ot.key}
+                  onClick={() => setDraftOwner(ot.key)}
+                  className={`tap-target ${CHIP_BASE} ${isActive ? CHIP_ON : CHIP_OFF}`}
+                >
+                  <i className={`fa-solid ${ot.icon} text-xs ${isActive ? 'text-gray-900' : 'text-gold-dark'}`} />
+                  {t(ot.tKey)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* AlloVérifié */}
+        <div className="border-t border-line pt-4">
+          <button
+            onClick={() => setDraftVerified((v) => !v)}
+            role="switch"
+            aria-checked={draftVerified}
+            className="flex min-h-11 w-full items-center justify-between gap-3 text-sm font-medium text-text"
+          >
+            <span className="flex items-center gap-2">
+              <i className="fa-solid fa-shield-halved text-gold-dark text-xs" />
+              AlloVérifié
+            </span>
+            <span className={`relative h-6 w-11 rounded-full transition-colors ${draftVerified ? 'bg-gold-dark' : 'bg-line'}`}>
+              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${draftVerified ? 'left-[22px]' : 'left-0.5'}`} />
+            </span>
+          </button>
+        </div>
+      </BottomSheet>
     </div>
   );
 }
