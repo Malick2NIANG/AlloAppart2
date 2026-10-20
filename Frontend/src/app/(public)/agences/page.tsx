@@ -133,11 +133,11 @@ export default async function AgencesPage() {
                     {/* CTA */}
                     {href ? (
                       <Link href={href}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-gold/40 bg-gold-pale hover:bg-gold/20 text-gold-dark text-xs font-semibold py-2.5 transition-colors">
+                        className="tap-target flex w-full items-center justify-center gap-1.5 rounded-xl border border-gold/40 bg-gold-pale hover:bg-gold/20 text-gold-dark text-xs font-semibold py-2.5 transition-colors">
                         <i className="fa-solid fa-store text-[10px]" /> {t('viewVitrine')}
                       </Link>
                     ) : (
-                      <div className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-bg text-sub text-xs py-2.5 cursor-default">
+                      <div className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-bg text-sub text-xs py-2.5 cursor-default max-md:min-h-11">
                         {t('noVitrine')}
                       </div>
                     )}

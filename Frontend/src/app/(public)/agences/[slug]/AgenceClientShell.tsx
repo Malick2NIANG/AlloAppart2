@@ -216,7 +216,8 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
                   </span>
                 )}
                 {revealedPhone ? (
-                  <a href={`tel:${revealedPhone}`} className="flex items-center gap-1.5 hover:text-white transition-colors">
+                  <a href={`tel:${revealedPhone}`}
+                    className="tap-target max-md:rounded-full max-md:bg-white/10 max-md:px-4 flex items-center gap-1.5 hover:text-white transition-colors">
                     <i className="fa-solid fa-phone text-xs" style={{ color: color.hex }} />
                     {revealedPhone}
                   </a>
@@ -250,8 +251,10 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
           </div>
         </div>
 
-        {/* Filtres — type de bien, mode de location, taille de page */}
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
+        {/* Filtres — type de bien, mode de location, taille de page —
+            ≥768px : inchangé (md:hidden ajouté uniquement sur ce wrapper
+            englobant). Sans effet à partir de 768px. */}
+        <div className="hidden md:flex items-center gap-3 mb-6 flex-wrap">
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
             className="rounded-xl border border-line bg-card text-sm text-text px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gold/40 max-md:text-base">
             <option value="">{t('filterAllTypes')}</option>
@@ -273,6 +276,56 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
               <option key={n} value={n}>{n} {t('perPageLabel')}</option>
             ))}
           </select>
+        </div>
+
+        {/* <768px (lot 2b) : onglets défilants accrochés au doigt (type de
+            bien puis mode de location) à la place des <select>, plus
+            compact et tactile. Sans effet à partir de 768px. */}
+        <div className="md:hidden mb-6 space-y-2">
+          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            <button
+              onClick={() => setTypeFilter('')}
+              className={`shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
+                !typeFilter ? 'border-gold bg-gold text-gray-900' : 'border-line bg-card text-text'
+              }`}
+            >
+              {t('filterAllTypes')}
+            </button>
+            {distinctTypes.map((type) => (
+              <button
+                key={type}
+                onClick={() => setTypeFilter(type)}
+                className={`shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
+                  typeFilter === type ? 'border-gold bg-gold text-gray-900' : 'border-line bg-card text-text'
+                }`}
+              >
+                {typeLabels[type] ?? type}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            {([
+              { value: 'ALL' as const,     label: t('filterAllModes') },
+              { value: 'NIGHTLY' as const, label: t('filterNightly')  },
+              { value: 'MONTHLY' as const, label: t('filterMonthly')  },
+            ]).map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setRentalFilter(opt.value)}
+                className={`shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-all ${
+                  rentalFilter === opt.value ? 'border-gold bg-gold text-gray-900' : 'border-line bg-card text-text'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+            <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}
+              className="ml-auto shrink-0 rounded-xl border border-line bg-card text-sm text-text px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gold/40 max-md:text-base">
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <option key={n} value={n}>{n} {t('perPageLabel')}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Grille annonces */}
@@ -347,13 +400,13 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
                   {/* Actions — hors du Link pour éviter un <a> imbriqué */}
                   <div className="px-4 pb-4 flex gap-2">
                     <Link href={`/listings/${listing.id}`}
-                      className="flex-1 text-center rounded-xl border border-line text-sub hover:bg-bg text-xs font-medium py-2 transition-colors">
+                      className="max-md:min-h-11 flex-1 flex items-center justify-center text-center rounded-xl border border-line text-sub hover:bg-bg text-xs font-medium py-2 transition-colors">
                       {t('viewListing')}
                     </Link>
                     <button
                       onClick={() => void handleContact(listing)}
                       disabled={contacting === listing.id}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white text-xs font-semibold py-2 disabled:opacity-50 transition-colors"
+                      className="max-md:min-h-11 flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white text-xs font-semibold py-2 disabled:opacity-50 transition-colors"
                     >
                       {contacting === listing.id
                         ? <i className="fa-solid fa-spinner fa-spin" />
@@ -372,7 +425,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={safePage === 1}
-              className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-sm font-medium text-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-card transition-colors"
+              className="tap-target flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-sm font-medium text-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-card transition-colors"
             >
               <i className="fa-solid fa-chevron-left text-xs" /> {t('paginationPrev')}
             </button>
@@ -382,7 +435,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={safePage === totalPages}
-              className="flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-sm font-medium text-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-card transition-colors"
+              className="tap-target flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-sm font-medium text-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-card transition-colors"
             >
               {t('paginationNext')} <i className="fa-solid fa-chevron-right text-xs" />
             </button>
