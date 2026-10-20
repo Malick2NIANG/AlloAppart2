@@ -30,6 +30,8 @@ export default async function Navbar() {
         security:                t('security'),
         localityPlaceholder:     t('localityPlaceholder'),
         mobileSearchPlaceholder: t('mobileSearchPlaceholder'),
+        agencies:                t('agencies'),
+        about:                   t('about'),
       }}
     />
   );

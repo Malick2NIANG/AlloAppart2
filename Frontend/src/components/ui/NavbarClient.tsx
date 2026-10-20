@@ -7,6 +7,7 @@ import { useAuth, useClerk, useUser } from '@clerk/nextjs';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ThemeToggle from './ThemeToggle';
 import LanguageSwitcher from './LanguageSwitcher';
+import NotificationBell from './NotificationBell';
 import type { Locale } from '@/i18n/config';
 import { api } from '@/lib/api';
 import type { MessageRoom, User } from '@/types';
@@ -21,6 +22,7 @@ interface Labels {
   demoMode: string; signOut: string; messages: string;
   favorites: string; profileLabel: string; security: string;
   localityPlaceholder: string; mobileSearchPlaceholder: string;
+  agencies: string; about: string;
 }
 
 interface Props { locale: Locale; labels: Labels; }
@@ -297,12 +299,15 @@ export default function NavbarClient({ locale, labels }: Props) {
       />
 
       <div className="aa-container">
-        <div className="flex h-20 items-center gap-3 lg:gap-4">
+        {/* max-md:h-14 (lot 2a) : en-tête compact à 56px sous 768px. Sans
+            effet à partir de 768px (y compris 768-1023px, où le menu
+            hamburger actuel reste identique — h-20 inchangé). */}
+        <div className="flex h-20 max-md:h-14 items-center gap-3 lg:gap-4">
 
           {/* ── Logo ─────────────────────────────────────────────── */}
           <Link href="/" aria-label="AlloAppart" className="shrink-0">
             <Image src="/images/LOGO.png" alt="AlloAppart" width={300} height={85}
-              className="h-20 w-auto" priority />
+              className="h-20 w-auto max-md:h-10" priority />
           </Link>
 
           {/* ── Search pill ──────────────────────────────────────── */}
@@ -368,8 +373,11 @@ export default function NavbarClient({ locale, labels }: Props) {
 
           {/* ── Actions droite ────────────────────────────────────── */}
           <div className="ml-auto flex items-center gap-1.5 lg:gap-2 shrink-0">
-            <LanguageSwitcher currentLocale={locale} />
-            <ThemeToggle />
+            {/* max-md:hidden (lot 2a) : déplacés dans le tiroir mobile sous
+                768px pour dégager l'en-tête compact. Sans effet à partir de
+                768px (y compris 768-1023px). */}
+            <div className="max-md:hidden"><LanguageSwitcher currentLocale={locale} /></div>
+            <div className="max-md:hidden"><ThemeToggle /></div>
 
             {effectiveSignedIn ? (
               /* ── CONNECTÉ ── */
@@ -423,6 +431,19 @@ export default function NavbarClient({ locale, labels }: Props) {
                 <Link href="/sign-up" className="btn-gold py-2! px-4! text-sm!">
                   {labels.register}
                 </Link>
+              </div>
+            )}
+
+            {/* En-tête compact mobile (lot 2a) : recherche directe + cloche
+                de notifications si connecté, avant le bouton de menu. Sans
+                effet à partir de 768px. */}
+            <Link href="/search" aria-label={labels.search}
+              className="tap-target md:hidden rounded-full text-text/70 hover:bg-card hover:text-gold-dark transition">
+              <i className="fa-solid fa-magnifying-glass text-base" />
+            </Link>
+            {effectiveSignedIn && (
+              <div className="tap-target md:hidden">
+                <NotificationBell userId={user?.id ?? ''} />
               </div>
             )}
 
@@ -498,6 +519,25 @@ export default function NavbarClient({ locale, labels }: Props) {
               </Link>
             )}
           </nav>
+
+          {/* Liens secondaires — mobile uniquement (lot 2a) : langue, thème,
+              agences, à propos, déplacés ici depuis l'en-tête compact.
+              md:hidden : entre 768 et 1023px le tiroir reste identique à
+              avant (ce bloc n'apparaît pas), sans effet à partir de 768px. */}
+          <div className="md:hidden mt-2 flex flex-col gap-1 border-t border-line pt-3">
+            <div className="flex items-center gap-2 px-4 pb-1">
+              <LanguageSwitcher currentLocale={locale} />
+              <ThemeToggle />
+            </div>
+            <Link href="/agences" onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sub hover:bg-card hover:text-text transition">
+              <i className="fa-solid fa-building-user text-gold-dark w-4" /> {labels.agencies}
+            </Link>
+            <Link href="/a-propos" onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sub hover:bg-card hover:text-text transition">
+              <i className="fa-solid fa-circle-info text-gold-dark w-4" /> {labels.about}
+            </Link>
+          </div>
 
           {/* Auth mobile */}
           <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3">
