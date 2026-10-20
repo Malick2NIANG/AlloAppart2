@@ -374,6 +374,8 @@
     "moreFromAgencySaleDesc": "Terrains, maisons, villas : retrouvez tous les biens en vente de cette agence sur sa vitrine.",
     "shareBtn": "Partager",
     "tapToInteractMap": "Touchez pour interagir avec la carte",
+    "bookingSheetTitle": "Réservation",
+    "bookingTriggerShort": "Réserver",
     "viewAllPhotos": "Voir les {count} photos",
     "viewAllMedia": "Voir les {count} médias",
     "allPhotosBtn": "Toutes ({count})",

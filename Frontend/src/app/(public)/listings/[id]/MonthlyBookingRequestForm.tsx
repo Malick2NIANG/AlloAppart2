@@ -102,7 +102,7 @@ export default function MonthlyBookingRequestForm({
         value={moveInDate}
         min={new Date().toISOString().slice(0, 10)}
         onChange={(e) => setMoveInDate(e.target.value)}
-        className="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition mb-4"
+        className="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition mb-4 max-md:text-base"
       />
 
       {/* Récap financier */}

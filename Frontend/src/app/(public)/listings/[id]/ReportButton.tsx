@@ -14,7 +14,9 @@ export default function ReportButton({ listingId, label }: { listingId: string; 
         <i className="fa-regular fa-flag text-xs" />
         {label}
       </button>
-      {open && <ReportModal listingId={listingId} onClose={() => setOpen(false)} />}
+      {/* Toujours monté (contrôlé par `open`) — nécessaire pour que
+          l'animation de fermeture du BottomSheet puisse jouer (lot 2b). */}
+      <ReportModal listingId={listingId} open={open} onClose={() => setOpen(false)} />
     </>
   );
 }

@@ -374,6 +374,8 @@
     "moreFromAgencySaleDesc": "Land, houses, villas: browse all of this agency's properties for sale on their showcase page.",
     "shareBtn": "Share",
     "tapToInteractMap": "Tap to interact with the map",
+    "bookingSheetTitle": "Booking",
+    "bookingTriggerShort": "Book",
     "viewAllPhotos": "View all {count} photos",
     "viewAllMedia": "View all {count} media",
     "allPhotosBtn": "All ({count})",

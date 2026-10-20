@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
 import AvailabilityCalendar, { isBooked, type BookedRange } from '@/components/listings/AvailabilityCalendar';
 import MonthlyBookingRequestForm from './MonthlyBookingRequestForm';
+import BottomSheet from '@/components/ui/BottomSheet';
 import type { RentalMode } from '@/types';
 
 const DAYS_PER_MONTH = 30;
@@ -53,7 +54,57 @@ function computePrice(
   };
 }
 
-export default function ListingBookingCard({
+/**
+ * Enveloppe responsive (lot 2b) : ≥768px, la carte de réservation reste
+ * affichée en ligne comme avant (inchangée). Sous 768px, un déclencheur
+ * compact ouvre le même contenu dans un BottomSheet — le calendrier et les
+ * formulaires de réservation (nuitée + mensuel, via MonthlyBookingRequestForm
+ * rendu depuis BookingCardContent) y gagnent toute la hauteur de l'écran au
+ * lieu d'être enterrés en bas de la colonne latérale.
+ */
+export default function ListingBookingCard(props: Props) {
+  const { pricePerMonth, pricePerNight, numLocale } = props;
+  const t = useTranslations('detail');
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const titleId = useId();
+
+  return (
+    <>
+      <div className="hidden md:block">
+        <BookingCardContent {...props} />
+      </div>
+      <div className="md:hidden">
+        <button
+          onClick={() => setSheetOpen(true)}
+          className="tap-target flex w-full items-center justify-between gap-2 rounded-3xl border border-line bg-card px-5 py-4 shadow-sm"
+        >
+          <span className="min-w-0 text-left">
+            <span className="block text-xs text-sub">{t('bookingTitle')}</span>
+            <span className="block truncate text-lg font-extrabold text-text">
+              {pricePerMonth.toLocaleString(numLocale)}
+              <span className="ml-1 text-xs font-normal text-sub">{t('pricePerMonthUnit')}</span>
+              {!!pricePerNight && (
+                <span className="ml-2 text-sm font-semibold text-sub">
+                  · {Math.round(pricePerNight).toLocaleString(numLocale)} {t('pricePerNightUnit')}
+                </span>
+              )}
+            </span>
+          </span>
+          <span className="btn-gold px-4 py-2 text-sm shrink-0">
+            <i className="fa-solid fa-calendar-check mr-1.5" />
+            {t('bookingTriggerShort')}
+          </span>
+        </button>
+        <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} titleId={titleId} fullHeight>
+          <h2 id={titleId} className="sr-only">{t('bookingSheetTitle')}</h2>
+          <BookingCardContent {...props} />
+        </BottomSheet>
+      </div>
+    </>
+  );
+}
+
+function BookingCardContent({
   listingId,
   listingStatus,
   rentalMode,

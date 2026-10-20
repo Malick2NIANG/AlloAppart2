@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useId } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
+import BottomSheet from '@/components/ui/BottomSheet';
 
 type ReasonValue =
   | 'FRAUD'
@@ -17,14 +18,16 @@ type ReasonValue =
 
 interface Props {
   listingId: string;
+  open: boolean;
   onClose: () => void;
 }
 
-export default function ReportModal({ listingId, onClose }: Props) {
+export default function ReportModal({ listingId, open, onClose }: Props) {
   const { isSignedIn, getToken } = useAuth();
   const router   = useRouter();
   const pathname = usePathname();
   const t = useTranslations('report');
+  const titleId = useId();
 
   const [step,        setStep]        = useState<'form' | 'confirm' | 'done'>('form');
   const [reason,      setReason]      = useState<ReasonValue | null>(null);
@@ -44,9 +47,9 @@ export default function ReportModal({ listingId, onClose }: Props) {
 
   if (!isSignedIn) {
     return (
-      <Backdrop onClose={onClose}>
-        <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl space-y-4">
-          <h2 className="text-base font-bold text-text flex items-center gap-2">
+      <BottomSheet open={open} onClose={onClose} titleId={titleId}>
+        <div className="space-y-4">
+          <h2 id={titleId} className="text-base font-bold text-text flex items-center gap-2">
             <i className="fa-regular fa-flag text-gold-dark" />
             {t('title')}
           </h2>
@@ -59,31 +62,31 @@ export default function ReportModal({ listingId, onClose }: Props) {
             {t('signIn')}
           </button>
         </div>
-      </Backdrop>
+      </BottomSheet>
     );
   }
 
   if (step === 'done') {
     return (
-      <Backdrop onClose={onClose}>
-        <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl space-y-4 text-center">
+      <BottomSheet open={open} onClose={onClose} titleId={titleId}>
+        <div className="space-y-4 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 mx-auto">
             <i className="fa-solid fa-check text-emerald-600 dark:text-emerald-400 text-xl" />
           </div>
-          <h2 className="text-base font-bold text-text">{t('doneThanks')}</h2>
+          <h2 id={titleId} className="text-base font-bold text-text">{t('doneThanks')}</h2>
           <p className="text-sm text-sub">{t('doneDesc')}</p>
           <button onClick={onClose} className="btn-gold w-full text-sm">{t('closeBtn')}</button>
         </div>
-      </Backdrop>
+      </BottomSheet>
     );
   }
 
   if (step === 'confirm') {
     const selectedReason = REASONS.find((r) => r.value === reason);
     return (
-      <Backdrop onClose={onClose}>
-        <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl space-y-4">
-          <h2 className="text-base font-bold text-text flex items-center gap-2">
+      <BottomSheet open={open} onClose={onClose} titleId={titleId}>
+        <div className="space-y-4">
+          <h2 id={titleId} className="text-base font-bold text-text flex items-center gap-2">
             <i className="fa-regular fa-flag text-red-500" />
             {t('confirmTitle')}
           </h2>
@@ -100,7 +103,7 @@ export default function ReportModal({ listingId, onClose }: Props) {
           <div className="flex gap-3">
             <button
               onClick={() => setStep('form')}
-              className="flex-1 rounded-xl border border-line bg-card px-4 py-2 text-sm font-medium text-sub hover:text-text transition"
+              className="tap-target flex-1 rounded-xl border border-line bg-card px-4 py-2 text-sm font-medium text-sub hover:text-text transition"
             >
               {t('confirmModify')}
             </button>
@@ -120,7 +123,7 @@ export default function ReportModal({ listingId, onClose }: Props) {
                 }
               }}
               disabled={saving}
-              className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
+              className="tap-target flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
             >
               {saving
                 ? <><i className="fa-solid fa-spinner fa-spin mr-1.5" />{t('sending')}</>
@@ -129,23 +132,23 @@ export default function ReportModal({ listingId, onClose }: Props) {
             </button>
           </div>
         </div>
-      </Backdrop>
+      </BottomSheet>
     );
   }
 
   return (
-    <Backdrop onClose={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl space-y-5">
+    <BottomSheet open={open} onClose={onClose} titleId={titleId}>
+      <div className="space-y-5">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h2 className="text-base font-bold text-text flex items-center gap-2">
+            <h2 id={titleId} className="text-base font-bold text-text flex items-center gap-2">
               <i className="fa-regular fa-flag text-gold-dark" />
               {t('title')}
             </h2>
             <p className="text-xs text-sub mt-0.5">{t('formSubtitle')}</p>
           </div>
-          <button onClick={onClose} className="text-sub hover:text-text transition mt-0.5">
+          <button onClick={onClose} className="tap-target text-sub hover:text-text transition mt-0.5">
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
@@ -182,7 +185,7 @@ export default function ReportModal({ listingId, onClose }: Props) {
               onChange={(e) => setDescription(e.target.value)}
               maxLength={500}
               placeholder={t('detailsPlaceholder')}
-              className="w-full rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition resize-none"
+              className="w-full rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition resize-none max-md:text-base"
             />
             <p className="text-right text-[10px] text-sub mt-0.5">{description.length}/500</p>
           </div>
@@ -197,17 +200,6 @@ export default function ReportModal({ listingId, onClose }: Props) {
           {t('nextBtn')} <i className="fa-solid fa-arrow-right ml-1.5" />
         </button>
       </div>
-    </Backdrop>
-  );
-}
-
-function Backdrop({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      {children}
-    </div>
+    </BottomSheet>
   );
 }
