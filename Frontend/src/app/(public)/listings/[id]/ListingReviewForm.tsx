@@ -101,7 +101,7 @@ export default function ListingReviewForm({ listingId }: Props) {
   const canReview = isSignedIn && eligibleBooking !== null;
 
   return (
-    <div className="bg-card backdrop-blur-xl border border-line rounded-3xl p-6 md:p-8 shadow-lg">
+    <div className="bg-card backdrop-blur-xl border border-line rounded-3xl p-6 md:p-8 max-md:p-4 shadow-lg">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-xl font-semibold text-text">{t('reviews')}</h2>
@@ -166,7 +166,7 @@ export default function ListingReviewForm({ listingId }: Props) {
                   onMouseEnter={() => setHovered(s + 1)}
                   onMouseLeave={() => setHovered(0)}
                   onClick={() => setRating(s + 1)}
-                  className="text-3xl transition-all duration-150 hover:scale-125">
+                  className="tap-target text-3xl transition-all duration-150 hover:scale-125">
                   <i className={`fa-${(hovered || rating) > s ? 'solid' : 'regular'} fa-star ${(hovered || rating) > s ? 'text-gold' : 'text-gray-300'}`} />
                 </button>
               ))}
@@ -177,7 +177,7 @@ export default function ListingReviewForm({ listingId }: Props) {
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder={t('reviewPlaceholder')}
-              className="w-full border border-line rounded-xl px-3 py-2 text-sm text-text bg-bg placeholder:text-sub outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition resize-none"
+              className="w-full border border-line rounded-xl px-3 py-2 text-sm text-text bg-bg placeholder:text-sub outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition resize-none max-md:text-base"
             />
 
             {error && (

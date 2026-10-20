@@ -73,7 +73,7 @@ export default async function RentalTermsCard({
   const effectiveMinLeaseMonths = minLeaseMonths ?? DEFAULT_MIN_LEASE_MONTHS;
 
   return (
-    <div className="bg-card backdrop-blur-xl border border-line rounded-3xl p-6 md:p-8 shadow-lg">
+    <div className="bg-card backdrop-blur-xl border border-line rounded-3xl p-6 md:p-8 max-md:p-4 shadow-lg">
       <h2 className="text-xl md:text-2xl font-semibold text-text mb-4">{t('rentalTermsTitle')}</h2>
 
       {/* Mode de location */}

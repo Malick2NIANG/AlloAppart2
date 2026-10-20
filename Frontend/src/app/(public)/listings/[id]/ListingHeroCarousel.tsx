@@ -28,6 +28,21 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
   const [copied, setCopied]       = useState(false);
   const shareRef                  = useRef<HTMLDivElement>(null);
 
+  // ── Lot 2b : galerie mobile défilante (snap) ─────────────────────────
+  // Sous 768px uniquement : conteneur à part, avec son propre bouton de
+  // partage (état/ref distincts du bouton desktop ci-dessus, pour ne pas
+  // interférer avec sa détection "clic extérieur") et sa propre
+  // synchronisation `current` par défilement.
+  const [shareOpenMobile, setShareOpenMobile] = useState(false);
+  const shareRefMobile = useRef<HTMLDivElement>(null);
+  const mobileScrollRef = useRef<HTMLDivElement>(null);
+  const handleMobileScroll = () => {
+    const el = mobileScrollRef.current;
+    if (!el || el.clientWidth === 0) return;
+    const idx = Math.round(el.scrollLeft / el.clientWidth);
+    if (idx !== current) setCurrent(idx);
+  };
+
   const prev = () => setCurrent((c) => (c - 1 + imgs.length) % imgs.length);
   const next = () => setCurrent((c) => (c + 1) % imgs.length);
 
@@ -77,8 +92,9 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
 
   return (
     <>
-      {/* ── Hero Carousel ─────────────────────────────────────────── */}
-      <div className="relative group overflow-hidden rounded-3xl border border-line shadow-2xl mb-10 bg-[#0f172a]"
+      {/* ── Hero Carousel — ≥768px, inchangé (lot 2b : md:hidden wrapper nouveau,
+          sans effet sur les classes internes). ── */}
+      <div className="hidden md:block relative group overflow-hidden rounded-3xl border border-line shadow-2xl mb-10 bg-[#0f172a]"
         style={{ height: 'clamp(300px, 62vh, 600px)' }}>
 
         {/* Image ou Vidéo */}
@@ -206,6 +222,97 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
           <button
             onClick={() => setLightbox(true)}
             className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 rounded-full bg-white/90 hover:bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-lg transition"
+          >
+            <i className="fa-solid fa-grid-2 text-[10px]" />
+            {t(hasVideo ? 'viewAllMedia' : 'viewAllPhotos', { count: imgs.length })}
+          </button>
+        )}
+      </div>
+
+      {/* ── Galerie mobile défilante (snap) — <768px uniquement (lot 2b).
+          Remplace les flèches hover-only (inutilisables au tactile) par un
+          défilement natif au doigt ; compteur et bouton partage repris,
+          ouverture plein écran au tap sur une vignette. Sans effet à partir
+          de 768px. ── */}
+      <div className="md:hidden relative overflow-hidden rounded-3xl border border-line shadow-2xl mb-10 bg-[#0f172a]">
+        <div
+          ref={mobileScrollRef}
+          onScroll={handleMobileScroll}
+          className="flex snap-x snap-mandatory overflow-x-auto"
+          style={{ height: 'clamp(300px, 62vh, 600px)' }}
+        >
+          {imgs.map((img, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => { setCurrent(i); setLightbox(true); }}
+              aria-label={t(hasVideo ? 'viewAllMedia' : 'viewAllPhotos', { count: imgs.length })}
+              className="relative h-full w-full shrink-0 snap-start"
+            >
+              {isVideo(img) ? (
+                <>
+                  <video src={img} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 shadow-lg">
+                      <i className="fa-solid fa-play text-gray-800 text-xl ml-1" />
+                    </span>
+                  </span>
+                </>
+              ) : (
+                <Image src={img} alt={title} fill className="object-cover" sizes="100vw" priority={i === 0} />
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+
+        {/* Compteur + partage */}
+        <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+          {imgs.length > 1 && (
+            <span className="px-2 py-1 rounded-full bg-black/50 text-white text-xs font-medium">
+              {current + 1} / {imgs.length}
+            </span>
+          )}
+          <div className="relative" ref={shareRefMobile}>
+            <button onClick={() => setShareOpenMobile((o) => !o)}
+              className="tap-target rounded-full bg-black/40 hover:bg-black/60 text-white transition"
+              aria-label={t('shareBtn')}>
+              <i className="fa-solid fa-share-nodes text-sm" />
+            </button>
+            {shareOpenMobile && (
+              <div className="absolute right-0 mt-2 w-52 bg-card border border-line rounded-xl shadow-lg p-2 z-20">
+                {[
+                  { icon: 'fa-brands fa-whatsapp', color: 'text-green-600 dark:text-green-400', label: t('shareWhatsapp'), action: shareWhatsapp },
+                  { icon: 'fa-brands fa-facebook', color: 'text-blue-600 dark:text-blue-400',  label: t('shareFacebook'), action: shareFacebook },
+                  { icon: 'fa-regular fa-envelope', color: 'text-text',     label: t('shareEmail'),    action: shareEmail    },
+                  { icon: 'fa-regular fa-copy',     color: 'text-text',     label: copied ? t('shareCopied') : t('shareCopy'), action: copyLink },
+                ].map((item) => (
+                  <button key={item.label} onClick={() => { item.action(); setShareOpenMobile(false); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-gold-pale text-sm text-text transition-colors">
+                    <i className={`${item.icon} ${item.color} w-4`} />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Titre + prix — overlay bas gauche */}
+        <div className="pointer-events-none absolute bottom-4 left-4 right-20 text-white drop-shadow-lg z-10">
+          <h1 className="text-2xl font-extrabold tracking-tight line-clamp-1">{title}</h1>
+          <p className="text-sm text-gray-100 mt-0.5">
+            {city} ·{' '}
+            <span className="text-gold font-semibold">{price}</span>
+          </p>
+        </div>
+
+        {/* Voir tous les médias */}
+        {imgs.length > 1 && (
+          <button
+            onClick={() => setLightbox(true)}
+            className="tap-target absolute bottom-4 right-4 z-10 flex items-center gap-1.5 rounded-full bg-white/90 hover:bg-white px-3 text-xs font-semibold text-gray-800 shadow-lg transition"
           >
             <i className="fa-solid fa-grid-2 text-[10px]" />
             {t(hasVideo ? 'viewAllMedia' : 'viewAllPhotos', { count: imgs.length })}

@@ -103,7 +103,7 @@ export default function ListingContactCard({
   return (
     <>
       {/* ── Price + contact card ────────────────────────────────── */}
-      <div className="bg-card/80 backdrop-blur-xl border border-line rounded-3xl p-6 shadow-lg">
+      <div className="bg-card/80 backdrop-blur-xl border border-line rounded-3xl p-6 max-md:p-4 shadow-lg">
         <div className="flex items-start justify-between">
           <div className="space-y-1.5">
             {priceEntries.map((e) => (
@@ -122,7 +122,7 @@ export default function ListingContactCard({
             onClick={toggleLike}
             disabled={likeLoading}
             title={liked ? t('removeFavorite') : t('addFavorite')}
-            className={`h-10 w-10 rounded-full border grid place-items-center transition ${
+            className={`h-10 w-10 max-md:h-11 max-md:w-11 rounded-full border grid place-items-center transition ${
               liked ? 'border-red-300 bg-red-50 dark:bg-red-950/30 text-red-400' : 'border-line hover:bg-gold-pale text-sub hover:text-gold-dark'
             }`}>
             {likeLoading
@@ -192,7 +192,7 @@ export default function ListingContactCard({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder={t('contactPlaceholder')}
-                className="w-full border border-line rounded-xl px-3 py-2 text-sm text-text bg-bg placeholder:text-sub outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition resize-none"
+                className="w-full border border-line rounded-xl px-3 py-2 text-sm text-text bg-bg placeholder:text-sub outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition resize-none max-md:text-base"
               />
               {error && (
                 <p className="mt-1 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
@@ -298,20 +298,34 @@ export default function ListingContactCard({
             </p>
           </div>
           {isVente ? (
-            agencyWhatsapp ? (
-              <a
-                href={`https://wa.me/${agencyWhatsapp.replace(/\D/g, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-gold px-4 py-2 rounded-full text-sm font-semibold"
-              >
-                {t('contactWhatsapp')}
-              </a>
-            ) : agencyPhone ? (
-              <a href={`tel:${agencyPhone}`} className="btn-gold px-4 py-2 rounded-full text-sm font-semibold">
-                {t('contactCall')}
-              </a>
-            ) : null
+            // Pour une vente, Appeler et SMS restent tous deux visibles (en
+            // plus de WhatsApp si présent) — pas de choix unique masquant
+            // l'un des deux (lot 2b, style app).
+            <div className="flex items-center gap-2">
+              {agencyWhatsapp && (
+                <a
+                  href={`https://wa.me/${agencyWhatsapp.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t('contactWhatsapp')}
+                  className="tap-target rounded-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <i className="fa-brands fa-whatsapp" />
+                </a>
+              )}
+              {agencyPhone && (
+                <>
+                  <a href={`tel:${agencyPhone}`} aria-label={t('contactCallShort')}
+                    className="tap-target rounded-full bg-gold-dark hover:bg-gold-dark/90 text-white">
+                    <i className="fa-solid fa-phone" />
+                  </a>
+                  <a href={`sms:${agencyPhone}`} aria-label={t('contactSms')}
+                    className="tap-target rounded-full border border-line text-text">
+                    <i className="fa-solid fa-message" />
+                  </a>
+                </>
+              )}
+            </div>
           ) : (
             <button
               onClick={() => document.getElementById('contact-textarea')?.focus()}

@@ -120,7 +120,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   const now = Date.now();
   const isNew = (now - new Date(listing.createdAt).getTime()) < 10 * 24 * 60 * 60 * 1000;
 
-  const CARD = 'bg-card backdrop-blur-xl border border-line rounded-3xl p-6 md:p-8 shadow-lg';
+  // max-md:p-4 (lot 2b) : marges 16px sous 768px. Sans effet à partir de
+  // 768px (p-6 md:p-8 inchangés).
+  const CARD = 'bg-card backdrop-blur-xl border border-line rounded-3xl p-6 md:p-8 max-md:p-4 shadow-lg';
 
   return (
     <main className="pb-24 md:pb-10">
@@ -169,7 +171,14 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
       )}
 
       {/* ── Content Grid ───────────────────────────────────────────── */}
-      <div className="aa-container grid lg:grid-cols-3 gap-8">
+      {/* grid-cols-1 (lot 2b) : corrige un bug préexistant — sans colonne de
+          base explicite, Grid plaçait les 2 blocs (contenu + sidebar) côte à
+          côte au lieu de les empiler sous 1024px, provoquant un débordement
+          horizontal massif entre 768 et 1023px (zone non couverte par les
+          contrôles PC précédents, qui ne testent que 1440/1024px). Sans
+          effet à partir de 1024px (lg:grid-cols-3 inchangé, déjà actif à
+          1024px pile). */}
+      <div className="aa-container grid grid-cols-1 lg:grid-cols-3 gap-8">
 
         {/* ══ LEFT COLUMN ══════════════════════════════════════════ */}
         <div className="lg:col-span-2 space-y-8">
@@ -255,7 +264,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             {listing.amenities.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-text mb-3">{t('amenities')}</h3>
-                <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-2 text-sm text-sub">
+                <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-2 text-sm text-sub max-md:grid-cols-2">
                   {listing.amenities.map((a) => (
                     <div key={a} className="flex items-center gap-2">
                       <i className={`fa-solid ${AMENITY_ICONS[a] ?? 'fa-check'} text-gold-dark text-xs`} />
@@ -296,7 +305,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 {t('openMaps')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
               </a>
             </div>
-            <div className="w-full h-64 rounded-2xl overflow-hidden border border-line">
+            <div className="w-full h-64 max-md:h-80 rounded-2xl overflow-hidden border border-line">
               {listing.lat && listing.lng ? (
                 <MapView lat={listing.lat} lng={listing.lng} title={listing.title} />
               ) : (
@@ -342,10 +351,33 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           {similar.length > 0 && (
             <div className={CARD}>
               <h2 className="text-xl font-semibold text-text mb-5">{t('similar')}</h2>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* ≥768px : grille inchangée */}
+              <div className="hidden md:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {similar.map((s) => (
                   <Link key={s.id} href={`/listings/${s.id}`}
                     className="group rounded-2xl overflow-hidden border border-line hover:shadow-lg transition bg-card">
+                    <div className="relative h-40 overflow-hidden">
+                      <Image src={s.images[0]} alt={s.title} fill
+                        className="object-cover group-hover:scale-105 transition duration-500" />
+                    </div>
+                    <div className="p-3">
+                      <p className="font-medium text-text truncate text-sm">{s.title}</p>
+                      <p className="text-xs text-sub">{s.city}</p>
+                      <p className="text-gold-dark font-semibold mt-1 text-sm">
+                        {getListingPriceAmounts(s)
+                          .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA${e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}`)
+                          .join(' · ')}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              {/* <768px (lot 2b) : carrousel horizontal à défilement accroché
+                  (snap), mêmes cartes. Sans effet à partir de 768px. */}
+              <div className="md:hidden -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 pb-1">
+                {similar.map((s) => (
+                  <Link key={s.id} href={`/listings/${s.id}`}
+                    className="group w-[75%] max-w-64 shrink-0 snap-start rounded-2xl overflow-hidden border border-line hover:shadow-lg transition bg-card">
                     <div className="relative h-40 overflow-hidden">
                       <Image src={s.images[0]} alt={s.title} fill
                         className="object-cover group-hover:scale-105 transition duration-500" />
