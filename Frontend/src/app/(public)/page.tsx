@@ -58,6 +58,137 @@ function isNewListing(createdAt: string): boolean {
   return Date.now() - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000;
 }
 
+type TranslateFn = Awaited<ReturnType<typeof getTranslations>>;
+
+// Extrait pour être rendu deux fois sans dupliquer le JSX (lot 2a) : une
+// fois dans la grille ≥768px inchangée, une fois dans le carrousel mobile
+// à défilement horizontal — même carte, même données.
+function HomeListingCard({ l, favoriteIds, numLocale, t }: {
+  l: Listing; favoriteIds: string[]; numLocale: string; t: TranslateFn;
+}) {
+  const isAgence    = l.owner?.roles?.includes('PRO_AGENCE') && !!l.owner.agencySlug;
+  const isProAgence = l.owner?.roles?.includes('PRO_AGENCE');
+  const isBoosted   = l.boostUntil && new Date(l.boostUntil) > new Date();
+  return (
+    <div className="listing-card group block">
+      <Link href={`/listings/${l.id}`} className="block">
+
+        {/* Image */}
+        <div className="relative h-56 overflow-hidden rounded-t-2xl">
+          {l.images[0] ? (
+            <Image
+              src={l.images[0]}
+              alt={l.title}
+              fill
+              className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+              sizes="(max-width:640px) 100vw,(max-width:1024px) 50vw,25vw"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center bg-gold-pale">
+              <i className="fa-solid fa-image text-3xl text-gold/40" />
+            </div>
+          )}
+          {/* Overlay gradient */}
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-transparent"
+          />
+          {/* Badges haut gauche */}
+          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+            {isBoosted && (
+              <span className="flex items-center gap-1 rounded-full bg-gold text-gray-900 text-[10px] font-bold px-2.5 py-0.5 shadow-sm">
+                <i className="fa-solid fa-bolt text-[9px]" /> En vedette
+              </span>
+            )}
+            {isProAgence && (
+              <span className="flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-sm text-gold text-[10px] font-bold px-2.5 py-0.5">
+                <i className="fa-solid fa-crown text-[9px]" /> {l.owner?.agencyName ?? 'Agence PRO'}
+              </span>
+            )}
+            {!isBoosted && !isProAgence && isNewListing(l.createdAt) && (
+              <span className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-0.5 text-[10px] font-semibold text-gold-dark">
+                {t('newBadge')}
+              </span>
+            )}
+          </div>
+          {/* Badge prix — 1 pastille (NIGHTLY/MONTHLY) ou 2 empilées (MIXED) */}
+          <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
+            {getListingPriceAmounts(l).map((e) => (
+              <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
+                {e.amount.toLocaleString(numLocale)} FCFA{e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}
+              </span>
+            ))}
+          </div>
+          {/* Bouton favori */}
+          <FavoriteButton listingId={l.id} initialFavorite={favoriteIds.includes(l.id)} className="absolute top-3 right-3 max-md:h-11 max-md:w-11" />
+        </div>
+
+        {/* Corps */}
+        <div className="p-4">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">{l.title}</h3>
+            {l.isVerified && <AlloVerifieBadge size="sm" className="shrink-0 mt-0.5" />}
+          </div>
+          <p className="mt-1 flex items-center gap-1 text-sm text-sub">
+            <i className="fa-solid fa-location-dot text-gold-dark text-xs" />
+            {l.city}
+          </p>
+          {l.avgRating != null && (
+            <div className="mt-1 flex items-center gap-1 text-xs text-amber-500 font-medium">
+              <i className="fa-solid fa-star text-[10px]" />
+              <span>{l.avgRating.toFixed(1)}</span>
+              {l._count && (
+                <span className="text-sub font-normal">({l._count.reviews})</span>
+              )}
+            </div>
+          )}
+          {/* Infos */}
+          <div className="mt-3 flex items-center gap-3 text-sm text-sub">
+            {l.beds != null && (
+              <span className="flex items-center gap-1">
+                <i className="fa-solid fa-bed text-gold-dark text-xs" />{l.beds}
+              </span>
+            )}
+            {l.baths != null && (
+              <span className="flex items-center gap-1">
+                <i className="fa-solid fa-bath text-gold-dark text-xs" />{l.baths}
+              </span>
+            )}
+            {l.surface != null && (
+              <span className="flex items-center gap-1">
+                <i className="fa-solid fa-ruler-combined text-gold-dark text-xs" />{l.surface} m²
+              </span>
+            )}
+          </div>
+          {/* Voir plus */}
+          <div className="mt-3 flex items-center gap-1 text-xs text-gold-dark/80 group-hover:text-gold-dark transition-colors duration-300">
+            {t('seeMore')}
+            <svg className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </Link>
+      {/* Badge agence — hors de l'enveloppe Link pour éviter <a> dans <a> */}
+      {isAgence && (
+        <div className="px-4 pb-4 -mt-1">
+          <Link
+            href={`/agences/${l.owner!.agencySlug!}`}
+            className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold-pale px-2.5 py-0.5 text-[11px] font-semibold text-gold-dark hover:bg-gold/20 transition-colors"
+          >
+            {l.owner!.avatar && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={l.owner!.avatar} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
+            )}
+            {!l.owner!.avatar && <i className="fa-solid fa-building text-[9px]" />}
+            {l.owner!.agencyName ?? `${l.owner!.firstName} ${l.owner!.lastName}`}
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface PublicStats {
   activeListings: number;
   regionsCount: number;
@@ -137,8 +268,11 @@ export default async function HomePage() {
   return (
     <main>
 
-      {/* ══ HÉRO plein-écran ═══════════════════════════════════════════ */}
-      <section className="relative flex min-h-[92vh] flex-col items-center justify-center overflow-hidden py-40 md:py-52 px-4 text-center">
+      {/* ══ HÉRO plein-écran ═══════════════════════════════════════════
+          max-md:min-h-0 max-md:py-16 (lot 2a) : hero compact sous 768px
+          (moins de scroll avant le contenu, cf. audit mobile). Sans effet
+          à partir de 768px (min-h-[92vh]/py-40/md:py-52 inchangés). ── */}
+      <section className="relative flex min-h-[92vh] max-md:min-h-0 flex-col items-center justify-center overflow-hidden py-40 md:py-52 max-md:py-16 px-4 text-center">
 
         {/* Background animé */}
         <div
@@ -181,9 +315,17 @@ export default async function HomePage() {
             }
           </p>
 
+          {/* ── Barre de recherche — mobile uniquement (lot 2a), mise en
+              évidence dans le hero compact. Sans effet à partir de 768px. ── */}
+          <Link href="/search" aria-label={t('searchAriaLabel')}
+            className="md:hidden animate-fadeUp delay-300 mt-6 flex w-full items-center gap-3 rounded-full border border-white/20 bg-white/95 px-5 py-3.5 text-left shadow-lg">
+            <i className="fa-solid fa-magnifying-glass text-gold-dark" />
+            <span className="text-sm font-medium text-sub">{t('searchPlaceholder')}</span>
+          </Link>
+
           {/* ── CTA dynamiques ── */}
           {isAdmin ? (
-            <div className="animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
+            <div className="cta-group animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
               <Link href="/espace"
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-gray-900 shadow-lg hover:bg-gold-light transition-colors">
                 <i className="fa-solid fa-gauge" /> {t('ctaDashboard')}
@@ -198,7 +340,7 @@ export default async function HomePage() {
               </Link>
             </div>
           ) : isBailleur ? (
-            <div className="animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
+            <div className="cta-group animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
               <Link href="/publier"
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-gray-900 shadow-lg hover:bg-gold-light transition-colors">
                 <i className="fa-solid fa-plus" /> {t('ctaPublish')}
@@ -213,7 +355,7 @@ export default async function HomePage() {
               </Link>
             </div>
           ) : isAgentTerrain ? (
-            <div className="animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
+            <div className="cta-group animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
               <Link href="/agent/missions"
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-gray-900 shadow-lg hover:bg-gold-light transition-colors">
                 <i className="fa-solid fa-map-location-dot" /> {t('ctaMyMissions')}
@@ -224,7 +366,7 @@ export default async function HomePage() {
               </Link>
             </div>
           ) : isLocataire ? (
-            <div className="animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
+            <div className="cta-group animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
               <Link href="/listings"
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-6 py-3 text-sm font-bold text-gray-900 shadow-lg hover:bg-gold-light transition-colors">
                 <i className="fa-solid fa-magnifying-glass" /> {t('ctaSearch')}
@@ -240,7 +382,7 @@ export default async function HomePage() {
             </div>
           ) : (
             /* ── Visiteur anonyme ── */
-            <div className="animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
+            <div className="cta-group animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
               <Link href="/listings"
                 className="inline-flex items-center gap-2 rounded-full bg-gold px-7 py-3.5 text-sm font-bold text-gray-900 shadow-lg hover:bg-gold-light transition-colors">
                 <i className="fa-solid fa-magnifying-glass" /> {t('searchBtn')}
@@ -255,10 +397,13 @@ export default async function HomePage() {
 
       </section>
 
-      {/* ══ STATS ═════════════════════════════════════════════════════ */}
+      {/* ══ STATS ═════════════════════════════════════════════════════
+          max-md:grid-cols-2 + dividers retirés sous 768px (lot 2a, style
+          app : grille 2 colonnes). Sans effet à partir de 768px
+          (grid-cols-1 sm:grid-cols-3 + divide-* inchangés). ── */}
       <section className="bg-bg border-t border-line py-16 px-4">
         <div className="aa-container">
-          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line">
+          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line max-md:grid-cols-2 max-md:divide-y-0 max-md:divide-x-0 max-md:gap-6">
             {STATS_DATA.map((s) => (
               <div key={s.key} className="flex flex-col items-center text-center px-8 py-8 sm:py-4">
                 <p className="text-5xl font-extrabold tracking-tight text-text">{s.value}</p>
@@ -297,131 +442,24 @@ export default async function HomePage() {
               <p className="text-sm">{t('noListings')}</p>
             </div>
           ) : (
-            <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {listings.map((l) => {
-                const isAgence   = l.owner?.roles?.includes('PRO_AGENCE') && !!l.owner.agencySlug;
-                const isProAgence = l.owner?.roles?.includes('PRO_AGENCE');
-                const isBoosted  = l.boostUntil && new Date(l.boostUntil) > new Date();
-                return (
-                <div key={l.id} className="listing-card group block">
-                <Link href={`/listings/${l.id}`} className="block">
-
-                  {/* Image */}
-                  <div className="relative h-56 overflow-hidden rounded-t-2xl">
-                    {l.images[0] ? (
-                      <Image
-                        src={l.images[0]}
-                        alt={l.title}
-                        fill
-                        className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
-                        sizes="(max-width:640px) 100vw,(max-width:1024px) 50vw,25vw"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center bg-gold-pale">
-                        <i className="fa-solid fa-image text-3xl text-gold/40" />
-                      </div>
-                    )}
-                    {/* Overlay gradient */}
-                    <div
-                      aria-hidden
-                      className="absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-transparent"
-                    />
-                    {/* Badges haut gauche */}
-                    <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                      {isBoosted && (
-                        <span className="flex items-center gap-1 rounded-full bg-gold text-gray-900 text-[10px] font-bold px-2.5 py-0.5 shadow-sm">
-                          <i className="fa-solid fa-bolt text-[9px]" /> En vedette
-                        </span>
-                      )}
-                      {isProAgence && (
-                        <span className="flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-sm text-gold text-[10px] font-bold px-2.5 py-0.5">
-                          <i className="fa-solid fa-crown text-[9px]" /> {l.owner?.agencyName ?? 'Agence PRO'}
-                        </span>
-                      )}
-                      {!isBoosted && !isProAgence && isNewListing(l.createdAt) && (
-                        <span className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-0.5 text-[10px] font-semibold text-gold-dark">
-                          {t('newBadge')}
-                        </span>
-                      )}
-                    </div>
-                    {/* Badge prix — 1 pastille (NIGHTLY/MONTHLY) ou 2 empilées (MIXED) */}
-                    <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
-                      {getListingPriceAmounts(l).map((e) => (
-                        <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
-                          {e.amount.toLocaleString(numLocale)} FCFA{e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}
-                        </span>
-                      ))}
-                    </div>
-                    {/* Bouton favori */}
-                    <FavoriteButton listingId={l.id} initialFavorite={favoriteIds.includes(l.id)} className="absolute top-3 right-3" />
+            <>
+              {/* ≥768px : grille inchangée */}
+              <div className="hidden md:grid gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                {listings.map((l) => (
+                  <HomeListingCard key={l.id} l={l} favoriteIds={favoriteIds} numLocale={numLocale} t={t} />
+                ))}
+              </div>
+              {/* <768px (lot 2a) : carrousel horizontal à défilement accroché
+                  (snap), carte suivante visible en bord pour indiquer qu'il y
+                  a plus de contenu. Sans effet à partir de 768px. */}
+              <div className="md:hidden -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-4 pb-2">
+                {listings.map((l) => (
+                  <div key={l.id} className="w-[85%] max-w-xs shrink-0 snap-start">
+                    <HomeListingCard l={l} favoriteIds={favoriteIds} numLocale={numLocale} t={t} />
                   </div>
-
-                  {/* Corps */}
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">{l.title}</h3>
-                      {l.isVerified && <AlloVerifieBadge size="sm" className="shrink-0 mt-0.5" />}
-                    </div>
-                    <p className="mt-1 flex items-center gap-1 text-sm text-sub">
-                      <i className="fa-solid fa-location-dot text-gold-dark text-xs" />
-                      {l.city}
-                    </p>
-                    {l.avgRating != null && (
-                      <div className="mt-1 flex items-center gap-1 text-xs text-amber-500 font-medium">
-                        <i className="fa-solid fa-star text-[10px]" />
-                        <span>{l.avgRating.toFixed(1)}</span>
-                        {l._count && (
-                          <span className="text-sub font-normal">({l._count.reviews})</span>
-                        )}
-                      </div>
-                    )}
-                    {/* Infos */}
-                    <div className="mt-3 flex items-center gap-3 text-sm text-sub">
-                      {l.beds != null && (
-                        <span className="flex items-center gap-1">
-                          <i className="fa-solid fa-bed text-gold-dark text-xs" />{l.beds}
-                        </span>
-                      )}
-                      {l.baths != null && (
-                        <span className="flex items-center gap-1">
-                          <i className="fa-solid fa-bath text-gold-dark text-xs" />{l.baths}
-                        </span>
-                      )}
-                      {l.surface != null && (
-                        <span className="flex items-center gap-1">
-                          <i className="fa-solid fa-ruler-combined text-gold-dark text-xs" />{l.surface} m²
-                        </span>
-                      )}
-                    </div>
-                    {/* Voir plus */}
-                    <div className="mt-3 flex items-center gap-1 text-xs text-gold-dark/80 group-hover:text-gold-dark transition-colors duration-300">
-                      {t('seeMore')}
-                      <svg className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </div>
-                </Link>
-                {/* Badge agence — hors de l'enveloppe Link pour éviter <a> dans <a> */}
-                {isAgence && (
-                  <div className="px-4 pb-4 -mt-1">
-                    <Link
-                      href={`/agences/${l.owner!.agencySlug!}`}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold-pale px-2.5 py-0.5 text-[11px] font-semibold text-gold-dark hover:bg-gold/20 transition-colors"
-                    >
-                      {l.owner!.avatar && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={l.owner!.avatar} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
-                      )}
-                      {!l.owner!.avatar && <i className="fa-solid fa-building text-[9px]" />}
-                      {l.owner!.agencyName ?? `${l.owner!.firstName} ${l.owner!.lastName}`}
-                    </Link>
-                  </div>
-                )}
-                </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </section>
@@ -537,7 +575,8 @@ export default async function HomePage() {
               </p>
             </div>
           </div>
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {/* ≥768px : grille inchangée */}
+          <div className="hidden md:grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {REGIONS.slice(0, 10).map((r) => (
               <Link
                 key={r.slug}
@@ -560,6 +599,31 @@ export default async function HomePage() {
               </span>
             </Link>
           </div>
+          {/* <768px (lot 2a) : carrousel horizontal à défilement accroché
+              (snap), même cartes. Sans effet à partir de 768px. */}
+          <div className="md:hidden -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 pb-2">
+            {REGIONS.slice(0, 10).map((r) => (
+              <Link
+                key={r.slug}
+                href={`/listings?region=${encodeURIComponent(r.slug)}&limit=6&page=1`}
+                className="group flex h-28 w-28 shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-bg transition-all duration-300 hover:border-gold-dark/50 hover:bg-gold-pale/30 dark:hover:bg-gold-dark/10"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-dark transition-transform duration-300 group-hover:scale-110">
+                  <i className="fa-solid fa-location-dot text-sm" />
+                </span>
+                <span className="text-sm font-bold text-text">{r.name}</span>
+              </Link>
+            ))}
+            <Link
+              href="/listings"
+              className="group relative flex h-28 w-28 shrink-0 snap-start flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border border-line bg-bg transition hover:bg-gold-pale"
+            >
+              <i className="fa-solid fa-map-location-dot text-2xl text-gold-dark transition-transform group-hover:scale-110" />
+              <span className="text-xs font-semibold text-text">
+                {t('seeAllShort')}
+              </span>
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -576,7 +640,7 @@ export default async function HomePage() {
               <p className="mt-4 max-w-xl text-gray-300">
                 {t('ctaAdminDesc')}
               </p>
-              <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <div className="cta-group mt-8 flex flex-wrap justify-center gap-3">
                 <Link href="/espace" className="btn-gold">
                   <i className="fa-solid fa-gauge mr-1.5 text-sm" /> {t('ctaDashboard')}
                 </Link>
@@ -597,7 +661,7 @@ export default async function HomePage() {
               <p className="mt-4 max-w-xl text-gray-300">
                 {t('ctaBailleurDesc')}
               </p>
-              <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <div className="cta-group mt-8 flex flex-wrap justify-center gap-3">
                 <Link href="/publier" className="btn-gold">
                   <i className="fa-solid fa-plus mr-1.5 text-sm" /> {t('ctaPublish')}
                 </Link>
@@ -628,7 +692,7 @@ export default async function HomePage() {
               <p className="mt-4 max-w-xl text-gray-300">
                 {t('ctaAgentDesc')}
               </p>
-              <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <div className="cta-group mt-8 flex flex-wrap justify-center gap-3">
                 <Link href="/agent/missions" className="btn-gold">
                   <i className="fa-solid fa-map-location-dot mr-1.5 text-sm" /> {t('ctaMyMissions')}
                 </Link>
@@ -646,7 +710,7 @@ export default async function HomePage() {
               <p className="mt-4 max-w-xl text-gray-300">
                 {t('ctaLocataireDesc')}
               </p>
-              <div className="mt-8 flex flex-wrap justify-center gap-4">
+              <div className="cta-group mt-8 flex flex-wrap justify-center gap-4">
                 <Link href="/listings" className="btn-gold">
                   <i className="fa-solid fa-magnifying-glass mr-1.5 text-sm" /> {t('ctaSearch')}
                 </Link>
@@ -674,7 +738,7 @@ export default async function HomePage() {
                 {t('ctaVisitorTitle')}
               </h2>
               <p className="mt-4 max-w-xl text-gray-300">{t('ctaVisitorDesc')}</p>
-              <div className="mt-8 flex flex-wrap justify-center gap-4">
+              <div className="cta-group mt-8 flex flex-wrap justify-center gap-4">
                 <Link href="/sign-up" className="btn-gold">
                   {t('ctaVisitorStart')} <i className="fa-solid fa-arrow-right ml-1 text-sm" />
                 </Link>

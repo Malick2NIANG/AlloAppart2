@@ -257,6 +257,21 @@ h1, h2, h3, h4, h5 {
   }
 }
 
+/* ── Lot 2a : groupes de CTA pleine largeur sous 768px ────────────────
+   .cta-group : appliqué à un conteneur `flex flex-wrap` de boutons/liens
+   CTA — les empile en colonne et les passe en pleine largeur, sans toucher
+   aux classes de chaque bouton individuellement. Sans effet à partir de
+   768px. */
+@media (max-width: 767px) {
+  .cta-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .cta-group > a {
+    width: 100%;
+  }
+}
+
 /* ── Animation utilities ───────────────────────────────────────────── */
 .animate-fadeUp     { animation: fadeUp      1s   ease      both; }
 .animate-fadeIn     { animation: fadeIn      0.4s ease-out  both; }
