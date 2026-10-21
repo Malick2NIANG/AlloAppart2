@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import AvatarCropper from '@/components/ui/AvatarCropper';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { useToast } from '@/components/ui/Toast';
+import StickyStepActions from '@/components/ui/StickyStepActions';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -162,12 +163,12 @@ export default function ProfilPage() {
   };
 
   return (
-    <main className="py-10 px-4 bg-bg min-h-screen">
+    <main className="py-10 px-4 bg-bg min-h-screen max-md:min-h-dvh max-md:flex max-md:flex-col max-md:py-6">
       {cropSrc && (
         <AvatarCropper src={cropSrc} onConfirm={handleCropConfirm} onCancel={handleCropCancel} />
       )}
 
-      <div className="aa-container max-w-2xl">
+      <div className="aa-container max-w-2xl max-md:flex max-md:flex-1 max-md:flex-col">
 
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-xs text-sub">
@@ -192,7 +193,8 @@ export default function ProfilPage() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingAvatar}
-              className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              aria-label={avatar ? t('changePhoto') : t('addPhoto')}
+              className="tap-target absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity [@media(hover:none)]:opacity-100 [@media(hover:none)]:bg-black/30"
             >
               {uploadingAvatar
                 ? <i className="fa-solid fa-spinner fa-spin text-white text-sm" />
@@ -223,7 +225,7 @@ export default function ProfilPage() {
         </div>
 
         {/* Formulaire */}
-        <form onSubmit={handleSave} className="rounded-2xl border border-line bg-card p-6 space-y-5">
+        <form onSubmit={handleSave} className="rounded-2xl border border-line bg-card p-6 space-y-5 max-md:flex max-md:flex-1 max-md:flex-col max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0">
           <h2 className="text-sm font-semibold text-text flex items-center gap-2">
             <i className="fa-solid fa-circle-user text-gold-dark" /> {t('personalInfo')}
           </h2>
@@ -269,7 +271,7 @@ export default function ProfilPage() {
             <p className="mt-1 text-right text-[11px] text-sub">{bio.length}/500</p>
           </Field>
 
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex items-center gap-3 pt-1 max-md:hidden">
             <button
               type="submit" disabled={saving || !isDirty}
               className="btn-gold rounded-full px-6 py-2 text-sm disabled:opacity-50 flex items-center gap-2"
@@ -285,6 +287,21 @@ export default function ProfilPage() {
               </span>
             )}
           </div>
+
+          {/* Bouton d'enregistrement mobile — pleine largeur, collé en bas */}
+          <StickyStepActions>
+            <button
+              type="submit" disabled={saving || !isDirty}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold to-gold-light text-sm font-semibold text-gray-900 shadow-md transition active:scale-[0.98] disabled:opacity-50"
+            >
+              {saving
+                ? <><i className="fa-solid fa-spinner fa-spin" /> {t('saving')}</>
+                : saved
+                  ? <><i className="fa-solid fa-circle-check" /> {t('saved')}</>
+                  : <><i className="fa-solid fa-floppy-disk" /> {t('save')}</>
+              }
+            </button>
+          </StickyStepActions>
         </form>
 
         {/* Lien sécurité */}

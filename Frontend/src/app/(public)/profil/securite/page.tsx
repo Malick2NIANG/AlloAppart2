@@ -61,7 +61,7 @@ export default function SecuritePage() {
   };
 
   return (
-    <main className="py-10 px-4 bg-bg min-h-screen">
+    <main className="py-10 px-4 bg-bg min-h-screen max-md:min-h-dvh max-md:py-6">
       <div className="aa-container max-w-2xl space-y-6">
 
         {/* Breadcrumb */}
@@ -76,7 +76,7 @@ export default function SecuritePage() {
         </h1>
 
         {/* ── Mot de passe ── */}
-        <section className="rounded-2xl border border-line bg-card p-6 space-y-4">
+        <section className="rounded-2xl border border-line bg-card p-6 space-y-4 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0">
           <h2 className="text-sm font-semibold text-text flex items-center gap-2">
             <i className="fa-solid fa-lock text-gold-dark text-xs" /> {t('pwdTitle')}
           </h2>
@@ -99,7 +99,7 @@ export default function SecuritePage() {
               {pwdFlash && <Flash flash={pwdFlash} />}
 
               <button type="submit" disabled={pwdSaving || !isLoaded || !pwdDirty}
-                className="btn-gold rounded-full px-5 py-2 text-sm flex items-center gap-2 disabled:opacity-50">
+                className="btn-gold rounded-full px-5 py-2 text-sm flex items-center gap-2 disabled:opacity-50 max-md:w-full max-md:h-12">
                 {pwdSaving
                   ? <><i className="fa-solid fa-spinner fa-spin" /> {t('saving')}</>
                   : <><i className="fa-solid fa-floppy-disk" /> {t('pwdSave')}</>
@@ -141,12 +141,12 @@ function PwdField({ label, value, show, onChange, onToggle, error = false }: {
           type={show ? 'text' : 'password'} value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="••••••••" required
-          className={`w-full rounded-xl border py-2.5 pl-10 pr-11 text-sm text-text placeholder:text-sub outline-none transition bg-bg ${
+          className={`w-full rounded-xl border py-2.5 pl-10 pr-11 text-sm text-text placeholder:text-sub outline-none transition bg-bg max-md:text-base ${
             error ? 'border-red-400 focus:ring-1 focus:ring-red-400/40' : 'border-line focus:border-gold focus:ring-1 focus:ring-gold/40'
           }`}
         />
         <button type="button" onClick={onToggle}
-          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition">
+          className="tap-target absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition">
           <i className={`fa-solid ${show ? 'fa-eye-slash' : 'fa-eye'} text-sm`} />
         </button>
       </div>

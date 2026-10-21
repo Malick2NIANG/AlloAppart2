@@ -54,7 +54,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-bg px-4 py-16">
+    <main className="flex min-h-screen items-center justify-center bg-bg px-4 py-16 max-md:min-h-dvh max-md:py-10">
       <div className="w-full max-w-lg">
 
         <div className="mb-10 text-center">
@@ -112,7 +112,7 @@ export default function OnboardingPage() {
         )}
 
         <button onClick={confirm} disabled={selected.length === 0 || loading}
-          className="mt-8 w-full rounded-full bg-gold py-3 text-sm font-bold text-gray-900 hover:bg-gold-dark hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+          className="mt-8 w-full rounded-full bg-gold py-3 text-sm font-bold text-gray-900 hover:bg-gold-dark hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 max-md:h-12">
           {loading
             ? <><i className="fa-solid fa-spinner fa-spin" /> {t('ctaLoading')}</>
             : <><i className="fa-solid fa-arrow-right" /> {t('cta')}</>
