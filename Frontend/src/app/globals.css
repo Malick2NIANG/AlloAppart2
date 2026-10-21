@@ -109,6 +109,16 @@ h1, h2, h3, h4, h5 {
   padding-inline: 1rem;
 }
 @media (min-width: 640px) { .aa-container { padding-inline: 1.5rem; } }
+/* Sous 768px : neutralise margin-inline:auto. Sans effet visuel (ces marges
+   ne centrent quelque chose que si le viewport dépasse max-width:1200px,
+   donc jamais en dessous de 768px) — nécessaire uniquement pour les pages
+   où .aa-container est devenu flex item d'un parent flex-col (/publier,
+   /profil, lot 3a/3b) : sans ce correctif, margin-inline:auto y déclenche
+   l'alignement "auto margin" de flexbox au lieu de stretch, et le
+   conteneur épouse la largeur "fit-content" de son contenu au lieu de
+   remplir son parent — débordement horizontal réel, trouvé en testant
+   avec une vraie session. */
+@media (max-width: 767px) { .aa-container { margin-inline: 0; } }
 
 /* ── Glassmorphism ─────────────────────────────────────────────────── */
 .glass {

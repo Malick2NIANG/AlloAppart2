@@ -166,6 +166,18 @@ export default function ProfilPage() {
     <main className="py-10 px-4 bg-bg min-h-screen max-md:min-h-dvh max-md:flex max-md:flex-col max-md:py-6">
       <AvatarCropper src={cropSrc ?? ''} open={!!cropSrc} onConfirm={handleCropConfirm} onCancel={handleCropCancel} />
 
+      {/* Bug trouvé en testant avec une vraie session (lot 3a/3b) :
+          .aa-container a margin-inline:auto (pensé pour un bloc centré
+          classique) ; une fois ce div rendu flex item d'un parent flex-col
+          (<main> ci-dessus, pour le footer collant), ces marges auto
+          déclenchent l'alignement "auto margin" de flexbox sur l'axe
+          transversal à la place du stretch par défaut — le conteneur se met
+          alors à épouser la largeur "fit-content" de son contenu (plus
+          grande que l'écran, même tronqué) au lieu de remplir le <main>,
+          provoquant un débordement horizontal réel. Corrigé dans
+          globals.css (margin-inline:0 sous 768px pour .aa-container — sans
+          effet visuel nulle part, ces marges ne sont de toute façon jamais
+          géométriquement actives en dessous de 1200px). */}
       <div className="aa-container max-w-2xl max-md:flex max-md:flex-1 max-md:flex-col">
 
         {/* Breadcrumb */}
@@ -208,9 +220,9 @@ export default function ProfilPage() {
             />
           </div>
 
-          <div>
-            <h1 className="text-xl font-extrabold text-text">{displayName || t('title')}</h1>
-            <p className="text-sm text-sub">{displayEmail}</p>
+          <div className="max-md:min-w-0">
+            <h1 className="text-xl font-extrabold text-text max-md:truncate">{displayName || t('title')}</h1>
+            <p className="text-sm text-sub max-md:truncate">{displayEmail}</p>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}

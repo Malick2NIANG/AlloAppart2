@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
+import { BOTTOM_NAV_TOGGLE_EVENT } from '@/components/ui/BottomNav';
 import type { MessageRoom, Message } from '@/types';
 
 function VisitorGate({ t }: { t: ReturnType<typeof useTranslations<'messages'>> }) {
@@ -67,6 +68,20 @@ export default function MessagesPage() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard pattern
   useEffect(() => { setMounted(true); }, []);
+
+  // /messages (public) n'a pas de route [roomId] dédiée (contrairement aux
+  // espaces locataire/bailleur/agent) : ouvrir une conversation ne change
+  // pas le chemin, donc isImmersiveRoute seul ne peut pas masquer la barre
+  // du bas. On le signale explicitement à BottomNav via un événement tant
+  // qu'une conversation est ouverte, et on la rétablit au retour à la liste
+  // ou en quittant la page. Sans effet ≥768px (BottomNav y est déjà masquée
+  // par son propre md:hidden).
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(BOTTOM_NAV_TOGGLE_EVENT, { detail: { hidden: !!activeRoom } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent(BOTTOM_NAV_TOGGLE_EVENT, { detail: { hidden: false } }));
+    };
+  }, [activeRoom]);
 
   const loadRooms = useCallback(async () => {
     if (!isSignedIn) return;

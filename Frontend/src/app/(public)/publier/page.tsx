@@ -191,6 +191,19 @@ export default function PublierPage() {
   // Recentrage de la carte quand l'utilisateur choisit une région (étape Localisation).
   const [mapFocus, setMapFocus] = useState<MapFocus | undefined>(undefined);
   const [submitMode,    setSubmitMode]    = useState<'draft' | 'publish'>('publish');
+  // Remplace handleSubmit(onSubmit) pour les 2 boutons Brouillon/Publier —
+  // bug trouvé en testant /publier avec une vraie session (lot 3a/3b) :
+  // avec `type="submit"` + `onClick={() => setSubmitMode('draft')}`, la mise
+  // à jour d'état n'est pas encore appliquée quand le `submit` natif déclenche
+  // handleSubmit(onSubmit) dans le même tick — onSubmit lisait donc l'ancienne
+  // valeur de submitMode (toujours 'publish' par défaut au premier clic) : le
+  // bouton "Enregistrer comme brouillon" publiait réellement l'annonce. En
+  // passant le mode explicitement en paramètre (au lieu de le lire depuis un
+  // state asynchrone), le bouton cliqué fait toujours ce qu'il annonce. Même
+  // bug présent sur les deux variantes (desktop déjà existante, mobile
+  // copiée à l'identique lot 3a) — corrigé ici pour les deux à la fois,
+  // sans aucun changement visuel (ni classes, ni rendu).
+  const [manualSubmitting, setManualSubmitting] = useState(false);
 
   const prevSignedIn = useRef<boolean | undefined>(undefined);
 
@@ -257,8 +270,8 @@ export default function PublierPage() {
 
   const schema = useMemo(() => makeSchema(t), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { register, handleSubmit, watch, setValue, trigger,
-    formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const { register, watch, setValue, trigger,
+    formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
     defaultValues: {
       type: 'APPARTEMENT',
@@ -505,20 +518,25 @@ export default function PublierPage() {
     }
   };
 
-  /* ── Soumission finale ── */
-  const onSubmit = async (data: FormValues) => {
+  /* ── Soumission finale ── le mode est reçu en paramètre (pas relu depuis
+     submitMode) pour que le bouton cliqué fasse toujours ce qu'il annonce,
+     même au tout premier clic — voir le commentaire sur manualSubmitting. */
+  const submitListing = async (mode: 'draft' | 'publish') => {
+    if (manualSubmitting) return;
+    setManualSubmitting(true);
+    setSubmitMode(mode);
     setApiError(null);
     setUpgradeModal(null);
-    if (isDemo) { setSuccess(submitMode === 'draft' ? 'draft' : 'published'); return; }
+    if (isDemo) { setSuccess(mode === 'draft' ? 'draft' : 'published'); setManualSubmitting(false); return; }
     try {
       const token = await getToken();
       await api.post('/listings', {
         // Retire pièces/chambres/sdb/équipements sans objet pour ce type de bien.
-        ...sanitizeForType(data),
-        status: submitMode === 'publish' ? 'ACTIVE' : 'DRAFT',
+        ...sanitizeForType(values),
+        status: mode === 'publish' ? 'ACTIVE' : 'DRAFT',
       }, token ?? undefined);
       localStorage.removeItem(DRAFT_KEY);
-      setSuccess(submitMode === 'draft' ? 'draft' : 'published');
+      setSuccess(mode === 'draft' ? 'draft' : 'published');
     } catch (err: unknown) {
       // Le plafond d'annonces actives (compte particulier) renvoie un code
       // structuré (pas juste un message texte) pour qu'on puisse afficher une
@@ -532,6 +550,8 @@ export default function PublierPage() {
         const detail = apiErrorDetail(err);
         setApiError(detail ? `${t('apiError')} ${detail}` : t('apiError'));
       }
+    } finally {
+      setManualSubmitting(false);
     }
   };
 
@@ -550,6 +570,11 @@ export default function PublierPage() {
 
   return (
     <main className="py-10 px-4 bg-bg min-h-screen max-md:min-h-dvh max-md:flex max-md:flex-col max-md:px-0 max-md:py-0">
+      {/* Voir le même correctif sur /profil/page.tsx pour l'explication
+          complète : margin-inline:auto + flex item d'un parent flex-col
+          déclenche l'alignement "auto margin" de flexbox au lieu du
+          stretch, provoquant un débordement horizontal. Corrigé dans
+          globals.css (margin-inline:0 sous 768px pour .aa-container). */}
       <div className="aa-container max-w-2xl max-md:flex max-md:flex-1 max-md:flex-col">
 
         {/* Breadcrumb + titre — remplacés sous 768px par MobileStepperBar */}
@@ -601,7 +626,10 @@ export default function PublierPage() {
         </div>
 
         {/* Formulaire */}
-        <form onSubmit={handleSubmit(onSubmit)} className="max-md:flex max-md:flex-1 max-md:flex-col">
+        {/* Les boutons Brouillon/Publier appellent submitListing() directement
+            (plus de soumission native du formulaire) — onSubmit n'empêche
+            plus que la navigation par défaut si Entrée est pressé dans un champ. */}
+        <form onSubmit={(e) => e.preventDefault()} className="max-md:flex max-md:flex-1 max-md:flex-col">
           <div className="mt-8 rounded-2xl border border-line bg-card p-6 space-y-6 max-md:mt-3 max-md:flex-1 max-md:space-y-5 max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0">
 
             {/* ── Étape 0 : Type & Titre ── */}
@@ -1017,23 +1045,23 @@ export default function PublierPage() {
             ) : (
               <div className="flex items-center gap-3">
                 <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  onClick={() => setSubmitMode('draft')}
+                  type="button"
+                  disabled={manualSubmitting}
+                  onClick={() => void submitListing('draft')}
                   className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all disabled:opacity-50"
                 >
-                  {isSubmitting && submitMode === 'draft'
+                  {manualSubmitting && submitMode === 'draft'
                     ? <><i className="fa-solid fa-spinner fa-spin" /> {t('savingDraft')}</>
                     : <><i className="fa-solid fa-floppy-disk text-xs" /> {t('draftBtn')}</>
                   }
                 </button>
                 <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  onClick={() => setSubmitMode('publish')}
+                  type="button"
+                  disabled={manualSubmitting}
+                  onClick={() => void submitListing('publish')}
                   className="btn-gold inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-50"
                 >
-                  {isSubmitting && submitMode === 'publish'
+                  {manualSubmitting && submitMode === 'publish'
                     ? <><i className="fa-solid fa-spinner fa-spin" /> {t('publishing')}</>
                     : <><i className="fa-solid fa-paper-plane text-xs" /> {t('publishBtn')}</>
                   }
@@ -1060,23 +1088,23 @@ export default function PublierPage() {
             ) : (
               <>
                 <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  onClick={() => setSubmitMode('draft')}
+                  type="button"
+                  disabled={manualSubmitting}
+                  onClick={() => void submitListing('draft')}
                   className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-xl border border-line text-sm font-semibold text-sub transition active:scale-[0.98] disabled:opacity-50"
                 >
-                  {isSubmitting && submitMode === 'draft'
+                  {manualSubmitting && submitMode === 'draft'
                     ? <i className="fa-solid fa-spinner fa-spin" />
                     : <><i className="fa-solid fa-floppy-disk text-xs" /> {t('draftBtn')}</>
                   }
                 </button>
                 <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  onClick={() => setSubmitMode('publish')}
+                  type="button"
+                  disabled={manualSubmitting}
+                  onClick={() => void submitListing('publish')}
                   className="flex h-12 flex-[1.3] items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-gold to-gold-light text-sm font-semibold text-gray-900 shadow-md transition active:scale-[0.98] disabled:opacity-50"
                 >
-                  {isSubmitting && submitMode === 'publish'
+                  {manualSubmitting && submitMode === 'publish'
                     ? <i className="fa-solid fa-spinner fa-spin" />
                     : <><i className="fa-solid fa-paper-plane text-xs" /> {t('publishBtn')}</>
                   }

@@ -2,10 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { isImmersiveRoute } from '@/lib/isImmersiveRoute';
 import type { BottomNavItem } from '@/lib/getBottomNavItems';
+
+/**
+ * Événement custom permettant à une page de masquer temporairement la barre
+ * du bas sans changer de route — cas de `/messages` (public), qui n'a pas de
+ * route `[roomId]` dédiée (contrairement aux espaces locataire/bailleur/
+ * agent) : ouvrir une conversation n'y change pas le chemin, donc
+ * `isImmersiveRoute` seul ne peut pas le détecter. La page répartit l'état
+ * ouvert/fermé via cet événement ; `BottomNav` l'écoute et se masque comme
+ * sur une route immersive tant qu'il est actif.
+ */
+export const BOTTOM_NAV_TOGGLE_EVENT = 'aa-bottom-nav-toggle';
 
 interface Props {
   items: BottomNavItem[];
@@ -33,17 +44,32 @@ export default function BottomNav({ items, showMore = false, onMoreClick, unread
   const tNav = useTranslations('nav');
   const tDashboard = useTranslations('dashboard');
   const immersive = isImmersiveRoute(pathname);
+  const [manuallyHidden, setManuallyHidden] = useState(false);
+  const hidden = immersive || manuallyHidden;
+
+  // Réinitialise le masquage manuel à chaque changement de route — évite
+  // qu'il reste collé si la page qui l'a demandé (ex. /messages) est
+  // quittée sans redispatcher explicitement `hidden: false` (changement
+  // d'onglet, navigation directe par URL, etc.).
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- réinitialisation ponctuelle au changement de route, pas une synchro continue
+  useEffect(() => { setManuallyHidden(false); }, [pathname]);
 
   useEffect(() => {
-    if (immersive) {
+    const handler = (e: Event) => setManuallyHidden(!!(e as CustomEvent<{ hidden: boolean }>).detail?.hidden);
+    window.addEventListener(BOTTOM_NAV_TOGGLE_EVENT, handler);
+    return () => window.removeEventListener(BOTTOM_NAV_TOGGLE_EVENT, handler);
+  }, []);
+
+  useEffect(() => {
+    if (hidden) {
       document.body.removeAttribute('data-bottom-nav');
       return;
     }
     document.body.setAttribute('data-bottom-nav', 'on');
     return () => { document.body.removeAttribute('data-bottom-nav'); };
-  }, [immersive]);
+  }, [hidden]);
 
-  if (immersive) return null;
+  if (hidden) return null;
 
   const translate = (item: BottomNavItem) =>
     item.i18nNamespace === 'nav' ? tNav(item.labelKey) : tDashboard(item.labelKey);
