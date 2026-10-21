@@ -49,3 +49,6 @@ next-env.d.ts
 /e2e/*-storage.json
 /e2e/state.json
 /e2e/log.jsonl
+
+# rapports-mobile/tools — sessions de test Playwright (cookies/storage state, jamais versionnés)
+/rapports-mobile/tools/.sessions/
