@@ -128,11 +128,11 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)]">
+    <div className="flex flex-col h-[calc(100vh-10rem)] max-md:h-full">
 
       {/* Header */}
       <div className="flex items-center gap-3 pb-4 mb-4 border-b border-line shrink-0">
-        <Link href={backUrl} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gold-pale text-sub hover:text-gold-dark transition-colors">
+        <Link href={backUrl} className="tap-target flex h-8 w-8 items-center justify-center rounded-full hover:bg-gold-pale text-sub hover:text-gold-dark transition-colors">
           <i className="fa-solid fa-arrow-left text-sm" />
         </Link>
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-pale">
@@ -157,7 +157,7 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
           const isMine = me !== null && msg.senderId === me.id;
           return (
             <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
+              <div className={`max-w-[75%] max-md:max-w-[85%] rounded-2xl px-4 py-2.5 ${
                 isMine
                   ? 'bg-gold-dark text-white rounded-br-sm'
                   : 'bg-card border border-line text-text rounded-bl-sm'
@@ -181,8 +181,9 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="flex items-center gap-2 pt-4 border-t border-line shrink-0">
+      {/* Input — collé en bas sous 768px (voir wrapper .../[roomId]/page.tsx qui
+          donne à ce composant toute la hauteur disponible, clavier compris). */}
+      <div className="flex items-center gap-2 pt-4 border-t border-line shrink-0 max-md:sticky max-md:bottom-0 max-md:bg-card max-md:pb-[calc(var(--safe-bottom,0)+0.75rem)]">
         <input
           type="text"
           value={input}
@@ -194,12 +195,12 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
             }
           }}
           placeholder={t('messagePlaceholder')}
-          className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:ring-2 focus:ring-gold-dark transition"
+          className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:ring-2 focus:ring-gold-dark transition max-md:text-base"
         />
         <button
           onClick={handleSend}
           disabled={!input.trim() || sending}
-          className="btn-gold px-4 py-2.5 disabled:opacity-50 shrink-0"
+          className="tap-target btn-gold px-4 py-2.5 disabled:opacity-50 shrink-0"
         >
           {sending
             ? <i className="fa-solid fa-spinner fa-spin text-sm" />

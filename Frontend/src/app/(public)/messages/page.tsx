@@ -215,7 +215,14 @@ export default function MessagesPage() {
   const totalUnread = 0; // unread count requires extra field from API
 
   return (
-    <main className="bg-bg" style={{ height: 'calc(100vh - 64px)' }}>
+    // ≥768px : hauteur strictement inchangée (calc(100vh - 64px), portée par
+    // une classe plutôt qu'un style inline pour pouvoir la surcharger sous
+    // 768px). Sous 768px : la navbar publique fait 3.5rem (NavbarClient.tsx,
+    // max-md:h-14, lot 2a) et non 64px ; 100dvh tient compte du clavier
+    // virtuel ; --bottom-offset réserve la place de la barre de navigation
+    // du bas (visible ici, page non immersive tant qu'aucune conversation
+    // n'a sa propre route) + l'encoche.
+    <main className="bg-bg h-[calc(100vh-64px)] max-md:h-[calc(100dvh-3.5rem-var(--bottom-offset,0))]">
       <div className="aa-container max-w-5xl h-full flex flex-col py-6 px-4">
 
         <div className="mb-4 flex items-center justify-between">
@@ -245,7 +252,7 @@ export default function MessagesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('search')}
-                  className="flex-1 bg-transparent text-text placeholder:text-sub outline-none text-xs"
+                  className="flex-1 bg-transparent text-text placeholder:text-sub outline-none text-xs max-md:text-base"
                 />
               </div>
             </div>
@@ -276,7 +283,7 @@ export default function MessagesPage() {
                     <button
                       key={room.id}
                       onClick={() => selectRoom(room)}
-                      className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-bg border-b border-line/50 ${activeRoom?.id === room.id ? 'bg-gold-pale dark:bg-gold-dark/15' : ''}`}
+                      className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-bg border-b border-line/50 max-md:min-h-16 ${activeRoom?.id === room.id ? 'bg-gold-pale dark:bg-gold-dark/15' : ''}`}
                     >
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-pale text-xs font-bold text-gold-dark">
                         {initials}
@@ -356,7 +363,7 @@ export default function MessagesPage() {
                     const isMe = msg.senderId === userId || (msg.sender && msg.sender.id === userId);
                     return (
                       <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-xs rounded-2xl px-4 py-2.5 text-sm ${
+                        <div className={`max-w-xs max-md:max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
                           isMe
                             ? 'bg-gold text-gray-900 rounded-br-sm'
                             : 'bg-bg text-text border border-line rounded-bl-sm'
@@ -373,20 +380,22 @@ export default function MessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input */}
-              <div className="border-t border-line p-4 flex items-center gap-3">
+              {/* Input — collé en bas sous 768px (conversation en plein écran
+                  sur mobile, barre du bas masquée par la hauteur utile
+                  calculée plus haut). */}
+              <div className="border-t border-line p-4 flex items-center gap-3 max-md:sticky max-md:bottom-0 max-md:bg-bg max-md:pb-[calc(var(--safe-bottom,0)+1rem)]">
                 <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
                   placeholder={t('writeMessage')}
-                  className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold/50 transition-colors"
+                  className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold/50 transition-colors max-md:text-base"
                 />
                 <button
                   onClick={send}
                   disabled={!input.trim() || sending}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold text-gray-900 hover:bg-gold-dark hover:text-white transition-colors disabled:opacity-40"
+                  className="tap-target flex h-10 w-10 items-center justify-center rounded-xl bg-gold text-gray-900 hover:bg-gold-dark hover:text-white transition-colors disabled:opacity-40"
                 >
                   {sending
                     ? <i className="fa-solid fa-spinner fa-spin text-sm" />

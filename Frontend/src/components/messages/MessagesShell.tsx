@@ -536,7 +536,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
             <input
               type="text" value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="w-full rounded-xl border border-line bg-card pl-8 pr-8 py-2 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition"
+              className="w-full rounded-xl border border-line bg-card pl-8 pr-8 py-2 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition max-md:text-base"
             />
             {search && (
               <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sub hover:text-text">
@@ -593,7 +593,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveRoomId(room.id); }
                     }}
-                    className={`group/row w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors cursor-pointer ${
+                    className={`group/row w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors cursor-pointer max-md:min-h-16 ${
                       isActive ? 'bg-gold-pale dark:bg-gold-dark/15 border border-gold-dark/20 dark:border-gold/25' : 'hover:bg-card'
                     }`}
                   >
@@ -645,7 +645,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                       onClick={(e) => { e.stopPropagation(); void toggleArchive(room.id, !room.archived); }}
                       disabled={archivingId === room.id}
                       title={room.archived ? t('unarchiveAction') : t('archiveAction')}
-                      className="shrink-0 h-7 w-7 rounded-full flex items-center justify-center text-sub hover:text-gold-dark hover:bg-gold-pale transition-colors disabled:opacity-40"
+                      className="tap-target shrink-0 h-7 w-7 rounded-full flex items-center justify-center text-sub hover:text-gold-dark hover:bg-gold-pale transition-colors disabled:opacity-40"
                     >
                       {archivingId === room.id
                         ? <i className="fa-solid fa-spinner fa-spin text-[11px]" />
@@ -678,7 +678,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
           <div className="flex items-center gap-3 px-4 py-3 border-b border-line bg-card shrink-0">
             <button
               onClick={() => openRoom(null)}
-              className="md:hidden flex h-8 w-8 items-center justify-center rounded-full hover:bg-gold-pale text-sub hover:text-gold-dark transition-colors"
+              className="tap-target md:hidden flex h-8 w-8 items-center justify-center rounded-full hover:bg-gold-pale text-sub hover:text-gold-dark transition-colors"
             >
               <i className="fa-solid fa-arrow-left text-sm" />
             </button>
@@ -750,25 +750,27 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                       {/* Wrapper avec boutons d'action au survol */}
                       <div id={`msg-${msg.id}`} className={`group flex items-end gap-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
 
-                        {/* Actions côté gauche pour mes messages */}
+                        {/* Actions côté gauche pour mes messages — visibles au survol sur
+                            PC ; toujours visibles sous @media (hover: none) (tactile), même
+                            traitement que ImageUploadZone (lot 0a). */}
                         {isMine && !isDeleted && (
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1">
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1 [@media(hover:none)]:opacity-100">
                             {!isAudio && (
-                              <button type="button" onClick={() => startEdit(msg)} className={actionBtnClass} title="Modifier">
+                              <button type="button" onClick={() => startEdit(msg)} className={`${actionBtnClass} tap-target`} title="Modifier">
                                 <i className="fa-solid fa-pen text-[10px]" />
                               </button>
                             )}
-                            <button type="button" onClick={() => void handleDelete(msg.id)} className={`${actionBtnClass} hover:text-red-500`} title="Supprimer">
+                            <button type="button" onClick={() => void handleDelete(msg.id)} className={`${actionBtnClass} tap-target hover:text-red-500`} title="Supprimer">
                               <i className="fa-solid fa-trash text-[10px]" />
                             </button>
-                            <button type="button" onClick={() => setReplyingTo(msg)} className={actionBtnClass} title={t('reply')}>
+                            <button type="button" onClick={() => setReplyingTo(msg)} className={`${actionBtnClass} tap-target`} title={t('reply')}>
                               <i className="fa-solid fa-reply text-[10px]" />
                             </button>
                           </div>
                         )}
 
                         {/* Bulle */}
-                        <div className={`max-w-[70%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+                        <div className={`max-w-[70%] max-md:max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
                           isDeleted
                             ? isMine ? 'bg-gold-dark/30 text-white/50' : 'bg-card border border-line text-sub'
                             : isMine
@@ -829,8 +831,8 @@ export default function MessagesShell({ emptyHint, space }: Props) {
 
                         {/* Actions côté droit pour les autres */}
                         {!isMine && !isDeleted && (
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1">
-                            <button type="button" onClick={() => setReplyingTo(msg)} className={actionBtnClass} title={t('reply')}>
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1 [@media(hover:none)]:opacity-100">
+                            <button type="button" onClick={() => setReplyingTo(msg)} className={`${actionBtnClass} tap-target`} title={t('reply')}>
                               <i className="fa-solid fa-reply text-[10px]" />
                             </button>
                           </div>
@@ -900,7 +902,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                 <button
                   type="button"
                   onClick={cancelRecording}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-sub hover:bg-bg hover:text-red-500 transition-colors"
+                  className="tap-target flex h-10 w-10 items-center justify-center rounded-full border border-line text-sub hover:bg-bg hover:text-red-500 transition-colors"
                   title={t('cancelRecordTitle')}
                 >
                   <i className="fa-solid fa-xmark text-sm" />
@@ -909,7 +911,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                   type="button"
                   onClick={() => void sendVoice()}
                   disabled={sending || recordingTime === 0}
-                  className="btn-gold px-4 py-2.5 disabled:opacity-50 flex items-center gap-2"
+                  className="tap-target btn-gold px-4 py-2.5 disabled:opacity-50 flex items-center gap-2"
                   title={t('sendVoiceTitle')}
                 >
                   {sending
@@ -927,7 +929,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
                   placeholder={t('messagePlaceholder')}
-                  className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:ring-2 focus:ring-gold-dark transition"
+                  className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:ring-2 focus:ring-gold-dark transition max-md:text-base"
                 />
                 {/* Micro si le champ est vide, sinon bouton envoyer */}
                 {input.trim() ? (
@@ -935,7 +937,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                     type="button"
                     onClick={() => void handleSend()}
                     disabled={sending}
-                    className="btn-gold px-4 py-2.5 disabled:opacity-50 shrink-0"
+                    className="tap-target btn-gold px-4 py-2.5 disabled:opacity-50 shrink-0"
                   >
                     {sending
                       ? <i className="fa-solid fa-spinner fa-spin text-sm" />
@@ -947,7 +949,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                     type="button"
                     onClick={() => void startRecording()}
                     disabled={!activeRoomId || sending}
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-dark hover:bg-gold/30 transition-colors disabled:opacity-40 shrink-0"
+                    className="tap-target flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-dark hover:bg-gold/30 transition-colors disabled:opacity-40 shrink-0"
                     title={t('recordVoiceTitle')}
                   >
                     <i className="fa-solid fa-microphone text-sm" />
