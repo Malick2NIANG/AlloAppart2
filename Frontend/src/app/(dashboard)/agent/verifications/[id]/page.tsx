@@ -242,7 +242,7 @@ export default function MissionDetailPage() {
           </div>
           {mapsUrl && (
             <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-              className="shrink-0 flex items-center gap-1.5 rounded-xl bg-gold-pale text-gold-dark text-xs font-semibold px-3 py-2 hover:bg-gold/20 transition-colors">
+              className="tap-target shrink-0 flex items-center gap-1.5 rounded-xl bg-gold-pale text-gold-dark text-xs font-semibold px-3 py-2 hover:bg-gold/20 transition-colors">
               <i className="fa-solid fa-map-location-dot text-sm" /> {t('itinerary')}
             </a>
           )}
@@ -266,13 +266,13 @@ export default function MissionDetailPage() {
             <div className="flex items-center gap-2">
               {v.listing.owner.phone && (
                 <a href={`tel:${v.listing.owner.phone}`}
-                  className="h-9 w-9 rounded-full bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors"
+                  className="tap-target h-9 w-9 rounded-full bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors"
                   title={t('callTitle')}>
                   <i className="fa-solid fa-phone text-sm" />
                 </a>
               )}
               <Link href={`/agent/messages?listing=${v.listingId}`}
-                className="h-9 w-9 rounded-full bg-gold-pale flex items-center justify-center text-gold-dark hover:bg-gold/20 transition-colors"
+                className="tap-target h-9 w-9 rounded-full bg-gold-pale flex items-center justify-center text-gold-dark hover:bg-gold/20 transition-colors"
                 title={t('chatTitle')}>
                 <i className="fa-solid fa-comment-dots text-sm" />
               </Link>
@@ -309,8 +309,11 @@ export default function MissionDetailPage() {
       )}
 
       {/* ── Actions ── */}
+      {/* Sous 768px : barre collée en bas (sticky, pas fixed — reste au-dessus
+          du clavier virtuel, cf. StickyStepActions.tsx), avec le safe-area
+          bottom. Inchangé à partir de 768px. */}
       {(isScheduled || isInProgress) && v.status !== 'DECLINE_PENDING' && (
-        <div className="space-y-3">
+        <div className="space-y-3 max-md:sticky max-md:bottom-0 max-md:z-40 max-md:-mx-4 max-md:border-t max-md:border-line max-md:bg-card/95 max-md:px-4 max-md:pt-3 max-md:pb-[calc(var(--safe-bottom,0)+0.75rem)] max-md:backdrop-blur">
           {isScheduled && (
             canStart ? (
               <button onClick={() => void doAction('start')} disabled={acting}
@@ -360,7 +363,7 @@ export default function MissionDetailPage() {
                 <label className="text-xs font-semibold text-sub uppercase tracking-wide mb-1.5 block">{t('fieldObservations')}</label>
                 <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
                   placeholder={t('fieldObservationsPh')}
-                  className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+                  className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none max-md:text-base" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-sub uppercase tracking-wide mb-1.5 block">
@@ -373,7 +376,7 @@ export default function MissionDetailPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={url} alt="" className="w-full h-full object-cover" />
                         <button type="button" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}
-                          className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 [@media(hover:none)]:opacity-100 max-md:h-11 max-md:w-11">
                           <i className="fa-solid fa-xmark text-[9px]" />
                         </button>
                       </div>
@@ -384,12 +387,12 @@ export default function MissionDetailPage() {
                   className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-bg py-2.5 text-sm text-sub hover:border-gold/40 hover:text-gold-dark transition-colors">
                   {uploadingPhotos ? <><i className="fa-solid fa-spinner fa-spin" /> {t('uploading')}</> : <><i className="fa-solid fa-camera" /> {t('addPhotos')}</>}
                 </button>
-                <input ref={photoRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+                <input ref={photoRef} type="file" accept="image/*" multiple capture="environment" className="hidden" onChange={handlePhotoUpload} />
               </div>
               <div>
                 <label className="text-xs font-semibold text-sub uppercase tracking-wide mb-1.5 block">{t('fieldReportUrlShort')}</label>
                 <input type="url" value={reportUrl} onChange={(e) => setReportUrl(e.target.value)}
-                  placeholder="https://drive.google.com/..." className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  placeholder="https://drive.google.com/..." className="w-full rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-emerald-500 max-md:text-base" />
               </div>
             </div>
 
@@ -420,7 +423,7 @@ export default function MissionDetailPage() {
             <textarea rows={4} value={declineReason} onChange={(e) => setDeclineReason(e.target.value)}
               placeholder={t('declineReasonPhShort')}
               maxLength={500}
-              className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
+              className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none max-md:text-base" />
             <p className="text-[11px] text-sub text-right -mt-2">{declineReason.length}/500</p>
             <div className="flex gap-3">
               <button onClick={() => { setShowDecline(false); setDeclineReason(''); }}
@@ -449,7 +452,7 @@ export default function MissionDetailPage() {
             <textarea rows={4} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
               placeholder={t('rejectReasonPh')}
               maxLength={500}
-              className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-red-400 resize-none" />
+              className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-red-400 resize-none max-md:text-base" />
             <p className="text-[11px] text-sub text-right -mt-2">{rejectReason.length}/500</p>
             <div className="flex gap-3">
               <button onClick={() => { setShowReject(false); setRejectReason(''); }}
