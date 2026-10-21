@@ -52,3 +52,5 @@ next-env.d.ts
 
 # rapports-mobile/tools — sessions de test Playwright (cookies/storage state, jamais versionnés)
 /rapports-mobile/tools/.sessions/
+# node_modules isolé de tools/ (dépendance @clerk/testing, jamais dans Frontend/package.json)
+/rapports-mobile/tools/node_modules/

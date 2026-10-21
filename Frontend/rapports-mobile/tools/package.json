@@ -1,0 +1,9 @@
+{
+  "name": "allo-appart-mobile-test-tools",
+  "private": true,
+  "description": "Outils de test Playwright/Clerk pour le chantier mobile — jamais importés par l'application (Frontend/package.json n'y touche pas).",
+  "type": "module",
+  "dependencies": {
+    "@clerk/testing": "^2.2.49"
+  }
+}
