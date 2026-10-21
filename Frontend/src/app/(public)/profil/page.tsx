@@ -164,9 +164,7 @@ export default function ProfilPage() {
 
   return (
     <main className="py-10 px-4 bg-bg min-h-screen max-md:min-h-dvh max-md:flex max-md:flex-col max-md:py-6">
-      {cropSrc && (
-        <AvatarCropper src={cropSrc} onConfirm={handleCropConfirm} onCancel={handleCropCancel} />
-      )}
+      <AvatarCropper src={cropSrc ?? ''} open={!!cropSrc} onConfirm={handleCropConfirm} onCancel={handleCropCancel} />
 
       <div className="aa-container max-w-2xl max-md:flex max-md:flex-1 max-md:flex-col">
 

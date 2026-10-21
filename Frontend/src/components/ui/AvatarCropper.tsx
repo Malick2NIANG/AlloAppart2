@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { pointerToCanvas } from '@/lib/pointerToCanvas';
+import BottomSheet from './BottomSheet';
 
 interface Props {
-  src: string;           // object URL de l'image sélectionnée
+  src: string;           // object URL de l'image sélectionnée ('' si fermé)
+  /** Toujours monté par l'appelant (`src` vide quand fermé) — nécessaire
+   *  pour que l'animation de fermeture de BottomSheet puisse jouer sous
+   *  768px (même pattern que ReportButton/ReportModal, lot 2b). */
+  open: boolean;
   onConfirm: (blob: Blob) => void;
   onCancel: () => void;
 }
@@ -13,19 +18,31 @@ interface Props {
 const SIZE = 320;        // taille du canvas d'affichage (px)
 const OUTPUT = 400;      // taille du fichier de sortie (px)
 
-export default function AvatarCropper({ src, onConfirm, onCancel }: Props) {
+export default function AvatarCropper({ src, open, onConfirm, onCancel }: Props) {
   const t         = useTranslations('cropper');
+  const titleId   = useId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef    = useRef<HTMLImageElement | null>(null);
 
   // offset du centre de l'image dans le canvas (en pixels canvas)
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale,  setScale]  = useState(1);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture ponctuelle du viewport au montage (composant jamais rendu côté serveur, pas de risque d'hydratation)
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const drag = useRef<{ startX: number; startY: number; ox: number; oy: number } | null>(null);
 
   /* ── Charger l'image ──────────────────────────────────────── */
   useEffect(() => {
+    if (!src) return;
     const img = new Image();
     img.onload = () => {
       imgRef.current = img;
@@ -159,60 +176,84 @@ export default function AvatarCropper({ src, onConfirm, onCancel }: Props) {
     );
   };
 
+  /* Contenu partagé par les deux variantes — un seul <canvas> à la fois dans
+     le DOM (desktop OU mobile, jamais les deux), `canvasRef` reste donc sans
+     ambiguïté. */
+  const content = (
+    <>
+      <h2 id={titleId} className="text-sm font-bold text-text">{t('title')}</h2>
+      <p className="text-xs text-sub -mt-3">{t('hint')}</p>
+
+      {/* Canvas — sous 768px l'affichage se réduit (max-md:*) mais la
+          résolution interne (width/height) et donc le rendu exporté ne
+          changent pas ; voir pointerToCanvas pour la conversion des
+          coordonnées de pointeur que ce rétrécissement impose. */}
+      <canvas
+        ref={canvasRef}
+        width={SIZE}
+        height={SIZE}
+        className="rounded-full cursor-grab active:cursor-grabbing select-none max-md:h-auto max-md:w-full max-md:max-w-80"
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+      />
+
+      {/* Zoom slider */}
+      <div className="w-full flex items-center gap-3">
+        <i className="fa-solid fa-magnifying-glass-minus text-sub text-xs" />
+        <input
+          type="range"
+          min={0.5}
+          max={4}
+          step={0.01}
+          value={scale}
+          onChange={(e) => setScale(Number(e.target.value))}
+          className="flex-1 accent-gold"
+        />
+        <i className="fa-solid fa-magnifying-glass-plus text-sub text-xs" />
+      </div>
+
+      {/* Actions */}
+      <div className="flex w-full gap-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="tap-target flex-1 rounded-full border border-line py-2 text-sm font-semibold text-sub hover:border-gold/40 transition-colors"
+        >
+          {t('cancel')}
+        </button>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          className="tap-target flex-1 rounded-full bg-gold py-2 text-sm font-bold text-white hover:bg-gold-dark transition-colors"
+        >
+          {t('confirm')}
+        </button>
+      </div>
+    </>
+  );
+
+  /* <768px : BottomSheet (lot 3b). ≥768px : rendu historique inchangé
+     (classes identiques à avant ce lot) — un seul des deux est jamais monté,
+     détecté en JS (ce composant n'est de toute façon jamais rendu côté
+     serveur : il dépend de `document`/`Image`, chargé uniquement côté
+     client, pas de risque d'hydratation). */
+  if (isMobile) {
+    return (
+      <BottomSheet open={open} onClose={onCancel} titleId={titleId}>
+        <div className="flex flex-col items-center gap-5">
+          {content}
+        </div>
+      </BottomSheet>
+    );
+  }
+
+  if (!open) return null;
+
   return (
     /* Backdrop */
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="flex flex-col items-center gap-5 rounded-2xl bg-card p-6 shadow-2xl w-full max-w-sm">
-
-        <h2 className="text-sm font-bold text-text">{t('title')}</h2>
-        <p className="text-xs text-sub -mt-3">{t('hint')}</p>
-
-        {/* Canvas — sous 768px l'affichage se réduit (max-md:*) mais la
-            résolution interne (width/height) et donc le rendu exporté ne
-            changent pas ; voir pointerToCanvas pour la conversion des
-            coordonnées de pointeur que ce rétrécissement impose. */}
-        <canvas
-          ref={canvasRef}
-          width={SIZE}
-          height={SIZE}
-          className="rounded-full cursor-grab active:cursor-grabbing select-none max-md:h-auto max-md:w-full max-md:max-w-80"
-          onMouseDown={onMouseDown}
-          onTouchStart={onTouchStart}
-        />
-
-        {/* Zoom slider */}
-        <div className="w-full flex items-center gap-3">
-          <i className="fa-solid fa-magnifying-glass-minus text-sub text-xs" />
-          <input
-            type="range"
-            min={0.5}
-            max={4}
-            step={0.01}
-            value={scale}
-            onChange={(e) => setScale(Number(e.target.value))}
-            className="flex-1 accent-gold"
-          />
-          <i className="fa-solid fa-magnifying-glass-plus text-sub text-xs" />
-        </div>
-
-        {/* Actions */}
-        <div className="flex w-full gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 rounded-full border border-line py-2 text-sm font-semibold text-sub hover:border-gold/40 transition-colors"
-          >
-            {t('cancel')}
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            className="flex-1 rounded-full bg-gold py-2 text-sm font-bold text-white hover:bg-gold-dark transition-colors"
-          >
-            {t('confirm')}
-          </button>
-        </div>
-
+        {content}
       </div>
     </div>
   );
