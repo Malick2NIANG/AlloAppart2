@@ -7,6 +7,7 @@ import Pusher from 'pusher-js';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
+import { BOTTOM_NAV_TOGGLE_EVENT } from '@/components/ui/BottomNav';
 import type { Message, MessageRoom, User } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -204,6 +205,19 @@ export default function MessagesShell({ emptyHint, space }: Props) {
   useEffect(() => { meRef.current = me; }, [me]);
 
   const activeRoom = rooms.find((r) => r.id === activeRoomId) ?? null;
+
+  // Cette page ouvre une conversation via ?room=... sur le MÊME chemin (pas
+  // de route [roomId] dédiée empruntée) : isImmersiveRoute (basé sur le
+  // pathname) ne peut donc pas détecter l'état "conversation ouverte" tout
+  // seul — même limite que /messages (public), déjà résolue avec ce même
+  // événement (voir son commentaire dans BottomNav.tsx). Sans ça, la barre
+  // du bas restait visible par-dessus la zone de saisie des 3 espaces.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(BOTTOM_NAV_TOGGLE_EVENT, { detail: { hidden: !!activeRoomId } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent(BOTTOM_NAV_TOGGLE_EVENT, { detail: { hidden: false } }));
+    };
+  }, [activeRoomId]);
 
   const SPACE_BADGE: Record<string, { label: string; icon: string; cls: string }> = {
     bailleur:  { label: t('spaceBailleur'),  ...SPACE_BADGE_CLS.bailleur  },
