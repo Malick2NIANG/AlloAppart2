@@ -246,8 +246,8 @@ export default function AgentDashboard() {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {stats.todayMissions.map((m) => (
-              <MissionCard key={m.id} mission={m} />
+            {stats.todayMissions.map((m, i) => (
+              <MissionCard key={m.id} mission={m} featured={i === 0} />
             ))}
           </div>
         )}
@@ -268,7 +268,7 @@ export default function AgentDashboard() {
             <div className="flex rounded-xl border border-line overflow-hidden">
               {(['month','week'] as ViewMode[]).map((v) => (
                 <button key={v} onClick={() => setView(v)}
-                  className={`px-4 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`tap-target px-4 py-1.5 text-xs font-semibold transition-colors ${
                     view === v ? 'bg-gold-dark text-white' : 'text-sub hover:bg-bg'
                   }`}>
                   {v === 'month' ? t('viewMonth') : t('viewWeek')}
@@ -297,14 +297,14 @@ export default function AgentDashboard() {
               <div className="rounded-2xl border border-line bg-card overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-3 border-b border-line">
                   <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
-                    className="h-8 w-8 rounded-lg hover:bg-bg flex items-center justify-center text-sub transition-colors">
+                    className="tap-target h-8 w-8 rounded-lg hover:bg-bg flex items-center justify-center text-sub transition-colors">
                     <i className="fa-solid fa-chevron-left text-xs" />
                   </button>
                   <p className="font-bold text-text">
                     {MONTHS[cursor.getMonth()]} {cursor.getFullYear()}
                   </p>
                   <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
-                    className="h-8 w-8 rounded-lg hover:bg-bg flex items-center justify-center text-sub transition-colors">
+                    className="tap-target h-8 w-8 rounded-lg hover:bg-bg flex items-center justify-center text-sub transition-colors">
                     <i className="fa-solid fa-chevron-right text-xs" />
                   </button>
                 </div>
@@ -329,7 +329,10 @@ export default function AgentDashboard() {
                         <span className={`text-xs font-semibold leading-none mb-1 flex items-center justify-center h-5 w-5 rounded-full ${
                           isToday ? 'bg-gold-dark text-white' : inMonth ? 'text-text' : 'text-sub/40'
                         }`}>{d.getDate()}</span>
-                        <div className="space-y-0.5">
+                        {/* Sous 768px : pastilles de couleur seules (illisibles en
+                            texte 9px tronqué sur une cellule aussi étroite) —
+                            inchangé à partir de 768px (chips avec l'heure). */}
+                        <div className="max-md:hidden space-y-0.5">
                           {dayMissions.slice(0, 2).map((m) => {
                             const c = STATUS_COLOR[m.status] ?? STATUS_COLOR['SCHEDULED'];
                             return (
@@ -345,6 +348,14 @@ export default function AgentDashboard() {
                             <div className="text-[9px] text-sub pl-1">+{dayMissions.length - 2}</div>
                           )}
                         </div>
+                        {dayMissions.length > 0 && (
+                          <div className="hidden max-md:flex items-center gap-0.5 flex-wrap">
+                            {dayMissions.slice(0, 4).map((m) => {
+                              const c = STATUS_COLOR[m.status] ?? STATUS_COLOR['SCHEDULED'];
+                              return <div key={m.id} className={`h-1.5 w-1.5 rounded-full shrink-0 ${c.dot}`} />;
+                            })}
+                          </div>
+                        )}
                       </button>
                     );
                   })}
@@ -357,7 +368,7 @@ export default function AgentDashboard() {
               <div className="rounded-2xl border border-line bg-card overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-3 border-b border-line">
                   <button onClick={() => { const w = new Date(weekBase); w.setDate(weekBase.getDate() - 7); setWeekBase(w); }}
-                    className="h-8 w-8 rounded-lg hover:bg-bg flex items-center justify-center text-sub transition-colors">
+                    className="tap-target h-8 w-8 rounded-lg hover:bg-bg flex items-center justify-center text-sub transition-colors">
                     <i className="fa-solid fa-chevron-left text-xs" />
                   </button>
                   <p className="font-bold text-text text-sm">
@@ -367,7 +378,7 @@ export default function AgentDashboard() {
                     })}
                   </p>
                   <button onClick={() => { const w = new Date(weekBase); w.setDate(weekBase.getDate() + 7); setWeekBase(w); }}
-                    className="h-8 w-8 rounded-lg hover:bg-bg flex items-center justify-center text-sub transition-colors">
+                    className="tap-target h-8 w-8 rounded-lg hover:bg-bg flex items-center justify-center text-sub transition-colors">
                     <i className="fa-solid fa-chevron-right text-xs" />
                   </button>
                 </div>
@@ -570,7 +581,7 @@ function StatCard({ icon, iconBg, iconColor, label, value }: {
   );
 }
 
-function MissionCard({ mission }: { mission: Verification & { listing?: { id: string; title: string; city: string; address?: string } } }) {
+function MissionCard({ mission, featured = false }: { mission: Verification & { listing?: { id: string; title: string; city: string; address?: string } }; featured?: boolean }) {
   const t = useTranslations('agent');
   const locale = useLocale();
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
@@ -578,30 +589,51 @@ function MissionCard({ mission }: { mission: Verification & { listing?: { id: st
   const statusColor = mission.status === 'IN_PROGRESS' ? 'bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400' : 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400';
   const statusLabel = mission.status === 'IN_PROGRESS' ? t('statusInProgress') : t('statusScheduled');
 
+  // Carte "vedette" (1re mission du jour, sous 768px) : ajoute un second lien
+  // (bouton d'action) sous la carte existante. Un <a> ne pouvant pas en
+  // contenir un autre, les deux liens sont frères dans un conteneur <div>
+  // neutre plutôt qu'imbriqués — la carte elle-même (<Link>) garde
+  // exactement ses classes/contenu d'origine, donc rendu ≥768px inchangé au
+  // pixel près (le <div> englobant n'ajoute ni bordure ni padding).
   return (
-    <Link
-      href="/agent/verifications"
-      className="flex items-center gap-4 rounded-2xl border border-line bg-card p-4 hover:border-gold/40 transition-all"
-    >
-      {/* Heure */}
-      <div className="shrink-0 text-center w-12">
-        <p className="text-lg font-extrabold text-gold-dark leading-none">{time}</p>
-        <p className="text-[9px] text-sub uppercase tracking-wide mt-0.5">{t('missionScheduledAbbr')}</p>
-      </div>
+    <div className="flex flex-col max-md:gap-2">
+      <Link
+        href="/agent/verifications"
+        className="flex items-center gap-4 rounded-2xl border border-line bg-card p-4 hover:border-gold/40 transition-all"
+      >
+        {/* Heure */}
+        <div className="shrink-0 text-center w-12">
+          <p className="text-lg font-extrabold text-gold-dark leading-none">{time}</p>
+          <p className="text-[9px] text-sub uppercase tracking-wide mt-0.5">{t('missionScheduledAbbr')}</p>
+        </div>
 
-      <div className="w-px h-10 bg-line shrink-0" />
+        <div className="w-px h-10 bg-line shrink-0" />
 
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-text text-sm truncate">{mission.listing?.title ?? t('missionFallback')}</p>
-        <p className="text-xs text-sub truncate mt-0.5">
-          <i className="fa-solid fa-location-dot text-gold-dark text-[10px] mr-1" />
-          {mission.listing?.city}{mission.listing?.address ? ` · ${mission.listing.address}` : ''}
-        </p>
-      </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-text text-sm truncate">{mission.listing?.title ?? t('missionFallback')}</p>
+          <p className="text-xs text-sub truncate mt-0.5">
+            <i className="fa-solid fa-location-dot text-gold-dark text-[10px] mr-1" />
+            {mission.listing?.city}{mission.listing?.address ? ` · ${mission.listing.address}` : ''}
+          </p>
+        </div>
 
-      <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${statusColor}`}>
-        {statusLabel}
-      </span>
-    </Link>
+        <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${statusColor}`}>
+          {statusLabel}
+        </span>
+      </Link>
+
+      {/* Sous 768px, uniquement la 1re mission du jour : action principale
+          pleine largeur (48px) menant directement au détail — inchangé à
+          partir de 768px (pas de duplication de la logique démarrer/
+          certifier, déjà sur la page détail). */}
+      {featured && (
+        <Link
+          href={`/agent/verifications/${mission.id}`}
+          className="hidden max-md:flex items-center justify-center gap-2 rounded-xl bg-gold-dark text-white font-semibold min-h-12 w-full transition-colors hover:bg-gold-dark/90"
+        >
+          <i className="fa-solid fa-play text-xs" /> {t('startVisit')}
+        </Link>
+      )}
+    </div>
   );
 }

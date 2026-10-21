@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useId } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import type { Verification } from '@/types';
 import { useToast } from '@/components/ui/Toast';
 import { StatFilterCard } from '@/components/bookings/StatFilterCard';
+import BottomSheet from '@/components/ui/BottomSheet';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -260,7 +261,7 @@ export default function AgentVerificationsPage() {
             value={declineReason}
             onChange={(e) => setDeclineReason(e.target.value)}
             maxLength={500}
-            className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+            className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none max-md:text-base"
           />
           <p className="text-[11px] text-sub text-right mt-0.5">{declineReason.length}/500</p>
           <div className="flex gap-3 mt-3 justify-end">
@@ -298,7 +299,7 @@ export default function AgentVerificationsPage() {
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             maxLength={500}
-            className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+            className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-red-400 resize-none max-md:text-base"
           />
           <p className="text-[11px] text-sub text-right mt-0.5">{rejectReason.length}/500</p>
           <div className="flex gap-3 mt-3 justify-end">
@@ -346,7 +347,7 @@ export default function AgentVerificationsPage() {
                         <button
                           type="button"
                           onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}
-                          className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 [@media(hover:none)]:opacity-100 max-md:h-11 max-md:w-11"
                         >
                           <i className="fa-solid fa-xmark text-[9px]" />
                         </button>
@@ -365,7 +366,10 @@ export default function AgentVerificationsPage() {
                     : <><i className="fa-solid fa-camera" /> {t('addPhotos')}</>
                   }
                 </button>
-                <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+                {/* capture="environment" : propose directement l'appareil photo sur
+                    mobile (agent sur le terrain) — ignoré par les navigateurs
+                    desktop, sans effet sur le sélecteur de fichiers classique. */}
+                <input ref={photoInputRef} type="file" accept="image/*" multiple capture="environment" className="hidden" onChange={handlePhotoUpload} />
               </div>
             </Field>
 
@@ -447,7 +451,18 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
 
       {/* Header cliquable */}
       <button type="button" onClick={onToggle} className="w-full flex items-start gap-4 p-4 text-left hover:bg-bg/40 transition-colors">
-        <div className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center ${style.bg}`}>
+        {/* Sous 768px : photo de l'annonce si disponible (repère visuel rapide
+            pour l'agent sur le terrain) ; inchangé à partir de 768px (icône
+            de statut). Repli sur l'icône si l'annonce n'a pas de photo. */}
+        {v.listing?.images?.[0] ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={v.listing.images[0]} alt="" className={`hidden max-md:block shrink-0 h-10 w-10 rounded-xl object-cover`} />
+        ) : (
+          <div className={`hidden max-md:flex shrink-0 h-10 w-10 rounded-xl items-center justify-center ${style.bg}`}>
+            <i className={`fa-solid ${style.icon} ${style.color}`} />
+          </div>
+        )}
+        <div className={`max-md:hidden shrink-0 h-10 w-10 rounded-xl flex items-center justify-center ${style.bg}`}>
           <i className={`fa-solid ${style.icon} ${style.color}`} />
         </div>
 
@@ -488,7 +503,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
               <div className="flex gap-2">
                 {v.listing.owner.phone && (
                   <a href={`tel:${v.listing.owner.phone}`}
-                    className="h-8 w-8 rounded-full bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors"
+                    className="tap-target h-8 w-8 rounded-full bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors"
                     title={v.listing.owner.phone}
                   >
                     <i className="fa-solid fa-phone text-xs" />
@@ -496,7 +511,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                 )}
                 {v.listing.owner.email && (
                   <a href={`mailto:${v.listing.owner.email}`}
-                    className="h-8 w-8 rounded-full bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors"
+                    className="tap-target h-8 w-8 rounded-full bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors"
                     title={v.listing.owner.email}
                   >
                     <i className="fa-solid fa-envelope text-xs" />
@@ -506,7 +521,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                   type="button"
                   onClick={onContact}
                   disabled={openingChat !== null}
-                  className="h-8 w-8 rounded-full bg-gold-pale flex items-center justify-center text-gold-dark hover:bg-gold/20 transition-colors disabled:opacity-50"
+                  className="tap-target h-8 w-8 rounded-full bg-gold-pale flex items-center justify-center text-gold-dark hover:bg-gold/20 transition-colors disabled:opacity-50"
                   title={t('internalChat')}
                 >
                   {openingChat === v.id
@@ -564,7 +579,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                   <button
                     onClick={onStart}
                     disabled={acting !== null}
-                    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white text-sm font-semibold py-2.5 disabled:opacity-50 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white text-sm font-semibold py-2.5 disabled:opacity-50 transition-colors max-md:min-h-11"
                   >
                     {acting ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-play text-xs" /> {t('startVisit')}</>}
                   </button>
@@ -582,7 +597,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                 <button
                   onClick={onComplete}
                   disabled={acting !== null}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 disabled:opacity-50 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 disabled:opacity-50 transition-colors max-md:min-h-11"
                 >
                   <i className="fa-solid fa-shield-halved text-xs" /> {t('certifyProperty')}
                 </button>
@@ -592,7 +607,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                 <button
                   onClick={onReject}
                   disabled={acting !== null}
-                  className="flex items-center gap-1.5 rounded-xl border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 text-sm font-medium px-4 py-2.5 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-xl border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 text-sm font-medium px-4 py-2.5 transition-colors disabled:opacity-50 max-md:min-h-11"
                 >
                   <i className="fa-solid fa-circle-xmark text-xs" /> {t('markNonCompliant')}
                 </button>
@@ -602,7 +617,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                 <button
                   onClick={onDecline}
                   disabled={acting !== null}
-                  className="flex items-center gap-1.5 rounded-xl border border-amber-200 dark:border-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-sm font-medium px-4 py-2.5 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-xl border border-amber-200 dark:border-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-sm font-medium px-4 py-2.5 transition-colors disabled:opacity-50 max-md:min-h-11"
                 >
                   <i className="fa-solid fa-ban text-xs" /> {t('decline')}
                 </button>
@@ -646,18 +661,17 @@ function EmptyState({ tab }: { tab: Tab }) {
 /* ── Helpers UI ──────────────────────────────────────────────────────────── */
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  const titleId = useId();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-lg rounded-2xl bg-card border border-line p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-text">{title}</h2>
-          <button onClick={onClose} className="h-8 w-8 rounded-full flex items-center justify-center text-sub hover:bg-bg transition-colors">
-            <i className="fa-solid fa-xmark" />
-          </button>
-        </div>
-        {children}
+    <BottomSheet open onClose={onClose} titleId={titleId}>
+      <div className="flex items-center justify-between mb-5">
+        <h2 id={titleId} className="text-lg font-bold text-text">{title}</h2>
+        <button onClick={onClose} className="tap-target h-8 w-8 rounded-full flex items-center justify-center text-sub hover:bg-bg transition-colors">
+          <i className="fa-solid fa-xmark" />
+        </button>
       </div>
-    </div>
+      {children}
+    </BottomSheet>
   );
 }
 
