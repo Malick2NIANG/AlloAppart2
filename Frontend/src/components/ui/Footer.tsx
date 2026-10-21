@@ -12,7 +12,7 @@ const SOCIALS = [
   // (linkedin.com/company/alloappart) une fois créée — voir échange du
   // 2026-09-24. Lien de profil personnel utilisé en attendant.
   { icon: 'fa-brands fa-linkedin',  href: 'https://www.linkedin.com/in/alloappart-sénégal-3bb59243a', label: 'LinkedIn', color: 'hover:text-blue-500  hover:border-blue-500'  },
-  { icon: 'fa-brands fa-tiktok',    href: 'https://www.tiktok.com/@elhadji_101',         label: 'TikTok',   color: 'hover:text-text      hover:border-text'      },
+  { icon: 'fa-brands fa-tiktok',    href: 'https://www.tiktok.com/@alloappart.sn',       label: 'TikTok',   color: 'hover:text-text      hover:border-text'      },
 ];
 
 export default async function Footer() {
