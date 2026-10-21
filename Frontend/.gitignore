@@ -54,3 +54,5 @@ next-env.d.ts
 /rapports-mobile/tools/.sessions/
 # node_modules isolé de tools/ (dépendance @clerk/testing, jamais dans Frontend/package.json)
 /rapports-mobile/tools/node_modules/
+# identifiants des comptes de test Clerk (e-mails synthétiques + mots de passe générés), jamais commités
+/rapports-mobile/tools/.credentials.env

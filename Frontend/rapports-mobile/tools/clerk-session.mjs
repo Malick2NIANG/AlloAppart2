@@ -1,25 +1,18 @@
 // Connexion Clerk réutilisable pour les scripts Playwright de ce chantier —
 // instance de DÉVELOPPEMENT uniquement (vérifie sk_test_*, refuse sinon).
-// Ne crée et ne modifie AUCUN compte : les comptes ci-dessous ont été
-// repérés en lecture seule (psql, base de dev), un par rôle, non-ADMIN, non
-// suspendu. Les clerkId sont des identifiants publics (ils ne donnent accès
-// à rien sans la clé secrète serveur) — aucun secret, aucun e-mail réel
-// n'est écrit dans ce fichier ni affiché en sortie.
+// Se connecte par le VRAI formulaire /sign-in (e-mail + mot de passe), dans
+// un contexte Playwright unique — ce qui établit le cookie __client que
+// Clerk exige pour le rafraîchissement silencieux côté serveur.
 //
-// LIMITE CONNUE (confirmée en testant trois approches différentes) : une
-// session créée par jeton "sign_in_token"/strategy "ticket" — que ce soit à
-// la main (fetch + window.Clerk.client.signIn.create) ou via le paquet
-// officiel @clerk/testing (clerk.signIn, stratégie ticket OU email — les
-// deux utilisent le même mécanisme en interne) — fonctionne parfaitement
-// pour toute page 'use client' (useAuth()/getToken() côté navigateur), mais
-// N'EST PAS reconnue par le rendu serveur Next.js (`auth()` dans un Server
-// Component). Ce n'est pas un bug de cet outil ni de l'app : Clerk documente
-// ces sessions comme "client-side only", non validées côté serveur. Le
-// contournement officiel est de se connecter via le vrai formulaire avec un
-// compte de test à mot de passe connu — hors de portée ici (pas de mot de
-// passe, pas de création de compte). Conséquence concrète : les routes
-// (dashboard) — /locataire, /bailleur, /agent et leurs pages imbriquées —
-// restent inatteignables avec `openAs()`, quelle que soit la méthode.
+// Comptes utilisés : 4 comptes de test dédiés (adresses synthétiques
+// `aa-test-<rôle>+clerk_test@example.com`, provisionnés par
+// provision-test-accounts.mjs). Identifiants lus depuis .credentials.env
+// (gitignoré, jamais affiché ni commité).
+//
+// HISTORIQUE : une première version de cet outil utilisait un jeton
+// "sign_in_token" (strategy "ticket"), qui fonctionne pour toute page
+// 'use client' mais N'ÉTABLIT PAS le cookie __client — donc jamais reconnu
+// par un Server Component (`auth()`). D'où le passage au vrai formulaire.
 //
 // Usage : import { openAs, ROLE_ACCOUNTS } from './clerk-session.mjs';
 //         const { browser, context, page, close } = await openAs('LOCATAIRE');
@@ -27,29 +20,49 @@
 //         await close();
 
 import { chromium } from '@playwright/test';
+import { clerkSetup, setupClerkTestingToken } from '@clerk/testing/playwright';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.loadEnvFile(path.resolve(__dirname, '../../../Backend/.env'));
+process.loadEnvFile(path.resolve(__dirname, '../../.env.local'));
 
 const SECRET_KEY = process.env.CLERK_SECRET_KEY;
 if (!SECRET_KEY) throw new Error('CLERK_SECRET_KEY absente de Backend/.env.');
 if (!SECRET_KEY.startsWith('sk_test_')) throw new Error('CLERK_SECRET_KEY non-test (sk_test_) — abandon par sécurité.');
 
+const CREDENTIALS_PATH = path.resolve(__dirname, '.credentials.env');
+try {
+  process.loadEnvFile(CREDENTIALS_PATH);
+} catch {
+  throw new Error(`${CREDENTIALS_PATH} introuvable — lance d'abord provision-test-accounts.mjs.`);
+}
+
 export const FRONTEND_URL = process.env.FRONTEND_PUBLIC_URL ?? 'http://localhost:3000';
 
 export const ROLE_ACCOUNTS = {
-  LOCATAIRE:     { clerkId: 'user_3GuAvqiAVKdhyDXGqCLwD5VNlpI', checkPath: '/locataire' },
-  BAILLEUR:      { clerkId: 'user_3JbdiYQaXLEKf007WI1aIZdP0Xh', checkPath: '/bailleur'  },
-  PRO_AGENCE:    { clerkId: 'user_3FaAKWAHlZ9Q5vjqpxfA60peTjz', checkPath: '/bailleur'  },
-  AGENT_TERRAIN: { clerkId: 'user_3Fa9M6HWA3wqRXyHz706dGdC45O', checkPath: '/agent'     },
+  LOCATAIRE:     { checkPath: '/locataire' },
+  BAILLEUR:      { checkPath: '/bailleur'  },
+  PRO_AGENCE:    { checkPath: '/bailleur'  },
+  AGENT_TERRAIN: { checkPath: '/agent'     },
 };
 
+let clerkSetupDone = null;
+function ensureClerkSetup() {
+  // Mémoïsé : clerkSetup() fait un appel réseau à Clerk, inutile de le
+  // refaire à chaque openAs() dans un même process.
+  clerkSetupDone ??= clerkSetup({
+    secretKey: SECRET_KEY,
+    publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  });
+  return clerkSetupDone;
+}
+
 /**
- * Ouvre un navigateur, se connecte au rôle demandé, et retourne la page prête
- * à l'emploi — tout se passe dans le MÊME contexte Playwright, du jeton à la
- * navigation finale (pas de storageState enregistré puis rechargé).
+ * Ouvre un navigateur, se connecte au rôle demandé par le vrai formulaire
+ * /sign-in, et retourne la page prête à l'emploi — tout dans le MÊME
+ * contexte Playwright (pas de storageState enregistré puis rechargé).
  * @param {keyof typeof ROLE_ACCOUNTS} role
  * @param {{ viewport?: {width:number,height:number}, isMobile?: boolean, hasTouch?: boolean }} opts
  */
@@ -57,41 +70,41 @@ export async function openAs(role, opts = {}) {
   const account = ROLE_ACCOUNTS[role];
   if (!account) throw new Error(`Rôle inconnu : ${role}. Rôles disponibles : ${Object.keys(ROLE_ACCOUNTS).join(', ')}`);
 
-  const tokenRes = await fetch('https://api.clerk.com/v1/sign_in_tokens', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${SECRET_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: account.clerkId, expires_in_seconds: 300 }),
-  });
-  if (!tokenRes.ok) throw new Error(`Échec de la demande de jeton Clerk pour ${role} (HTTP ${tokenRes.status}).`);
-  const { token } = await tokenRes.json();
-  if (!token) throw new Error(`Réponse Clerk sans jeton pour ${role}.`);
+  const email = process.env[`AA_TEST_${role}_EMAIL`];
+  const password = process.env[`AA_TEST_${role}_PASSWORD`];
+  if (!email || !password) {
+    throw new Error(`Identifiants manquants pour ${role} dans .credentials.env — relance provision-test-accounts.mjs.`);
+  }
+
+  await ensureClerkSetup();
 
   const browser = await chromium.launch();
   const context = await browser.newContext(opts);
   const page = await context.newPage();
+  // Contourne la protection anti-bot de Clerk pour ce navigateur piloté par
+  // Playwright (sans quoi un vrai formulaire peut afficher un défi au lieu
+  // de se soumettre) — n'affecte pas l'établissement du cookie __client.
+  await setupClerkTestingToken({ page });
 
-  // Échange du jeton via le SDK client Clerk exposé en global (`window.Clerk`)
-  // — cette app a un formulaire de connexion maison (`useSignIn()`, voir
-  // SignInForm.tsx) qui ne gère pas `__clerk_ticket` en paramètre d'URL.
   await page.goto(`${FRONTEND_URL}/sign-in`, { waitUntil: 'domcontentloaded', timeout: 40000 });
-  await page.waitForFunction(() => !!window.Clerk?.client, { timeout: 15000 });
-  const result = await page.evaluate(async (ticket) => {
-    try {
-      const attempt = await window.Clerk.client.signIn.create({ strategy: 'ticket', ticket });
-      if (attempt.status === 'complete') {
-        await window.Clerk.setActive({ session: attempt.createdSessionId });
-        return { ok: true };
-      }
-      return { ok: false, status: attempt.status };
-    } catch (err) {
-      return { ok: false, error: String(err?.message ?? err) };
-    }
-  }, token);
-  if (!result.ok) {
-    await browser.close();
-    throw new Error(`Échange du jeton Clerk refusé pour ${role} (${result.status ?? result.error ?? 'raison inconnue'}).`);
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(password);
+  await page.locator('button[type="submit"]').click();
+
+  // Sondage plutôt que page.waitForURL(prédicat) : plus fiable ici — le
+  // SDK Clerk navigue via window.location.replace(), que waitForURL rate
+  // parfois selon le timing exact de l'événement de navigation.
+  let signedIn = false;
+  for (let i = 0; i < 25 && !signedIn; i++) {
+    await page.waitForTimeout(400);
+    signedIn = !page.url().includes('/sign-in');
   }
-  await page.waitForTimeout(1000);
+  if (!signedIn) {
+    const flash = await page.locator('[class*="red-"]').first().textContent().catch(() => null);
+    await browser.close();
+    throw new Error(`Connexion par formulaire refusée pour ${role} (toujours sur /sign-in)${flash ? ` — ${flash}` : ''}.`);
+  }
+  await page.waitForTimeout(800);
 
   return {
     browser, context, page, role, checkPath: account.checkPath,
