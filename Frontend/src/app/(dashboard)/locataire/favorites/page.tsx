@@ -210,7 +210,7 @@ export default function FavoritesPage() {
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); void remove(listing.id); }}
                             disabled={removing === listing.id}
                             aria-label={t('removedFromFavorites')}
-                            className="absolute top-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 transition-all duration-300 hover:bg-gold-pale disabled:opacity-70"
+                            className="tap-target absolute top-3 right-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 transition-all duration-300 hover:bg-gold-pale disabled:opacity-70"
                           >
                             {removing === listing.id
                               ? <i className="fa-solid fa-spinner fa-spin text-sm text-sub" />

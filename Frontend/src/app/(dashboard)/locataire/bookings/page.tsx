@@ -506,7 +506,7 @@ function LocataireBookingActions({
             <button
               onClick={handlePay}
               disabled={payLoading}
-              className="btn-gold text-xs py-1.5 px-3 disabled:opacity-50"
+              className="btn-gold text-xs py-1.5 px-3 disabled:opacity-50 max-md:min-h-11"
             >
               {payLoading
                 ? <i className="fa-solid fa-spinner fa-spin" />
@@ -515,7 +515,7 @@ function LocataireBookingActions({
             <button
               onClick={handleCancel}
               disabled={cancelLoading}
-              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50 max-md:min-h-11"
             >
               {cancelLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('cancelBtn')}
             </button>
@@ -533,7 +533,7 @@ function LocataireBookingActions({
             <button
               onClick={handleCancel}
               disabled={cancelLoading}
-              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50 max-md:min-h-11"
             >
               {cancelLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('withdrawRequestBtn')}
             </button>
@@ -546,7 +546,7 @@ function LocataireBookingActions({
             <button
               onClick={handlePay}
               disabled={payLoading}
-              className="btn-gold text-xs py-1.5 px-3 disabled:opacity-50"
+              className="btn-gold text-xs py-1.5 px-3 disabled:opacity-50 max-md:min-h-11"
             >
               {payLoading
                 ? <i className="fa-solid fa-spinner fa-spin" />
@@ -555,7 +555,7 @@ function LocataireBookingActions({
             <button
               onClick={handleCancel}
               disabled={cancelLoading}
-              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50 max-md:min-h-11"
             >
               {cancelLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('cancelBtn')}
             </button>
@@ -575,7 +575,7 @@ function LocataireBookingActions({
               <button
                 onClick={() => void handleCancelTermination()}
                 disabled={cancelTermLoading}
-                className="text-xs px-3 py-1.5 rounded-full font-medium bg-bg text-sub border border-line hover:bg-line/30 transition disabled:opacity-50"
+                className="text-xs px-3 py-1.5 rounded-full font-medium bg-bg text-sub border border-line hover:bg-line/30 transition disabled:opacity-50 max-md:min-h-11"
               >
                 {cancelTermLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('actionCancelTermination')}
               </button>
@@ -586,13 +586,13 @@ function LocataireBookingActions({
               <button
                 onClick={() => void handleTerminate()}
                 disabled={terminateLoading}
-                className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200 transition disabled:opacity-50"
+                className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200 transition disabled:opacity-50 max-md:min-h-11"
               >
                 {terminateLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('actionTerminateLeaseConfirm')}
               </button>
               <button
                 onClick={() => setConfirmTerminate(false)}
-                className="text-xs px-3 py-1.5 rounded-full font-medium bg-bg text-sub border border-line hover:bg-line/30 transition"
+                className="text-xs px-3 py-1.5 rounded-full font-medium bg-bg text-sub border border-line hover:bg-line/30 transition max-md:min-h-11"
               >
                 {t('actionCancelTerminate')}
               </button>
@@ -602,7 +602,7 @@ function LocataireBookingActions({
               <StatusChip status={status} />
               <button
                 onClick={() => setConfirmTerminate(true)}
-                className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200 transition"
+                className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200 transition max-md:min-h-11"
               >
                 {t('actionTerminateLease')}
               </button>
@@ -630,7 +630,7 @@ function LocataireBookingActions({
           return (
             <button
               onClick={() => onDispute(booking)}
-              className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 border border-amber-200 dark:border-amber-900/40 hover:border-amber-300 rounded-lg py-1.5 px-3 transition-colors"
+              className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 border border-amber-200 dark:border-amber-900/40 hover:border-amber-300 rounded-lg py-1.5 px-3 transition-colors max-md:min-h-11"
             >
               <i className="fa-solid fa-triangle-exclamation mr-1" />{t('reportDisputeBtn')}
             </button>
@@ -646,7 +646,7 @@ function LocataireBookingActions({
             <button
               onClick={() => onCancel(booking)}
               disabled={cancelLoading}
-              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50"
+              className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors disabled:opacity-50 max-md:min-h-11"
             >
               {cancelLoading ? <i className="fa-solid fa-spinner fa-spin" /> : t('cancelBtn')}
             </button>
@@ -657,7 +657,7 @@ function LocataireBookingActions({
           <button
             onClick={() => void handleDownloadPdf()}
             disabled={pdfLoading}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-gold-dark bg-gold-pale border border-gold/30 hover:border-gold hover:bg-gold/10 rounded-lg py-1.5 px-3 transition-all disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-gold-dark bg-gold-pale border border-gold/30 hover:border-gold hover:bg-gold/10 rounded-lg py-1.5 px-3 transition-all disabled:opacity-50 max-md:min-h-11"
           >
             {pdfLoading
               ? <i className="fa-solid fa-spinner fa-spin" />
@@ -675,7 +675,7 @@ function LocataireBookingActions({
           ) : (
             <button
               onClick={() => onReview(booking)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-dark bg-gold-pale border border-gold/30 hover:border-gold hover:bg-gold/10 rounded-lg py-1.5 px-3 transition-all"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-dark bg-gold-pale border border-gold/30 hover:border-gold hover:bg-gold/10 rounded-lg py-1.5 px-3 transition-all max-md:min-h-11"
             >
               <i className="fa-solid fa-star text-[10px]" />
               {t('leaveReviewBtn')}

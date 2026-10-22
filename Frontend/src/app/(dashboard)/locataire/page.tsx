@@ -188,27 +188,40 @@ export default function LocataireDashboardPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {recentBookings.map((b) => {
+            {recentBookings.map((b, i) => {
               const s = BOOKING_STATUS_LABEL[b.status] ?? { label: b.status, color: 'text-sub bg-bg border-line' };
+              // Sous 768px, la 1re réservation récente est mise en avant
+              // (grande carte) — inchangé à partir de 768px (même carte
+              // compacte que les autres).
+              const featured = i === 0;
               return (
                 <Link
                   key={b.id}
                   href="/locataire/bookings"
-                  className="flex items-center gap-4 rounded-xl border border-line bg-card p-4 transition hover:border-blue-200 dark:hover:border-blue-900/40"
+                  className={`flex items-center gap-4 rounded-xl border border-line bg-card transition hover:border-blue-200 dark:hover:border-blue-900/40 ${
+                    featured ? 'max-md:flex-col max-md:items-stretch max-md:gap-3 max-md:p-5 p-4' : 'p-4'
+                  }`}
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30">
-                    <i className="fa-solid fa-house text-blue-600 dark:text-blue-400 text-sm" />
+                  <div className={`flex items-center gap-4 ${featured ? 'max-md:w-full' : ''}`}>
+                    <div className={`flex shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30 ${featured ? 'h-10 w-10 max-md:h-14 max-md:w-14' : 'h-10 w-10'}`}>
+                      <i className={`fa-solid fa-house text-blue-600 dark:text-blue-400 ${featured ? 'text-sm max-md:text-lg' : 'text-sm'}`} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`truncate font-medium text-text ${featured ? 'text-sm max-md:text-base' : 'text-sm'}`}>{b.listing.title}</p>
+                      <p className="text-xs text-sub">
+                        <i className="fa-solid fa-location-dot text-xs mr-1" />{b.listing.city} ·{' '}
+                        {formatDate(b.startDate)}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${s.color} ${featured ? 'max-md:hidden' : ''}`}>
+                      {s.label}
+                    </span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-text">{b.listing.title}</p>
-                    <p className="text-xs text-sub">
-                      <i className="fa-solid fa-location-dot text-xs mr-1" />{b.listing.city} ·{' '}
-                      {formatDate(b.startDate)}
-                    </p>
-                  </div>
-                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${s.color}`}>
-                    {s.label}
-                  </span>
+                  {featured && (
+                    <span className={`hidden max-md:inline-flex self-start rounded-full border px-2.5 py-1 text-xs font-medium ${s.color}`}>
+                      {s.label}
+                    </span>
+                  )}
                 </Link>
               );
             })}
