@@ -165,10 +165,20 @@ export default function AgentProfilPage() {
               </div>
             )}
             <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={uploading}
-              className="absolute -bottom-1.5 -right-1.5 h-7 w-7 rounded-xl bg-gold-dark text-white flex items-center justify-center hover:bg-gold-dark/90 transition-colors shadow-sm">
+              className="absolute -bottom-1.5 -right-1.5 h-7 w-7 rounded-xl bg-gold-dark text-white flex items-center justify-center hover:bg-gold-dark/90 transition-colors shadow-sm max-md:hidden">
               {uploading
                 ? <i className="fa-solid fa-spinner fa-spin text-[10px]" />
                 : <i className="fa-solid fa-camera text-[10px]" />}
+            </button>
+            {/* Sous 768px : badge 28px (ci-dessus) remplacé par l'avatar entier
+                tapable (64px, déjà ≥44px) — même pattern que (public)/profil.
+                Inchangé à partir de 768px. */}
+            <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={uploading}
+              aria-label={t('changePhotoLabel')}
+              className="hidden max-md:flex absolute inset-0 rounded-2xl bg-black/40 items-center justify-center">
+              {uploading
+                ? <i className="fa-solid fa-spinner fa-spin text-white text-sm" />
+                : <i className="fa-solid fa-camera text-white text-sm" />}
             </button>
           </div>
           <div>
@@ -219,7 +229,7 @@ export default function AgentProfilPage() {
             <i className="fa-solid fa-location-dot absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-xs" />
             <input value={coverageZone} onChange={(e) => setCoverageZone(e.target.value)}
               placeholder={t('fieldCoverageZonePh')} maxLength={200}
-              className="w-full rounded-xl border border-line bg-bg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40" />
+              className="w-full rounded-xl border border-line bg-bg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 max-md:text-base" />
           </div>
           <p className="text-[11px] text-sub mt-1.5">{t('coverageZoneHint')}</p>
         </div>
@@ -233,12 +243,12 @@ export default function AgentProfilPage() {
           <textarea rows={4} value={bio} onChange={(e) => setBio(e.target.value)}
             maxLength={500}
             placeholder={t('fieldBioPh')}
-            className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none" />
+            className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold/40 resize-none max-md:text-base" />
         </div>
 
         {/* Submit */}
         <button type="submit" disabled={saving}
-          className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 disabled:opacity-50 transition-colors">
+          className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 disabled:opacity-50 transition-colors max-md:min-h-12">
           {saving
             ? <><i className="fa-solid fa-spinner fa-spin" /> {t('saving')}</>
             : <><i className="fa-solid fa-floppy-disk text-sm" /> {t('saveChanges')}</>}

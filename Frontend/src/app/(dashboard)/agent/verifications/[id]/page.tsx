@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useId } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
+import BottomSheet from '@/components/ui/BottomSheet';
 import type { Verification } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -49,6 +50,9 @@ export default function MissionDetailPage() {
   const [declineReason,   setDeclineReason]   = useState('');
   const [rejectReason,    setRejectReason]    = useState('');
   const photoRef = useRef<HTMLInputElement>(null);
+  const completeTitleId = useId();
+  const declineTitleId  = useId();
+  const rejectTitleId   = useId();
 
   const STATUS_LABEL: Record<string, string> = {
     REQUESTED:       t('statusRequested'),
@@ -352,10 +356,9 @@ export default function MissionDetailPage() {
       )}
 
       {/* ── Modal Certifier ── */}
-      {showComplete && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={(e) => e.target === e.currentTarget && setShowComplete(false)}>
-          <div className="w-full max-w-lg bg-card rounded-2xl shadow-xl p-6 space-y-4">
-            <h3 className="font-bold text-text text-lg">{t('certifyModalTitle')}</h3>
+      <BottomSheet open={showComplete} onClose={() => setShowComplete(false)} titleId={completeTitleId}>
+          <div className="space-y-4">
+            <h3 id={completeTitleId} className="font-bold text-text text-lg">{t('certifyModalTitle')}</h3>
             <p className="text-sm text-sub">{t('missionLabel')} <span className="font-semibold text-text">{v.listing?.title}</span></p>
 
             <div className="space-y-3">
@@ -408,14 +411,12 @@ export default function MissionDetailPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </BottomSheet>
 
       {/* ── Modal Décliner ── */}
-      {showDecline && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={(e) => e.target === e.currentTarget && setShowDecline(false)}>
-          <div className="w-full max-w-lg bg-card rounded-2xl shadow-xl p-6 space-y-4">
-            <h3 className="font-bold text-text text-lg">{t('declineMission')}</h3>
+      <BottomSheet open={showDecline} onClose={() => setShowDecline(false)} titleId={declineTitleId}>
+          <div className="space-y-4">
+            <h3 id={declineTitleId} className="font-bold text-text text-lg">{t('declineMission')}</h3>
             <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 p-3 flex items-start gap-2">
               <i className="fa-solid fa-circle-info text-blue-500 mt-0.5 shrink-0" />
               <p className="text-xs text-blue-700 dark:text-blue-400">{t('declineInfoShort')}</p>
@@ -437,14 +438,12 @@ export default function MissionDetailPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </BottomSheet>
 
       {/* ── Modal Non conforme (reject) ── */}
-      {showReject && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={(e) => e.target === e.currentTarget && setShowReject(false)}>
-          <div className="w-full max-w-lg bg-card rounded-2xl shadow-xl p-6 space-y-4">
-            <h3 className="font-bold text-text text-lg">{t('rejectModalTitle')}</h3>
+      <BottomSheet open={showReject} onClose={() => setShowReject(false)} titleId={rejectTitleId}>
+          <div className="space-y-4">
+            <h3 id={rejectTitleId} className="font-bold text-text text-lg">{t('rejectModalTitle')}</h3>
             <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 p-3 flex items-start gap-2">
               <i className="fa-solid fa-triangle-exclamation text-red-500 mt-0.5 shrink-0" />
               <p className="text-xs text-red-700 dark:text-red-400">{t('rejectInfo')}</p>
@@ -466,8 +465,7 @@ export default function MissionDetailPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </BottomSheet>
 
     </div>
   );

@@ -2314,6 +2314,7 @@
     "statScheduledShort": "Scheduled",
     "statAvgRatingShort": "Avg. rating",
     "avatarUploadError": "Photo upload error",
+    "changePhotoLabel": "Change profile photo",
     "profileSaved": "Profile updated!",
     "profileSaveError": "Error while updating.",
     "roleFieldAgent": "Field agent",

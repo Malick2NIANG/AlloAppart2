@@ -2314,6 +2314,7 @@
     "statScheduledShort": "Planifiées",
     "statAvgRatingShort": "Note moy.",
     "avatarUploadError": "Erreur upload photo",
+    "changePhotoLabel": "Changer la photo de profil",
     "profileSaved": "Profil mis à jour !",
     "profileSaveError": "Erreur lors de la mise à jour.",
     "roleFieldAgent": "Agent terrain",
