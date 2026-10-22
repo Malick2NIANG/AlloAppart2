@@ -663,7 +663,15 @@ function EmptyState({ tab }: { tab: Tab }) {
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   const titleId = useId();
   return (
-    <BottomSheet open onClose={onClose} titleId={titleId}>
+    <BottomSheet
+      open
+      onClose={onClose}
+      titleId={titleId}
+      // Rendu ≥768px identique à l'ancienne modale locale de cette page
+      // (avant son passage en BottomSheet) — largeur, ombre et défilement
+      // interne différaient des valeurs par défaut de BottomSheet/ConfirmModal.
+      desktopClassName="w-full max-w-lg rounded-2xl bg-card border border-line p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+    >
       <div className="flex items-center justify-between mb-5">
         <h2 id={titleId} className="text-lg font-bold text-text">{title}</h2>
         <button onClick={onClose} className="tap-target h-8 w-8 rounded-full flex items-center justify-center text-sub hover:bg-bg transition-colors">

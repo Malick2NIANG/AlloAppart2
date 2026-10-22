@@ -23,6 +23,12 @@ interface DetailVerif extends Omit<Verification, 'listing' | 'agent'> {
 
 const STATUS_STEPS = ['REQUESTED', 'SCHEDULED', 'IN_PROGRESS', 'DONE'] as const;
 
+// Rendu ≥768px identique aux anciennes modales locales de cette page (avant
+// leur passage en BottomSheet) — fond et largeur différaient des valeurs par
+// défaut de BottomSheet/ConfirmModal.
+const DETAIL_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm';
+const DETAIL_MODAL_CLASS = 'w-full max-w-lg bg-card rounded-2xl shadow-xl p-6';
+
 export default function MissionDetailPage() {
   const { id }       = useParams<{ id: string }>();
   const router       = useRouter();
@@ -356,7 +362,8 @@ export default function MissionDetailPage() {
       )}
 
       {/* ── Modal Certifier ── */}
-      <BottomSheet open={showComplete} onClose={() => setShowComplete(false)} titleId={completeTitleId}>
+      <BottomSheet open={showComplete} onClose={() => setShowComplete(false)} titleId={completeTitleId}
+        desktopBackdropClassName={DETAIL_MODAL_BACKDROP_CLASS} desktopClassName={DETAIL_MODAL_CLASS}>
           <div className="space-y-4">
             <h3 id={completeTitleId} className="font-bold text-text text-lg">{t('certifyModalTitle')}</h3>
             <p className="text-sm text-sub">{t('missionLabel')} <span className="font-semibold text-text">{v.listing?.title}</span></p>
@@ -414,7 +421,8 @@ export default function MissionDetailPage() {
       </BottomSheet>
 
       {/* ── Modal Décliner ── */}
-      <BottomSheet open={showDecline} onClose={() => setShowDecline(false)} titleId={declineTitleId}>
+      <BottomSheet open={showDecline} onClose={() => setShowDecline(false)} titleId={declineTitleId}
+        desktopBackdropClassName={DETAIL_MODAL_BACKDROP_CLASS} desktopClassName={DETAIL_MODAL_CLASS}>
           <div className="space-y-4">
             <h3 id={declineTitleId} className="font-bold text-text text-lg">{t('declineMission')}</h3>
             <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 p-3 flex items-start gap-2">
@@ -441,7 +449,8 @@ export default function MissionDetailPage() {
       </BottomSheet>
 
       {/* ── Modal Non conforme (reject) ── */}
-      <BottomSheet open={showReject} onClose={() => setShowReject(false)} titleId={rejectTitleId}>
+      <BottomSheet open={showReject} onClose={() => setShowReject(false)} titleId={rejectTitleId}
+        desktopBackdropClassName={DETAIL_MODAL_BACKDROP_CLASS} desktopClassName={DETAIL_MODAL_CLASS}>
           <div className="space-y-4">
             <h3 id={rejectTitleId} className="font-bold text-text text-lg">{t('rejectModalTitle')}</h3>
             <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 p-3 flex items-start gap-2">

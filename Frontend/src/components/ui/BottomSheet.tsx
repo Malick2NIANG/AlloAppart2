@@ -14,7 +14,24 @@ interface BottomSheetProps {
   fullHeight?: boolean;
   /** Pied de feuille fixe (hors du défilement du contenu), ex. boutons Appliquer/Réinitialiser — optionnel, inchangé si omis (lot 2a). */
   footer?: React.ReactNode;
+  /**
+   * Classes du conteneur modal ≥768px — remplace entièrement les classes par
+   * défaut (`w-full max-w-md rounded-2xl border border-line bg-card p-6
+   * shadow-xl`, celles de ConfirmModal). À fournir uniquement quand une
+   * modale migrée vers BottomSheet avait, avant migration, un rendu desktop
+   * différent de ConfirmModal (largeur, bordure, ombre…) — pour que le lot
+   * mobile ne change RIEN à partir de 768px (règle d'or). Omis : comportement
+   * actuel inchangé.
+   */
+  desktopClassName?: string;
+  /** Même principe que `desktopClassName`, pour le fond ≥768px (remplace
+   * `fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4`).
+   * Omis : comportement actuel inchangé. */
+  desktopBackdropClassName?: string;
 }
+
+const DEFAULT_DESKTOP_CLASS = 'w-full max-w-md rounded-2xl border border-line bg-card p-6 shadow-xl';
+const DEFAULT_DESKTOP_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -33,7 +50,7 @@ function isRendered(el: HTMLElement | null): el is HTMLElement {
  * (`hidden md:block`, sans effet sur un enfant `position:fixed`) bascule
  * entre les deux variantes sans détection JS de largeur (SSR-safe).
  */
-export default function BottomSheet({ open, onClose, children, titleId, fullHeight = false, footer }: BottomSheetProps) {
+export default function BottomSheet({ open, onClose, children, titleId, fullHeight = false, footer, desktopClassName, desktopBackdropClassName }: BottomSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const desktopContainerRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -154,7 +171,7 @@ export default function BottomSheet({ open, onClose, children, titleId, fullHeig
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+              className={desktopBackdropClassName ?? DEFAULT_DESKTOP_BACKDROP_CLASS}
               onClick={onClose}
             >
               <motion.div
@@ -166,7 +183,7 @@ export default function BottomSheet({ open, onClose, children, titleId, fullHeig
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.92, opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="w-full max-w-md rounded-2xl border border-line bg-card p-6 shadow-xl"
+                className={desktopClassName ?? DEFAULT_DESKTOP_CLASS}
                 onClick={(e) => e.stopPropagation()}
               >
                 {children}
