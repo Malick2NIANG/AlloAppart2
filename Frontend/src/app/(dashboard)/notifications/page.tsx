@@ -131,7 +131,7 @@ export default function NotificationsPage() {
       {/* Fermer */}
       <button
         onClick={() => router.back()}
-        className="mb-4 flex items-center gap-2 text-sm text-sub transition hover:text-text"
+        className="tap-target mb-4 flex items-center gap-2 text-sm text-sub transition hover:text-text"
       >
         <i className="fa-solid fa-xmark text-xs" /> {t('back')}
       </button>
@@ -151,7 +151,7 @@ export default function NotificationsPage() {
           <button
             onClick={() => void markAllRead()}
             disabled={marking}
-            className="text-sm font-medium text-gold-dark hover:underline disabled:opacity-50"
+            className="tap-target text-sm font-medium text-gold-dark hover:underline disabled:opacity-50"
           >
             {marking ? <i className="fa-solid fa-spinner fa-spin" /> : t('markAllRead')}
           </button>

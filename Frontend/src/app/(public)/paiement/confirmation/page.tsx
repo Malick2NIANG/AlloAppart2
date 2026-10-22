@@ -102,7 +102,7 @@ export default function PaiementConfirmationPage() {
             <p className="mt-3 text-sm text-sub">{errorMsg}</p>
             <Link
               href="/locataire/bookings"
-              className="btn-gold mt-8 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold"
+              className="btn-gold mt-8 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold max-md:min-h-12"
             >
               <i className="fa-solid fa-calendar-check" /> {t('myBookings')}
             </Link>
@@ -148,13 +148,13 @@ export default function PaiementConfirmationPage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/locataire/bookings"
-                className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold"
+                className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold max-md:min-h-12"
               >
                 <i className="fa-solid fa-calendar-check" /> {t('myBookings')}
               </Link>
               <Link
                 href="/listings"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all max-md:min-h-12"
               >
                 {t('continueExploring')}
               </Link>
@@ -174,13 +174,13 @@ export default function PaiementConfirmationPage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/locataire/bookings"
-                className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold"
+                className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold max-md:min-h-12"
               >
                 <i className="fa-solid fa-calendar-check" /> {t('trackReservation')}
               </Link>
               <button
                 onClick={() => { setStatus('loading'); window.location.reload(); }}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all max-md:min-h-12"
               >
                 <i className="fa-solid fa-rotate-right" /> {t('retryBtn')}
               </button>
@@ -199,13 +199,13 @@ export default function PaiementConfirmationPage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/locataire/bookings"
-                className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold"
+                className="btn-gold inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold max-md:min-h-12"
               >
                 <i className="fa-solid fa-calendar-check" /> {t('myBookings')}
               </Link>
               <Link
                 href="/listings"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all max-md:min-h-12"
               >
                 {t('continueExploring')}
               </Link>

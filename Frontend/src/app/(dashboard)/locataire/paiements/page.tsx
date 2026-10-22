@@ -124,7 +124,7 @@ export default function PaiementsPage() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="animate-pulse rounded-2xl border border-line bg-card h-20" />
           ))}
@@ -316,7 +316,7 @@ export default function PaiementsPage() {
                             type="button"
                             onClick={() => void downloadReceipt(b.id)}
                             disabled={downloadingReceipt === b.id}
-                            className="text-xs text-gold-dark hover:underline flex items-center gap-1 disabled:opacity-50"
+                            className="tap-target text-xs text-gold-dark hover:underline flex items-center gap-1 disabled:opacity-50"
                           >
                             {downloadingReceipt === b.id
                               ? <i className="fa-solid fa-spinner fa-spin text-[11px]" />
@@ -325,7 +325,7 @@ export default function PaiementsPage() {
                           </button>
                           <Link
                             href={`/locataire/bookings/${b.id}`}
-                            className="text-xs text-sub hover:text-text transition-colors flex items-center gap-1"
+                            className="tap-target text-xs text-sub hover:text-text transition-colors flex items-center gap-1"
                           >
                             {t('viewBookingLink')} <i className="fa-solid fa-arrow-up-right-from-square text-[10px]" />
                           </Link>

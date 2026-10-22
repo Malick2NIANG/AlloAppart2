@@ -136,14 +136,14 @@ function BookingResultContent() {
       <div className="mt-8 flex flex-col sm:flex-row gap-3">
         <Link
           href="/locataire/bookings"
-          className="btn-gold px-6"
+          className="btn-gold px-6 max-md:min-h-12 max-md:justify-center"
         >
           <i className="fa-solid fa-calendar-check text-sm" />
           {t('myBookings')}
         </Link>
         <Link
           href="/listings"
-          className="rounded-xl border border-line bg-card px-6 py-2.5 text-sm font-medium text-sub hover:text-text transition-colors"
+          className="rounded-xl border border-line bg-card px-6 py-2.5 text-sm font-medium text-sub hover:text-text transition-colors max-md:min-h-12 max-md:flex max-md:items-center max-md:justify-center"
         >
           {t('continueSearch')}
         </Link>

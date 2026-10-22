@@ -338,12 +338,13 @@ export default function BookingDetailPage() {
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex flex-wrap gap-3">
+      {/* Actions — collées en bas sous 768px (sticky, safe-area), boutons
+          48px ; inchangé à partir de 768px. */}
+      <div className="flex flex-wrap gap-3 max-md:sticky max-md:bottom-0 max-md:z-40 max-md:-mx-4 max-md:flex-nowrap max-md:border-t max-md:border-line max-md:bg-bg/95 max-md:px-4 max-md:pt-3 max-md:pb-[calc(var(--safe-bottom,0)+0.75rem)] max-md:backdrop-blur">
         {canReview && !showReview && (
           <button
             onClick={() => setShowReview(true)}
-            className="btn-gold text-sm"
+            className="btn-gold text-sm max-md:min-h-12 max-md:flex-1 max-md:justify-center"
           >
             <i className="fa-solid fa-star mr-1.5" />
             {t('leaveReviewAction')}
@@ -353,7 +354,7 @@ export default function BookingDetailPage() {
           <button
             onClick={() => void cancel()}
             disabled={canceling}
-            className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition disabled:opacity-50"
+            className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition disabled:opacity-50 max-md:min-h-12 max-md:flex-1 max-md:flex max-md:items-center max-md:justify-center"
           >
             {canceling
               ? <><i className="fa-solid fa-spinner fa-spin mr-1.5" />{t('cancelingAction')}</>
@@ -363,7 +364,7 @@ export default function BookingDetailPage() {
         )}
         <Link
           href="/locataire/bookings"
-          className="rounded-xl border border-line bg-card px-4 py-2 text-sm font-medium text-sub hover:text-text transition"
+          className="rounded-xl border border-line bg-card px-4 py-2 text-sm font-medium text-sub hover:text-text transition max-md:min-h-12 max-md:flex max-md:items-center max-md:justify-center max-md:shrink-0"
         >
           {t('backToListBtn')}
         </Link>
@@ -378,7 +379,7 @@ export default function BookingDetailPage() {
           </h2>
           <div className="flex items-center gap-2">
             {[1,2,3,4,5].map((s) => (
-              <button key={s} onClick={() => setReviewRating(s)} type="button">
+              <button key={s} onClick={() => setReviewRating(s)} type="button" className="tap-target">
                 <i className={`fa-solid fa-star text-2xl transition ${s <= reviewRating ? 'text-gold-dark' : 'text-gold/30 hover:text-gold'}`} />
               </button>
             ))}
@@ -388,7 +389,7 @@ export default function BookingDetailPage() {
             value={reviewComment}
             onChange={(e) => setReviewComment(e.target.value)}
             placeholder={t('reviewCommentPh')}
-            className="w-full rounded-xl border border-line bg-card px-3 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition resize-none"
+            className="w-full rounded-xl border border-line bg-card px-3 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 transition resize-none max-md:text-base"
           />
           <div className="flex gap-2">
             <button
