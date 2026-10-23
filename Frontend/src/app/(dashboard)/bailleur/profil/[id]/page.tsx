@@ -94,7 +94,7 @@ export default function ProfilPage() {
 
       {/* Back — revient à la page d'origine (ex. la discussion où "Voir le
           profil" a été cliqué), pas systématiquement à une liste. */}
-      <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors">
+      <button onClick={() => router.back()} className="tap-target inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors">
         <i className="fa-solid fa-arrow-left text-xs" />
         {t('profilBack')}
       </button>
@@ -144,7 +144,7 @@ export default function ProfilPage() {
                 <i className="fa-regular fa-calendar text-[10px] text-gold-dark/60" />
                 {t('profilMemberSince', { date: memberSince })}
               </div>
-              <Link href="/bailleur/messages" className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
+              <Link href="/bailleur/messages" className="tap-target flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
                 <i className="fa-solid fa-message text-[10px]" />
                 {t('profilContactViaMessaging')}
               </Link>

@@ -75,7 +75,7 @@ function AgentCard({ agent }: { agent: Agent }) {
       {agent.phone && (
         <a
           href={`tel:${agent.phone}`}
-          className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors"
+          className="tap-target flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors"
         >
           <i className="fa-solid fa-phone text-[10px]" />
           {agent.phone}
@@ -148,7 +148,7 @@ export default function BailleurAgentsPage() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-5xl mx-auto max-md:px-0 px-4 py-8 space-y-8">
 
       {/* Header */}
       <div>
@@ -176,7 +176,7 @@ export default function BailleurAgentsPage() {
 
       {/* Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-md:grid-cols-1 gap-5">
           {[1, 2, 3].map((i) => (
             <div key={i} className="bg-card rounded-2xl border border-line p-5 animate-pulse space-y-4">
               <div className="flex gap-3 items-center">
@@ -203,7 +203,7 @@ export default function BailleurAgentsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-md:grid-cols-1 gap-5">
           {filtered.map((agent) => (
             <AgentCard key={agent.id} agent={agent} />
           ))}

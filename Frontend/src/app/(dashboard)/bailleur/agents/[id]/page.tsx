@@ -115,7 +115,7 @@ export default function AgentProfilePage() {
 
       {/* Back — revient à la page d'origine (ex. la discussion où "Voir le
           profil" a été cliqué), pas systématiquement à la liste des agents. */}
-      <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors">
+      <button onClick={() => router.back()} className="tap-target inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors">
         <i className="fa-solid fa-arrow-left text-xs" />
         {t('profilBack')}
       </button>
@@ -165,11 +165,11 @@ export default function AgentProfilePage() {
             {/* Contact */}
             {agent.phone && (
               <div className="flex items-center gap-3 mt-3">
-                <a href={`tel:${agent.phone}`} className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors">
+                <a href={`tel:${agent.phone}`} className="tap-target flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors">
                   <i className="fa-solid fa-phone text-[10px]" />
                   {agent.phone}
                 </a>
-                <Link href="/bailleur/messages" className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
+                <Link href="/bailleur/messages" className="tap-target flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
                   <i className="fa-solid fa-message text-[10px]" />
                   {t('verifAgentMessage')}
                 </Link>
