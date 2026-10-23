@@ -87,8 +87,36 @@ export async function openAs(role, opts = {}) {
   await setupClerkTestingToken({ page });
 
   await page.goto(`${FRONTEND_URL}/sign-in`, { waitUntil: 'domcontentloaded', timeout: 40000 });
-  await page.locator('input[type="email"]').fill(email);
-  await page.locator('input[type="password"]').fill(password);
+
+  // Attend que Clerk ait réellement fini de s'hydrater avant de toucher au
+  // formulaire : remplir trop tôt fait courir le risque que Clerk réinitialise
+  // l'état contrôlé du champ (React) juste après, effaçant la saisie — observé
+  // en diagnostic (champ e-mail vide au moment du clic, bloqué par la
+  // validation native du navigateur, sans aucune requête vers Clerk).
+  await page.waitForFunction(() => Boolean(window.Clerk?.loaded), { timeout: 20000 });
+  await page.locator('input[type="email"]').waitFor({ state: 'visible', timeout: 10000 });
+
+  const emailInput = page.locator('input[type="email"]');
+  const passwordInput = page.locator('input[type="password"]');
+
+  await emailInput.fill(email);
+  // Vérifie par lecture (jamais journalisée) que la valeur a bien pris — si
+  // Clerk a réinitialisé le champ entre-temps, on la remplit une seconde fois.
+  if ((await emailInput.inputValue()) !== email) {
+    await emailInput.fill(email);
+  }
+  await passwordInput.fill(password);
+  if ((await passwordInput.inputValue()) !== password) {
+    await passwordInput.fill(password);
+  }
+
+  const emailFilled = (await emailInput.inputValue()).length > 0;
+  const passwordFilled = (await passwordInput.inputValue()).length > 0;
+  if (!emailFilled || !passwordFilled) {
+    await browser.close();
+    throw new Error(`Champ(s) vide(s) juste avant la soumission pour ${role} (email: ${emailFilled}, password: ${passwordFilled}).`);
+  }
+
   await page.locator('button[type="submit"]').click();
 
   // Sondage plutôt que page.waitForURL(prédicat) : plus fiable ici — le
