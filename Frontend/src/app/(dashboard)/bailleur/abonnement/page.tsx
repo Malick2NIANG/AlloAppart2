@@ -1,11 +1,17 @@
 'use client';
 
-import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
+import { Suspense, useEffect, useId, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
+import BottomSheet from '@/components/ui/BottomSheet';
+
+// Classes desktop (≥768px) de la modale de confirmation — identiques à son
+// rendu d'avant la migration BottomSheet (règle d'or du chantier mobile).
+const CONFIRM_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4';
+const CONFIRM_MODAL_CLASS = 'w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl';
 
 interface Subscription {
   id: string;
@@ -31,6 +37,7 @@ function AbonnementContent() {
   const [toast, setToast]              = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [polling, setPolling]          = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const confirmTitleId = useId();
 
   const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
@@ -182,9 +189,11 @@ function AbonnementContent() {
   return (
     <div>
 
-      {/* Toast */}
+      {/* Toast — positionné en haut à droite à partir de 768px (inchangé) ;
+          sous 768px, repositionné au-dessus de la barre de navigation du bas
+          via --bottom-offset (même principe que ToastProvider/CookieConsentBanner). */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 rounded-xl px-5 py-3 text-sm font-medium shadow-lg border ${
+        <div className={`fixed top-4 right-4 z-50 rounded-xl px-5 py-3 text-sm font-medium shadow-lg border max-md:top-auto max-md:bottom-[calc(var(--bottom-offset,0)+1rem)] ${
           toast.type === 'success' ? 'bg-green-50 dark:bg-green-950/30 text-green-800 border-green-200 dark:border-green-900/40' : 'bg-red-50 dark:bg-red-950/30 text-red-800 border-red-200 dark:border-red-900/40'
         }`}>
           {toast.msg}
@@ -192,7 +201,9 @@ function AbonnementContent() {
       )}
 
       {polling && (
-        <div className={`fixed z-50 right-4 rounded-xl px-5 py-2 text-xs font-medium text-sub bg-card border border-line shadow ${toast ? 'top-20' : 'top-4'}`}>
+        <div className={`fixed z-50 right-4 rounded-xl px-5 py-2 text-xs font-medium text-sub bg-card border border-line shadow max-md:top-auto ${
+          toast ? 'top-20 max-md:bottom-[calc(var(--bottom-offset,0)+5rem)]' : 'top-4 max-md:bottom-[calc(var(--bottom-offset,0)+1rem)]'
+        }`}>
           <i className="fa-solid fa-spinner fa-spin mr-1.5" />{t('abonnementChecking')}
         </div>
       )}
@@ -278,7 +289,7 @@ function AbonnementContent() {
                   <div className="mt-6">
                     <button
                       disabled
-                      className="w-full rounded-xl py-2.5 text-sm font-semibold border border-line bg-gray-50 dark:bg-gray-950/30 text-gray-400 cursor-not-allowed"
+                      className="tap-target w-full rounded-xl py-2.5 text-sm font-semibold border border-line bg-gray-50 dark:bg-gray-950/30 text-gray-400 cursor-not-allowed"
                     >
                       {t('abonnementChangePlan')}
                     </button>
@@ -288,7 +299,7 @@ function AbonnementContent() {
                   <button
                     onClick={() => !isActive && setConfirmPlan(plan)}
                     disabled={isActive || initiating !== null}
-                    className={`mt-6 w-full rounded-xl py-2.5 text-sm font-semibold transition ${
+                    className={`tap-target mt-6 w-full rounded-xl py-2.5 text-sm font-semibold transition ${
                       isActive
                         ? 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400 cursor-default'
                         : plan.highlighted
@@ -315,12 +326,13 @@ function AbonnementContent() {
 
       {/* Confirmation modal */}
       {confirmPlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
+        <BottomSheet open onClose={() => setConfirmPlan(null)} titleId={confirmTitleId}
+          desktopBackdropClassName={CONFIRM_MODAL_BACKDROP_CLASS} desktopClassName={CONFIRM_MODAL_CLASS}>
+          <>
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-gold-pale">
               <i className="fa-solid fa-receipt text-gold-dark" />
             </div>
-            <h2 className="text-lg font-semibold text-text mb-1">{t('abonnementConfirmTitle')}</h2>
+            <h2 id={confirmTitleId} className="text-lg font-semibold text-text mb-1">{t('abonnementConfirmTitle')}</h2>
             <p className="text-sm text-sub mb-5">{t('abonnementConfirmSubtitle')}</p>
 
             <div className="rounded-xl border border-line bg-surface p-4 mb-5">
@@ -348,14 +360,14 @@ function AbonnementContent() {
               <button
                 onClick={() => setConfirmPlan(null)}
                 disabled={initiating !== null}
-                className="flex-1 text-sm font-medium text-sub hover:text-text px-4 py-2.5 rounded-xl border border-line transition-colors disabled:opacity-50"
+                className="tap-target flex-1 text-sm font-medium text-sub hover:text-text px-4 py-2.5 rounded-xl border border-line transition-colors disabled:opacity-50"
               >
                 {t('abonnementConfirmBack')}
               </button>
               <button
                 onClick={() => { setConfirmPlan(null); void initiate(confirmPlan.key); }}
                 disabled={initiating !== null}
-                className="flex-1 btn-gold text-sm disabled:opacity-50"
+                className="tap-target flex-1 btn-gold text-sm disabled:opacity-50 max-md:min-h-12"
               >
                 {initiating === confirmPlan.key ? (
                   <><i className="fa-solid fa-spinner fa-spin mr-2" />{t('abonnementConfirmRedirecting')}</>
@@ -364,8 +376,8 @@ function AbonnementContent() {
                 )}
               </button>
             </div>
-          </div>
-        </div>
+          </>
+        </BottomSheet>
       )}
     </div>
   );

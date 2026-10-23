@@ -262,7 +262,7 @@ export default function MaVitrinePage() {
   const listingsCount = activeCount;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:pb-24">
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -297,13 +297,13 @@ export default function MaVitrinePage() {
                   </div>
                 )}
                 <button type="button" onClick={() => avatarRef.current?.click()} disabled={uploading}
-                  className="absolute -bottom-1.5 -right-1.5 h-7 w-7 rounded-xl bg-gold-dark text-white flex items-center justify-center hover:bg-gold-dark/90 transition-colors shadow-sm">
+                  className="tap-target absolute -bottom-1.5 -right-1.5 h-7 w-7 rounded-xl bg-gold-dark text-white flex items-center justify-center hover:bg-gold-dark/90 transition-colors shadow-sm">
                   {uploading ? <i className="fa-solid fa-spinner fa-spin text-[10px]" /> : <i className="fa-solid fa-camera text-[10px]" />}
                 </button>
                 {/* "Ajuster" — recadrer a posteriori le logo déjà envoyé, sans en choisir un nouveau */}
                 {avatar && !uploading && (
                   <button type="button" onClick={openAdjustAvatar}
-                    className="absolute -top-1.5 -right-1.5 h-7 w-7 rounded-xl bg-card border border-line text-sub flex items-center justify-center hover:text-gold-dark hover:border-gold/40 transition-colors shadow-sm">
+                    className="tap-target absolute -top-1.5 -right-1.5 h-7 w-7 rounded-xl bg-card border border-line text-sub flex items-center justify-center hover:text-gold-dark hover:border-gold/40 transition-colors shadow-sm">
                     <i className="fa-solid fa-crop-simple text-[10px]" />
                   </button>
                 )}
@@ -338,7 +338,7 @@ export default function MaVitrinePage() {
                   onClick={() => setAgencyColor(c.key)}
                   title={c.label}
                   aria-label={c.label}
-                  className="h-10 w-10 rounded-full flex items-center justify-center transition-transform"
+                  className="tap-target h-10 w-10 rounded-full flex items-center justify-center transition-transform"
                   style={{
                     backgroundColor: c.hex,
                     outline: agencyColor === c.key ? `2px solid ${c.hex}` : 'none',
@@ -467,14 +467,28 @@ export default function MaVitrinePage() {
           {/* Enregistrer — sous l'aperçu, dans la colonne sticky : reste
               visible à l'écran pendant qu'on modifie le formulaire à gauche,
               sans avoir à redescendre tout en bas. `form=` le relie au
-              formulaire bien qu'il en soit sorti dans le DOM. */}
+              formulaire bien qu'il en soit sorti dans le DOM. Masqué sous
+              768px (remplacé par la barre collée en bas ci-dessous). */}
           <button type="submit" form="vitrine-form" disabled={saving}
-            className="w-full mt-4 flex items-center justify-center gap-2 rounded-2xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 disabled:opacity-50 transition-colors">
+            className="hidden md:flex w-full mt-4 items-center justify-center gap-2 rounded-2xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 disabled:opacity-50 transition-colors">
             {saving
               ? <><i className="fa-solid fa-spinner fa-spin" /> {t('vitrineSaving')}</>
               : <><i className="fa-solid fa-floppy-disk text-sm" /> {t('vitrineSave')}</>}
           </button>
         </div>
+      </div>
+
+      {/* Enregistrer — collé en bas sous 768px uniquement (CTA toujours
+          accessible sans scroller tout le formulaire), coordonné avec
+          --bottom-offset comme ListingContactCard ; inchangé à partir de
+          768px (bouton ci-dessus, dans la colonne sticky). */}
+      <div className="fixed inset-x-0 z-40 px-4 md:hidden bottom-[calc(var(--bottom-offset,0)+0.75rem)]">
+        <button type="submit" form="vitrine-form" disabled={saving}
+          className="w-full min-h-12 flex items-center justify-center gap-2 rounded-2xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 disabled:opacity-50 transition-colors shadow-lg">
+          {saving
+            ? <><i className="fa-solid fa-spinner fa-spin" /> {t('vitrineSaving')}</>
+            : <><i className="fa-solid fa-floppy-disk text-sm" /> {t('vitrineSave')}</>}
+        </button>
       </div>
 
       <ConfirmModal

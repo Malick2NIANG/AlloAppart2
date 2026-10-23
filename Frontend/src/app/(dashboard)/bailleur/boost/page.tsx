@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
@@ -13,6 +13,12 @@ import { useToast } from '@/components/ui/Toast';
 import { StatFilterCard } from '@/components/bookings/StatFilterCard';
 import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
 import { BookingPagination } from '@/components/bookings/BookingPagination';
+import BottomSheet from '@/components/ui/BottomSheet';
+
+// Classes desktop (≥768px) de la modale de confirmation — identiques à son
+// rendu d'avant la migration BottomSheet (règle d'or du chantier mobile).
+const BOOST_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4';
+const BOOST_MODAL_CLASS = 'w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden';
 
 // Mêmes tailles de page que les autres grilles de cartes de l'espace bailleur
 // (cf. bailleur/bookings, AgenceClientShell) — on garde un pattern unique.
@@ -90,6 +96,7 @@ export default function BoostPage() {
   // /subscriptions/me est réservé PRO_AGENCE/ADMIN : un simple BAILLEUR reçoit un 403, traité
   // ici comme "pas PRO" (même schéma défensif que bailleur/listings).
   const [isProActive, setIsProActive] = useState(false);
+  const confirmTitleId = useId();
 
   useEffect(() => {
     void getToken().then((token) => {
@@ -205,7 +212,7 @@ export default function BoostPage() {
           <button
             onClick={dismissHow}
             aria-label={t('boostHowDismiss')}
-            className="absolute top-4 right-4 text-sub hover:text-text transition-colors"
+            className="tap-target absolute top-4 right-4 text-sub hover:text-text transition-colors"
           >
             <i className="fa-solid fa-xmark text-sm" />
           </button>
@@ -314,17 +321,18 @@ export default function BoostPage() {
         const listing = listings.find((l) => l.id === confirmId);
         if (!listing) return null;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-            <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden">
-              <div className="bg-linear-to-r from-gold to-gold-light px-6 py-5 text-center">
+          <BottomSheet open onClose={() => setConfirmId(null)} titleId={confirmTitleId}
+            desktopBackdropClassName={BOOST_MODAL_BACKDROP_CLASS} desktopClassName={BOOST_MODAL_CLASS}>
+            <>
+              <div className="bg-linear-to-r from-gold to-gold-light px-6 py-5 text-center rounded-t-2xl max-md:-mt-2.5">
                 <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 mb-3">
                   <i className="fa-solid fa-rocket text-white text-2xl" />
                 </div>
-                <h2 className="text-xl font-extrabold text-gray-900">{t('boostListModalTitle')}</h2>
+                <h2 id={confirmTitleId} className="text-xl font-extrabold text-gray-900">{t('boostListModalTitle')}</h2>
                 <p className="text-sm text-gray-800/80 mt-1 truncate">&ldquo;{listing.title}&rdquo;</p>
               </div>
 
-              <div className="p-6">
+              <div className="p-6 max-md:px-0 max-md:pb-0">
                 <div className="flex items-center justify-between rounded-2xl border border-gold/30 dark:border-gold/20 bg-gold-pale/60 dark:bg-gold-dark/10 px-5 py-4 mb-5">
                   <div>
                     <p className="text-xs font-bold text-sub uppercase tracking-wider">{t('boostPriceLabel')}</p>
@@ -364,7 +372,7 @@ export default function BoostPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setConfirmId(null)}
-                    className="flex-1 rounded-xl border border-line py-3 text-sm font-medium text-sub hover:text-text hover:border-text/30 transition-colors"
+                    className="tap-target flex-1 rounded-xl border border-line py-3 text-sm font-medium text-sub hover:text-text hover:border-text/30 transition-colors"
                   >
                     {t('cancel')}
                   </button>
@@ -372,7 +380,7 @@ export default function BoostPage() {
                     // eslint-disable-next-line react-hooks/refs -- faux positif : handleBoost n'est pas une ref, c'est une fonction async classique
                     onClick={() => void handleBoost(confirmId)}
                     disabled={boosting !== null}
-                    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 text-sm transition-colors disabled:opacity-60"
+                    className="tap-target flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 text-sm transition-colors disabled:opacity-60 max-md:min-h-12"
                   >
                     {boosting === confirmId
                       ? <i className="fa-solid fa-spinner fa-spin" />
@@ -384,8 +392,8 @@ export default function BoostPage() {
                   <p className="text-[10px] text-sub text-center mt-3">{t('boostListPayNote')}</p>
                 )}
               </div>
-            </div>
-          </div>
+            </>
+          </BottomSheet>
         );
       })()}
 
@@ -454,7 +462,7 @@ function ListingBoostCard({
         <button
           onClick={onBoost}
           disabled={boosting !== null}
-          className={`w-full flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition disabled:opacity-60 ${
+          className={`tap-target w-full flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition disabled:opacity-60 ${
             isBoosted
               ? 'border border-gold/40 bg-white dark:bg-white/10 text-gold-dark hover:bg-gold-pale dark:hover:bg-gold-dark/20'
               : 'bg-gold text-gray-900 hover:bg-gold-dark'
