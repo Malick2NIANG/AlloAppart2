@@ -251,7 +251,7 @@ function LandlordBookingCard({
           />
           <button
             onClick={() => void contactTenant()}
-            className="text-xs font-medium text-gold-dark hover:underline inline-flex items-center gap-1"
+            className="tap-target text-xs font-medium text-gold-dark hover:underline inline-flex items-center gap-1"
           >
             <i className="fa-solid fa-comment-dots text-xs" />
             {t('contactTenant')}

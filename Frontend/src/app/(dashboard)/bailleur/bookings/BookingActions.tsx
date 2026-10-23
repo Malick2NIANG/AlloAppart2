@@ -81,7 +81,7 @@ export default function BookingActions({
       key={action}
       onClick={() => act(action, successMessage)}
       disabled={!!loading}
-      className={`text-xs px-3 py-1.5 rounded-full font-medium transition disabled:opacity-50 ${className}`}
+      className={`tap-target text-xs px-3 py-1.5 rounded-full font-medium transition disabled:opacity-50 ${className}`}
     >
       {loading === action
         ? <i className="fa-solid fa-spinner fa-spin" />
@@ -141,7 +141,7 @@ export default function BookingActions({
             {btn('terminate-lease', 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200', t('actionTerminateLeaseConfirm'))}
             <button
               onClick={() => setConfirmTerminate(false)}
-              className="text-xs px-3 py-1.5 rounded-full font-medium bg-bg text-sub border border-line hover:bg-line/30 transition"
+              className="tap-target text-xs px-3 py-1.5 rounded-full font-medium bg-bg text-sub border border-line hover:bg-line/30 transition"
             >
               {t('actionCancelTerminate')}
             </button>
@@ -151,7 +151,7 @@ export default function BookingActions({
             <StatusChip status={status} />
             <button
               onClick={() => setConfirmTerminate(true)}
-              className="text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200 transition"
+              className="tap-target text-xs px-3 py-1.5 rounded-full font-medium bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 hover:bg-red-200 transition"
             >
               {t('actionTerminateLease')}
             </button>
