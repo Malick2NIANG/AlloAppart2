@@ -202,7 +202,7 @@ export default function LocataireDashboardPage() {
                     featured ? 'max-md:flex-col max-md:items-stretch max-md:gap-3 max-md:p-5 p-4' : 'p-4'
                   }`}
                 >
-                  <div className={`flex items-center gap-4 ${featured ? 'max-md:w-full' : ''}`}>
+                  <div className="flex w-full items-center gap-4">
                     <div className={`flex shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30 ${featured ? 'h-10 w-10 max-md:h-14 max-md:w-14' : 'h-10 w-10'}`}>
                       <i className={`fa-solid fa-house text-blue-600 dark:text-blue-400 ${featured ? 'text-sm max-md:text-lg' : 'text-sm'}`} />
                     </div>
