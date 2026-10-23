@@ -26,6 +26,7 @@ Seul ce qui reste à faire est listé ici (mis à jour le 2026-10-13). Le code, 
 ## Sécurité
 
 - [ ] Relancer `npm audit --omit=dev` (Backend et Frontend) juste avant la mise en ligne : de nouveaux avis peuvent apparaître.
+- [ ] **Mettre à jour Next.js** (avis de sécurité signalé par le serveur de dev sur la version actuelle, 16.4.0) : `next upgrade --agent=security`, à faire après le chantier mobile avec la suite de tests complète et les contrôles pixel, avant la mise en ligne.
 - [ ] Scan applicatif type OWASP ZAP une fois en staging.
 - [ ] Surveiller `braces` (5 alertes dev-only côté Frontend, via `eslint-config-next` ; aucun correctif publié) et `npm audit` Backend une fois Prisma 8 stable publié (les overrides `deepmerge-ts`, `mysql2`, `js-yaml`, `argparse` pourront alors être retirés).
 
@@ -42,6 +43,20 @@ Seul ce qui reste à faire est listé ici (mis à jour le 2026-10-13). Le code, 
 
 - [ ] Recharger le crédit API Anthropic avant d'activer les fonctionnalités IA (actuellement bloquées faute de crédit).
 - [ ] Retest manuel complet, rôle par rôle, une fois tout en ligne.
+
+## Fin du chantier mobile
+
+- [ ] **Supprimer les données de test du chantier mobile** (état au lot 5, à compléter après les lots 6/7) :
+  - 4 comptes Clerk de dev (`aa-test-locataire`, `aa-test-bailleur`, `aa-test-agence`, `aa-test-agent` `+clerk_test@example.com`) — à supprimer côté Clerk (dashboard dev) et leur ligne `users` correspondante en base de dev.
+  - 2 annonces de test : `a4c4b7be-a3e5-4493-a879-d0b0a67d9b93` (« TEST QA — Appartement de test », compte BAILLEUR) et `b10922c2-adc1-46ea-827d-2f6c3d4539cc` (« TEST QA — Studio agence », compte PRO_AGENCE) — leur suppression entraîne en cascade réservations/vérifications/rooms liées.
+  - 6 réservations de test sur `a4c4b7be…` (statuts PENDING/CONFIRMED/COMPLETED/CANCELLED/DISPUTED), avec 1 avis (review) et des reçus PDF associés.
+  - 3 vérifications AlloVérifié de test sur `b10922c2…` (une DONE historique, deux menées en conditions réelles jusqu'à DONE).
+  - 2 conversations de test (`message_rooms`) : locataire↔bailleur et agent↔bailleur (cette dernière créée directement en base, aucun flux UI n'ajoutant normalement un agent à une conversation).
+  - 1 abonnement PRO de test sur le compte PRO_AGENCE (`subscriptions`, à retirer si le compte lui-même n'est pas supprimé).
+  - 3 notifications de test pour le compte LOCATAIRE.
+  - 1 favori ajouté par le compte LOCATAIRE sur une annonce **réelle** (pas une annonce de test) — à retirer de ses favoris, ne pas supprimer l'annonce.
+  - Retirer `allowedDevOrigins` de `Frontend/next.config.ts` (`git checkout -- Frontend/next.config.ts`) ; supprimer `Frontend/rapports-mobile/tools/.credentials.env` et `Frontend/rapports-mobile/tools/.sessions/`.
+- [ ] Bouton « Installer l'app » (PWA) dans le menu « Plus ».
 
 ## Plus tard (non bloquant)
 
