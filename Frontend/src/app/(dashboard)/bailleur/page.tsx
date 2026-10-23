@@ -298,7 +298,7 @@ export default function BailleurDashboardPage() {
                 type="button"
                 onClick={() => setUnverifiedDismissed(true)}
                 aria-label={t('alertUnverifiedDismiss')}
-                className="text-amber-900/60 dark:text-amber-300/60 hover:text-amber-900 dark:hover:text-amber-300"
+                className="tap-target text-amber-900/60 dark:text-amber-300/60 hover:text-amber-900 dark:hover:text-amber-300"
               >
                 <i className="fa-solid fa-xmark text-sm" />
               </button>

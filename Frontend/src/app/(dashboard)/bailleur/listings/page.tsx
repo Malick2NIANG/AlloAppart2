@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { Suspense, useEffect, useState, useCallback, useRef, useMemo, useId } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -12,6 +12,7 @@ import { formatPrice, openPaymentTab, redirectPaymentTab, closePaymentTab } from
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
+import BottomSheet from '@/components/ui/BottomSheet';
 import { revalidateListingsCache } from './actions';
 
 // Doit rester synchronisé avec AUDIT_PRICE_XOF côté backend (verifications.service.ts)
@@ -37,6 +38,14 @@ const STATUS_BADGE: Record<ListingStatus, string> = {
   RENTED:    'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400',
   SUSPENDED: 'bg-card border border-line text-sub',
 };
+
+// Classes desktop (≥768px) des modales locales — identiques à leur rendu
+// d'avant la migration BottomSheet (règle d'or du chantier mobile).
+const SIMPLE_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4';
+const SIMPLE_MODAL_CLASS = 'w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl';
+const CONFIRM_MODAL_CLASS = 'w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl';
+const PROMO_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4';
+const PROMO_MODAL_CLASS = 'w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden';
 
 function BailleurListingsContent() {
   const { getToken } = useAuth();
@@ -65,6 +74,11 @@ function BailleurListingsContent() {
   const [deleteModal,  setDeleteModal]  = useState<{ listingId: string; title: string } | null>(null);
   const [boostModal,   setBoostModal]   = useState<{ listingId: string; title: string } | null>(null);
   const [boosting,     setBoosting]     = useState<string | null>(null);
+  const verifTitleId = useId();
+  const boostTitleId = useId();
+  const archiveTitleId = useId();
+  const deleteTitleId = useId();
+  const upgradeTitleId = useId();
   // Plafond de 10 annonces actives (compte particulier) atteint via "publier"
   // ou "restaurer" — même modal que sur /publier (code ACTIVE_LISTING_LIMIT).
   const [upgradeModal, setUpgradeModal] = useState<{ limit: number } | null>(null);
@@ -395,7 +409,7 @@ function BailleurListingsContent() {
           <button
             onClick={dismissBanner}
             aria-label={t('listingLimitBannerDismiss')}
-            className="shrink-0 text-sub hover:text-text transition-colors"
+            className="tap-target shrink-0 text-sub hover:text-text transition-colors"
           >
             <i className="fa-solid fa-xmark text-sm" />
           </button>
@@ -436,12 +450,12 @@ function BailleurListingsContent() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t('searchPlaceholder')}
-          className="w-full rounded-xl border border-line bg-card pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition"
+          className="w-full rounded-xl border border-line bg-card pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition max-md:text-base"
         />
         {search && (
           <button
             onClick={() => setSearch('')}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
+            className="tap-target absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text transition"
           >
             <i className="fa-solid fa-xmark text-sm" />
           </button>
@@ -496,7 +510,7 @@ function BailleurListingsContent() {
               <button
                 onClick={() => setPage((p) => p - 1)}
                 disabled={page === 1}
-                className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
+                className="tap-target border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
               >
                 {t('previous')}
               </button>
@@ -504,7 +518,7 @@ function BailleurListingsContent() {
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page === pageCount}
-                className="border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
+                className="tap-target border border-line bg-card text-sm px-4 py-2 rounded-xl disabled:opacity-50"
               >
                 {t('next')}
               </button>
@@ -515,9 +529,10 @@ function BailleurListingsContent() {
 
       {/* AlloVérifié modal */}
       {verifModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-text mb-1">{t('verifModalTitle')}</h2>
+        <BottomSheet open onClose={() => { setVerifModal(null); setVerifForm({ scheduledAt: '', preferredAgentId: '' }); }} titleId={verifTitleId}
+          desktopBackdropClassName={SIMPLE_MODAL_BACKDROP_CLASS} desktopClassName={SIMPLE_MODAL_CLASS}>
+          <>
+            <h2 id={verifTitleId} className="text-lg font-semibold text-text mb-1">{t('verifModalTitle')}</h2>
             <p className="text-sm text-sub mb-1 truncate">{verifModal.title}</p>
             {isProActive ? (
               <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-4 flex items-center gap-1.5">
@@ -573,23 +588,24 @@ function BailleurListingsContent() {
                   : (isProActive ? t('verifSubmit') : t('verifSubmitPay', { amount: AUDIT_PRICE_XOF.toLocaleString('fr-FR') }))}
               </button>
             </div>
-          </div>
-        </div>
+          </>
+        </BottomSheet>
       )}
 
       {/* Boost modal */}
       {boostModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden">
-            <div className="bg-linear-to-r from-gold to-gold-light px-6 py-5 text-center">
+        <BottomSheet open onClose={() => setBoostModal(null)} titleId={boostTitleId}
+          desktopBackdropClassName={PROMO_MODAL_BACKDROP_CLASS} desktopClassName={PROMO_MODAL_CLASS}>
+          <>
+            <div className="bg-linear-to-r from-gold to-gold-light px-6 py-5 text-center rounded-t-2xl max-md:-mt-2.5">
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 mb-3">
                 <i className="fa-solid fa-rocket text-white text-2xl" />
               </div>
-              <h2 className="text-xl font-extrabold text-gray-900">{t('boostListModalTitle')}</h2>
+              <h2 id={boostTitleId} className="text-xl font-extrabold text-gray-900">{t('boostListModalTitle')}</h2>
               <p className="text-sm text-gray-800/80 mt-1 truncate">&ldquo;{boostModal.title}&rdquo;</p>
             </div>
 
-            <div className="p-6">
+            <div className="p-6 max-md:px-0 max-md:pb-0">
               <div className="flex items-center justify-between rounded-2xl border border-gold/30 dark:border-gold/20 bg-gold-pale/60 dark:bg-gold-dark/10 px-5 py-4 mb-5">
                 <div>
                   <p className="text-xs font-bold text-sub uppercase tracking-wider">{t('boostPriceLabel')}</p>
@@ -645,73 +661,76 @@ function BailleurListingsContent() {
                 <p className="text-[10px] text-sub text-center mt-3">{t('boostListPayNote')}</p>
               )}
             </div>
-          </div>
-        </div>
+          </>
+        </BottomSheet>
       )}
 
       {/* Archive modal */}
       {archiveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
+        <BottomSheet open onClose={() => setArchiveModal(null)} titleId={archiveTitleId}
+          desktopBackdropClassName={SIMPLE_MODAL_BACKDROP_CLASS} desktopClassName={CONFIRM_MODAL_CLASS}>
+          <>
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/30">
               <i className="fa-solid fa-box-archive text-amber-500 dark:text-amber-400" />
             </div>
-            <h2 className="text-lg font-semibold text-text mb-1">{t('archiveModalTitle')}</h2>
+            <h2 id={archiveTitleId} className="text-lg font-semibold text-text mb-1">{t('archiveModalTitle')}</h2>
             <p className="text-sm text-sub mb-1">&quot;{archiveModal.title}&quot;</p>
             <p className="text-xs text-sub mb-6">{t('archiveModalDesc')}</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setArchiveModal(null)}
-                className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
+                className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
                 {t('cancel')}
               </button>
               <button onClick={() => void archiveListing()}
-                className="text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl transition-colors">
+                className="tap-target text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl transition-colors">
                 {t('archiveConfirm')}
               </button>
             </div>
-          </div>
-        </div>
+          </>
+        </BottomSheet>
       )}
 
       {/* Delete modal */}
       {deleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
+        <BottomSheet open onClose={() => setDeleteModal(null)} titleId={deleteTitleId}
+          desktopBackdropClassName={SIMPLE_MODAL_BACKDROP_CLASS} desktopClassName={CONFIRM_MODAL_CLASS}>
+          <>
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/30">
               <i className="fa-solid fa-trash text-red-500 dark:text-red-400" />
             </div>
-            <h2 className="text-lg font-semibold text-text mb-1">{t('deleteModalTitle')}</h2>
+            <h2 id={deleteTitleId} className="text-lg font-semibold text-text mb-1">{t('deleteModalTitle')}</h2>
             <p className="text-sm text-sub mb-1">&quot;{deleteModal.title}&quot;</p>
             <p className="text-xs text-sub mb-6">{t('deleteModalDesc')}</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteModal(null)}
-                className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
+                className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
                 {t('cancel')}
               </button>
               <button onClick={() => void deleteListing()}
-                className="text-sm font-semibold bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl transition-colors">
+                className="tap-target text-sm font-semibold bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl transition-colors">
                 {t('deleteConfirm')}
               </button>
             </div>
-          </div>
-        </div>
+          </>
+        </BottomSheet>
       )}
 
       {/* Plafond de 10 annonces actives atteint (compte particulier) — même modal que sur /publier */}
       {upgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-gold to-gold-light px-6 py-5 text-center">
+        <BottomSheet open onClose={() => setUpgradeModal(null)} titleId={upgradeTitleId}
+          desktopBackdropClassName={PROMO_MODAL_BACKDROP_CLASS} desktopClassName={PROMO_MODAL_CLASS}>
+          <>
+            <div className="bg-gradient-to-r from-gold to-gold-light px-6 py-5 text-center rounded-t-2xl max-md:-mt-2.5">
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 mb-3">
                 <i className="fa-solid fa-crown text-white text-2xl" />
               </div>
-              <h2 className="text-xl font-extrabold text-gray-900">{tUpgrade('upgradeModalTitle')}</h2>
+              <h2 id={upgradeTitleId} className="text-xl font-extrabold text-gray-900">{tUpgrade('upgradeModalTitle')}</h2>
               <p className="text-sm text-gray-800/80 mt-1">
                 {tUpgrade('upgradeModalLimitReached', { limit: upgradeModal.limit })}
               </p>
             </div>
 
-            <div className="p-6">
+            <div className="p-6 max-md:px-0 max-md:pb-0">
               <p className="text-sm text-sub mb-4">{tUpgrade('upgradeModalDesc')}</p>
               <div className="space-y-2.5 mb-6">
                 {[
@@ -732,21 +751,21 @@ function BailleurListingsContent() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setUpgradeModal(null)}
-                  className="flex-1 rounded-xl border border-line py-3 text-sm font-medium text-sub hover:text-text hover:border-text/30 transition-colors"
+                  className="tap-target flex-1 rounded-xl border border-line py-3 text-sm font-medium text-sub hover:text-text hover:border-text/30 transition-colors"
                 >
                   {tUpgrade('upgradeModalLater')}
                 </button>
                 <Link
                   href="/bailleur/abonnement"
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 text-sm transition-colors"
+                  className="tap-target flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 text-sm transition-colors"
                 >
                   <i className="fa-solid fa-crown text-xs" />
                   {tUpgrade('upgradeModalCta')}
                 </Link>
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        </BottomSheet>
       )}
     </div>
   );
@@ -866,16 +885,16 @@ function ListingCard({
 
         {listing.status === 'ACTIVE' && (
           <>
-            <Link href={`/listings/${listing.id}`} className="text-sm font-medium text-gold-dark hover:underline">
+            <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-dark hover:underline">
               {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
             </Link>
             <button onClick={() => onUnpublish(listing.id, listing.title)}
-              className="text-sm font-medium text-sub hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
+              className="tap-target text-sm font-medium text-sub hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
               <i className="fa-solid fa-eye-slash text-xs mr-1" />{t('actionUnpublish')}
             </button>
             {!boosted && (
               <button onClick={() => onBoost(listing.id, listing.title)} disabled={boosting !== null}
-                className="text-xs font-medium text-sub hover:text-gold-dark border border-line hover:border-gold-dark rounded-lg py-1 px-2.5 transition-colors disabled:opacity-50">
+                className="tap-target text-xs font-medium text-sub hover:text-gold-dark border border-line hover:border-gold-dark rounded-lg py-1 px-2.5 transition-colors disabled:opacity-50">
                 {boosting === listing.id
                   ? <i className="fa-solid fa-spinner fa-spin text-xs" />
                   : <><i className="fa-solid fa-rocket text-xs mr-1" />{t('actionBoost')}</>
@@ -884,7 +903,7 @@ function ListingCard({
             )}
             {boosted && (
               <button onClick={() => onBoost(listing.id, listing.title)} disabled={boosting !== null}
-                className="text-xs font-medium text-sub hover:text-gold-dark border border-line hover:border-gold-dark rounded-lg py-1 px-2.5 transition-colors disabled:opacity-50">
+                className="tap-target text-xs font-medium text-sub hover:text-gold-dark border border-line hover:border-gold-dark rounded-lg py-1 px-2.5 transition-colors disabled:opacity-50">
                 {boosting === listing.id
                   ? <i className="fa-solid fa-spinner fa-spin text-xs" />
                   : <><i className="fa-solid fa-rocket text-xs mr-1" />{t('actionBoostRenew')}</>
@@ -893,12 +912,12 @@ function ListingCard({
             )}
             {!listing.isVerified && (
               <button onClick={() => onVerify(listing.id, listing.title)}
-                className="text-xs font-medium text-gold-dark hover:text-gold-600 border border-gold-dark hover:bg-gold-pale rounded-lg py-1 px-2.5 transition-colors">
+                className="tap-target text-xs font-medium text-gold-dark hover:text-gold-600 border border-gold-dark hover:bg-gold-pale rounded-lg py-1 px-2.5 transition-colors">
                 <i className="fa-solid fa-shield-halved text-xs mr-1" /> {t('actionAlloVerifie')}
               </button>
             )}
             <button onClick={() => onArchive(listing.id, listing.title)}
-              className="text-sm font-medium text-sub hover:text-red-500 transition-colors ml-auto">
+              className="tap-target text-sm font-medium text-sub hover:text-red-500 transition-colors ml-auto">
               <i className="fa-solid fa-box-archive text-xs mr-1" />{t('actionArchive')}
             </button>
           </>
@@ -906,18 +925,18 @@ function ListingCard({
 
         {listing.status === 'DRAFT' && (
           <>
-            <Link href={`/listings/${listing.id}`} className="text-sm font-medium text-gold-dark hover:underline">
+            <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-dark hover:underline">
               {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
             </Link>
             <Link href={`/bailleur/listings/${listing.id}/edit`}
-              className="text-sm font-medium text-sub hover:text-text transition-colors">
+              className="tap-target text-sm font-medium text-sub hover:text-text transition-colors">
               <i className="fa-solid fa-pen-to-square text-xs mr-1" />{t('actionEdit')}
             </Link>
-            <button onClick={() => onPublish(listing.id, listing.title)} className="btn-gold text-xs py-1.5 px-3">
+            <button onClick={() => onPublish(listing.id, listing.title)} className="tap-target btn-gold text-xs py-1.5 px-3">
               <i className="fa-solid fa-upload text-xs mr-1" />{t('actionPublish')}
             </button>
             <button onClick={() => onArchive(listing.id, listing.title)}
-              className="text-sm font-medium text-sub hover:text-red-500 transition-colors ml-auto">
+              className="tap-target text-sm font-medium text-sub hover:text-red-500 transition-colors ml-auto">
               <i className="fa-solid fa-box-archive text-xs mr-1" />{t('actionArchive')}
             </button>
           </>
@@ -931,24 +950,24 @@ function ListingCard({
 
         {listing.status === 'SUSPENDED' && (
           <>
-            <Link href={`/listings/${listing.id}`} className="text-sm font-medium text-gold-dark hover:underline">
+            <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-dark hover:underline">
               {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
             </Link>
             <button
               onClick={() => onRestore(listing.id, listing.title, 'DRAFT')}
-              className="text-sm font-medium text-sub hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+              className="tap-target text-sm font-medium text-sub hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
             >
               <i className="fa-solid fa-pen-to-square text-xs mr-1" />{t('actionRestoreDraft')}
             </button>
             <button
               onClick={() => onRestore(listing.id, listing.title, 'ACTIVE')}
-              className="text-sm font-medium text-sub hover:text-green-600 dark:hover:text-green-400 transition-colors"
+              className="tap-target text-sm font-medium text-sub hover:text-green-600 dark:hover:text-green-400 transition-colors"
             >
               <i className="fa-solid fa-upload text-xs mr-1" />{t('actionRestoreActive')}
             </button>
             <button
               onClick={() => onDelete(listing.id, listing.title)}
-              className="text-sm font-medium text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors ml-auto"
+              className="tap-target text-sm font-medium text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors ml-auto"
             >
               <i className="fa-solid fa-trash text-xs mr-1" />{t('actionDelete')}
             </button>
