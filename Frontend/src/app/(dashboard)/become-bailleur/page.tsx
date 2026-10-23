@@ -209,7 +209,7 @@ export default function BecomeBailleurPage() {
                   )}
                 </div>
                 <button type="submit" disabled={busy}
-                  className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold disabled:opacity-50">
+                  className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold disabled:opacity-50 max-md:min-h-12">
                   {busy
                     ? <><i className="fa-solid fa-spinner fa-spin" /> {t('saving')}</>
                     : <>{t('continue')} <i className="fa-solid fa-arrow-right ml-1 text-xs" /></>}
@@ -260,7 +260,7 @@ export default function BecomeBailleurPage() {
 
               <button onClick={handleActivate}
                 disabled={!accepted || busy}
-                className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold disabled:opacity-50">
+                className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold disabled:opacity-50 max-md:min-h-12">
                 {busy
                   ? <><i className="fa-solid fa-spinner fa-spin" /> {t('activating')}</>
                   : <><i className="fa-solid fa-house-chimney-user" /> {t('activate')}</>}

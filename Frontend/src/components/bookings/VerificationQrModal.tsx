@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '@/lib/api';
+import BottomSheet from '@/components/ui/BottomSheet';
 
 interface VerificationQrModalProps {
   open: boolean;
@@ -23,6 +23,7 @@ interface VerificationQrModalProps {
 export function VerificationQrModal({ open, onClose, bookingId }: VerificationQrModalProps) {
   const t = useTranslations('verification');
   const { getToken } = useAuth();
+  const titleId = useId();
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -65,52 +66,46 @@ export function VerificationQrModal({ open, onClose, bookingId }: VerificationQr
   }, [open, bookingId, getToken]);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      titleId={titleId}
+      // Rendu ≥768px identique à l'ancienne modale locale (avant son passage
+      // en BottomSheet) : largeur max-w-sm (pas max-w-md) + texte centré,
+      // propres à cette modale — le fond, lui, correspond déjà par défaut.
+      desktopClassName="w-full max-w-sm rounded-2xl border border-line bg-card p-6 text-center shadow-xl"
+    >
+      <div className="text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
+          <i className="fa-solid fa-qrcode text-lg text-gold-dark" />
+        </div>
+        <h2 id={titleId} className="mb-1 text-base font-semibold text-text">{t('modalTitle')}</h2>
+        <p className="mb-5 text-sm text-sub">{t('modalInstructions')}</p>
+
+        {/* QR en grande taille lisible sous 768px (le bailleur le scanne
+            souvent en extérieur, parfois en plein soleil) — le SVG est
+            vectoriel, donc mis à l'échelle sans perte via la taille du
+            conteneur ; inchangé à partir de 768px. */}
+        <div className="mx-auto flex h-56 w-56 max-md:h-72 max-md:w-72 items-center justify-center rounded-xl border border-line bg-white p-3">
+          {loading && <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />}
+          {!loading && error && (
+            <i className="fa-solid fa-triangle-exclamation text-2xl text-red-500" />
+          )}
+          {!loading && !error && url && <QRCodeSVG value={url} size={200} level="M" className="h-full w-full" />}
+        </div>
+
+        {!loading && error && (
+          <p className="mt-3 text-sm text-red-500">{t('modalError')}</p>
+        )}
+
+        <button
+          type="button"
           onClick={onClose}
+          className="tap-target mt-5 w-full rounded-lg border border-line px-4 py-2 text-sm font-medium text-sub transition-colors hover:text-text max-md:min-h-12"
         >
-          <motion.div
-            initial={{ scale: 0.92, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.92, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="w-full max-w-sm rounded-2xl border border-line bg-card p-6 text-center shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
-              <i className="fa-solid fa-qrcode text-lg text-gold-dark" />
-            </div>
-            <h2 className="mb-1 text-base font-semibold text-text">{t('modalTitle')}</h2>
-            <p className="mb-5 text-sm text-sub">{t('modalInstructions')}</p>
-
-            <div className="mx-auto flex h-56 w-56 items-center justify-center rounded-xl border border-line bg-white p-3">
-              {loading && <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />}
-              {!loading && error && (
-                <i className="fa-solid fa-triangle-exclamation text-2xl text-red-500" />
-              )}
-              {!loading && !error && url && <QRCodeSVG value={url} size={200} level="M" />}
-            </div>
-
-            {!loading && error && (
-              <p className="mt-3 text-sm text-red-500">{t('modalError')}</p>
-            )}
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-5 w-full rounded-lg border border-line px-4 py-2 text-sm font-medium text-sub transition-colors hover:text-text"
-            >
-              {t('close')}
-            </button>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          {t('close')}
+        </button>
+      </div>
+    </BottomSheet>
   );
 }

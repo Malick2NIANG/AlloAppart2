@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, useId } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -17,9 +17,19 @@ import { StatusChip } from '@/components/bookings/StatusChip';
 import { StatFilterCard } from '@/components/bookings/StatFilterCard';
 import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
 import { BookingPagination } from '@/components/bookings/BookingPagination';
+import BottomSheet from '@/components/ui/BottomSheet';
 
 const DISPUTE_WINDOW_HOURS = 24;
 const PER_PAGE_OPTIONS = [6, 12, 24] as const;
+
+// Rendu ≥768px identique aux anciennes modales locales de cette page (avant
+// leur passage en BottomSheet) — fond et largeur différaient des valeurs par
+// défaut de BottomSheet/ConfirmModal, et la structure (en-tête/corps/pied en
+// 3 blocs de couleurs distinctes) doit garder son propre padding plutôt que
+// celui, uniforme, de BottomSheet.
+const BOOKING_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm';
+const BOOKING_MODAL_CLASS = 'w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden';
+const DISPUTE_MODAL_CLASS = 'w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden max-h-[90vh] flex flex-col';
 
 interface MyReview {
   id: string;
@@ -698,6 +708,7 @@ function CancellationModal({
 }) {
   const { getToken } = useAuth();
   const t = useTranslations('locataire');
+  const titleId = useId();
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
 
@@ -730,27 +741,27 @@ function CancellationModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden">
-
+    <BottomSheet open onClose={onClose} titleId={titleId}
+      desktopBackdropClassName={BOOKING_MODAL_BACKDROP_CLASS} desktopClassName={BOOKING_MODAL_CLASS}>
+      <>
         {/* Header */}
-        <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-100 dark:border-red-900/40 p-5 flex items-start justify-between">
+        <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-100 dark:border-red-900/40 p-5 flex items-start justify-between rounded-t-2xl max-md:-mt-2.5">
           <div>
             <p className="text-xs font-semibold text-red-400 uppercase tracking-wide">{t('cancelModalBadge')}</p>
-            <h3 className="text-lg font-bold text-text mt-0.5 leading-tight line-clamp-2">
+            <h3 id={titleId} className="text-lg font-bold text-text mt-0.5 leading-tight line-clamp-2">
               {booking.listing?.title ?? t('cancelModalFallback')}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="ml-3 shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-black/5 hover:bg-black/10 transition-colors"
+            className="tap-target ml-3 shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-black/5 hover:bg-black/10 transition-colors"
           >
             <i className="fa-solid fa-xmark text-sub text-sm" />
           </button>
         </div>
 
         {/* Corps */}
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 max-md:px-0 max-md:pb-0">
           {/* Politique */}
           <div className={`rounded-xl p-4 flex gap-3 ${fullRefund ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/40' : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40'}`}>
             <i className={`fa-solid ${fullRefund ? 'fa-circle-check text-green-600 dark:text-green-400' : 'fa-triangle-exclamation text-amber-500'} mt-0.5 text-sm shrink-0`} />
@@ -783,14 +794,14 @@ function CancellationModal({
           <div className="flex gap-2 pt-1">
             <button
               onClick={onClose}
-              className="flex-1 rounded-xl border border-line py-2.5 text-sm font-medium text-sub hover:bg-bg transition-colors"
+              className="flex-1 rounded-xl border border-line py-2.5 text-sm font-medium text-sub hover:bg-bg transition-colors max-md:min-h-11"
             >
               {t('keepBtn')}
             </button>
             <button
               onClick={() => void handleConfirm()}
               disabled={loading}
-              className="flex-1 rounded-xl bg-red-500 hover:bg-red-600 py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 rounded-xl bg-red-500 hover:bg-red-600 py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 max-md:min-h-11"
             >
               {loading
                 ? <><i className="fa-solid fa-spinner fa-spin" /> {t('confirmingBtn')}</>
@@ -798,8 +809,8 @@ function CancellationModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </>
+    </BottomSheet>
   );
 }
 
@@ -813,6 +824,7 @@ function DisputeModal({
 }) {
   const { getToken } = useAuth();
   const t = useTranslations('locataire');
+  const titleId = useId();
   const [reason,     setReason]     = useState('');
   const [evidence,   setEvidence]   = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -842,27 +854,28 @@ function DisputeModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <BottomSheet open onClose={onClose} titleId={titleId}
+      desktopBackdropClassName={BOOKING_MODAL_BACKDROP_CLASS} desktopClassName={DISPUTE_MODAL_CLASS}>
+      <>
 
         {/* Header */}
-        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-100 dark:border-amber-900/40 p-5 flex items-start justify-between shrink-0">
+        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-100 dark:border-amber-900/40 p-5 flex items-start justify-between shrink-0 rounded-t-2xl max-md:-mt-2.5">
           <div>
             <p className="text-xs font-semibold text-amber-500 uppercase tracking-wide">{t('disputeModalBadge')}</p>
-            <h3 className="text-lg font-bold text-text mt-0.5 leading-tight line-clamp-2">
+            <h3 id={titleId} className="text-lg font-bold text-text mt-0.5 leading-tight line-clamp-2">
               {booking.listing?.title ?? t('cancelModalFallback')}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="ml-3 shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-black/5 hover:bg-black/10 transition-colors"
+            className="tap-target ml-3 shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-black/5 hover:bg-black/10 transition-colors"
           >
             <i className="fa-solid fa-xmark text-sub text-sm" />
           </button>
         </div>
 
         {/* Corps */}
-        <div className="p-5 space-y-4 overflow-y-auto">
+        <div className="p-5 space-y-4 overflow-y-auto max-md:px-0">
           <div className="rounded-xl p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 flex gap-3">
             <i className="fa-solid fa-hourglass-half text-amber-500 mt-0.5 text-sm shrink-0" />
             <p className="text-xs text-amber-700 dark:text-amber-400">
@@ -880,7 +893,7 @@ function DisputeModal({
               rows={4}
               maxLength={1000}
               placeholder={t('disputeReasonPlaceholder')}
-              className="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-text placeholder:text-sub resize-none focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition"
+              className="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-text placeholder:text-sub resize-none focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition max-md:text-base"
             />
             <p className="text-right text-[11px] text-sub mt-1">{reason.length}/1000</p>
           </div>
@@ -900,25 +913,25 @@ function DisputeModal({
         </div>
 
         {/* Boutons */}
-        <div className="p-5 pt-0 flex gap-2 shrink-0">
+        <div className="p-5 pt-0 flex gap-2 shrink-0 max-md:px-0">
           <button
             onClick={onClose}
-            className="flex-1 rounded-xl border border-line py-2.5 text-sm font-medium text-sub hover:bg-bg transition-colors"
+            className="flex-1 rounded-xl border border-line py-2.5 text-sm font-medium text-sub hover:bg-bg transition-colors max-md:min-h-11"
           >
             {t('keepBtn')}
           </button>
           <button
             onClick={() => void handleSubmit()}
             disabled={submitting}
-            className="flex-1 rounded-xl bg-amber-500 hover:bg-amber-600 py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex-1 rounded-xl bg-amber-500 hover:bg-amber-600 py-2.5 text-sm font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 max-md:min-h-11"
           >
             {submitting
               ? <><i className="fa-solid fa-spinner fa-spin" /> {t('sendingBtn')}</>
               : <><i className="fa-solid fa-paper-plane" /> {t('disputeSubmitBtn')}</>}
           </button>
         </div>
-      </div>
-    </div>
+      </>
+    </BottomSheet>
   );
 }
 
@@ -934,7 +947,7 @@ function StarRating({ value, onChange }: { value: number; onChange: (n: number) 
           onClick={() => onChange(n)}
           onMouseEnter={() => setHovered(n)}
           onMouseLeave={() => setHovered(0)}
-          className="text-3xl transition-transform hover:scale-110 focus:outline-none"
+          className="tap-target text-3xl transition-transform hover:scale-110 focus:outline-none"
         >
           <i className={`fa-star ${(hovered || value) >= n ? 'fa-solid text-gold' : 'fa-regular text-line'}`} />
         </button>
@@ -952,6 +965,7 @@ function ReviewModal({
 }) {
   const { getToken } = useAuth();
   const t = useTranslations('locataire');
+  const titleId = useId();
   const [rating,     setRating]     = useState(0);
   const [comment,    setComment]    = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -986,21 +1000,21 @@ function ReviewModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl bg-card border border-line shadow-2xl overflow-hidden">
-
+    <BottomSheet open onClose={onClose} titleId={titleId}
+      desktopBackdropClassName={BOOKING_MODAL_BACKDROP_CLASS} desktopClassName={BOOKING_MODAL_CLASS}>
+      <>
         {/* Header */}
-        <div className="bg-gradient-to-r from-gold to-gold-light p-5">
+        <div className="bg-gradient-to-r from-gold to-gold-light p-5 rounded-t-2xl max-md:-mt-2.5">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold text-gray-900/70 uppercase tracking-wide">{t('yourReview')}</p>
-              <h3 className="text-lg font-bold text-gray-900 mt-0.5 leading-tight line-clamp-2">
+              <h3 id={titleId} className="text-lg font-bold text-gray-900 mt-0.5 leading-tight line-clamp-2">
                 {booking.listing?.title ?? t('reviewModalFallback')}
               </h3>
             </div>
             <button
               onClick={onClose}
-              className="ml-3 shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors"
+              className="tap-target ml-3 shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors"
             >
               <i className="fa-solid fa-xmark text-gray-900 text-sm" />
             </button>
@@ -1008,7 +1022,7 @@ function ReviewModal({
         </div>
 
         {/* Corps */}
-        <div className="p-5 space-y-5">
+        <div className="p-5 space-y-5 max-md:px-0 max-md:pb-0">
 
           {/* Étoiles */}
           <div className="flex flex-col items-center gap-2 py-2">
@@ -1029,7 +1043,7 @@ function ReviewModal({
               rows={4}
               maxLength={2000}
               placeholder={t('commentPlaceholder')}
-              className="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-text placeholder:text-sub resize-none focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition"
+              className="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm text-text placeholder:text-sub resize-none focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold transition max-md:text-base"
             />
             <p className="text-right text-[11px] text-sub mt-1">{comment.length}/2000</p>
           </div>
@@ -1044,14 +1058,14 @@ function ReviewModal({
           <div className="flex gap-2 pt-1">
             <button
               onClick={onClose}
-              className="flex-1 rounded-xl border border-line py-2.5 text-sm font-medium text-sub hover:bg-bg transition-colors"
+              className="flex-1 rounded-xl border border-line py-2.5 text-sm font-medium text-sub hover:bg-bg transition-colors max-md:min-h-11"
             >
               {t('cancelBtn')}
             </button>
             <button
               onClick={() => void handleSubmit()}
               disabled={submitting || rating === 0}
-              className="flex-1 rounded-xl bg-gold py-2.5 text-sm font-bold text-gray-900 hover:bg-gold-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 rounded-xl bg-gold py-2.5 text-sm font-bold text-gray-900 hover:bg-gold-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 max-md:min-h-11"
             >
               {submitting
                 ? <><i className="fa-solid fa-spinner fa-spin" /> {t('sendingBtn')}</>
@@ -1059,7 +1073,7 @@ function ReviewModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </>
+    </BottomSheet>
   );
 }
