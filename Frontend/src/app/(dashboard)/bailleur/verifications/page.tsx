@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,6 +13,18 @@ import { StatFilterCard } from '@/components/bookings/StatFilterCard';
 import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
 import { BookingPagination } from '@/components/bookings/BookingPagination';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import BottomSheet from '@/components/ui/BottomSheet';
+
+// Classes desktop (≥768px) des modales locales — identiques à leur rendu
+// d'avant la migration BottomSheet (règle d'or du chantier mobile).
+const RATING_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm';
+const RATING_MODAL_CLASS = 'w-full max-w-sm rounded-2xl bg-card border border-line shadow-2xl p-6';
+const NEW_VERIF_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4';
+const NEW_VERIF_MODAL_CLASS = 'w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl max-h-[90vh] overflow-y-auto';
+const AGENT_PICKER_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4';
+const AGENT_PICKER_MODAL_CLASS = 'w-full max-w-lg rounded-2xl bg-card border border-line p-6 shadow-xl max-h-[85vh] flex flex-col';
+const LISTING_PICKER_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4';
+const LISTING_PICKER_MODAL_CLASS = 'w-full max-w-lg rounded-2xl bg-card border border-line p-6 shadow-xl max-h-[85vh] flex flex-col';
 
 const PER_PAGE_OPTIONS = [6, 12, 24] as const;
 type DemandesFilter = 'ALL' | 'ACTIVE' | 'HISTORY';
@@ -160,6 +172,7 @@ function RatingModal({ verifId, agentName, existing, onClose, onSaved }: {
   const [error,   setError]   = useState('');
 
   const starLabels = ['', t('ratingDesc1'), t('ratingDesc2'), t('ratingDesc3'), t('ratingDesc4'), t('ratingDesc5')];
+  const titleId = useId();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,14 +189,15 @@ function RatingModal({ verifId, agentName, existing, onClose, onSaved }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl bg-card border border-line shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+    <BottomSheet open onClose={onClose} titleId={titleId}
+      desktopBackdropClassName={RATING_MODAL_BACKDROP_CLASS} desktopClassName={RATING_MODAL_CLASS}>
+      <>
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="text-base font-bold text-text">{t('ratingTitle')}</h2>
+            <h2 id={titleId} className="text-base font-bold text-text">{t('ratingTitle')}</h2>
             <p className="text-xs text-sub mt-0.5">{t('ratingSubtitle', { agentName })}</p>
           </div>
-          <button onClick={onClose} className="text-sub hover:text-text transition-colors"><i className="fa-solid fa-xmark text-sm" /></button>
+          <button onClick={onClose} className="tap-target text-sub hover:text-text transition-colors"><i className="fa-solid fa-xmark text-sm" /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -200,16 +214,16 @@ function RatingModal({ verifId, agentName, existing, onClose, onSaved }: {
           </div>
           {error && <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2">{error}</p>}
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-line bg-bg py-2.5 text-sm text-sub hover:text-text transition-colors">
+            <button type="button" onClick={onClose} className="tap-target flex-1 rounded-xl border border-line bg-bg py-2.5 text-sm text-sub hover:text-text transition-colors">
               {t('cancel')}
             </button>
-            <button type="submit" disabled={saving || rating === 0} className="flex-1 btn-gold rounded-xl py-2.5 text-sm disabled:opacity-60 disabled:cursor-not-allowed">
+            <button type="submit" disabled={saving || rating === 0} className="tap-target flex-1 btn-gold rounded-xl py-2.5 text-sm disabled:opacity-60 disabled:cursor-not-allowed">
               {saving ? <i className="fa-solid fa-spinner fa-spin" /> : existing ? t('ratingEdit') : t('ratingSend')}
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </>
+    </BottomSheet>
   );
 }
 
@@ -460,7 +474,7 @@ function VerifCard({ v, expanded, onToggle, onRate, isProActive, onRequestAgain,
                     city: v.listing?.city,
                     images: v.listing?.images,
                   })}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-gold-dark/30 bg-gold-pale/30 dark:bg-gold-dark/10 px-4 py-2.5 text-sm font-semibold text-gold-dark hover:bg-gold-pale/50 dark:hover:bg-gold-dark/20 transition-colors"
+                  className="tap-target w-full flex items-center justify-center gap-2 rounded-xl border border-gold-dark/30 bg-gold-pale/30 dark:bg-gold-dark/10 px-4 py-2.5 text-sm font-semibold text-gold-dark hover:bg-gold-pale/50 dark:hover:bg-gold-dark/20 transition-colors"
                 >
                   <i className="fa-solid fa-rotate-right text-xs" />
                   {t('verifRequestAgain')}
@@ -476,7 +490,7 @@ function VerifCard({ v, expanded, onToggle, onRate, isProActive, onRequestAgain,
               <button
                 type="button"
                 onClick={() => onEdit(v)}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm font-semibold text-text hover:border-gold-dark/40 transition-colors"
+                className="tap-target flex-1 flex items-center justify-center gap-2 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm font-semibold text-text hover:border-gold-dark/40 transition-colors"
               >
                 <i className="fa-solid fa-pen text-xs" />{t('verifEditRequest')}
               </button>
@@ -484,7 +498,7 @@ function VerifCard({ v, expanded, onToggle, onRate, isProActive, onRequestAgain,
                 type="button"
                 onClick={() => setConfirmCancelOpen(true)}
                 disabled={cancelling}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors disabled:opacity-50"
+                className="tap-target flex-1 flex items-center justify-center gap-2 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors disabled:opacity-50"
               >
                 <i className="fa-solid fa-trash-can text-xs" />{t('verifCancelRequest')}
               </button>
@@ -540,7 +554,14 @@ function DateTimePicker({ value, onChange }: { value: string; onChange: (v: stri
     const d = parsed ?? minAllowed;
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
-  const [popPos, setPopPos] = useState<{ top?: number; bottom?: number; left: number; width: number; maxHeight: number } | null>(null);
+  // Sous 768px : plus de popover `fixed` positionné via getBoundingClientRect
+  // (le calcul est en coordonnées viewport et devient faux dès que cet
+  // élément se retrouve dans un ancêtre transformé — ex. la feuille
+  // BottomSheet, animée via `transform` par framer-motion, qui crée un
+  // nouveau bloc de confinement pour tout descendant `position: fixed`).
+  // On rend alors le panneau en flux normal juste sous le déclencheur ;
+  // sans effet ≥768px, où le popover `fixed` existant reste inchangé.
+  const [popPos, setPopPos] = useState<{ top?: number; bottom?: number; left: number; width: number; maxHeight: number } | 'inline' | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popRef     = useRef<HTMLDivElement>(null);
   const timeRef    = useRef<HTMLDivElement>(null);
@@ -550,6 +571,11 @@ function DateTimePicker({ value, onChange }: { value: string; onChange: (v: stri
   const selMin  = parsed ? (['00','15','30','45'].includes(String(parsed.getMinutes()).padStart(2,'0')) ? String(parsed.getMinutes()).padStart(2,'0') : '00') : '00';
 
   const openPicker = () => {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+      setPopPos('inline');
+      setOpen(true);
+      return;
+    }
     if (!triggerRef.current) { setOpen(true); return; }
     const r = triggerRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - r.bottom - 16;
@@ -622,92 +648,105 @@ function DateTimePicker({ value, onChange }: { value: string; onChange: (v: stri
         }
       </button>
 
-      {open && popPos && (
-        <div ref={popRef}
-          style={{ position: 'fixed', top: popPos.top, bottom: popPos.bottom, left: popPos.left, width: popPos.width, maxHeight: popPos.maxHeight, zIndex: 9999 }}
-          className="rounded-2xl border border-line bg-card shadow-2xl p-4 overflow-y-auto">
-
-          <div className="flex items-center justify-between mb-3">
-            <button type="button" onClick={() => setCursor(new Date(year, month - 1, 1))}
-              className="h-7 w-7 rounded-full hover:bg-bg flex items-center justify-center text-sub hover:text-text transition-colors">
-              <i className="fa-solid fa-chevron-left text-xs" />
-            </button>
-            <span className="text-sm font-semibold text-text">{MONTHS[month]} {year}</span>
-            <button type="button" onClick={() => setCursor(new Date(year, month + 1, 1))}
-              className="h-7 w-7 rounded-full hover:bg-bg flex items-center justify-center text-sub hover:text-text transition-colors">
-              <i className="fa-solid fa-chevron-right text-xs" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-7 mb-1">
-            {DAYS.map((d) => (
-              <div key={d} className="text-center text-[10px] font-semibold text-sub py-1">{d}</div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-0.5">
-            {cells.map((d, i) => {
-              if (!d) return <div key={i} />;
-              const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-              const isSelected = ds === selDate;
-              const isPast     = d < minAllowed;
-              const isToday    = d.toDateString() === today.toDateString();
-              return (
-                <button key={i} type="button" disabled={isPast} onClick={() => selectDay(d)}
-                  className={`h-8 w-full rounded-lg text-xs font-medium transition-all ${
-                    isSelected ? 'bg-gold text-gray-900 font-bold shadow-sm'
-                    : isPast   ? 'text-line cursor-not-allowed'
-                    : isToday  ? 'border border-gold/50 text-gold-dark hover:bg-gold-pale'
-                               : 'text-text hover:bg-gold-pale hover:text-gold-dark'
-                  }`}>
-                  {d.getDate()}
-                </button>
-              );
-            })}
-          </div>
-
-          {selDate && (
-            <div ref={timeRef} className="mt-4 pt-3 border-t border-line">
-              <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <i className="fa-regular fa-clock text-gold-dark" />{t('dtpTimeLabel')}
-              </p>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <p className="text-[10px] text-sub mb-1 text-center">{t('dtpHourLabel')}</p>
-                  <div className="h-28 overflow-y-auto rounded-xl border border-line bg-bg flex flex-col" style={{ scrollbarWidth: 'thin' }}>
-                    {HOURS.map((h) => (
-                      <button key={h} type="button" onClick={() => changeTime(h, selMin)}
-                        className={`shrink-0 py-1.5 text-sm text-center transition-colors ${
-                          h === selHour ? 'bg-gold text-gray-900 font-bold' : 'text-text hover:bg-gold-pale hover:text-gold-dark'
-                        }`}>
-                        {h}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center text-sub text-lg font-light pt-5">:</div>
-                <div className="flex-1">
-                  <p className="text-[10px] text-sub mb-1 text-center">{t('dtpMinLabel')}</p>
-                  <div className="rounded-xl border border-line bg-bg overflow-hidden flex flex-col">
-                    {MINUTES.map((m) => (
-                      <button key={m} type="button" onClick={() => changeTime(selHour, m)}
-                        className={`py-1.5 text-sm text-center transition-colors ${
-                          m === selMin ? 'bg-gold text-gray-900 font-bold' : 'text-text hover:bg-gold-pale hover:text-gold-dark'
-                        }`}>
-                        {m}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <button type="button" onClick={() => setOpen(false)}
-                className="mt-3 w-full rounded-xl bg-gold py-2 text-sm font-semibold text-gray-900 hover:bg-gold-dark transition-colors">
-                {t('dtpConfirm')}
+      {open && popPos && (() => {
+        const panelBody = (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <button type="button" onClick={() => setCursor(new Date(year, month - 1, 1))}
+                className="tap-target h-7 w-7 rounded-full hover:bg-bg flex items-center justify-center text-sub hover:text-text transition-colors">
+                <i className="fa-solid fa-chevron-left text-xs" />
+              </button>
+              <span className="text-sm font-semibold text-text">{MONTHS[month]} {year}</span>
+              <button type="button" onClick={() => setCursor(new Date(year, month + 1, 1))}
+                className="tap-target h-7 w-7 rounded-full hover:bg-bg flex items-center justify-center text-sub hover:text-text transition-colors">
+                <i className="fa-solid fa-chevron-right text-xs" />
               </button>
             </div>
-          )}
-        </div>
-      )}
+
+            <div className="grid grid-cols-7 mb-1">
+              {DAYS.map((d) => (
+                <div key={d} className="text-center text-[10px] font-semibold text-sub py-1">{d}</div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-0.5">
+              {cells.map((d, i) => {
+                if (!d) return <div key={i} />;
+                const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                const isSelected = ds === selDate;
+                const isPast     = d < minAllowed;
+                const isToday    = d.toDateString() === today.toDateString();
+                return (
+                  <button key={i} type="button" disabled={isPast}
+                    // eslint-disable-next-line react-hooks/refs -- faux positif : selectDay ne lit timeRef.current que dans un setTimeout différé, jamais pendant le rendu
+                    onClick={() => selectDay(d)}
+                    className={`h-8 max-md:h-11 w-full rounded-lg text-xs font-medium transition-all ${
+                      isSelected ? 'bg-gold text-gray-900 font-bold shadow-sm'
+                      : isPast   ? 'text-line cursor-not-allowed'
+                      : isToday  ? 'border border-gold/50 text-gold-dark hover:bg-gold-pale'
+                                 : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+                    }`}>
+                    {d.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+
+            {selDate && (
+              <div ref={timeRef} className="mt-4 pt-3 border-t border-line">
+                <p className="text-[10px] font-semibold text-sub uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <i className="fa-regular fa-clock text-gold-dark" />{t('dtpTimeLabel')}
+                </p>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <p className="text-[10px] text-sub mb-1 text-center">{t('dtpHourLabel')}</p>
+                    <div className="h-28 max-md:h-36 overflow-y-auto rounded-xl border border-line bg-bg flex flex-col" style={{ scrollbarWidth: 'thin' }}>
+                      {HOURS.map((h) => (
+                        <button key={h} type="button" onClick={() => changeTime(h, selMin)}
+                          className={`shrink-0 py-1.5 max-md:min-h-11 text-sm text-center transition-colors ${
+                            h === selHour ? 'bg-gold text-gray-900 font-bold' : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+                          }`}>
+                          {h}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center text-sub text-lg font-light pt-5">:</div>
+                  <div className="flex-1">
+                    <p className="text-[10px] text-sub mb-1 text-center">{t('dtpMinLabel')}</p>
+                    <div className="rounded-xl border border-line bg-bg overflow-hidden flex flex-col">
+                      {MINUTES.map((m) => (
+                        <button key={m} type="button" onClick={() => changeTime(selHour, m)}
+                          className={`py-1.5 max-md:min-h-11 text-sm text-center transition-colors ${
+                            m === selMin ? 'bg-gold text-gray-900 font-bold' : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+                          }`}>
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setOpen(false)}
+                  className="tap-target mt-3 w-full rounded-xl bg-gold py-2 text-sm font-semibold text-gray-900 hover:bg-gold-dark transition-colors">
+                  {t('dtpConfirm')}
+                </button>
+              </div>
+            )}
+          </>
+        );
+
+        return popPos === 'inline' ? (
+          <div ref={popRef} className="relative mt-2 max-h-[70vh] overflow-y-auto rounded-2xl border border-line bg-card shadow-2xl p-4">
+            {panelBody}
+          </div>
+        ) : (
+          <div ref={popRef}
+            style={{ position: 'fixed', top: popPos.top, bottom: popPos.bottom, left: popPos.left, width: popPos.width, maxHeight: popPos.maxHeight, zIndex: 9999 }}
+            className="rounded-2xl border border-line bg-card shadow-2xl p-4 overflow-y-auto">
+            {panelBody}
+          </div>
+        );
+      })()}
     </>
   );
 }
@@ -777,6 +816,8 @@ function NewVerifModal({ onClose, onSent, initialListing, editingVerif }: {
     void load();
   }, [getToken]);
 
+  const titleId = useId();
+
   const handleSubmit = async () => {
     if (!form.listingId) { setError(t('newVerifSelectListing')); return; }
     if (!form.scheduledAt) { setError(t('newVerifSelectDate')); return; }
@@ -809,11 +850,12 @@ function NewVerifModal({ onClose, onSent, initialListing, editingVerif }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <BottomSheet open onClose={onClose} titleId={titleId}
+      desktopBackdropClassName={NEW_VERIF_MODAL_BACKDROP_CLASS} desktopClassName={NEW_VERIF_MODAL_CLASS}>
+      <>
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="text-lg font-semibold text-text">
+            <h2 id={titleId} className="text-lg font-semibold text-text">
               {editingVerif ? t('editVerifTitle') : t('newVerifTitle')}
             </h2>
             <p className="text-xs text-sub mt-0.5">
@@ -822,7 +864,7 @@ function NewVerifModal({ onClose, onSent, initialListing, editingVerif }: {
                 : initialListing ? t('newVerifAgainSubtitle', { title: initialListing.title }) : t('newVerifSubtitle')}
             </p>
           </div>
-          <button onClick={onClose} className="text-sub hover:text-text transition-colors">
+          <button onClick={onClose} className="tap-target text-sub hover:text-text transition-colors">
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
@@ -839,7 +881,7 @@ function NewVerifModal({ onClose, onSent, initialListing, editingVerif }: {
                   type="button"
                   onClick={() => { if (!locked) setListingPickerOpen(true); }}
                   disabled={locked}
-                  className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                  className={`tap-target w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
                     locked ? 'border-line bg-bg/60 cursor-not-allowed' : 'border-line bg-bg hover:border-gold-dark/40'
                   }`}
                 >
@@ -894,7 +936,7 @@ function NewVerifModal({ onClose, onSent, initialListing, editingVerif }: {
                 <button
                   type="button"
                   onClick={() => setAgentPickerOpen(true)}
-                  className="w-full flex items-center gap-3 rounded-xl border border-line bg-bg px-3 py-2.5 text-left hover:border-gold-dark/40 transition-colors"
+                  className="tap-target w-full flex items-center gap-3 rounded-xl border border-line bg-bg px-3 py-2.5 text-left hover:border-gold-dark/40 transition-colors"
                 >
                   {selected ? (
                     <>
@@ -946,16 +988,16 @@ function NewVerifModal({ onClose, onSent, initialListing, editingVerif }: {
 
         <div className="flex gap-3 mt-6 justify-end">
           <button onClick={onClose}
-            className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
+            className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
             {t('cancel')}
           </button>
           <button onClick={() => void handleSubmit()} disabled={!form.listingId || !form.scheduledAt || loading}
-            className="btn-gold text-sm rounded-xl px-5 py-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            className="tap-target btn-gold text-sm rounded-xl px-5 py-2 disabled:opacity-50 disabled:cursor-not-allowed">
             {loading ? <i className="fa-solid fa-spinner fa-spin" /> : (editingVerif ? t('editVerifSubmit') : t('verifSubmit'))}
           </button>
         </div>
-      </div>
-    </div>
+      </>
+    </BottomSheet>
   );
 }
 
@@ -972,6 +1014,7 @@ function AgentPickerModal({
   onClose: () => void;
 }) {
   const t = useTranslations('bailleur');
+  const titleId = useId();
   const [search, setSearch] = useState('');
   const [page,   setPage]   = useState(1);
 
@@ -992,27 +1035,32 @@ function AgentPickerModal({
   const choose = (id: string) => { onSelect(id); onClose(); };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl bg-card border border-line p-6 shadow-xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between mb-4 shrink-0">
-          <h3 className="text-base font-semibold text-text">{t('verifAgentPickerTitle')}</h3>
-          <button onClick={onClose} className="text-sub hover:text-text transition-colors">
-            <i className="fa-solid fa-xmark" />
-          </button>
-        </div>
-
-        <div className="relative mb-4 shrink-0">
-          <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-sm pointer-events-none" />
-          <input
-            type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('verifAgentSearchPlaceholder')}
-            className="w-full rounded-xl border border-line bg-bg pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text">
-              <i className="fa-solid fa-xmark text-sm" />
+    <BottomSheet open onClose={onClose} titleId={titleId} fullHeight
+      desktopBackdropClassName={AGENT_PICKER_MODAL_BACKDROP_CLASS} desktopClassName={AGENT_PICKER_MODAL_CLASS}>
+      <>
+        {/* En-tête + recherche — collés en haut de la feuille sous 768px
+            (sticky), fixes ≥768px comme avant ce lot. */}
+        <div className="shrink-0 max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-card max-md:-mx-6 max-md:px-6 max-md:pt-1">
+          <div className="flex items-start justify-between mb-4">
+            <h3 id={titleId} className="text-base font-semibold text-text">{t('verifAgentPickerTitle')}</h3>
+            <button onClick={onClose} className="tap-target text-sub hover:text-text transition-colors">
+              <i className="fa-solid fa-xmark" />
             </button>
-          )}
+          </div>
+
+          <div className="relative mb-4">
+            <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-sm pointer-events-none" />
+            <input
+              type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('verifAgentSearchPlaceholder')}
+              className="w-full rounded-xl border border-line bg-bg pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition max-md:text-base"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="tap-target absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text">
+                <i className="fa-solid fa-xmark text-sm" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto -mx-1 px-1">
@@ -1084,15 +1132,15 @@ function AgentPickerModal({
           )}
         </div>
 
-        <div className="shrink-0">
+        <div className="shrink-0 max-md:sticky max-md:bottom-0 max-md:z-10 max-md:bg-card max-md:-mx-6 max-md:px-6 max-md:pt-3 max-md:border-t max-md:border-line">
           <BookingPagination
             page={clampedPage} pageCount={pageCount} onPageChange={setPage}
             previousLabel={t('previous')} nextLabel={t('next')}
             pageOfLabel={t('pageOf', { page: clampedPage, total: pageCount })}
           />
         </div>
-      </div>
-    </div>
+      </>
+    </BottomSheet>
   );
 }
 
@@ -1109,6 +1157,7 @@ function ListingPickerModal({
   onClose: () => void;
 }) {
   const t = useTranslations('bailleur');
+  const titleId = useId();
   const [search, setSearch] = useState('');
   const [page,   setPage]   = useState(1);
 
@@ -1127,27 +1176,30 @@ function ListingPickerModal({
   const choose = (id: string) => { onSelect(id); onClose(); };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl bg-card border border-line p-6 shadow-xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between mb-4 shrink-0">
-          <h3 className="text-base font-semibold text-text">{t('newVerifListingPickerTitle')}</h3>
-          <button onClick={onClose} className="text-sub hover:text-text transition-colors">
-            <i className="fa-solid fa-xmark" />
-          </button>
-        </div>
-
-        <div className="relative mb-4 shrink-0">
-          <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-sm pointer-events-none" />
-          <input
-            type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('newVerifListingSearchPlaceholder')}
-            className="w-full rounded-xl border border-line bg-bg pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text">
-              <i className="fa-solid fa-xmark text-sm" />
+    <BottomSheet open onClose={onClose} titleId={titleId} fullHeight
+      desktopBackdropClassName={LISTING_PICKER_MODAL_BACKDROP_CLASS} desktopClassName={LISTING_PICKER_MODAL_CLASS}>
+      <>
+        <div className="shrink-0 max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-card max-md:-mx-6 max-md:px-6 max-md:pt-1">
+          <div className="flex items-start justify-between mb-4">
+            <h3 id={titleId} className="text-base font-semibold text-text">{t('newVerifListingPickerTitle')}</h3>
+            <button onClick={onClose} className="tap-target text-sub hover:text-text transition-colors">
+              <i className="fa-solid fa-xmark" />
             </button>
-          )}
+          </div>
+
+          <div className="relative mb-4">
+            <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-sub text-sm pointer-events-none" />
+            <input
+              type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder={t('newVerifListingSearchPlaceholder')}
+              className="w-full rounded-xl border border-line bg-bg pl-10 pr-10 py-2.5 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-1 focus:ring-gold-dark transition max-md:text-base"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="tap-target absolute right-3.5 top-1/2 -translate-y-1/2 text-sub hover:text-text">
+                <i className="fa-solid fa-xmark text-sm" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto -mx-1 px-1">
@@ -1196,15 +1248,15 @@ function ListingPickerModal({
           )}
         </div>
 
-        <div className="shrink-0">
+        <div className="shrink-0 max-md:sticky max-md:bottom-0 max-md:z-10 max-md:bg-card max-md:-mx-6 max-md:px-6 max-md:pt-3 max-md:border-t max-md:border-line">
           <BookingPagination
             page={clampedPage} pageCount={pageCount} onPageChange={setPage}
             previousLabel={t('previous')} nextLabel={t('next')}
             pageOfLabel={t('pageOf', { page: clampedPage, total: pageCount })}
           />
         </div>
-      </div>
-    </div>
+      </>
+    </BottomSheet>
   );
 }
 
