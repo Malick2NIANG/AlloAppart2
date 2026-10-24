@@ -11,6 +11,8 @@ import { api } from '@/lib/api';
 import type { Listing } from '@/types';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import LocationPicker, { type MapFocus } from '@/components/map/LocationPicker';
+import MobileStepperBar from '@/components/ui/MobileStepperBar';
+import StickyStepActions from '@/components/ui/StickyStepActions';
 import { getListingProfile, sanitizeForType } from '@/lib/listingProfile';
 import { REGION_CENTERS, checkRegionConsistency, findRegionAt, getRegionFeature } from '@/lib/senegalRegions';
 
@@ -67,6 +69,10 @@ export default function EditListingPage() {
   const { getToken } = useAuth();
   const router = useRouter();
   const t = useTranslations('bailleur');
+  // "Étape X sur Y" / "Précédent" réutilisés tels quels depuis /publier (même
+  // stepper, même clés i18n) — évite de dupliquer le texte, même pattern que
+  // tUpgrade dans bailleur/listings/page.tsx.
+  const tPublish = useTranslations('publish');
   const [mapReady, setMapReady]       = useState(false);
   const [step, setStep]               = useState(0);
   const [loadingData, setLoadingData] = useState(true);
@@ -331,6 +337,19 @@ export default function EditListingPage() {
     setStep((s) => Math.max(s - 1, 0));
   }
 
+  // Sous 768px, l'en-tête compact (MobileStepperBar) est collé en haut mais
+  // le défilement n'est pas réinitialisé par React au changement d'étape —
+  // même correctif que /publier. Ici le conteneur qui défile est le <main>
+  // du tableau de bord (pas window, contrairement à /publier, page publique
+  // sans ce conteneur) : scrollIntoView remonte le bon ancêtre quel qu'il
+  // soit. Sans effet ≥768px.
+  const topRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+      topRef.current?.scrollIntoView({ block: 'start' });
+    }
+  }, [step]);
+
   async function onSubmit(values: FormValues) {
     const token = await getToken();
     if (!token) return;
@@ -365,15 +384,31 @@ export default function EditListingPage() {
   }
 
   return (
-    <div>
-      <div className="mb-6">
+    <div ref={topRef}>
+      {/* Titre — remplacé sous 768px par MobileStepperBar */}
+      <div className="mb-6 max-md:hidden">
         <h1 className="text-2xl font-bold text-text">{t('editPageTitle')}</h1>
         <p className="mt-1 text-sm text-sub">{t('editPageSub')}</p>
       </div>
 
-      <StepIndicator current={step} steps={STEPS} />
+      <MobileStepperBar
+        current={step}
+        total={STEPS.length}
+        title={STEPS[step].label}
+        stepLabel={tPublish('stepLabel', { current: step + 1, total: STEPS.length })}
+        isFirstStep={step === 0}
+        onBack={goBack}
+        onQuit={() => router.push('/bailleur/listings')}
+        quitLabel={t('editBack')}
+        backLabel={t('editBack')}
+      />
 
-      <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-5">
+      {/* Indicateur d'étapes — remplacé sous 768px par MobileStepperBar ci-dessus */}
+      <div className="max-md:hidden">
+        <StepIndicator current={step} steps={STEPS} />
+      </div>
+
+      <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-5 max-md:mt-3">
         {stepErrors.length > 0 && (
           <div className="rounded-xl border border-gold-dark/30 dark:border-gold-dark/20 bg-gold-pale/40 dark:bg-gold-dark/10 p-4">
             <p className="text-sm font-semibold text-text mb-1.5">
@@ -759,13 +794,13 @@ export default function EditListingPage() {
         )}
 
         {submitError && (
-          <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
+          <div className="max-md:hidden rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
             <i className="fa-solid fa-circle-exclamation shrink-0" />
             {submitError}
           </div>
         )}
 
-        <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center justify-between mt-2 max-md:hidden">
           {step > 0 ? (
             <button
               type="button"
@@ -804,6 +839,30 @@ export default function EditListingPage() {
             </button>
           )}
         </div>
+
+        {/* Barre d'actions mobile — sous 768px uniquement. Le "Précédent" vit
+            dans MobileStepperBar (bouton retour de l'en-tête) ; cette barre
+            ne porte que l'action principale de l'étape. */}
+        <StickyStepActions error={submitError ?? undefined}>
+          {step < STEPS.length - 1 ? (
+            <button type="button" onClick={() => void goNext()}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold to-gold-light text-sm font-semibold text-gray-900 shadow-md transition active:scale-[0.98]">
+              {t('editNext')} <i className="fa-solid fa-arrow-right text-xs" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => void handleSubmit(onSubmit)()}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold to-gold-light text-sm font-semibold text-gray-900 shadow-md transition active:scale-[0.98] disabled:opacity-50"
+            >
+              {isSubmitting
+                ? <i className="fa-solid fa-spinner fa-spin" />
+                : <><i className="fa-solid fa-floppy-disk text-xs" /> {t('editSave')}</>
+              }
+            </button>
+          )}
+        </StickyStepActions>
       </form>
     </div>
   );
