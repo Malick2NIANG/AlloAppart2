@@ -17,7 +17,7 @@
     "framer-motion": "^12.39.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.16.0",
-    "next": "^16.4.0",
+    "next": "^16.4.3",
     "next-intl": "^4.12.0",
     "pusher-js": "^8.5.0",
     "qrcode.react": "^4.2.0",
@@ -36,7 +36,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.4.0",
+    "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.2"
