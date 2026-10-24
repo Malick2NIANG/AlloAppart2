@@ -55,3 +55,6 @@ next-env.d.ts
 /rapports-mobile/tools/node_modules/
 # identifiants des comptes de test Clerk (e-mails synthétiques + mots de passe générés), jamais commités
 /rapports-mobile/tools/.credentials.env
+/rapports-mobile/captures/
+/rapports-mobile/ctrl-*.json
+/rapports-mobile/scroll-report.json
