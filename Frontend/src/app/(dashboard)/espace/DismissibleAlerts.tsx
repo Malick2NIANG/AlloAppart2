@@ -57,7 +57,7 @@ export function DismissibleAlerts({ overdueVerifications, expiringSubscriptions,
             </Link>
             <button
               onClick={() => dismiss(alert.key)}
-              className="pr-2.5 text-amber-400 hover:text-amber-700 dark:hover:text-amber-400 dark:hover:text-amber-200 transition-colors"
+              className="tap-target pr-2.5 text-amber-400 hover:text-amber-700 dark:hover:text-amber-400 dark:hover:text-amber-200 transition-colors"
               title={t('alertClose')}
             >
               <i className="fa-solid fa-xmark text-xs" />

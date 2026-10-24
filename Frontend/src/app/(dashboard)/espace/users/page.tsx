@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useId, useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
@@ -10,6 +10,12 @@ import { SkeletonListRow } from '@/components/ui/Skeleton';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { useToast } from '@/components/ui/Toast';
 import PhoneInput from '@/components/ui/PhoneInput';
+import BottomSheet from '@/components/ui/BottomSheet';
+
+// Classes desktop (≥768px) de la modale locale — identiques à son rendu
+// d'avant la migration BottomSheet (règle d'or du chantier mobile).
+const MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6 overflow-y-auto';
+const MODAL_CLASS = 'w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl my-auto';
 
 type RoleFilter = 'ALL' | 'LOCATAIRE' | 'BAILLEUR' | 'PRO_AGENCE' | 'AGENT_TERRAIN' | 'ADMIN';
 
@@ -31,7 +37,7 @@ const AGENT_INIT: AgentForm = { firstName: '', lastName: '', email: '', phone: '
 const AGENCE_INIT: AgenceForm = { agencyName: '', firstName: '', lastName: '', email: '', phone: '' };
 const editInit = (u: User): EditForm => ({ firstName: u.firstName, lastName: u.lastName, phone: u.phone ?? '', agencyName: u.agencyName ?? '' });
 
-const inputCls = 'w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40';
+const inputCls = 'w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 max-md:text-base';
 
 export default function AdminUsersPage() {
   const { getToken } = useAuth();
@@ -239,25 +245,26 @@ export default function AdminUsersPage() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => { setAgentForm(AGENT_INIT); setFormError(null); setAgentModal(true); }}
-            className="flex items-center gap-1.5 rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors">
+            className="tap-target flex items-center gap-1.5 rounded-xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors">
             <i className="fa-solid fa-user-shield text-xs" />{t('createAgentBtn')}
           </button>
           <button onClick={() => { setAgenceForm(AGENCE_INIT); setFormError(null); setAgenceModal(true); }}
-            className="flex items-center gap-1.5 rounded-xl border border-purple-200 dark:border-purple-900/40 bg-purple-50 dark:bg-purple-950/30 px-3 py-2 text-xs font-medium text-purple-700 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-950/40 transition-colors">
+            className="tap-target flex items-center gap-1.5 rounded-xl border border-purple-200 dark:border-purple-900/40 bg-purple-50 dark:bg-purple-950/30 px-3 py-2 text-xs font-medium text-purple-700 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-950/40 transition-colors">
             <i className="fa-solid fa-building text-xs" />{t('createAgenceBtn')}
           </button>
         </div>
       </div>
 
-      {/* Filtres */}
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+      {/* Filtres — collés en haut sous 768px (sticky) pour rester accessibles
+          pendant le défilement de la liste ; inchangé ≥768px. */}
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-bg max-md:-mx-4 max-md:px-4 max-md:pb-3 max-md:pt-1">
         <div className="relative flex-1">
           <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
           <input value={q} onChange={e => handleSearchChange(e.target.value)} placeholder={t('usersSearchPh')}
-            className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40" />
+            className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 max-md:text-base" />
         </div>
         <select value={role} onChange={e => { setRole(e.target.value as RoleFilter); setPage(1); }}
-          className="rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-gold">
+          className="rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-text outline-none focus:border-gold max-md:text-base">
           {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <div className="flex items-center gap-2 shrink-0">
@@ -265,7 +272,7 @@ export default function AdminUsersPage() {
           <div className="flex gap-1">
             {LIMIT_OPTIONS.map(l => (
               <button key={l} onClick={() => { setLimit(l); setPage(1); }}
-                className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${limit === l ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}>
+                className={`tap-target rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${limit === l ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}>
                 {l}
               </button>
             ))}
@@ -316,32 +323,32 @@ export default function AdminUsersPage() {
                 {/* Boutons — toujours visibles à droite */}
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => setViewModal(user)} title={t('titleViewDetails')}
-                    className="rounded-lg border border-line bg-bg px-2.5 py-1.5 text-xs text-sub hover:text-text transition-colors">
+                    className="tap-target rounded-lg border border-line bg-bg px-2.5 py-1.5 text-xs text-sub hover:text-text transition-colors">
                     <i className="fa-solid fa-eye text-xs" />
                   </button>
                   {!user.roles.includes('ADMIN') && (
                     <>
                       <button onClick={() => openEdit(user)} title={t('titleEdit')}
-                        className="rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 px-2.5 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors">
+                        className="tap-target rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 px-2.5 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors">
                         <i className="fa-solid fa-pen text-xs" />
                       </button>
                       <button onClick={() => void handleResetPassword(user.id)} disabled={actionId !== null} title={t('titleResetPassword')}
-                        className="rounded-lg border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-950/30 px-2.5 py-1.5 text-xs font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-950/40 disabled:opacity-50 transition-colors">
+                        className="tap-target rounded-lg border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-950/30 px-2.5 py-1.5 text-xs font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-950/40 disabled:opacity-50 transition-colors">
                         {actionId === user.id + 'reset' ? <i className="fa-solid fa-spinner fa-spin" /> : <i className="fa-solid fa-key text-xs" />}
                       </button>
                       {user.roles.includes('BAILLEUR') && (
                         <button onClick={() => setRemoveBailleurModal(user)} disabled={actionId !== null} title={t('titleRemoveBailleur')}
-                          className="rounded-lg border border-gold/30 bg-gold-pale px-2.5 py-1.5 text-xs font-medium text-gold-dark hover:bg-gold/20 disabled:opacity-50 transition-colors">
+                          className="tap-target rounded-lg border border-gold/30 bg-gold-pale px-2.5 py-1.5 text-xs font-medium text-gold-dark hover:bg-gold/20 disabled:opacity-50 transition-colors">
                           {actionId === user.id + 'bailleur' ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-user-minus text-xs mr-1" />BAI</>}
                         </button>
                       )}
                       <button onClick={() => void handleSuspend(user)} disabled={actionId !== null}
                         title={user.isSuspended ? t('reactivate') : t('suspend')}
-                        className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${user.isSuspended ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40' : 'border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40'}`}>
+                        className={`tap-target rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${user.isSuspended ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40' : 'border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40'}`}>
                         {actionId === user.id + 'suspend' ? <i className="fa-solid fa-spinner fa-spin" /> : <i className={`fa-solid ${user.isSuspended ? 'fa-circle-check' : 'fa-ban'} text-xs`} />}
                       </button>
                       <button onClick={() => setDeleteModal(user)} disabled={actionId !== null} title={t('titleDelete')}
-                        className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-2.5 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors">
+                        className="tap-target rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-2.5 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors">
                         <i className="fa-solid fa-trash text-xs" />
                       </button>
                     </>
@@ -364,7 +371,7 @@ export default function AdminUsersPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6">
           <button onClick={() => setPage(p => p - 1)} disabled={page <= 1}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub hover:text-text disabled:pointer-events-none disabled:opacity-40 transition">
+            className="tap-target flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub hover:text-text disabled:pointer-events-none disabled:opacity-40 transition">
             <i className="fa-solid fa-chevron-left text-xs" /> {t('previous')}
           </button>
           <div className="flex items-center gap-1">
@@ -376,14 +383,14 @@ export default function AdminUsersPage() {
               else p = page - 3 + i;
               return (
                 <button key={p} onClick={() => setPage(p)}
-                  className={`h-8 w-8 rounded-lg text-sm font-medium transition ${p === page ? 'bg-gold-dark text-white' : 'border border-line text-sub hover:text-text'}`}>
+                  className={`h-8 w-8 max-md:h-11 max-md:w-11 rounded-lg text-sm font-medium transition ${p === page ? 'bg-gold-dark text-white' : 'border border-line text-sub hover:text-text'}`}>
                   {p}
                 </button>
               );
             })}
           </div>
           <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub hover:text-text disabled:pointer-events-none disabled:opacity-40 transition">
+            className="tap-target flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub hover:text-text disabled:pointer-events-none disabled:opacity-40 transition">
             {t('next')} <i className="fa-solid fa-chevron-right text-xs" />
           </button>
         </div>
@@ -424,20 +431,20 @@ export default function AdminUsersPage() {
             {!viewModal.roles.includes('ADMIN') && (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-line">
                 <button onClick={() => { setViewModal(null); openEdit(viewModal); }}
-                  className="flex-1 rounded-xl border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 py-2 text-sm font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors">
+                  className="tap-target flex-1 rounded-xl border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 py-2 text-sm font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors">
                   <i className="fa-solid fa-pen text-xs mr-1.5" />{t('edit')}
                 </button>
                 <button onClick={() => void handleResetPassword(viewModal.id)} disabled={actionId !== null}
-                  className="rounded-xl border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-950/30 px-4 py-2 text-sm font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-950/40 disabled:opacity-50 transition-colors"
+                  className="tap-target rounded-xl border border-violet-200 dark:border-violet-900/40 bg-violet-50 dark:bg-violet-950/30 px-4 py-2 text-sm font-medium text-violet-700 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-950/40 disabled:opacity-50 transition-colors"
                   title={t('titleResetPassword')}>
                   {actionId === viewModal.id + 'reset' ? <i className="fa-solid fa-spinner fa-spin" /> : <i className="fa-solid fa-key text-xs" />}
                 </button>
                 <button onClick={() => void handleSuspend(viewModal)} disabled={actionId !== null}
-                  className={`flex-1 rounded-xl border py-2 text-sm font-medium transition-colors disabled:opacity-50 ${viewModal.isSuspended ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40' : 'border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40'}`}>
+                  className={`tap-target flex-1 rounded-xl border py-2 text-sm font-medium transition-colors disabled:opacity-50 ${viewModal.isSuspended ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40' : 'border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40'}`}>
                   {viewModal.isSuspended ? t('reactivate') : t('suspend')}
                 </button>
                 <button onClick={() => { setViewModal(null); setDeleteModal(viewModal); }}
-                  className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors">
+                  className="tap-target rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors">
                   <i className="fa-solid fa-trash text-xs" />
                 </button>
               </div>
@@ -472,9 +479,9 @@ export default function AdminUsersPage() {
             )}
             {formError && <p className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-400">{formError}</p>}
             <div className="flex gap-3 justify-end pt-1">
-              <button type="button" onClick={() => setEditModal(null)} className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">{t('cancel')}</button>
+              <button type="button" onClick={() => setEditModal(null)} className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">{t('cancel')}</button>
               <button type="submit" disabled={formLoading}
-                className="flex items-center gap-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+                className="tap-target flex items-center gap-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
                 {formLoading ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-check text-xs" />{t('save')}</>}
               </button>
             </div>
@@ -491,9 +498,9 @@ export default function AdminUsersPage() {
           <p className="text-sm text-sub mb-1"><span className="font-medium text-text">{deleteModal.firstName} {deleteModal.lastName}</span></p>
           <p className="text-xs text-sub mb-6">{t('deleteUserWarning')}</p>
           <div className="flex gap-3 justify-end">
-            <button onClick={() => setDeleteModal(null)} className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">{t('cancel')}</button>
+            <button onClick={() => setDeleteModal(null)} className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">{t('cancel')}</button>
             <button onClick={() => void handleDelete()} disabled={actionId !== null}
-              className="text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+              className="tap-target text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
               {actionId === deleteModal.id + 'delete' ? <i className="fa-solid fa-spinner fa-spin" /> : t('deletePermanently')}
             </button>
           </div>
@@ -528,9 +535,9 @@ export default function AdminUsersPage() {
             </div>
             {formError && <p className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-400">{formError}</p>}
             <div className="flex gap-3 justify-end pt-1">
-              <button type="button" onClick={() => setAgentModal(false)} className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">{t('cancel')}</button>
+              <button type="button" onClick={() => setAgentModal(false)} className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">{t('cancel')}</button>
               <button type="submit" disabled={formLoading}
-                className="flex items-center gap-1.5 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+                className="tap-target flex items-center gap-1.5 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
                 {formLoading ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-user-plus text-xs" />{t('createAgentSubmit')}</>}
               </button>
             </div>
@@ -583,9 +590,9 @@ export default function AdminUsersPage() {
             </div>
             {formError && <p className="rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-400">{formError}</p>}
             <div className="flex gap-3 justify-end pt-1">
-              <button type="button" onClick={() => setAgenceModal(false)} className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">{t('cancel')}</button>
+              <button type="button" onClick={() => setAgenceModal(false)} className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">{t('cancel')}</button>
               <button type="submit" disabled={formLoading}
-                className="flex items-center gap-1.5 text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+                className="tap-target flex items-center gap-1.5 text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
                 {formLoading ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-building text-xs" />{t('createAgenceSubmit')}</>}
               </button>
             </div>
@@ -597,18 +604,20 @@ export default function AdminUsersPage() {
 }
 
 function Modal({ onClose, title, children }: { onClose: () => void; title: string; children: React.ReactNode }) {
+  const titleId = useId();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6 overflow-y-auto">
-      <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl my-auto">
+    <BottomSheet open onClose={onClose} titleId={titleId}
+      desktopBackdropClassName={MODAL_BACKDROP_CLASS} desktopClassName={MODAL_CLASS}>
+      <>
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-text">{title}</h2>
-          <button onClick={onClose} className="text-sub hover:text-text transition-colors">
+          <h2 id={titleId} className="text-base font-semibold text-text">{title}</h2>
+          <button onClick={onClose} className="tap-target text-sub hover:text-text transition-colors">
             <i className="fa-solid fa-xmark text-lg" />
           </button>
         </div>
         {children}
-      </div>
-    </div>
+      </>
+    </BottomSheet>
   );
 }
 

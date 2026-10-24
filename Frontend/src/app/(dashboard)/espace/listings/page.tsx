@@ -237,12 +237,12 @@ function AdminListingsContent() {
               onChange={(e) => setCity(e.target.value)}
               onKeyDown={handleCitySearch}
               placeholder={t('listingsCityPh')}
-              className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-8 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40"
+              className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-8 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 max-md:text-base"
             />
             {city && (
               <button
                 onClick={() => { setCity(''); setPage(1); fetchListings(1, status, ''); fetchStatusCounts(''); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-sub hover:text-text transition-colors"
+                className="tap-target absolute right-3 top-1/2 -translate-y-1/2 text-sub hover:text-text transition-colors"
                 title={t('listingsClearSearch')}
               >
                 <i className="fa-solid fa-xmark text-sm" />
@@ -251,7 +251,7 @@ function AdminListingsContent() {
           </div>
           <button
             onClick={() => { setPage(1); fetchListings(1, status, city); fetchStatusCounts(city); }}
-            className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-sub hover:text-text hover:border-gold transition-colors shrink-0"
+            className="tap-target flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-sub hover:text-text hover:border-gold transition-colors shrink-0"
             title={t('listingsSearch')}
           >
             <i className="fa-solid fa-magnifying-glass text-sm" />
@@ -262,7 +262,7 @@ function AdminListingsContent() {
           <div className="flex gap-1">
             {LIMIT_OPTIONS.map((l) => (
               <button key={l} onClick={() => { setLimit(l); setPage(1); fetchListings(1, status, city, l); }}
-                className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${limit === l ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}>
+                className={`tap-target rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${limit === l ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}>
                 {l}
               </button>
             ))}
@@ -311,7 +311,7 @@ function AdminListingsContent() {
           <button
             onClick={() => setPage((p) => p - 1)}
             disabled={page <= 1}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
+            className="tap-target flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
           >
             <i className="fa-solid fa-chevron-left text-xs" /> {t('previous')}
           </button>
@@ -319,7 +319,7 @@ function AdminListingsContent() {
           <button
             onClick={() => setPage((p) => p + 1)}
             disabled={page >= totalPages}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
+            className="tap-target flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
           >
             {t('next')} <i className="fa-solid fa-chevron-right text-xs" />
           </button>
@@ -400,14 +400,14 @@ function AdminListingCard({
       {/* Actions — même gabarit que BookingCard */}
       <div className="border-t border-line p-4 pt-3 flex items-center gap-2 flex-wrap">
         <Link href={`/listings/${listing.id}`} target="_blank" rel="noopener noreferrer"
-          className="text-xs font-medium text-gold-dark hover:underline">
+          className="tap-target text-xs font-medium text-gold-dark hover:underline">
           {t('view')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
         </Link>
         {listing.status === 'SUSPENDED' || listing.status === 'DRAFT' ? (
           <button
             onClick={onActivate}
             disabled={actionId !== null}
-            className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-2.5 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
+            className="tap-target text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-2.5 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
           >
             {actionId === listing.id + 'activate'
               ? <i className="fa-solid fa-spinner fa-spin" />
@@ -417,7 +417,7 @@ function AdminListingCard({
           <button
             onClick={onSuspend}
             disabled={actionId !== null}
-            className="text-xs font-medium border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 dark:hover:bg-amber-950/40 disabled:opacity-50 transition-colors"
+            className="tap-target text-xs font-medium border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 dark:hover:bg-amber-950/40 disabled:opacity-50 transition-colors"
           >
             {actionId === listing.id + 'suspend'
               ? <i className="fa-solid fa-spinner fa-spin" />
@@ -427,7 +427,7 @@ function AdminListingCard({
         <button
           onClick={onDelete}
           disabled={actionId !== null}
-          className="ml-auto text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-2.5 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
+          className="tap-target ml-auto text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-2.5 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
         >
           {actionId === listing.id + 'delete'
             ? <i className="fa-solid fa-spinner fa-spin" />
