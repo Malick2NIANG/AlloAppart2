@@ -325,7 +325,7 @@ function AdminReportCard({
         <div className="border-t border-line p-4 pt-3 flex flex-wrap items-center gap-2">
           <button
             onClick={onToggleExpand}
-            className="rounded-lg px-2.5 py-1.5 text-xs text-sub border border-line hover:text-text hover:border-line/80 transition"
+            className="tap-target rounded-lg px-2.5 py-1.5 text-xs text-sub border border-line hover:text-text hover:border-line/80 transition"
             title={t('titleViewReports')}
           >
             <i className={`fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'} mr-1`} />
@@ -335,7 +335,7 @@ function AdminReportCard({
             href={`/listings/${item.listingId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-lg px-2.5 py-1.5 text-xs text-sub border border-line hover:text-text transition"
+            className="tap-target rounded-lg px-2.5 py-1.5 text-xs text-sub border border-line hover:text-text transition"
             title={t('titleViewListing')}
           >
             <i className="fa-solid fa-arrow-up-right-from-square" />
@@ -343,14 +343,14 @@ function AdminReportCard({
           {isSuspended ? (
             <button
               onClick={onRestore}
-              className="ml-auto rounded-lg px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition"
+              className="tap-target ml-auto rounded-lg px-3 py-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition"
             >
               {t('reactivate')}
             </button>
           ) : (
             <button
               onClick={onSuspend}
-              className="ml-auto rounded-lg px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition"
+              className="tap-target ml-auto rounded-lg px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition"
             >
               {t('suspend')}
             </button>

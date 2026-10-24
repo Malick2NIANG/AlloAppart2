@@ -11,12 +11,18 @@
  * /admin/config/pin).
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
+import BottomSheet from '@/components/ui/BottomSheet';
+
+// Classes desktop (≥768px) des 3 modales locales — identiques à leur rendu
+// d'avant la migration BottomSheet (règle d'or du chantier mobile).
+const CONFIG_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4';
+const CONFIG_MODAL_CLASS = 'w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl';
 
 type PricingFieldKey =
   | 'starterPriceFcfa'
@@ -242,7 +248,7 @@ export default function AdminConfigPage() {
           <button
             type="button"
             onClick={() => setPinModalOpen(true)}
-            className="text-xs font-medium border border-line bg-card px-3 py-2 rounded-lg text-sub hover:text-text transition-colors whitespace-nowrap"
+            className="tap-target text-xs font-medium border border-line bg-card px-3 py-2 rounded-lg text-sub hover:text-text transition-colors whitespace-nowrap"
           >
             <i className="fa-solid fa-key mr-1.5" />{t('configChangePinButton')}
           </button>
@@ -250,7 +256,7 @@ export default function AdminConfigPage() {
             type="button"
             onClick={() => setConfirmOpen(true)}
             disabled={!dirty}
-            className="btn-gold text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            className="tap-target btn-gold text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <i className="fa-solid fa-floppy-disk mr-1.5" />{t('configSaveChanges')}
           </button>
@@ -266,7 +272,7 @@ export default function AdminConfigPage() {
           <button
             type="button"
             onClick={() => setCancelPendingOpen(true)}
-            className="shrink-0 text-xs font-semibold underline underline-offset-2 hover:opacity-80"
+            className="tap-target shrink-0 text-xs font-semibold underline underline-offset-2 hover:opacity-80"
           >
             {t('configCancelPending')}
           </button>
@@ -363,7 +369,7 @@ export default function AdminConfigPage() {
                 <button
                   onClick={handleReindex}
                   disabled={reindexing}
-                  className="text-xs font-medium border border-line bg-card px-4 py-2 rounded-lg text-text hover:bg-bg disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  className="tap-target text-xs font-medium border border-line bg-card px-4 py-2 rounded-lg text-text hover:bg-bg disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                 >
                   {reindexing
                     ? <><i className="fa-solid fa-spinner fa-spin mr-1.5 text-xs" />{t('configReindexing')}</>
@@ -515,14 +521,14 @@ function ConfirmMethodPicker({
         <button
           type="button"
           onClick={() => setMethod('PIN')}
-          className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${method === 'PIN' ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}
+          className={`tap-target flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${method === 'PIN' ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}
         >
           <i className="fa-solid fa-key mr-1.5" />{t('configMethodPin')}
         </button>
         <button
           type="button"
           onClick={() => setMethod('OTP')}
-          className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${method === 'OTP' ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}
+          className={`tap-target flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${method === 'OTP' ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}
         >
           <i className="fa-solid fa-envelope mr-1.5" />{t('configMethodOtp')}
         </button>
@@ -547,7 +553,7 @@ function ConfirmMethodPicker({
               type="button"
               onClick={() => void handleRequestOtp()}
               disabled={otpRequesting}
-              className="w-full text-xs font-medium border border-line bg-card px-4 py-2 rounded-lg text-text hover:bg-bg disabled:opacity-60 transition-colors"
+              className="tap-target w-full text-xs font-medium border border-line bg-card px-4 py-2 rounded-lg text-text hover:bg-bg disabled:opacity-60 transition-colors"
             >
               {otpRequesting
                 ? <><i className="fa-solid fa-spinner fa-spin mr-1.5" />{t('configOtpRequesting')}</>
@@ -592,6 +598,7 @@ function ConfirmModal({
   const [effectiveInDays, setEffectiveInDays] = useState(30);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const titleId = useId();
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -606,12 +613,13 @@ function ConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
+    <BottomSheet open onClose={onClose} titleId={titleId}
+      desktopBackdropClassName={CONFIG_MODAL_BACKDROP_CLASS} desktopClassName={CONFIG_MODAL_CLASS}>
+      <>
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
           <i className="fa-solid fa-shield-halved text-gold-dark" />
         </div>
-        <h2 className="text-lg font-semibold text-text mb-1">{title}</h2>
+        <h2 id={titleId} className="text-lg font-semibold text-text mb-1">{title}</h2>
         <p className="text-sm text-sub mb-4">{subtitle}</p>
 
         <div className="mb-4">
@@ -641,16 +649,16 @@ function ConfirmModal({
 
         <div className="flex gap-3 justify-end mt-6">
           <button onClick={onClose} disabled={loading}
-            className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors disabled:opacity-50">
+            className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors disabled:opacity-50">
             {t('cancel')}
           </button>
           <button onClick={() => void handleSubmit()} disabled={loading || code.length < 4}
-            className="text-sm font-medium btn-gold px-4 py-2 disabled:opacity-50">
+            className="tap-target text-sm font-medium btn-gold px-4 py-2 disabled:opacity-50">
             {loading ? <i className="fa-solid fa-spinner fa-spin" /> : t('configConfirmSubmit')}
           </button>
         </div>
-      </div>
-    </div>
+      </>
+    </BottomSheet>
   );
 }
 
@@ -668,6 +676,7 @@ function CancelPendingModal({
   const [code, setCode]     = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const titleId = useId();
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -682,12 +691,13 @@ function CancelPendingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
+    <BottomSheet open onClose={onClose} titleId={titleId}
+      desktopBackdropClassName={CONFIG_MODAL_BACKDROP_CLASS} desktopClassName={CONFIG_MODAL_CLASS}>
+      <>
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40">
           <i className="fa-solid fa-ban text-red-500" />
         </div>
-        <h2 className="text-lg font-semibold text-text mb-1">{t('configCancelPendingTitle')}</h2>
+        <h2 id={titleId} className="text-lg font-semibold text-text mb-1">{t('configCancelPendingTitle')}</h2>
         <p className="text-sm text-sub mb-4">
           {t('configCancelPendingSubtitle', { date: formatDate(effectiveAt) })}
         </p>
@@ -698,16 +708,16 @@ function CancelPendingModal({
 
         <div className="flex gap-3 justify-end mt-6">
           <button onClick={onClose} disabled={loading}
-            className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors disabled:opacity-50">
+            className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors disabled:opacity-50">
             {t('cancel')}
           </button>
           <button onClick={() => void handleSubmit()} disabled={loading || code.length < 4}
-            className="text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+            className="tap-target text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
             {loading ? <i className="fa-solid fa-spinner fa-spin" /> : t('configCancelPendingSubmit')}
           </button>
         </div>
-      </div>
-    </div>
+      </>
+    </BottomSheet>
   );
 }
 
@@ -725,6 +735,7 @@ function ChangePinModal({
   const [newPinConfirm, setNewPinConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const titleId = useId();
 
   const handleSubmit = async () => {
     if (newPin !== newPinConfirm) {
@@ -745,12 +756,13 @@ function ChangePinModal({
   const canSubmit = code.length >= 4 && newPin.length >= 4 && newPinConfirm.length >= 4;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
+    <BottomSheet open onClose={onClose} titleId={titleId}
+      desktopBackdropClassName={CONFIG_MODAL_BACKDROP_CLASS} desktopClassName={CONFIG_MODAL_CLASS}>
+      <>
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold-pale">
           <i className="fa-solid fa-key text-gold-dark" />
         </div>
-        <h2 className="text-lg font-semibold text-text mb-1">{t('configChangePinTitle')}</h2>
+        <h2 id={titleId} className="text-lg font-semibold text-text mb-1">{t('configChangePinTitle')}</h2>
         <p className="text-sm text-sub mb-4">{t('configChangePinSubtitle')}</p>
 
         <ConfirmMethodPicker method={method} setMethod={setMethod} code={code} setCode={setCode} onRequestOtp={onRequestOtp} t={t} />
@@ -784,15 +796,15 @@ function ChangePinModal({
 
         <div className="flex gap-3 justify-end mt-6">
           <button onClick={onClose} disabled={loading}
-            className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors disabled:opacity-50">
+            className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors disabled:opacity-50">
             {t('cancel')}
           </button>
           <button onClick={() => void handleSubmit()} disabled={loading || !canSubmit}
-            className="text-sm font-medium btn-gold px-4 py-2 disabled:opacity-50">
+            className="tap-target text-sm font-medium btn-gold px-4 py-2 disabled:opacity-50">
             {loading ? <i className="fa-solid fa-spinner fa-spin" /> : t('configConfirmSubmit')}
           </button>
         </div>
-      </div>
-    </div>
+      </>
+    </BottomSheet>
   );
 }

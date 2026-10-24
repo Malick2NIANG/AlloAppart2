@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useId, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
@@ -10,6 +10,12 @@ import Link from 'next/link';
 import { SkeletonListRow } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { StatFilterCard } from '@/components/bookings/StatFilterCard';
+import BottomSheet from '@/components/ui/BottomSheet';
+
+// Classes desktop (≥768px) de la modale de suppression — identiques à son
+// rendu d'avant la migration BottomSheet (règle d'or du chantier mobile).
+const DELETE_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4';
+const DELETE_MODAL_CLASS = 'w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl';
 
 type RatingFilter = 'ALL' | '5' | '4' | '3' | '2' | '1';
 
@@ -38,6 +44,7 @@ export default function AdminReviewsPage() {
   const [error, setError]       = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [deleteModal, setDeleteModal] = useState<Review | null>(null);
+  const deleteTitleId = useId();
   const [limit, setLimit]       = useState(20);
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>('ALL');
   const [ratingCounts, setRatingCounts] = useState<Record<RatingFilter, number>>({
@@ -136,7 +143,7 @@ export default function AdminReviewsPage() {
           <div className="flex gap-1">
             {LIMIT_OPTIONS.map((l) => (
               <button key={l} onClick={() => { setLimit(l); setPage(1); fetchData(1, l); }}
-                className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${limit === l ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}>
+                className={`tap-target rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${limit === l ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}>
                 {l}
               </button>
             ))}
@@ -209,7 +216,7 @@ export default function AdminReviewsPage() {
               <button
                 onClick={() => setDeleteModal(review)}
                 disabled={actionId !== null}
-                className="self-start text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
+                className="tap-target self-start text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
               >
                 <i className="fa-solid fa-trash text-xs mr-1" />{t('delete')}
               </button>
@@ -221,24 +228,25 @@ export default function AdminReviewsPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6">
           <button onClick={() => setPage((p) => p - 1)} disabled={page <= 1}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
+            className="tap-target flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
             <i className="fa-solid fa-chevron-left text-xs" /> {t('previous')}
           </button>
           <span className="text-sm text-sub">{t('pageOf', { page, total: totalPages })}</span>
           <button onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
+            className="tap-target flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
             {t('next')} <i className="fa-solid fa-chevron-right text-xs" />
           </button>
         </div>
       )}
 
       {deleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-card border border-line p-6 shadow-xl">
+        <BottomSheet open onClose={() => setDeleteModal(null)} titleId={deleteTitleId}
+          desktopBackdropClassName={DELETE_MODAL_BACKDROP_CLASS} desktopClassName={DELETE_MODAL_CLASS}>
+          <>
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40">
               <i className="fa-solid fa-trash text-red-600 dark:text-red-400" />
             </div>
-            <h2 className="text-lg font-semibold text-text mb-1">{t('modalDeleteReview')}</h2>
+            <h2 id={deleteTitleId} className="text-lg font-semibold text-text mb-1">{t('modalDeleteReview')}</h2>
             <p className="text-sm text-sub mb-2">
               {t('reviewFrom')} <span className="font-medium text-text">{deleteModal.author?.firstName} {deleteModal.author?.lastName}</span> · {deleteModal.rating}/5
             </p>
@@ -247,16 +255,16 @@ export default function AdminReviewsPage() {
             )}
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteModal(null)}
-                className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
+                className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
                 {t('cancel')}
               </button>
               <button onClick={handleDelete} disabled={actionId !== null}
-                className="text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+                className="tap-target text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
                 {actionId !== null ? <i className="fa-solid fa-spinner fa-spin" /> : t('delete')}
               </button>
             </div>
-          </div>
-        </div>
+          </>
+        </BottomSheet>
       )}
     </div>
   );

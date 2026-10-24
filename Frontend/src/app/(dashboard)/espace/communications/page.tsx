@@ -107,7 +107,7 @@ export default function AdminCommunicationsPage() {
                 placeholder={t('commsFieldTitlePh')}
                 maxLength={50}
                 required
-                className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40"
+                className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 max-md:text-base"
               />
             </div>
             <div>
@@ -122,7 +122,7 @@ export default function AdminCommunicationsPage() {
                 placeholder={t('commsFieldMessagePh')}
                 maxLength={200}
                 required
-                className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 resize-none"
+                className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 resize-none max-md:text-base"
               />
             </div>
             <div>
@@ -130,7 +130,7 @@ export default function AdminCommunicationsPage() {
               <select
                 value={segment}
                 onChange={(e) => setSegment(e.target.value as Segment)}
-                className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text outline-none focus:border-gold"
+                className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text outline-none focus:border-gold max-md:text-base"
               >
                 {SEGMENT_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -140,7 +140,7 @@ export default function AdminCommunicationsPage() {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-gold-dark py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-gold-dark py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed max-md:py-3"
             >
               {sending
                 ? <><i className="fa-solid fa-spinner fa-spin text-xs" />{t('commsSending')}</>
