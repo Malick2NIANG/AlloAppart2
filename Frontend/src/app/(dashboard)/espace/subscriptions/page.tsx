@@ -215,7 +215,7 @@ export default function AdminSubscriptionsPage() {
       </div>
 
       {/* Recherche + lignes par page */}
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-bg max-md:-mx-4 max-md:px-4 max-md:pb-3 max-md:pt-1">
         <div className="relative flex flex-1 gap-2">
           <div className="relative flex-1">
             <i className="fa-solid fa-building absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-sub" />
@@ -224,12 +224,12 @@ export default function AdminSubscriptionsPage() {
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={handleSearchKeyDown}
               placeholder={t('subsSearchPh')}
-              className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-8 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40"
+              className="w-full rounded-xl border border-line bg-bg py-2.5 pl-9 pr-8 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/40 max-md:text-base"
             />
             {search && (
               <button
                 onClick={() => { setSearch(''); setPage(1); fetchData(1, status, ''); fetchStatusCounts(''); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-sub hover:text-text transition-colors"
+                className="tap-target absolute right-3 top-1/2 -translate-y-1/2 text-sub hover:text-text transition-colors"
                 title={t('subsClearSearch')}
               >
                 <i className="fa-solid fa-xmark text-sm" />
@@ -238,7 +238,7 @@ export default function AdminSubscriptionsPage() {
           </div>
           <button
             onClick={() => { setPage(1); fetchData(1, status, search); fetchStatusCounts(search); }}
-            className="flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-sub hover:text-text hover:border-gold transition-colors shrink-0"
+            className="tap-target flex items-center gap-1.5 rounded-xl border border-line bg-bg px-3 py-2.5 text-sm text-sub hover:text-text hover:border-gold transition-colors shrink-0"
             title={t('subsSearch')}
           >
             <i className="fa-solid fa-magnifying-glass text-sm" />
@@ -249,7 +249,7 @@ export default function AdminSubscriptionsPage() {
           <div className="flex gap-1">
             {LIMIT_OPTIONS.map((l) => (
               <button key={l} onClick={() => { setLimit(l); setPage(1); fetchData(1, status, search, l); }}
-                className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${limit === l ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}>
+                className={`tap-target rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${limit === l ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}>
                 {l}
               </button>
             ))}
@@ -294,12 +294,12 @@ export default function AdminSubscriptionsPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6">
           <button onClick={() => setPage((p) => p - 1)} disabled={page <= 1}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
+            className="tap-target flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
             <i className="fa-solid fa-chevron-left text-xs" /> {t('previous')}
           </button>
           <span className="text-sm text-sub">{t('pageOf', { page, total: totalPages })}</span>
           <button onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
+            className="tap-target flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40">
             {t('next')} <i className="fa-solid fa-chevron-right text-xs" />
           </button>
         </div>
@@ -392,13 +392,13 @@ function AdminSubscriptionCard({
         {sub.status === 'ACTIVE' ? (
           <>
             <button onClick={onExtend} disabled={actionId !== null}
-              className="text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-2.5 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors">
+              className="tap-target text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-2.5 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors">
               {actionId === sub.id + 'extend'
                 ? <i className="fa-solid fa-spinner fa-spin" />
                 : <><i className="fa-solid fa-plus text-xs mr-1" />{t('extend30Days')}</>}
             </button>
             <button onClick={onSuspend} disabled={actionId !== null}
-              className="ml-auto text-xs font-medium border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 dark:hover:bg-amber-950/40 disabled:opacity-50 transition-colors">
+              className="tap-target ml-auto text-xs font-medium border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 dark:hover:bg-amber-950/40 disabled:opacity-50 transition-colors">
               {actionId === sub.id + 'suspend'
                 ? <i className="fa-solid fa-spinner fa-spin" />
                 : <><i className="fa-solid fa-ban text-xs mr-1" />{t('suspend')}</>}
@@ -406,7 +406,7 @@ function AdminSubscriptionCard({
           </>
         ) : sub.status === 'SUSPENDED' ? (
           <button onClick={onActivate} disabled={actionId !== null}
-            className="ml-auto text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-2.5 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors">
+            className="tap-target ml-auto text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-2.5 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors">
             {actionId === sub.id + 'activate'
               ? <i className="fa-solid fa-spinner fa-spin" />
               : <><i className="fa-solid fa-circle-check text-xs mr-1" />{t('reactivate')}</>}

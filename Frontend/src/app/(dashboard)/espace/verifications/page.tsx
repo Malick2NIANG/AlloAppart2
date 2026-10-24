@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useId, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
@@ -10,6 +10,14 @@ import { formatDate } from '@/lib/utils';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { StatFilterCard } from '@/components/bookings/StatFilterCard';
+import BottomSheet from '@/components/ui/BottomSheet';
+
+// Classes desktop (≥768px) des modales locales — identiques à leur rendu
+// d'avant la migration BottomSheet (règle d'or du chantier mobile).
+const ASSIGN_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4';
+const ASSIGN_MODAL_CLASS = 'w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl';
+const REJECT_MODAL_BACKDROP_CLASS = 'fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4';
+const REJECT_MODAL_CLASS = 'w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl';
 
 type TabMode = 'pending' | 'all';
 type StatusFilter = 'ALL' | 'REQUESTED' | 'SCHEDULED' | 'IN_PROGRESS' | 'DONE' | 'REJECTED';
@@ -69,6 +77,8 @@ export default function AdminVerificationsPage() {
   const [assignModal, setAssignModal]     = useState<AssignModal | null>(null);
   const [selectedAgent, setSelectedAgent] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const assignTitleId                     = useId();
+  const rejectTitleId                     = useId();
   const [rejectModal, setRejectModal]     = useState<{ id: string } | null>(null);
   const [rejectReason, setRejectReason]   = useState('');
   const [agentSearch, setAgentSearch]     = useState('');
@@ -310,7 +320,7 @@ export default function AdminVerificationsPage() {
             <div className="flex gap-1">
               {LIMIT_OPTIONS.map((l) => (
                 <button key={l} onClick={() => { setLimit(l); setPage(1); }}
-                  className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${limit === l ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}>
+                  className={`tap-target rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${limit === l ? 'bg-gold-dark text-white' : 'border border-line bg-bg text-sub hover:text-text'}`}>
                   {l}
                 </button>
               ))}
@@ -368,7 +378,7 @@ export default function AdminVerificationsPage() {
           <button
             onClick={() => setPage((p) => p - 1)}
             disabled={page <= 1}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
+            className="tap-target flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
           >
             <i className="fa-solid fa-chevron-left text-xs" /> {t('previous')}
           </button>
@@ -376,14 +386,15 @@ export default function AdminVerificationsPage() {
           <button
             onClick={() => setPage((p) => p + 1)}
             disabled={page >= totalPages}
-            className="flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
+            className="tap-target flex items-center gap-1.5 rounded-lg border border-line bg-card px-4 py-2 text-sm font-medium text-sub transition hover:text-text disabled:pointer-events-none disabled:opacity-40"
           >
             {t('next')} <i className="fa-solid fa-chevron-right text-xs" />
           </button>
         </div>
       )}
 
-      {/* Assign modal */}
+      {/* Assign modal — feuille pleine hauteur sous 768px (décision 7 :
+          liste d'agents paginée imbriquée, recherche collée en haut). */}
       {assignModal && (() => {
         const filtered = agents.filter((a) => {
           const q = agentSearch.toLowerCase();
@@ -391,29 +402,32 @@ export default function AdminVerificationsPage() {
         });
         const totalAgentPages = Math.max(1, Math.ceil(filtered.length / AGENT_PER_PAGE));
         const paginated = filtered.slice((agentPage - 1) * AGENT_PER_PAGE, agentPage * AGENT_PER_PAGE);
+        const closeAssignModal = () => { setAssignModal(null); setSelectedAgent(''); setAgentSearch(''); setAgentPage(1); };
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
-              {/* Header */}
-              <h2 className="text-lg font-semibold text-text mb-1">{t('modalAssignTitle')}</h2>
-              <p className="text-sm text-sub mb-4 truncate">{assignModal.listingTitle}</p>
+          <BottomSheet open onClose={closeAssignModal} titleId={assignTitleId} fullHeight
+            desktopBackdropClassName={ASSIGN_MODAL_BACKDROP_CLASS} desktopClassName={ASSIGN_MODAL_CLASS}>
+            <>
+              {/* Header + recherche — collés en haut de la feuille sous 768px */}
+              <div className="max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-card max-md:-mx-6 max-md:px-6 max-md:pt-1">
+                <h2 id={assignTitleId} className="text-lg font-semibold text-text mb-1">{t('modalAssignTitle')}</h2>
+                <p className="text-sm text-sub mb-4 truncate">{assignModal.listingTitle}</p>
 
-              {/* Barre de recherche */}
-              <div className="relative mb-3">
-                <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sub text-xs" />
-                <input
-                  type="text"
-                  value={agentSearch}
-                  onChange={(e) => { setAgentSearch(e.target.value); setAgentPage(1); }}
-                  placeholder={t('agentSearchPh')}
-                  className="w-full rounded-xl border border-line bg-bg py-2 pl-9 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition"
-                />
-                {agentSearch && (
-                  <button onClick={() => { setAgentSearch(''); setAgentPage(1); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sub hover:text-text transition">
-                    <i className="fa-solid fa-xmark text-xs" />
-                  </button>
-                )}
+                <div className="relative mb-3">
+                  <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sub text-xs" />
+                  <input
+                    type="text"
+                    value={agentSearch}
+                    onChange={(e) => { setAgentSearch(e.target.value); setAgentPage(1); }}
+                    placeholder={t('agentSearchPh')}
+                    className="w-full rounded-xl border border-line bg-bg py-2 pl-9 pr-4 text-sm text-text placeholder:text-sub outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition max-md:text-base"
+                  />
+                  {agentSearch && (
+                    <button onClick={() => { setAgentSearch(''); setAgentPage(1); }}
+                      className="tap-target absolute right-3 top-1/2 -translate-y-1/2 text-sub hover:text-text transition">
+                      <i className="fa-solid fa-xmark text-xs" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Liste agents */}
@@ -448,48 +462,52 @@ export default function AdminVerificationsPage() {
                 </div>
               )}
 
-              {/* Pagination agents */}
-              {totalAgentPages > 1 && (
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-line">
-                  <button onClick={() => setAgentPage((p) => Math.max(1, p - 1))} disabled={agentPage === 1}
-                    className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-sub hover:text-text disabled:opacity-40 transition">
-                    <i className="fa-solid fa-chevron-left text-[10px]" /> {t('prevShort')}
+              {/* Pagination agents + actions — collées en bas de la feuille
+                  sous 768px, avec la liste défilant entre les deux blocs
+                  épinglés. */}
+              <div className="max-md:sticky max-md:bottom-0 max-md:z-10 max-md:bg-card max-md:-mx-6 max-md:px-6 max-md:pb-6 max-md:pt-1">
+                {totalAgentPages > 1 && (
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-line">
+                    <button onClick={() => setAgentPage((p) => Math.max(1, p - 1))} disabled={agentPage === 1}
+                      className="tap-target flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-sub hover:text-text disabled:opacity-40 transition">
+                      <i className="fa-solid fa-chevron-left text-[10px]" /> {t('prevShort')}
+                    </button>
+                    <span className="text-xs text-sub">
+                      {t('agentsPageInfo', { page: agentPage, total: totalAgentPages, count: filtered.length })}
+                    </span>
+                    <button onClick={() => setAgentPage((p) => Math.min(totalAgentPages, p + 1))} disabled={agentPage >= totalAgentPages}
+                      className="tap-target flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-sub hover:text-text disabled:opacity-40 transition">
+                      {t('nextShort')} <i className="fa-solid fa-chevron-right text-[10px]" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex gap-3 mt-5 justify-end">
+                  <button onClick={closeAssignModal}
+                    className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
+                    {t('cancel')}
                   </button>
-                  <span className="text-xs text-sub">
-                    {t('agentsPageInfo', { page: agentPage, total: totalAgentPages, count: filtered.length })}
-                  </span>
-                  <button onClick={() => setAgentPage((p) => Math.min(totalAgentPages, p + 1))} disabled={agentPage >= totalAgentPages}
-                    className="flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs text-sub hover:text-text disabled:opacity-40 transition">
-                    {t('nextShort')} <i className="fa-solid fa-chevron-right text-[10px]" />
+                  <button onClick={handleAssign} disabled={!selectedAgent || actionLoading !== null}
+                    className="tap-target btn-gold text-sm disabled:opacity-50">
+                    {actionLoading === assignModal.verificationId + 'assign'
+                      ? <i className="fa-solid fa-spinner fa-spin" />
+                      : t('confirm')}
                   </button>
                 </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-3 mt-5 justify-end">
-                <button onClick={() => { setAssignModal(null); setSelectedAgent(''); setAgentSearch(''); setAgentPage(1); }}
-                  className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
-                  {t('cancel')}
-                </button>
-                <button onClick={handleAssign} disabled={!selectedAgent || actionLoading !== null}
-                  className="btn-gold text-sm disabled:opacity-50">
-                  {actionLoading === assignModal.verificationId + 'assign'
-                    ? <i className="fa-solid fa-spinner fa-spin" />
-                    : t('confirm')}
-                </button>
               </div>
-            </div>
-          </div>
+            </>
+          </BottomSheet>
         );
       })()}
 
       {/* Reject modal */}
       {rejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-card border border-line p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-text mb-4">{t('modalRejectTitle')}</h2>
+        <BottomSheet open onClose={() => { setRejectModal(null); setRejectReason(''); }} titleId={rejectTitleId}
+          desktopBackdropClassName={REJECT_MODAL_BACKDROP_CLASS} desktopClassName={REJECT_MODAL_CLASS}>
+          <>
+            <h2 id={rejectTitleId} className="text-lg font-semibold text-text mb-4">{t('modalRejectTitle')}</h2>
             <textarea
-              className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold-dark resize-none"
+              className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm text-text placeholder:text-sub focus:outline-none focus:ring-2 focus:ring-gold-dark resize-none max-md:text-base"
               rows={3}
               placeholder={t('rejectReasonPh')}
               value={rejectReason}
@@ -497,16 +515,16 @@ export default function AdminVerificationsPage() {
             />
             <div className="flex gap-3 mt-4 justify-end">
               <button onClick={() => { setRejectModal(null); setRejectReason(''); }}
-                className="text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
+                className="tap-target text-sm font-medium text-sub hover:text-text px-4 py-2 rounded-lg border border-line transition-colors">
                 {t('cancel')}
               </button>
               <button onClick={handleReject} disabled={!rejectReason.trim() || actionLoading !== null}
-                className="text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
+                className="tap-target text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 transition-colors disabled:opacity-50">
                 {actionLoading !== null ? <i className="fa-solid fa-spinner fa-spin" /> : t('confirmReject')}
               </button>
             </div>
-          </div>
-        </div>
+          </>
+        </BottomSheet>
       )}
     </div>
   );
@@ -622,7 +640,7 @@ function AdminVerificationCard({
         {(v.status !== 'DONE' && v.status !== 'REJECTED') && (
           <button
             onClick={onAssign}
-            className="btn-gold text-xs py-1.5 px-3"
+            className="tap-target btn-gold text-xs py-1.5 px-3"
           >
             <i className="fa-solid fa-user-plus text-xs mr-1" />
             {v.agent ? t('reassign') : t('assign')}
@@ -632,7 +650,7 @@ function AdminVerificationCard({
           <button
             onClick={onValidate}
             disabled={actionLoading !== null}
-            className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg py-1.5 px-3 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-50"
+            className="tap-target text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg py-1.5 px-3 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-50"
           >
             {actionLoading === v.id + 'validate'
               ? <i className="fa-solid fa-spinner fa-spin" />
@@ -653,7 +671,7 @@ function AdminVerificationCard({
                 <button
                   onClick={onApproveDecline}
                   disabled={actionLoading !== null}
-                  className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg py-1.5 px-3 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-50"
+                  className="tap-target text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg py-1.5 px-3 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors disabled:opacity-50"
                 >
                   {actionLoading === v.id + 'approve-decline'
                     ? <i className="fa-solid fa-spinner fa-spin" />
@@ -662,7 +680,7 @@ function AdminVerificationCard({
                 <button
                   onClick={onRefuseDecline}
                   disabled={actionLoading !== null}
-                  className="text-xs font-medium border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 rounded-lg py-1.5 px-3 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
+                  className="tap-target text-xs font-medium border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 rounded-lg py-1.5 px-3 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
                 >
                   {actionLoading === v.id + 'refuse-decline'
                     ? <i className="fa-solid fa-spinner fa-spin" />
@@ -675,7 +693,7 @@ function AdminVerificationCard({
         {v.status !== 'REJECTED' && v.status !== 'DONE' && v.status !== 'DECLINE_PENDING' && (
           <button
             onClick={onReject}
-            className="text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors"
+            className="tap-target text-xs font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-400 border border-red-200 dark:border-red-900/40 hover:border-red-300 rounded-lg py-1.5 px-3 transition-colors"
           >
             <i className="fa-solid fa-xmark text-xs mr-1" />{t('reject')}
           </button>

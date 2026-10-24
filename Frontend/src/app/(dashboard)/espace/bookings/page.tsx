@@ -395,7 +395,7 @@ function AdminBookingCard({
               <button
                 onClick={onCancel}
                 disabled={actionId !== null}
-                className="text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
+                className="tap-target text-xs font-medium border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
               >
                 {actionId === booking.id + 'cancel'
                   ? <i className="fa-solid fa-spinner fa-spin" />
@@ -409,7 +409,7 @@ function AdminBookingCard({
                 <button
                   onClick={onResolveRelease}
                   disabled={actionId !== null}
-                  className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
+                  className="tap-target text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
                 >
                   {actionId === booking.id + 'dispute'
                     ? <i className="fa-solid fa-spinner fa-spin" />
@@ -418,7 +418,7 @@ function AdminBookingCard({
                 <button
                   onClick={onResolveRefund}
                   disabled={actionId !== null}
-                  className="text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-3 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors"
+                  className="tap-target text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-3 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors"
                 >
                   {actionId === booking.id + 'dispute'
                     ? <i className="fa-solid fa-spinner fa-spin" />
@@ -433,7 +433,7 @@ function AdminBookingCard({
                 <button
                   onClick={onRelease}
                   disabled={actionId !== null}
-                  className="text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
+                  className="tap-target text-xs font-medium border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg px-3 py-1.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 disabled:opacity-50 transition-colors"
                 >
                   {actionId === booking.id + 'release'
                     ? <i className="fa-solid fa-spinner fa-spin" />
@@ -442,7 +442,7 @@ function AdminBookingCard({
                 <button
                   onClick={onRefund}
                   disabled={actionId !== null}
-                  className="text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-3 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors"
+                  className="tap-target text-xs font-medium border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-lg px-3 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-950/40 disabled:opacity-50 transition-colors"
                 >
                   {actionId === booking.id + 'refund'
                     ? <i className="fa-solid fa-spinner fa-spin" />
