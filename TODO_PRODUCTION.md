@@ -27,6 +27,7 @@ Seul ce qui reste à faire est listé ici (mis à jour le 2026-10-13). Le code, 
 
 - [ ] Relancer `npm audit --omit=dev` (Backend et Frontend) juste avant la mise en ligne : de nouveaux avis peuvent apparaître.
 - [ ] **Mettre à jour Next.js** (avis de sécurité signalé par le serveur de dev sur la version actuelle, 16.4.0) : `next upgrade --agent=security`, à faire après le chantier mobile avec la suite de tests complète et les contrôles pixel, avant la mise en ligne.
+- [ ] Backend : des `overrides` du `package.json` forcent des versions corrigées de `multer`, `body-parser`, `follow-redirects` et `fast-uri` (version majeure 3.x pour ce dernier) parce que `@nestjs/platform-express` épingle `multer` à une version vulnérable ; les retirer dès qu'une version de NestJS corrige ces dépendances, puis relancer `npm audit`.
 - [ ] Scan applicatif type OWASP ZAP une fois en staging.
 - [ ] Surveiller `braces` (5 alertes dev-only côté Frontend, via `eslint-config-next` ; aucun correctif publié) et `npm audit` Backend une fois Prisma 8 stable publié (les overrides `deepmerge-ts`, `mysql2`, `js-yaml`, `argparse` pourront alors être retirés).
 
