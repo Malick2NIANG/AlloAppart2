@@ -1,0 +1,277 @@
+{
+  "_comment": "Manifeste des photos du seed de démo — PLAN_DEMO.md § 3. Lot RÉDUIT (prompt 02) : seulement les annonces filmées en gros plan (L01, L02, L12, et les annonces de vente L18-L23). Les photos des autres annonces (L03-L11, L13-L17) restent à sourcer avant les prompts de scène qui montrent le catalogue (05, 06, 11, 12) — voir le rapport final du prompt 02.",
+  "_source_date": "2026-10-24",
+  "_sources": {
+    "pexels": {
+      "license": "Licence Pexels",
+      "licenseUrl": "https://www.pexels.com/license/",
+      "attributionRequired": false
+    }
+  },
+  "photos": [
+    {
+      "listingKey": "demo-L01",
+      "order": 1,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/modern-living-room-design-with-corner-sofa-6920439/",
+      "author": "Max Vakhtbovych",
+      "cdnUrl": "https://images.pexels.com/photos/6920439/pexels-photo-6920439.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871630/allo-appart/demo/demo-L01-1.jpg"
+    },
+    {
+      "listingKey": "demo-L01",
+      "order": 2,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/cozy-sofa-and-table-with-chairs-in-contemporary-living-room-6585598/",
+      "author": "Max Vakhtbovych",
+      "cdnUrl": "https://images.pexels.com/photos/6585598/pexels-photo-6585598.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871631/allo-appart/demo/demo-L01-2.jpg"
+    },
+    {
+      "listingKey": "demo-L01",
+      "order": 3,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/living-room-furniture-set-2030037/",
+      "author": "Zak Chapman",
+      "cdnUrl": "https://images.pexels.com/photos/2030037/pexels-photo-2030037.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871631/allo-appart/demo/demo-L01-3.jpg"
+    },
+    {
+      "listingKey": "demo-L02",
+      "order": 1,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/modern-bedroom-and-kitchen-interior-with-furniture-at-home-7045996/",
+      "author": "Max Vakhtbovych",
+      "cdnUrl": "https://images.pexels.com/photos/7045996/pexels-photo-7045996.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871632/allo-appart/demo/demo-L02-1.jpg"
+    },
+    {
+      "listingKey": "demo-L02",
+      "order": 2,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/interior-modern-apartment-with-kitchen-and-bedroom-6447384/",
+      "author": "Max Vakhtbovych",
+      "cdnUrl": "https://images.pexels.com/photos/6447384/pexels-photo-6447384.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871633/allo-appart/demo/demo-L02-2.jpg"
+    },
+    {
+      "listingKey": "demo-L02",
+      "order": 3,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/apartment-studio-interior-8142976/",
+      "author": "Max Vakhtbovych",
+      "cdnUrl": "https://images.pexels.com/photos/8142976/pexels-photo-8142976.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871634/allo-appart/demo/demo-L02-3.jpg"
+    },
+    {
+      "listingKey": "demo-L12",
+      "order": 1,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/modern-apartment-interior-7587828/",
+      "author": "Max Vakhtbovych",
+      "cdnUrl": "https://images.pexels.com/photos/7587828/pexels-photo-7587828.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871634/allo-appart/demo/demo-L12-1.jpg"
+    },
+    {
+      "listingKey": "demo-L12",
+      "order": 2,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/bright-living-room-interior-with-a-tv-set-19239905/",
+      "author": "Moussa Idrissi",
+      "cdnUrl": "https://images.pexels.com/photos/19239905/pexels-photo-19239905.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871635/allo-appart/demo/demo-L12-2.jpg"
+    },
+    {
+      "listingKey": "demo-L12",
+      "order": 3,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/a-modern-living-room-with-a-white-couch-and-a-tv-27164969/",
+      "author": "Wilcle Nunes",
+      "cdnUrl": "https://images.pexels.com/photos/27164969/pexels-photo-27164969.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871636/allo-appart/demo/demo-L12-3.jpg"
+    },
+    {
+      "listingKey": "demo-L18",
+      "order": 1,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/a-fence-in-a-desert-under-a-clear-blue-sky-16234538/",
+      "author": "Priscilla Mars",
+      "cdnUrl": "https://images.pexels.com/photos/16234538/pexels-photo-16234538.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871636/allo-appart/demo/demo-L18-1.jpg"
+    },
+    {
+      "listingKey": "demo-L18",
+      "order": 2,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/road-at-deserted-land-1476623/",
+      "author": "ALLY",
+      "cdnUrl": "https://images.pexels.com/photos/1476623/pexels-photo-1476623.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871637/allo-appart/demo/demo-L18-2.jpg"
+    },
+    {
+      "listingKey": "demo-L18",
+      "order": 3,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/aerial-view-of-agricultural-fields-with-road-30557705/",
+      "author": "Anil Sharma",
+      "cdnUrl": "https://images.pexels.com/photos/30557705/pexels-photo-30557705.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871638/allo-appart/demo/demo-L18-3.jpg"
+    },
+    {
+      "listingKey": "demo-L19",
+      "order": 1,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/modern-luxury-villas-with-swimming-pool-outdoors-28736656/",
+      "author": "Yunus Beşir",
+      "cdnUrl": "https://images.pexels.com/photos/28736656/pexels-photo-28736656.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871638/allo-appart/demo/demo-L19-1.jpg"
+    },
+    {
+      "listingKey": "demo-L19",
+      "order": 2,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/modern-luxury-villa-with-pool-and-minimalist-design-34378030/",
+      "author": "Rana Matloob Hussain",
+      "cdnUrl": "https://images.pexels.com/photos/34378030/pexels-photo-34378030.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871639/allo-appart/demo/demo-L19-2.jpg"
+    },
+    {
+      "listingKey": "demo-L19",
+      "order": 3,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/modern-villa-with-pool-in-central-java-hills-37537163/",
+      "author": "GALERI CREATOR",
+      "cdnUrl": "https://images.pexels.com/photos/37537163/pexels-photo-37537163.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871639/allo-appart/demo/demo-L19-3.jpg"
+    },
+    {
+      "listingKey": "demo-L20",
+      "order": 1,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/modern-twin-houses-with-symmetrical-design-30580640/",
+      "author": "Karolina K",
+      "cdnUrl": "https://images.pexels.com/photos/30580640/pexels-photo-30580640.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871640/allo-appart/demo/demo-L20-1.jpg"
+    },
+    {
+      "listingKey": "demo-L20",
+      "order": 2,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/yard-of-contemporary-house-with-trees-outside-fence-7031581/",
+      "author": "Max Vakhtbovych",
+      "cdnUrl": "https://images.pexels.com/photos/7031581/pexels-photo-7031581.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871641/allo-appart/demo/demo-L20-2.jpg"
+    },
+    {
+      "listingKey": "demo-L20",
+      "order": 3,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/modern-urban-house-with-unique-design-elements-32666364/",
+      "author": "Mr RightGames",
+      "cdnUrl": "https://images.pexels.com/photos/32666364/pexels-photo-32666364.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871642/allo-appart/demo/demo-L20-3.jpg"
+    },
+    {
+      "listingKey": "demo-L21",
+      "order": 1,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/interior-design-of-room-7546648/",
+      "author": "Max Vakhtbovych",
+      "cdnUrl": "https://images.pexels.com/photos/7546648/pexels-photo-7546648.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871642/allo-appart/demo/demo-L21-1.jpg"
+    },
+    {
+      "listingKey": "demo-L21",
+      "order": 2,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/an-interior-of-a-living-room-8089172/",
+      "author": "Max Vakhtbovych",
+      "cdnUrl": "https://images.pexels.com/photos/8089172/pexels-photo-8089172.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871643/allo-appart/demo/demo-L21-2.jpg"
+    },
+    {
+      "listingKey": "demo-L21",
+      "order": 3,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/cozy-brick-walled-living-room-with-large-window-33537442/",
+      "author": "Nadin Sh",
+      "cdnUrl": "https://images.pexels.com/photos/33537442/pexels-photo-33537442.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871643/allo-appart/demo/demo-L21-3.jpg"
+    },
+    {
+      "listingKey": "demo-L22",
+      "order": 1,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/monitors-on-desks-in-office-20988575/",
+      "author": "Toàn Văn",
+      "cdnUrl": "https://images.pexels.com/photos/20988575/pexels-photo-20988575.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871644/allo-appart/demo/demo-L22-1.jpg"
+    },
+    {
+      "listingKey": "demo-L22",
+      "order": 2,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/modern-open-office-space-with-workspace-cubicles-36631701/",
+      "author": "DOAN THANH BINH",
+      "cdnUrl": "https://images.pexels.com/photos/36631701/pexels-photo-36631701.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871644/allo-appart/demo/demo-L22-2.jpg"
+    },
+    {
+      "listingKey": "demo-L22",
+      "order": 3,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/interior-design-of-an-office-5483233/",
+      "author": "cottonbro studio",
+      "cdnUrl": "https://images.pexels.com/photos/5483233/pexels-photo-5483233.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871645/allo-appart/demo/demo-L22-3.jpg"
+    },
+    {
+      "listingKey": "demo-L23",
+      "order": 1,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/sand-on-footpath-6430409/",
+      "author": "Ave Calvar Martinez",
+      "cdnUrl": "https://images.pexels.com/photos/6430409/pexels-photo-6430409.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871646/allo-appart/demo/demo-L23-1.jpg"
+    },
+    {
+      "listingKey": "demo-L23",
+      "order": 2,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/scenic-coastal-pathway-with-cloudy-skies-30610090/",
+      "author": "Jakob Andersson",
+      "cdnUrl": "https://images.pexels.com/photos/30610090/pexels-photo-30610090.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871646/allo-appart/demo/demo-L23-2.jpg"
+    },
+    {
+      "listingKey": "demo-L23",
+      "order": 3,
+      "source": "pexels",
+      "pageUrl": "https://www.pexels.com/photo/tranquil-sand-dune-with-wooden-fence-38485671/",
+      "author": "Jan van der Wolf",
+      "cdnUrl": "https://images.pexels.com/photos/38485671/pexels-photo-38485671.jpeg?auto=compress&cs=tinysrgb&w=1600",
+      "cloudinaryUrl": "https://res.cloudinary.com/diic5wdit/image/upload/v1792871647/allo-appart/demo/demo-L23-3.jpg"
+    }
+  ],
+  "_pending_curation": [
+    "demo-L03",
+    "demo-L04",
+    "demo-L05",
+    "demo-L06",
+    "demo-L07",
+    "demo-L08",
+    "demo-L09",
+    "demo-L10",
+    "demo-L11",
+    "demo-L13",
+    "demo-L14",
+    "demo-L15",
+    "demo-L16",
+    "demo-L17"
+  ],
+  "_caveats": [
+    "Vérification faite par lecture des pages (description, licence, mots-clés) via un outil de récupération web, PAS par relecture visuelle pixel par pixel de chaque photo — à recontrôler visuellement avant tournage réel (prompts 03+).",
+    "Pour L18/L19/L20/L22/L23, chaque série vient de 3 photographes différents (pas un seul reportage photo pour le même bien) — compromis accepté pour ce lot réduit, faute d'avoir trouvé une série unique cohérente par recherche textuelle. À corriger dans la curation complète si possible.",
+    "L18/L23 (terrains) : les meilleures correspondances trouvées sont des terrains désertiques/dunaires génériques, pas littéralement le sol sableux sahélien avec clôture en parpaing décrit dans PLAN_DEMO.md § 3."
+  ]
+}

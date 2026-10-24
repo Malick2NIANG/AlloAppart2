@@ -1,0 +1,12 @@
+node_modules/
+out/
+
+# Captures lourdes — brutes et converties (reproductibles depuis le seed + les scripts de capture)
+captures/*/raw/
+public/captures/
+
+# Sessions Clerk des comptes de démo — jamais partagées, régénérées à chaque série
+capture/.auth/
+
+# Secrets — mots de passe/clerkId des comptes de démo
+capture/.credentials.env

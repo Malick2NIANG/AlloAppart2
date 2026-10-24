@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>AlloAppart — Affiche de lancement</title>
+<style>
+@font-face{font-family:Poppins;font-weight:600;src:url(../public/fonts/poppins-latin-600-normal.woff2) format('woff2');}
+@font-face{font-family:Poppins;font-weight:700;src:url(../public/fonts/poppins-latin-700-normal.woff2) format('woff2');}
+@font-face{font-family:Inter;font-weight:400;src:url(../public/fonts/inter-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:Inter;font-weight:500;src:url(../public/fonts/inter-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:Inter;font-weight:600;src:url(../public/fonts/inter-latin-600-normal.woff2) format('woff2');}
+@page{size:810pt 1012.5pt;margin:0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1350px;background:#0f172a;}
+.poster{position:relative;width:1080px;height:1350px;overflow:hidden;background:#0f172a;color:#fff;font-family:Inter,sans-serif;}
+.abs{position:absolute}
+.center{left:0;right:0;display:flex;justify-content:center}
+
+/* Fond : halos dorés subtils + grille */
+.halo-top{left:190px;top:-230px;width:700px;height:620px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(250,204,21,.20),rgba(250,204,21,.07) 55%,rgba(250,204,21,0));}
+.halo-mid{left:90px;top:560px;width:900px;height:620px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(250,204,21,.11),rgba(181,137,0,.04) 60%,rgba(250,204,21,0));}
+.grid{inset:0;opacity:.05;
+  background-image:linear-gradient(#e2e8f0 1px,transparent 1px),linear-gradient(90deg,#e2e8f0 1px,transparent 1px);
+  background-size:90px 90px;background-position:0 30px;
+  -webkit-mask-image:radial-gradient(ellipse 60% 55% at 50% 52%,#000 15%,transparent 75%);}
+.vignette{inset:0;background:radial-gradient(ellipse 85% 75% at 50% 50%,rgba(2,6,23,0) 55%,rgba(2,6,23,.55) 100%);}
+
+/* Logo */
+.logo{top:70px}
+.logo img{width:358px;height:auto;display:block}
+
+/* Marqueur */
+.marker{top:238px}
+.marker span{display:inline-flex;align-items:center;gap:12px;padding:10px 22px;border-radius:999px;
+  border:1px solid rgba(250,204,21,.35);background:rgba(250,204,21,.06);
+  font:600 17px/1 Inter;letter-spacing:3.2px;color:#F9E4B7;text-transform:uppercase}
+.marker i{width:7px;height:7px;border-radius:50%;background:#facc15;display:block}
+
+/* Headline */
+.h1{top:308px;text-align:center;font:700 76px/1.06 Poppins;letter-spacing:-1.8px}
+.h1 .w{color:#fff;display:block}
+.h1 .g{display:block;background:linear-gradient(90deg,#facc15 0%,#e7b008 55%,#b58900 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+
+.sub{top:494px;text-align:center;font:400 25px/1.5 Inter;color:rgba(226,232,240,.78)}
+
+/* Cartes UI */
+.card{position:absolute;width:420px;background:#fff;border-radius:22px;border:1px solid rgba(15,23,42,.06);
+  box-shadow:0 40px 70px -30px rgba(0,0,0,.65),0 2px 0 rgba(255,255,255,.6) inset;overflow:hidden;color:#1C1C1C}
+.card .img{height:170px;position:relative;overflow:hidden}
+.card .body{padding:18px 22px 20px}
+.card .type{position:absolute;left:14px;top:14px;padding:7px 12px;border-radius:999px;background:rgba(15,23,42,.72);font:600 12px/1 Inter;letter-spacing:1.6px;text-transform:uppercase;color:#fff5d6}
+.card .title{font:600 25px/1.2 Poppins;color:#1C1C1C;margin-top:0;letter-spacing:-.3px}
+.card .price{font:600 21px/1 Inter;color:#1C1C1C;margin-top:10px}
+.card .price small{font:500 16px Inter;color:#6B7280}
+.card .chip{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:8px 14px 8px 10px;border-radius:999px;
+  background:#fff5d6;border:1px solid #F9E4B7;font:600 15px/1 Inter;color:#8a6800}
+.card .chip svg{display:block}
+.c1{left:500px;top:600px;transform:rotate(3deg);z-index:3}
+.c2{left:160px;top:640px;transform:rotate(-5deg) scale(.9);transform-origin:top left;z-index:2}
+
+/* Badge AlloVérifié */
+.badge-wrap{top:925px;z-index:5}
+.badge{display:flex;align-items:center;gap:18px;padding:14px 32px 14px 14px;border-radius:999px;
+  background:linear-gradient(180deg,#1e293b,#0f172a);border:1.5px solid rgba(250,204,21,.55);
+  box-shadow:0 24px 50px -18px rgba(0,0,0,.8),0 0 0 6px rgba(250,204,21,.06),0 0 60px rgba(250,204,21,.18)}
+.badge .seal{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 35% 30%,rgba(250,204,21,.38),rgba(250,204,21,.10) 70%);border:1px solid rgba(250,204,21,.5)}
+.badge .name{font:600 34px/1 Poppins;letter-spacing:-.4px;color:#facc15}
+.badge .sep{width:1px;height:30px;background:rgba(250,204,21,.4)}
+.badge .what{font:500 21px/1 Inter;color:#e2e8f0}
+
+.types{top:1056px;text-align:center;font:500 19px/1 Inter;letter-spacing:2.4px;color:rgba(226,232,240,.6);text-transform:uppercase}
+.types b{color:#b58900;font-weight:600;margin:0 10px}
+
+/* CTA */
+.cta-label{top:1106px;font:600 16px/1 Inter;letter-spacing:3px;color:#F9E4B7;text-transform:uppercase}
+.cta{top:1136px}
+.cta a{display:inline-flex;align-items:center;gap:16px;padding:22px 46px 22px 52px;border-radius:999px;
+  background:linear-gradient(90deg,#facc15,#fbbf24);color:#1e1e1e;text-decoration:none;
+  font:600 42px/1 Poppins;letter-spacing:-.3px;
+  box-shadow:0 22px 44px -16px rgba(250,204,21,.55),0 0 0 8px rgba(250,204,21,.08),inset 0 1px 0 rgba(255,255,255,.5)}
+.tagline{top:1254px;font:500 22px/1 Inter;color:rgba(226,232,240,.85);letter-spacing:.2px}
+
+/* ── Modes d'export vers Canva ── */
+body.text-only, body.text-only .poster{background:#0f172a}
+body.text-only .halo-top, body.text-only .halo-mid, body.text-only .grid, body.text-only .vignette,
+body.text-only .logo, body.text-only .card{display:none}
+body.text-only .marker span, body.text-only .badge, body.text-only .cta a{background:none!important;border-color:transparent!important;box-shadow:none!important}
+body.text-only .marker i, body.text-only .badge .seal, body.text-only .badge .sep, body.text-only .cta svg{visibility:hidden}
+body.text-only .h1 .g{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:#facc15}
+body.gfx .marker span, body.gfx .h1, body.gfx .sub, body.gfx .badge .name, body.gfx .badge .what,
+body.gfx .types, body.gfx .cta-label, body.gfx .tagline{color:transparent!important}
+body.gfx .h1 .g{background:none} body.gfx .h1 .w, body.gfx .types b{color:transparent!important}
+body.gfx .cta a{color:transparent}
+body.only-bg .poster > *:not(.halo-top):not(.halo-mid):not(.grid):not(.vignette){display:none}
+html:has(body.transparent), body.transparent, body.transparent .poster{background:transparent!important}
+body.transparent .halo-top, body.transparent .halo-mid, body.transparent .grid, body.transparent .vignette{display:none}
+
+/* Import Canva : sous-titre isolé (évite la fusion avec le titre), repositionné ensuite dans Canva */
+body.text-only .sub{top:20px;left:40px;right:auto;justify-content:flex-start;text-align:left}
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="abs halo-top"></div>
+  <div class="abs halo-mid"></div>
+  <div class="abs grid"></div>
+  <div class="abs vignette"></div>
+
+  <div class="abs center logo"><img src="logo-crop.png" alt="AlloAppart"></div>
+
+  <div class="abs center marker"><span><i></i>Nouveau au Sénégal</span></div>
+
+  <div class="abs center h1"><div>
+    <span class="w">Trouvez votre logement</span>
+    <span class="g">idéal au Sénégal</span>
+  </div></div>
+
+  <div class="abs center sub"><div>Des milliers d'appartements, villas et studios<br>vérifiés par nos agents terrain.</div></div>
+
+  <!-- Carte 2 (arrière-plan) -->
+  <div class="card c2">
+    <div class="img"><div id="img2"></div><div class="type">Villa</div></div>
+    <div class="body">
+      <div class="title">Almadies</div>
+      <div class="price">1 200 000 FCFA <small>/ mois</small></div>
+      <div class="chip">CHECK Vérifié sur place</div>
+    </div>
+  </div>
+  <!-- Carte 1 (premier plan) -->
+  <div class="card c1">
+    <div class="img"><div id="img1"></div><div class="type">Appartement</div></div>
+    <div class="body">
+      <div class="title">Dakar · Mermoz</div>
+      <div class="price">650 000 FCFA <small>/ mois</small></div>
+      <div class="chip">CHECK AlloVérifié™</div>
+    </div>
+  </div>
+
+  <div class="abs center badge-wrap"><div class="badge">
+    <div class="seal">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="rgba(250,204,21,.18)" stroke="#facc15" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+        <path d="M8.6 12.3l2.4 2.4 4.6-4.9" stroke="#fff5d6" stroke-width="2.2" fill="none"/>
+      </svg>
+    </div>
+    <div class="name">AlloVérifié™</div>
+    <div class="sep"></div>
+    <div class="what">Vérifié sur le terrain</div>
+  </div></div>
+
+  <div class="abs center types"><div>Appartements<b>·</b>Villas<b>·</b>Studios</div></div>
+
+  <div class="abs center cta-label"><div>Découvrir AlloAppart</div></div>
+  <div class="abs center cta"><a>alloappart.sn
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#1e1e1e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div>
+
+  <div class="abs center tagline"><div>Louez en toute confiance.</div></div>
+</div>
+
+<script>
+for (const c of (location.hash.slice(1)||"").split(",").filter(Boolean)) document.body.classList.add(c);
+// Illustrations architecturales abstraites (vectorielles) — pas de photo stock.
+const check = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b58900" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+document.querySelectorAll('.chip').forEach(c=>c.innerHTML=c.innerHTML.replace('CHECK',check));
+
+function building(variant){
+  // ciel crépuscule bleu nuit → or pâle à l'horizon
+  const W=420,H=170;
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+   <linearGradient id="sky${variant}" x1="0" y1="0" x2="0" y2="1">
+     <stop offset="0" stop-color="#1e293b"/><stop offset=".62" stop-color="#334155"/><stop offset="1" stop-color="#F9E4B7"/>
+   </linearGradient>
+   <linearGradient id="wall${variant}" x1="0" y1="0" x2="1" y2="0">
+     <stop offset="0" stop-color="#FAFAFA"/><stop offset="1" stop-color="#e2e8f0"/>
+   </linearGradient>
+  </defs>
+  <rect width="${W}" height="${H}" fill="url(#sky${variant})"/>
+  <circle cx="${variant==1?330:90}" cy="135" r="44" fill="#facc15" opacity=".35"/>`;
+  if(variant==1){
+    // immeuble contemporain : volumes décalés, balcons filants, fenêtres éclairées
+    s+=`<rect x="70" y="38" width="170" height="160" fill="url(#wall1)"/>
+        <rect x="240" y="70" width="110" height="130" fill="#cbd5e1"/>
+        <rect x="40" y="110" width="40" height="90" fill="#94a3b8"/>`;
+    for(let i=0;i<5;i++){ const y=52+i*28;
+      s+=`<rect x="64" y="${y+18}" width="182" height="5" fill="#0f172a" opacity=".85"/>`;
+      for(let j=0;j<4;j++){ const lit=(i*3+j)%4==1;
+        s+=`<rect x="${82+j*40}" y="${y}" width="26" height="16" rx="2" fill="${lit?'#facc15':'#1e293b'}" opacity="${lit?.95:.75}"/>`;}
+    }
+    for(let i=0;i<4;i++){ const y=84+i*28;
+      for(let j=0;j<2;j++){ const lit=(i+j)%3==0;
+        s+=`<rect x="${256+j*44}" y="${y}" width="30" height="16" rx="2" fill="${lit?'#F9E4B7':'#334155'}"/>`;}}
+  } else {
+    // villa contemporaine basse : toit plat débordant, grandes baies
+    s+=`<rect x="60" y="92" width="300" height="110" fill="url(#wall2)"/>
+        <rect x="40" y="84" width="340" height="10" fill="#0f172a"/>
+        <rect x="200" y="54" width="160" height="40" fill="#e2e8f0"/>
+        <rect x="188" y="48" width="184" height="8" fill="#0f172a"/>
+        <rect x="84" y="112" width="96" height="70" fill="#facc15" opacity=".9"/>
+        <rect x="200" y="112" width="140" height="70" fill="#1e293b"/>
+        <rect x="216" y="62" width="60" height="24" fill="#334155"/>
+        <rect x="290" y="62" width="56" height="24" fill="#F9E4B7"/>
+        <rect x="0" y="182" width="420" height="10" fill="#b58900" opacity=".55"/>`;
+  }
+  s+=`<rect y="${H-6}" width="${W}" height="6" fill="#0f172a" opacity=".25"/></svg>`;
+  return s;
+}
+document.getElementById('img1').innerHTML=building(1);
+document.getElementById('img2').innerHTML=building(2);
+</script>
+</body>
+</html>

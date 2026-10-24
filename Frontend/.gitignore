@@ -41,7 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 # Supports marketing / sorties d'outils — hors application, non versionnés
-/motion/
 /Claude outputs/
 
 # e2e (Playwright) — disposable run artifacts and session storage state

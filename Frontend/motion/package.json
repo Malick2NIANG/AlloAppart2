@@ -1,0 +1,33 @@
+{
+  "name": "alloappart-motion",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AlloAppart — publicité motion design de lancement (Remotion). Isolé du frontend Next.js.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts AlloAppartLaunch16x9 out/alloappart-launch-1920x1080.mp4",
+    "render:muet": "remotion render src/index.ts AlloAppartLaunch16x9 out/alloappart-launch-1920x1080-muet.mp4 --muted",
+    "still": "remotion still src/index.ts AlloAppartLaunch16x9 out/apercu.png --frame=520",
+    "audio": "python scripts/generate-soundtrack.py",
+    "typecheck": "tsc --noEmit",
+    "demo:provision": "node scripts/provision-demo-accounts.mjs",
+    "demo:photos": "node scripts/upload-demo-photos.mjs",
+    "demo:seed": "node scripts/demo.mjs seed",
+    "demo:seed:finish-v3": "node scripts/demo.mjs seed --finish-v3",
+    "demo:clean": "node scripts/demo.mjs clean",
+    "capture:test": "playwright test --config=capture/playwright.config.ts capture/scenes/test-clip.spec.ts",
+    "render:test": "remotion render src/index.ts ClipTest out/clips/clip-test-annonces.mp4 --muted"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.531",
+    "lucide-react": "^1.16.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "remotion": "4.0.531"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}
