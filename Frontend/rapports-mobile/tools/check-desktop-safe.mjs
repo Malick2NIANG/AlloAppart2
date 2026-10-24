@@ -49,7 +49,6 @@ if (files.length === 0) {
   files = out.split('\n').filter((f) => f.trim() && /\.(tsx?|jsx?)$/.test(f));
 }
 
-const CLASSNAME_LINE_RE = /^\s*className=\{?`?["'`]?(.*?)["'`]?\}?,?\s*$/;
 // Repère une ligne qui EST (en tout ou grande partie) un attribut className
 // JSX, sur une seule ligne — le style d'écriture de ce projet (une classe
 // par ligne lors d'un remplacement ciblé).
