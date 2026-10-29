@@ -48,8 +48,14 @@ Conséquences retenues :
 - Possible aussi par modèles de phrases + petit modèle d'amélioration, selon ce que le coût zéro permet.
 
 ### 3.4 Langue
-- **Français d'abord**, avec le vocabulaire local (quartiers, termes de location).
-- Wolof : langue pauvre en données. Ne rien promettre ; à envisager plus tard seulement si des données fiables existent.
+- **Décision du 2026-10-29 : Milo répond dans la langue dans laquelle l'utilisateur lui écrit (détection automatique)**, même si le sélecteur FR/EN du header indique l'autre langue. Le sélecteur (locale next-intl) sert de **langue par défaut** quand la détection est incertaine (requêtes très courtes ou ambiguës comme « villa Almadies »).
+- Détection : bibliothèque ou modèle libre exécuté sur le VPS (CPU, gratuit), à choisir en phase 1 (ex. identification de langue fastText, franc). Aucune API payante.
+- L'analyseur Search applique **tous les dictionnaires ensemble** : une phrase mélangeant les langues reste comprise ; la détection sert à choisir la langue de la réponse.
+- **Langues prises en charge = liste explicite et croissante**, pas « toutes les langues ». Détecter une langue est facile et gratuit ; la comprendre et y répondre demande, pour chacune : un dictionnaire, des libellés traduits et un jeu de test avec seuils. Langue détectée mais non prise en charge : réponse dans la langue du site, avec message clair. Lancement : français et anglais ; ajouts un par un quand leur jeu de test atteint les seuils.
+- Search : dictionnaires et règles FR **et** EN (ex. « 2 chambres » / « 2 bedrooms », « moins de » / « under », « louer » / « rent », « à vendre » / « for sale »), avec le vocabulaire local (quartiers, termes de location) dans les deux langues. Les pastilles de critères, messages d'erreur et « je n'ai pas compris » sont affichés dans la langue détectée.
+- FAQ : documents validés en FR et EN ; réponse dans la langue détectée si un document existe dans cette langue, sinon repli sur la langue du site avec mention explicite. Writer : description générée dans la langue demandée/détectée.
+- Les seuils de qualité sont mesurés **séparément pour chaque langue prise en charge**, avec un jeu de test par langue (dont des phrases à langues mélangées).
+- Wolof : exclu pour l'instant (peu de données fiables).
 
 ### 3.5 Données et vie privée
 - Commencer par les textes d'annonces et la documentation de la plateforme.
