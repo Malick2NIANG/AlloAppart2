@@ -11,6 +11,7 @@ import { extractPrice } from './extractors/price';
 import { extractPlaces } from './extractors/places';
 import type {
   LanguageDictionary,
+  MiloAmbiguity,
   MiloExtractionResult,
   MiloMatchedSpan,
   MiloStrictFilters,
@@ -79,6 +80,57 @@ function runExtractors(tokens: Token[], dictionaries: LanguageDictionary[]) {
   };
 }
 
+/**
+ * Conflits « compris mais non extrait » (lot 4) — dérivés des matchedSpans
+ * déjà posés par les extracteurs du lot 1/2 (type.ts, transaction.ts,
+ * roomsAndBeds.ts, places.ts marquent chaque mention comprise, même quand
+ * elles se contredisent et qu'aucun filtre n'est retenu). Lecture seule :
+ * aucun extracteur n'est modifié pour ça.
+ */
+function deriveAmbiguities(
+  strictFilters: MiloStrictFilters,
+  matchedSpans: MiloMatchedSpan[],
+): MiloAmbiguity[] {
+  const ambiguities: MiloAmbiguity[] = [];
+
+  const typeValues = new Set(
+    matchedSpans.filter((s) => s.category === 'type').map((s) => s.value),
+  );
+  if (!strictFilters.type && typeValues.size > 1) ambiguities.push('type');
+
+  const txValues = new Set(
+    matchedSpans
+      .filter((s) => s.category === 'transaction')
+      .map((s) => s.value),
+  );
+  if (!strictFilters.transactionType && txValues.size > 1) {
+    ambiguities.push('transactionType');
+  }
+
+  if (
+    strictFilters.minBeds === undefined &&
+    strictFilters.maxBeds === undefined
+  ) {
+    const exactBedsValues = new Set(
+      matchedSpans
+        .filter((s) => s.category === 'beds' && s.text.startsWith('beds='))
+        .map((s) => s.value),
+    );
+    if (exactBedsValues.size > 1) ambiguities.push('beds');
+  }
+
+  if (!strictFilters.region && !strictFilters.cityContains) {
+    const regionsImplied = new Set(
+      matchedSpans
+        .filter((s) => s.category === 'place')
+        .map((s) => (s.value?.includes('/') ? s.value.split('/')[0] : s.value)),
+    );
+    if (regionsImplied.size > 1) ambiguities.push('region');
+  }
+
+  return ambiguities;
+}
+
 function collectStopWords(dictionaries: LanguageDictionary[]): Set<string> {
   const stop = new Set<string>();
   for (const dict of dictionaries) for (const w of dict.stopWords) stop.add(w);
@@ -123,5 +175,6 @@ export function extractCriteria(text: string): MiloExtractionResult {
       fr: frOnly.matchedSpans.length,
       en: enOnly.matchedSpans.length,
     },
+    ambiguities: deriveAmbiguities(main.strictFilters, main.matchedSpans),
   };
 }

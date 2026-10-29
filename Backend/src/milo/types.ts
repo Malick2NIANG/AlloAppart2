@@ -42,6 +42,9 @@ export interface MiloMatchedSpan {
   value?: string;
 }
 
+/** Identifiants de conflit « compris mais non extrait » — lot 4. */
+export type MiloAmbiguity = 'type' | 'transactionType' | 'beds' | 'region';
+
 export interface MiloExtractionResult {
   strictFilters: MiloStrictFilters;
   /** Identifiants stables, jamais du texte traduit (ex. "near_sea", "quiet", "upscale"). */
@@ -51,6 +54,9 @@ export interface MiloExtractionResult {
   unmatchedTokens: string[];
   /** Nombre de mots-clés reconnus par langue — sert la détection de langue au lot 3. */
   signals: { fr: number; en: number };
+  /** Catégories où plusieurs valeurs contradictoires ont été comprises mais
+   * aucune retenue (ex. deux types, deux transactions, deux régions). */
+  ambiguities: MiloAmbiguity[];
 }
 
 /** Dictionnaire d'une langue — une entrée par catégorie, synonymes → identifiant canonique. */

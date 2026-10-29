@@ -8,8 +8,6 @@ Développer des modèles d'IA spécialisés dans l'immobilier sénégalais, maî
 
 ## 2. Contrainte absolue : coût zéro
 
-Décision de Malick : **aucun paiement, même minime** (ni API d'IA, ni GPU loué, ni abonnement, ni crédit).
-
 Conséquences retenues :
 - Aucune API d'IA payante, ni au lancement ni plus tard. Les fonctionnalités IA actuellement bloquées faute de crédit Anthropic **restent désactivées** jusqu'à ce que Milo les remplace (pas de solution transitoire payante).
 - Développement et entraînement : uniquement sur le matériel déjà possédé (PC de développement) et sur des quotas gratuits de calcul s'ils existent au moment venu. Leurs conditions changent souvent : **à vérifier le moment venu**, ne pas les considérer comme acquises.
@@ -57,6 +55,12 @@ Conséquences retenues :
 - Les seuils de qualité sont mesurés **séparément pour chaque langue prise en charge**, avec un jeu de test par langue (dont des phrases à langues mélangées).
 - Wolof : exclu pour l'instant (peu de données fiables).
 
+### 3.4 bis Emplacement dans le code (décision du 2026-10-29)
+- **Backend** : module dédié `Backend/src/milo/` (analyseur, dictionnaires, détection de langue, jeux de test). Toute la logique y vit.
+- **Frontend** : interface seulement (champ de recherche, pastilles de critères) dans `Frontend/src/components/milo/`. Pas de dossier `MiloAI` séparé.
+- **Documentation** : `Milo.md` à la racine.
+- Raison : un seul projet à maintenir, sur le même VPS.
+
 ### 3.5 Données et vie privée
 - Commencer par les textes d'annonces et la documentation de la plateforme.
 - Ne pas utiliser les messages privés des utilisateurs sans consentement explicite et sans respect de la loi sénégalaise sur les données personnelles.
@@ -102,3 +106,18 @@ L'ordre final sera confirmé par l'étude de faisabilité.
 ## 7. Prochaine étape
 
 Rien tant que Malick n'a pas dit « on commence ». À ce moment-là : rédiger le document de faisabilité de la phase 1 (objectifs chiffrés, jeux de test, options comparées, calcul disponible à coût zéro, capacité du VPS).
+
+## 8. Avancement — Search v0 (mis à jour le 2026-10-29)
+
+Découpage détaillé et décisions : `Frontend/rapports-milo/PLAN_SEARCH_V0.md`.
+
+**Fait** :
+- **Lot 1** — Dictionnaires FR/EN (montants, pièces, chambres, types, transaction, équipements, préférences floues) + extraction pure `extractCriteria()` (`Backend/src/milo/`), tests unitaires. Backend séparé : filtre `minBeds`/`maxBeds` sur `GET /listings`.
+- **Lot 2** — Dictionnaire des lieux (régions/villes/quartiers de `regions.ts`), normalisation accents/fautes. Lot 2b : `city` étant un champ texte libre (78 % de valeurs non canoniques en base), ajout du filtre tolérant `cityContains` (Backend) + `quartiers.ts` (quartiers/communes réels saisis à la main, à valider) ; Milo n'émet plus jamais `city` exact.
+- **Lot 3** — Détection de langue coût zéro (`Backend/src/milo/language/detectLanguage.ts`) : signaux du dictionnaire (lot 1) + mots-outils à poids faible, repli sur `tinyld` (bibliothèque retenue après comparaison avec franc-min) à partir de 4 mots en cas d'égalité, sinon repli sur la langue du sélecteur. Jeu de test de 190 requêtes (`Backend/src/milo/tests/language.json`).
+- **Lot 4** — Endpoint `POST /search/parse-query` (`Backend/src/milo/milo.controller.ts`), public, limité à 30 req/min/IP. Entrée `{ text, defaultLocale }`, sortie `{ detectedLanguage, languageConfidence, languageMethod, strictFilters, softPreferences, unmatchedTokens, ambiguities, understood }` — jamais d'annonce, uniquement des filtres. Contrat vérifié avec `FilterListingsDto` (tests dédiés). Pas de journalisation du texte des utilisateurs (vie privée).
+
+**Restant** :
+- **Lot 5** — Interface : barre de recherche en langage naturel (accueil PC+mobile, remplace le bouton « Rechercher »/la barre blanche mobile ; bouton « Demander à Milo » sur `/listings`), pastilles de critères, état « non compris » avec repli sur `q`.
+- **Lot 6** — Branchement Meilisearch pour le classement des `softPreferences` (filterable/sortable à configurer).
+- **Lot 7** — Jeu de test complet (100 FR + 100 EN + 30 mixtes) + mesure automatique + rapport des seuils.

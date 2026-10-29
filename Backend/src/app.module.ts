@@ -24,6 +24,7 @@ import { SmsModule } from './sms/sms.module';
 import { AgencesModule } from './agences/agences.module';
 import { ContractsModule } from './contracts/contracts.module';
 import { PlatformConfigModule } from './platform-config/platform-config.module';
+import { MiloModule } from './milo/milo.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { PlatformConfigModule } from './platform-config/platform-config.module';
     AgencesModule,
     ContractsModule,
     PlatformConfigModule,
+    MiloModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
