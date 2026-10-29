@@ -9,16 +9,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { SearchService } from './search.service';
 import { Public } from '../common/decorators/public.decorator';
-
-const ALLOWED_FILTER_FIELDS = [
-  'type',
-  'city',
-  'region',
-  'isVerified',
-  'boostScore',
-  'price',
-];
-const ALLOWED_SORT_FIELDS = ['boostScore', 'createdAt', 'price'];
+import { ALLOWED_FILTER_FIELDS, ALLOWED_SORT_FIELDS } from './search.constants';
 
 // Mots-clés syntaxiques Meilisearch — ne sont pas des noms de champs
 const FILTER_KEYWORDS = new Set([

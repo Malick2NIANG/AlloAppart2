@@ -1,7 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { MeiliSearch } from 'meilisearch';
+import {
+  ALLOWED_FILTER_FIELDS,
+  ALLOWED_SORT_FIELDS,
+  SEARCH_SYNONYMS,
+} from './search.constants';
 
 interface GeoSearchDto {
   lat: number;
@@ -10,7 +15,7 @@ interface GeoSearchDto {
 }
 
 @Injectable()
-export class SearchService {
+export class SearchService implements OnModuleInit {
   private readonly logger = new Logger(SearchService.name);
   private meilisearch: MeiliSearch;
 
@@ -23,6 +28,35 @@ export class SearchService {
         this.config.get<string>('MEILISEARCH_HOST') ?? 'http://localhost:7700',
       apiKey: this.config.get<string>('MEILISEARCH_MASTER_KEY'),
     });
+  }
+
+  /**
+   * Lot 6b — l'audit a constaté que SearchController accepte filter/sort
+   * mais que l'index Meilisearch n'a jamais déclaré filterableAttributes/
+   * sortableAttributes : toute requête filter=... ou sort=... échouait
+   * silencieusement contre Meilisearch et retombait sur le fallback Prisma
+   * de fullTextSearch (le filtre/tri perdait alors toute pertinence de
+   * recherche texte). updateSettings est idempotent côté Meilisearch — sans
+   * effet si déjà configuré ainsi, donc appelable à chaque démarrage sans
+   * risque. Ne bloque jamais le démarrage de l'app si Meilisearch est
+   * injoignable (même tolérance que fullTextSearch).
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      const index = this.meilisearch.index('listings');
+      await index.updateSettings({
+        filterableAttributes: ALLOWED_FILTER_FIELDS,
+        sortableAttributes: ALLOWED_SORT_FIELDS,
+        synonyms: SEARCH_SYNONYMS,
+      });
+      this.logger.log(
+        'Index Meilisearch "listings" configuré (filterable/sortable/synonymes).',
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Configuration Meilisearch au démarrage échouée (non bloquant) : ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   async fullTextSearch(q: string, filters?: string, sort?: string[]) {
