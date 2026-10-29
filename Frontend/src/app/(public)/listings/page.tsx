@@ -6,14 +6,28 @@ import FavoriteButton from '@/components/ui/FavoriteButton';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import ListingsFilters from './ListingsFilters';
 import { type Listing, type ListingsResponse, getListingPriceAmounts } from '@/types/listing';
+import { resolveMiloLocale, getMiloLabels } from '@/components/milo/labels';
 
 export default async function ListingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; city?: string; type?: string; q?: string; minPrice?: string; maxPrice?: string; region?: string; limit?: string; tab?: string; ownerType?: string; verified?: string; transactionType?: string }>;
+  searchParams: Promise<{
+    page?: string; city?: string; type?: string; q?: string; minPrice?: string; maxPrice?: string;
+    region?: string; limit?: string; tab?: string; ownerType?: string; verified?: string; transactionType?: string;
+    // Lot 5b — paramètres produits par Milo (jamais exposés par les filtres
+    // manuels avant ce lot) : cityContains, minBeds/maxBeds, minRooms/maxRooms,
+    // amenities (CSV). milo/miloLang/miloMiss pilotent le message « vide ».
+    cityContains?: string; minBeds?: string; maxBeds?: string; minRooms?: string; maxRooms?: string;
+    amenities?: string; milo?: string; miloLang?: string; miloMiss?: string; miloText?: string; miloUnmatched?: string;
+  }>;
 }) {
-  const { page = '1', city, type, q, minPrice, maxPrice, region, limit: limitParam, tab, ownerType, verified, transactionType: rawTransactionType } = await searchParams;
+  const {
+    page = '1', city, type, q, minPrice, maxPrice, region, limit: limitParam, tab, ownerType, verified,
+    transactionType: rawTransactionType, cityContains, minBeds, maxBeds, minRooms, maxRooms, amenities,
+    milo, miloLang, miloMiss, miloText, miloUnmatched,
+  } = await searchParams;
   const transactionType = rawTransactionType === 'LOCATION' || rawTransactionType === 'VENTE' ? rawTransactionType : undefined;
+  const isMilo = milo === '1';
   const isFavorisTab = tab === 'favoris';
   const currentPage = Math.max(1, parseInt(page, 10) || 1);
   const perPage     = [6, 12, 24].includes(parseInt(limitParam ?? '', 10)) ? parseInt(limitParam!, 10) : 6;
@@ -61,6 +75,12 @@ export default async function ListingsPage({
         ...(ownerType ? { ownerType }            : {}),
         ...(transactionType ? { transactionType } : {}),
         ...(verified  ? { isVerified: 'true' }   : {}),
+        ...(cityContains ? { cityContains }      : {}),
+        ...(minBeds   ? { minBeds }              : {}),
+        ...(maxBeds   ? { maxBeds }              : {}),
+        ...(minRooms  ? { minRooms }             : {}),
+        ...(maxRooms  ? { maxRooms }             : {}),
+        ...(amenities ? { amenities }            : {}),
       });
       const res = await api.get<ListingsResponse>(`/listings?${params}`);
       listings = Array.isArray(res?.data) ? res.data : [];
@@ -75,7 +95,10 @@ export default async function ListingsPage({
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
 
-  const pageUrl = (p: number) => {
+  // Filtres communs à pageUrl/perPageUrl — inclut les paramètres Milo (lot
+  // 5b) pour que changer de page ou de taille de page ne fasse pas perdre
+  // le bandeau « Milo a compris » / les pastilles produites par Milo.
+  const baseParams = () => {
     const params = new URLSearchParams();
     if (isFavorisTab) params.set('tab', 'favoris');
     if (q)         params.set('q', q);
@@ -87,6 +110,22 @@ export default async function ListingsPage({
     if (ownerType) params.set('ownerType', ownerType);
     if (transactionType) params.set('transactionType', transactionType);
     if (verified)  params.set('verified', verified);
+    if (cityContains) params.set('cityContains', cityContains);
+    if (minBeds)   params.set('minBeds', minBeds);
+    if (maxBeds)   params.set('maxBeds', maxBeds);
+    if (minRooms)  params.set('minRooms', minRooms);
+    if (maxRooms)  params.set('maxRooms', maxRooms);
+    if (amenities) params.set('amenities', amenities);
+    if (isMilo)    params.set('milo', '1');
+    if (miloLang)  params.set('miloLang', miloLang);
+    if (miloText)  params.set('miloText', miloText);
+    if (miloUnmatched) params.set('miloUnmatched', miloUnmatched);
+    if (miloMiss)  params.set('miloMiss', miloMiss);
+    return params;
+  };
+
+  const pageUrl = (p: number) => {
+    const params = baseParams();
     params.set('limit', String(perPage));
     params.set('page', String(p));
     return `/listings?${params.toString()}`;
@@ -94,17 +133,7 @@ export default async function ListingsPage({
 
   // Nombre d'annonces par page — conserve les filtres, repart page 1.
   const perPageUrl = (n: number) => {
-    const params = new URLSearchParams();
-    if (isFavorisTab) params.set('tab', 'favoris');
-    if (q)         params.set('q', q);
-    if (city)      params.set('city', city);
-    if (type)      params.set('type', type);
-    if (minPrice)  params.set('minPrice', minPrice);
-    if (maxPrice)  params.set('maxPrice', maxPrice);
-    if (region)    params.set('region', region);
-    if (ownerType) params.set('ownerType', ownerType);
-    if (transactionType) params.set('transactionType', transactionType);
-    if (verified)  params.set('verified', verified);
+    const params = baseParams();
     params.set('limit', String(n));
     return `/listings?${params.toString()}`;
   };
@@ -187,7 +216,18 @@ export default async function ListingsPage({
               <i className={`fa-solid ${isFavorisTab ? 'fa-heart text-red-300' : 'fa-house-circle-xmark text-gold-dark'} text-2xl`} />
             </div>
             <p className="text-sub">
-              {isFavorisTab ? t('noFavorites') : t('empty')}
+              {isFavorisTab
+                ? t('noFavorites')
+                : isMilo
+                  // Lot 5b, PLAN § 2.d parcours #4 : message adapté qui
+                  // rappelle que les critères viennent de Milo et invite à
+                  // retirer une pastille, plutôt que le message générique.
+                  ? getMiloLabels(resolveMiloLocale(
+                      miloLang === 'fr' || miloLang === 'en' || miloLang === 'unsupported' ? miloLang : 'fr',
+                      locale as 'fr' | 'en',
+                    )).emptyResultsWithCriteria
+                  : t('empty')
+              }
             </p>
           </div>
         ) : (

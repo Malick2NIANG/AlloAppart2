@@ -479,6 +479,8 @@
     "regionAll": "Toutes les régions",
     "perPage": "Par page",
     "filtersButton": "Filtres",
+    "askMiloButton": "Demander à Milo",
+    "askMiloAriaLabel": "Décrivez votre recherche en une phrase",
     "filtersOwner": "Annonceur",
     "removeFilter": "Retirer ce filtre",
     "applyFilters": "Appliquer",

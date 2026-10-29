@@ -2,8 +2,10 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useRef, useEffect, useId } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import BottomSheet from '@/components/ui/BottomSheet';
+import MiloSearchBar from '@/components/milo/MiloSearchBar';
+import { resolveMiloLocale, getMiloLabels, getSiteLocaleName } from '@/components/milo/labels';
 
 // Ordre + icônes alignés sur le formulaire de publication (source de vérité,
 // cf. (public)/publier/page.tsx TYPE_ICONS) — ne pas diverger d'un fichier à
@@ -61,10 +63,12 @@ const CHIP_OFF  = 'border-line bg-card text-text hover:border-gold/50 hover:bg-g
 
 export default function ListingsFilters({ type, region, q, city, minPrice, maxPrice, ownerType, limit, locale: _locale }: Props) {
   const t = useTranslations('listings');
+  const siteLocale = useLocale() as 'fr' | 'en';
   const router = useRouter();
   const urlParams = useSearchParams();
   const [regionOpen, setRegionOpen] = useState(false);
   const [panelOpen, setPanelOpen]   = useState(false);
+  const [miloOpen, setMiloOpen]     = useState(false);
   const regionRef = useRef<HTMLDivElement>(null);
   const panelRef  = useRef<HTMLDivElement>(null);
 
@@ -74,13 +78,39 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   const rawTransaction = urlParams.get('transactionType');
   const transactionType = rawTransaction === 'LOCATION' || rawTransaction === 'VENTE' ? rawTransaction : undefined;
 
+  // Lot 5b — paramètres produits par Milo, hors du Props interface existant
+  // (comme verified/transactionType déjà lus directement ici) : cityContains,
+  // minBeds/maxBeds, minRooms/maxRooms, amenities (CSV) ne sont exposés par
+  // aucun filtre manuel aujourd'hui, Milo est leur seule source.
+  const cityContains = urlParams.get('cityContains') ?? undefined;
+  const minBeds       = urlParams.get('minBeds') ?? undefined;
+  const maxBeds       = urlParams.get('maxBeds') ?? undefined;
+  const minRooms       = urlParams.get('minRooms') ?? undefined;
+  const maxRooms       = urlParams.get('maxRooms') ?? undefined;
+  const amenitiesCsv   = urlParams.get('amenities') ?? undefined;
+  const amenitiesList  = amenitiesCsv ? amenitiesCsv.split(',').filter(Boolean) : [];
+  const isMilo         = urlParams.get('milo') === '1';
+  const miloMiss        = urlParams.get('miloMiss') === '1';
+  const miloLangRaw     = urlParams.get('miloLang');
+  const miloText        = urlParams.get('miloText') ?? undefined;
+  const miloUnmatchedCsv = urlParams.get('miloUnmatched') ?? undefined;
+  const miloUnmatched   = miloUnmatchedCsv ? miloUnmatchedCsv.split(',').filter(Boolean) : [];
+  const miloLocale  = resolveMiloLocale(
+    miloLangRaw === 'fr' || miloLangRaw === 'en' || miloLangRaw === 'unsupported' ? miloLangRaw : 'fr',
+    siteLocale,
+  );
+  const miloLabels  = getMiloLabels(miloLocale);
+
   const activeType = type ?? '';
   const activeOwnerType = ownerType ?? '';
 
   // Filtres rangés dans le panneau « Filtres » (annonceur + AlloVérifié).
   const panelCount = (ownerType ? 1 : 0) + (isVerifiedOnly ? 1 : 0);
   const hasPrice = !!(minPrice || maxPrice);
-  const hasFilters = !!(type || region || q || city || hasPrice || ownerType || isVerifiedOnly || transactionType);
+  const hasFilters = !!(
+    type || region || q || city || hasPrice || ownerType || isVerifiedOnly || transactionType ||
+    cityContains || minBeds || maxBeds || minRooms || maxRooms || amenitiesList.length > 0
+  );
 
   // Les types spécifiques à l'autre mode n'ont pas de sens : on les masque.
   const visibleTypes = TYPES.filter((ty) => {
@@ -91,9 +121,22 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
 
   const push = (overrides: Record<string, string | undefined>) => {
     const params = new URLSearchParams();
-    const merged = { q, city, minPrice, maxPrice, type, region, ownerType, verified, transactionType, limit: String(limit), page: '1', ...overrides };
+    const merged = {
+      q, city, minPrice, maxPrice, type, region, ownerType, verified, transactionType,
+      cityContains, minBeds, maxBeds, minRooms, maxRooms,
+      amenities: amenitiesCsv,
+      milo: isMilo ? '1' : undefined, miloLang: miloLangRaw ?? undefined, miloText,
+      miloUnmatched: miloUnmatchedCsv, miloMiss: miloMiss ? '1' : undefined,
+      limit: String(limit), page: '1',
+      ...overrides,
+    };
     Object.entries(merged).forEach(([k, v]) => { if (v) params.set(k, v); });
     router.push(`/listings?${params.toString()}`);
+  };
+
+  const removeAmenity = (key: string) => {
+    const next = amenitiesList.filter((a) => a !== key);
+    push({ amenities: next.length > 0 ? next.join(',') : undefined });
   };
 
   // Changer de transaction : on abandonne le type de bien devenu incohérent
@@ -132,6 +175,35 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
       onRemove: () => push({ minPrice: undefined, maxPrice: undefined }),
     });
   }
+  // ── Lot 5b : pastilles pour les paramètres que l'API accepte mais que
+  // l'interface manuelle n'exposait pas jusqu'ici (Milo est leur seule
+  // source pour l'instant) ──────────────────────────────────────────────
+  if (cityContains) activeChips.push({ key: 'cityContains', icon: 'fa-location-dot', label: cityContains, onRemove: () => push({ cityContains: undefined }) });
+  if (minBeds || maxBeds) {
+    activeChips.push({
+      key: 'beds', icon: 'fa-bed',
+      label: minBeds && maxBeds && minBeds === maxBeds
+        ? miloLabels.bedsExact(Number(minBeds))
+        : `${miloLabels.categories.minBeds} ${minBeds ?? '0'} / ${miloLabels.categories.maxBeds} ${maxBeds ?? '∞'}`,
+      onRemove: () => push({ minBeds: undefined, maxBeds: undefined }),
+    });
+  }
+  if (minRooms || maxRooms) {
+    activeChips.push({
+      key: 'rooms', icon: 'fa-door-open',
+      label: minRooms && maxRooms && minRooms === maxRooms
+        ? miloLabels.roomsExact(Number(minRooms))
+        : `${miloLabels.categories.minRooms} ${minRooms ?? '0'} / ${miloLabels.categories.maxRooms} ${maxRooms ?? '∞'}`,
+      onRemove: () => push({ minRooms: undefined, maxRooms: undefined }),
+    });
+  }
+  amenitiesList.forEach((key) => {
+    activeChips.push({
+      key: `amenity-${key}`, icon: 'fa-circle-check',
+      label: miloLabels.amenities[key] ?? key,
+      onRemove: () => removeAmenity(key),
+    });
+  });
 
   // ── Lot 2a : BottomSheet filtres mobile (sous 768px uniquement) ──────
   // Corrige le bug connu : le panneau « Filtres » absolument positionné
@@ -201,8 +273,77 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
     if (tx) mobileChips.unshift({ key: 'tx', icon: 'fa-right-left', label: t(tx.tKey), onRemove: () => changeTransaction('') });
   }
 
+  const miloCriteriaCount = activeChips.filter((c) =>
+    ['cityContains', 'beds', 'rooms'].includes(c.key) || c.key.startsWith('amenity-'),
+  ).length + (region ? 1 : 0) + (type ? 1 : 0) + (transactionType ? 1 : 0) + (hasPrice ? 1 : 0);
+
   return (
     <div className="mb-8 space-y-3">
+
+      {/* ── Lot 5b : bouton « Demander à Milo » + barre + bandeau — au-dessus
+          des filtres, PC et mobile (PLAN_SEARCH_V0.md § 2.d). ── */}
+      <div className="space-y-2">
+        {!miloOpen && (
+          <button
+            type="button"
+            onClick={() => setMiloOpen(true)}
+            className="tap-target flex h-10 items-center gap-2 rounded-full border border-gold/40 bg-gold-pale px-4 text-sm font-medium text-gold-dark transition-colors hover:bg-gold/20"
+          >
+            <i className="fa-solid fa-wand-magic-sparkles text-xs" />
+            {t('askMiloButton')}
+          </button>
+        )}
+        {miloOpen && (
+          <MiloSearchBar
+            size="compact"
+            autoFocus
+            initialValue={miloText ?? ''}
+            placeholder={t('askMiloButton')}
+            ariaLabel={t('askMiloAriaLabel')}
+            onSubmitted={() => setMiloOpen(false)}
+          />
+        )}
+
+        {/* Bandeau « Milo a compris » (milo=1, lot 5b, parcours § 2.d #2). */}
+        {isMilo && !miloOpen && (miloCriteriaCount > 0 || miloUnmatched.length > 0) && (
+          <div className="rounded-xl border border-gold/30 bg-gold-pale/60 px-4 py-2.5 text-sm text-gold-dark">
+            <p>
+              <i className="fa-solid fa-wand-magic-sparkles mr-1.5 text-xs" />
+              {miloLabels.understoodPrefix}{' '}
+              <span className="font-medium">
+                {activeChips.filter((c) => ['region', 'cityContains', 'beds', 'rooms'].includes(c.key) || c.key.startsWith('amenity-'))
+                  .map((c) => c.label).join(', ') || '—'}
+              </span>
+            </p>
+            {miloUnmatched.length > 0 && (
+              <p className="mt-1 text-xs text-gold-dark/80">
+                {miloLabels.unmatchedPrefix} « {miloUnmatched.join(' ')} »
+              </p>
+            )}
+            {miloLangRaw === 'unsupported' && (
+              <p className="mt-1 text-xs italic text-gold-dark/80">
+                {miloLabels.unsupportedNotice(getSiteLocaleName(miloLocale))}
+              </p>
+            )}
+            <button type="button" onClick={() => setMiloOpen(true)} className="mt-1 text-xs font-semibold underline underline-offset-2">
+              {miloLabels.rephrase}
+            </button>
+          </div>
+        )}
+
+        {/* Bandeau « non compris » (miloMiss=1, lot 5b, parcours § 2.d #5). */}
+        {miloMiss && !miloOpen && (
+          <div className="rounded-xl border border-line bg-card px-4 py-2.5 text-sm text-sub">
+            <p>
+              <i className="fa-solid fa-circle-question mr-1.5 text-xs" />
+              {miloLabels.notUnderstood}
+            </p>
+            <button type="button" onClick={() => setMiloOpen(true)} className="mt-1 text-xs font-semibold text-gold-dark underline underline-offset-2">
+              {miloLabels.rephrase}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* ≥768px : barre de filtres actuelle, inchangée (lot 2a : md:hidden
           ajouté uniquement sur ce wrapper englobant, sans toucher aux
