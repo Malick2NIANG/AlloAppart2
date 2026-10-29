@@ -6,6 +6,7 @@ import FavoriteButton from '@/components/ui/FavoriteButton';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import GreetingHero from '@/components/ui/GreetingHero';
 import GreetingCTA from '@/components/ui/GreetingCTA';
+import MiloHeroSearch from '@/components/milo/MiloHeroSearch';
 import { getListingPriceAmounts, type Listing, type PaginatedResponse } from '@/types';
 import { REGIONS } from '@/lib/regions';
 
@@ -315,13 +316,14 @@ export default async function HomePage() {
             }
           </p>
 
-          {/* ── Barre de recherche — mobile uniquement (lot 2a), mise en
-              évidence dans le hero compact. Sans effet à partir de 768px. ── */}
-          <Link href="/search" aria-label={t('searchAriaLabel')}
-            className="md:hidden animate-fadeUp delay-300 mt-6 flex w-full items-center gap-3 rounded-full border border-white/20 bg-white/95 px-5 py-3.5 text-left shadow-lg">
-            <i className="fa-solid fa-magnifying-glass text-gold-dark" />
-            <span className="text-sm font-medium text-sub">{t('searchPlaceholder')}</span>
-          </Link>
+          {/* ── Barre de recherche Milo — mobile uniquement (lot 5a), remplace
+              l'ancienne barre blanche « Où souhaitez-vous habiter ? » liée à
+              /search. Mise en évidence dans le hero compact. Sans effet à
+              partir de 768px (remplacée ≥768px, visiteur anonyme uniquement,
+              par le bloc PC ci-dessous dans la branche CTA). ── */}
+          <div className="md:hidden animate-fadeUp delay-300 mt-6">
+            <MiloHeroSearch />
+          </div>
 
           {/* ── CTA dynamiques ── */}
           {isAdmin ? (
@@ -381,12 +383,15 @@ export default async function HomePage() {
               </Link>
             </div>
           ) : (
-            /* ── Visiteur anonyme ── */
-            <div className="cta-group animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
-              <Link href="/listings"
-                className="inline-flex items-center gap-2 rounded-full bg-gold px-7 py-3.5 text-sm font-bold text-gray-900 shadow-lg hover:bg-gold-light transition-colors">
-                <i className="fa-solid fa-magnifying-glass" /> {t('searchBtn')}
-              </Link>
+            /* ── Visiteur anonyme ── Milo remplace le bouton « Rechercher »
+                PC (lot 5a) ; « Créer un compte » reste en dessous. Sans
+                effet sous 768px (bloc mobile déjà affiché plus haut, cf.
+                MiloHeroSearch ci-dessus — le bloc ci-dessous est hidden
+                md:block pour ne pas le dupliquer). ── */
+            <div className="animate-fadeUp delay-400 mt-10 flex flex-col items-center gap-4">
+              <div className="hidden md:block w-full max-w-xl">
+                <MiloHeroSearch />
+              </div>
               <Link href="/sign-up"
                 className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
                 <i className="fa-solid fa-arrow-right" /> {t('ctaCreateAccount')}

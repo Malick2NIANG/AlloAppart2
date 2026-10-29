@@ -50,6 +50,9 @@
     "searchPlaceholder": "Où souhaitez-vous habiter ?",
     "searchAriaLabel": "Ville ou quartier",
     "searchBtn": "Rechercher",
+    "miloPlaceholder": "Décrivez ce que vous cherchez : F3 à Mermoz sous 400 000 FCFA…",
+    "miloPlaceholderMobile": "Ex. : F3 à Mermoz sous 400 000 FCFA",
+    "miloAriaLabel": "Décrivez votre recherche en une phrase",
     "popular": "Populaire :",
     "stats": {
       "listings": "Annonces actives",
