@@ -970,4 +970,144 @@ describe('ListingsService', () => {
       expect(whereArg()).not.toHaveProperty('beds');
     });
   });
+
+  // Milo Search v0 — lot 2b (PLAN_SEARCH_V0.md § 1.d) : city est un champ
+  // texte libre à la publication (78 % des valeurs en base ne correspondent
+  // à aucune ville canonique) — cityContains est un filtre TOLÉRANT en plus
+  // de `city` (égalité exacte, inchangée). Appliqué en JS après findMany
+  // (comme le score/tri déjà en place), avec le même normalizeText que
+  // Milo : insensible à la casse ET aux accents, dans les deux sens (query
+  // accentuée/valeur non accentuée, ou l'inverse).
+  describe('findAll — filtre cityContains (Milo, tolérant)', () => {
+    function fakeListingWithCity(id: string, city: string) {
+      return {
+        id,
+        city,
+        boostScore: 0,
+        isVerified: false,
+        boostUntil: null,
+        createdAt: new Date('2026-01-01'),
+        owner: { id: 'o1', roles: [], subscription: null },
+        reviews: [],
+      };
+    }
+
+    function whereArg(): Record<string, unknown> {
+      const calls = prismaMock.listing.findMany.mock.calls as Array<
+        [{ where: Record<string, unknown> }]
+      >;
+      return calls[calls.length - 1][0].where;
+    }
+
+    it('sans cityContains : comportement strictement identique (where inchangé, aucune donnée retirée)', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingWithCity('l1', 'Ngor almadies'),
+        fakeListingWithCity('l2', 'Médina fall'),
+      ]);
+      const result = await service.findAll({ page: 1, limit: 20 });
+      expect(result.data).toHaveLength(2);
+      expect(whereArg()).not.toHaveProperty('cityContains');
+    });
+
+    it('insensible à la casse ("almadies" trouve "Almadies")', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingWithCity('l1', 'Almadies'),
+        fakeListingWithCity('l2', 'Mbour'),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        cityContains: 'almadies',
+      });
+      expect(result.data.map((d) => d.id)).toEqual(['l1']);
+    });
+
+    it("« Ngor almadies » trouvé par « Almadies » (sous-chaîne, pas d'accent en jeu)", async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingWithCity('l1', 'Ngor almadies'),
+        fakeListingWithCity('l2', 'Mbour'),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        cityContains: 'Almadies',
+      });
+      expect(result.data.map((d) => d.id)).toEqual(['l1']);
+    });
+
+    it('« Médina fall » trouvé par « Medina » (valeur accentuée en base, recherche sans accent)', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingWithCity('l1', 'Médina fall'),
+        fakeListingWithCity('l2', 'Plateau'),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        cityContains: 'Medina',
+      });
+      expect(result.data.map((d) => d.id)).toEqual(['l1']);
+    });
+
+    it("fonctionne aussi dans l'autre sens (recherche accentuée, valeur sans accent en base)", async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingWithCity('l1', 'Medina fall'),
+        fakeListingWithCity('l2', 'Plateau'),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        cityContains: 'Médina',
+      });
+      expect(result.data.map((d) => d.id)).toEqual(['l1']);
+    });
+
+    it('aucune correspondance → liste vide (pas une erreur)', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingWithCity('l1', 'Plateau'),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        cityContains: 'Almadies',
+      });
+      expect(result.data).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+
+    it('annonce sans city (null) : jamais une correspondance, jamais une erreur', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        { ...fakeListingWithCity('l1', 'Plateau'), city: null },
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        cityContains: 'Plateau',
+      });
+      expect(result.data).toHaveLength(0);
+    });
+
+    it('combiné avec region : les deux filtres cohabitent (region au niveau Prisma, cityContains en JS)', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingWithCity('l1', 'Almadies'),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        region: 'Dakar',
+        cityContains: 'almadies',
+      });
+      expect(whereArg().region).toBe('Dakar');
+      expect(whereArg()).not.toHaveProperty('cityContains');
+      expect(result.data.map((d) => d.id)).toEqual(['l1']);
+    });
+
+    it("n'affecte jamais `city` (égalité exacte) : les deux restent indépendants", async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingWithCity('l1', 'Almadies'),
+      ]);
+      await service.findAll({ page: 1, limit: 20, city: 'Almadies' });
+      expect(whereArg().city).toBe('Almadies');
+      expect(whereArg()).not.toHaveProperty('cityContains');
+    });
+  });
 });

@@ -27,6 +27,7 @@ import axios from 'axios';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 import { PlatformConfigService } from '../platform-config/platform-config.service';
 import { checkRegionConsistency } from './region-geo';
+import { normalizeText } from '../milo/normalize';
 
 const BOOST_DAYS = 7;
 const BOOST_SCORE_GAIN = 10;
@@ -104,6 +105,7 @@ export class ListingsService {
       q,
       region,
       city,
+      cityContains,
       type,
       transactionType,
       minPrice,
@@ -202,6 +204,30 @@ export class ListingsService {
       orderBy: [{ createdAt: 'desc' }],
     });
 
+    // ── cityContains (Milo, lot 2b) : city est un champ texte libre côté
+    // formulaire (78 % des valeurs en base ne correspondent à aucune ville
+    // canonique, cf. rapport du lot 2) — `city` reste une égalité exacte
+    // pour le PC, inchangée. `cityContains` est un filtre tolérant en plus,
+    // jamais à la place : insensible à la casse ET aux accents. Vérifié
+    // empiriquement que l'ILIKE de Postgres ne replie PAS les accents
+    // (« médina » ILIKE '%medina%' → false dans ce conteneur) : un simple
+    // OR de variantes accentuées/non-accentuées de la VALEUR ne suffit donc
+    // pas à retrouver « Médina fall » avec « Medina » (l'accent est sur la
+    // valeur stockée, pas sur la recherche). Comme findAll charge déjà
+    // toutes les lignes correspondantes en mémoire avant de paginer (tri/
+    // score fait en JS, cf. plus bas), le filtre est appliqué ici en JS
+    // avec le même normalizeText que Milo (minuscules + accents retirés),
+    // sans dépendance ni migration Postgres. Alternative proposée (non
+    // appliquée) : l'extension Postgres `unaccent` ferait ce filtrage
+    // directement en SQL (`unaccent(city) ILIKE unaccent(...)`) et passerait
+    // à l'échelle au-delà du filtrage en mémoire — à évaluer séparément,
+    // cf. rapport du lot 2b.
+    const cityFiltered = cityContains
+      ? allData.filter((l) =>
+          normalizeText(l.city ?? '').includes(normalizeText(cityContains)),
+        )
+      : allData;
+
     // ── Calcul du score de visibilité ─────────────────────────────────
     // PRO_AGENCE PRO actif : +200 | PRO_AGENCE STARTER actif : +100
     // Bailleur boosté (boostUntil > maintenant) : +50
@@ -211,7 +237,7 @@ export class ListingsService {
     // annonce simple : 75 > 50 > 25 > 0)
     // + boostScore existant (achats de boost)
     const now = new Date();
-    const scored = allData.map((listing) => {
+    const scored = cityFiltered.map((listing) => {
       let priority = listing.boostScore;
       const ownerRoles = listing.owner?.roles ?? [];
       const sub = listing.owner?.subscription;

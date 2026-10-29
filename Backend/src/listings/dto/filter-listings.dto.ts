@@ -26,6 +26,13 @@ export class FilterListingsDto {
   @IsString()
   city?: string;
 
+  /** Filtre tolérant (Milo, lot 2b) : city contient la valeur, insensible à
+   * la casse et aux accents. N'affecte jamais `city` (égalité exacte,
+   * inchangée pour le PC) — un filtre en plus, jamais à la place. */
+  @IsOptional()
+  @IsString()
+  cityContains?: string;
+
   @IsOptional()
   @IsEnum(ListingType)
   type?: ListingType;
