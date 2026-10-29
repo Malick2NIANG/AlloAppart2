@@ -233,6 +233,17 @@ export default function NavbarClient({ locale, labels }: Props) {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  /* ── Menu burger ouvert (< 1024px) : verrouille le défilement de la page ──
+     Le burger s'affiche jusqu'à 1023px (mobile + tablette). Sans effet à
+     partir de 1024px (le test matchMedia sort immédiatement). */
+  useEffect(() => {
+    if (!mobileOpen) return;
+    if (!window.matchMedia('(max-width: 1023px)').matches) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [mobileOpen]);
+
   /* ── Click-outside dropdowns ─────────────────────────────── */
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -305,16 +316,24 @@ export default function NavbarClient({ locale, labels }: Props) {
         <div className="flex h-20 max-md:h-14 items-center gap-3 lg:gap-4">
 
           {/* ── Logo ─────────────────────────────────────────────── */}
-          <Link href="/" aria-label="AlloAppart" className="shrink-0">
+          {/* Le fichier LOGO.png est un carré 500×500 avec ~70 % de marge
+              transparente en hauteur : à h-20 (comme le footer) le logo visible
+              ne fait que ~25px. Sous 768px on garde donc l'image à h-20 (même
+              taille visible que le footer) dans un lien de 56px (hauteur de la
+              barre) : la marge transparente déborde sans rien cacher. */}
+          <Link href="/" aria-label="AlloAppart" className="shrink-0 max-md:flex max-md:h-14 max-md:items-center">
             <Image src="/images/LOGO.png" alt="AlloAppart" width={300} height={85}
-              className="h-20 w-auto max-md:h-10" priority />
+              className="h-20 w-auto max-md:max-w-none" priority />
           </Link>
 
           {/* ── Search pill ──────────────────────────────────────── */}
           <form onSubmit={handleSearch}
             className="hidden md:flex flex-1 items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2 rounded-full border border-[rgba(250,204,21,0.35)] bg-card shadow-sm hover:shadow-md transition-all duration-300 min-w-0"
           >
-            <div className="flex items-center gap-2 min-w-0">
+            {/* md:max-lg:flex-1 : entre 768 et 1023px (champs Min/Max masqués) le
+                champ Localité remplit la barre et le bouton va à droite. Sans
+                effet à partir de 1024px. */}
+            <div className="flex items-center gap-2 min-w-0 md:max-lg:flex-1">
               <i className="fa-solid fa-location-dot text-gold-dark text-sm opacity-80 shrink-0" />
               <input name="q" type="text" value={searchVal}
                 onChange={(e) => setSearchVal(e.target.value)}
@@ -463,7 +482,10 @@ export default function NavbarClient({ locale, labels }: Props) {
 
       {/* ── Drawer mobile ─────────────────────────────────────────── */}
       {mobileOpen && (
-        <div className="lg:hidden glass border-t border-line px-4 pb-5 pt-3">
+        // max-md : le menu défile lui-même (hauteur limitée à l'écran moins
+        // l'en-tête de 56px et la barre du bas) et ne fait plus défiler la page
+        // derrière. Sans effet à partir de 768px.
+        <div className="lg:hidden glass border-t border-line px-4 pb-5 pt-3 max-md:max-h-[calc(100dvh-3.5rem-var(--safe-top,0px)-var(--bottom-nav-h,0px))] max-md:overflow-y-auto max-md:overscroll-contain md:max-lg:max-h-[calc(100dvh-5rem)] md:max-lg:overflow-y-auto md:max-lg:overscroll-contain">
 
           {/* Recherche */}
           <form onSubmit={handleSearch} className="mb-3 grid gap-2 p-3 rounded-2xl border border-line bg-card">

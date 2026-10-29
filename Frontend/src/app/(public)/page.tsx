@@ -403,12 +403,12 @@ export default async function HomePage() {
           (grid-cols-1 sm:grid-cols-3 + divide-* inchangés). ── */}
       <section className="bg-bg border-t border-line py-16 px-4">
         <div className="aa-container">
-          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line max-md:grid-cols-2 max-md:divide-y-0 max-md:divide-x-0 max-md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line max-md:grid-cols-3 max-md:divide-y-0 max-md:divide-x-0 max-md:gap-2">
             {STATS_DATA.map((s) => (
-              <div key={s.key} className="flex flex-col items-center text-center px-8 py-8 sm:py-4">
-                <p className="text-5xl font-extrabold tracking-tight text-text">{s.value}</p>
-                <div className="mt-3 h-0.5 w-10 rounded-full bg-gold" />
-                <p className="mt-3 text-sm font-medium text-sub">{t(`stats.${s.key}`)}</p>
+              <div key={s.key} className="flex flex-col items-center text-center px-8 py-8 sm:py-4 max-md:px-1 max-md:py-2">
+                <p className="text-5xl font-extrabold tracking-tight text-text max-md:text-3xl">{s.value}</p>
+                <div className="mt-3 h-0.5 w-10 rounded-full bg-gold max-md:mt-2 max-md:w-8" />
+                <p className="mt-3 text-sm font-medium text-sub max-md:mt-2 max-md:text-xs max-md:leading-tight">{t(`stats.${s.key}`)}</p>
               </div>
             ))}
           </div>
