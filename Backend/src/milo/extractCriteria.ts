@@ -96,7 +96,8 @@ export function extractCriteria(text: string): MiloExtractionResult {
   // pas les tokens déjà consommés par le lot 1 (règle 7).
   const placesRes = extractPlaces(tokens, main.consumed);
   if (placesRes.region) main.strictFilters.region = placesRes.region;
-  if (placesRes.city) main.strictFilters.city = placesRes.city;
+  if (placesRes.cityContains)
+    main.strictFilters.cityContains = placesRes.cityContains;
   placesRes.consumed.forEach((i) => main.consumed.add(i));
   main.matchedSpans.push(...placesRes.matchedSpans);
 

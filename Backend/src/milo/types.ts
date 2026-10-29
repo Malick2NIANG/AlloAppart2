@@ -18,8 +18,10 @@ export interface MiloStrictFilters {
   amenities?: string[];
   /** Nom canonique de région, tel qu'accepté par le filtre `region` (lot 2). */
   region?: string;
-  /** Valeur canonique de ville/quartier, telle qu'accepté par le filtre `city` (lot 2). */
-  city?: string;
+  /** Valeur canonique de ville/quartier, pour le filtre tolérant
+   * `cityContains` (lot 2b) — `city` (égalité exacte) n'est plus émis,
+   * city étant un champ texte libre côté formulaire. */
+  cityContains?: string;
 }
 
 export type MiloSpanCategory =

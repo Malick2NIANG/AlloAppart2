@@ -4,10 +4,15 @@ import { matchPhraseAt } from '../tokenize';
 import type { MiloMatchedSpan } from '../types';
 import { PLACES } from '../places/places.data';
 import { PLACE_ALIASES } from '../places/aliases';
+import { QUARTIERS } from '../places/quartiers';
 
 export interface PlacesExtraction {
   region?: string;
-  city?: string;
+  /** Valeur canonique pour le filtre tolérant `cityContains` (lot 2b) —
+   * `city` (égalité exacte) n'est plus jamais émis par Milo : city est un
+   * champ texte libre côté formulaire (78 % non canoniques, cf. rapport du
+   * lot 2), l'égalité exacte y échoue trop souvent. */
+  cityContains?: string;
   consumed: Set<number>;
   matchedSpans: MiloMatchedSpan[];
 }
@@ -39,24 +44,32 @@ function buildIndex(): PlaceEntry[] {
 
   // Villes/quartiers regroupés par forme normalisée, pour détecter les noms
   // partagés par plusieurs régions avant de déduire quoi que ce soit.
+  // places.data.ts (généré) et quartiers.ts (saisi à la main, lot 2b)
+  // alimentent le même index — un nom présent dans les deux (ex. Mermoz,
+  // Almadies, Saly) ne crée pas de doublon, juste la même entrée confirmée
+  // deux fois.
   const byNormalized = new Map<
     string,
     { canonicalValue: string; regions: Set<string> }
   >();
-  for (const p of PLACES) {
-    for (const place of [...p.cities, ...p.neighborhoods]) {
-      const norm = normalizeText(place);
-      const existing = byNormalized.get(norm);
-      if (existing) {
-        existing.regions.add(p.region);
-      } else {
-        byNormalized.set(norm, {
-          canonicalValue: place,
-          regions: new Set([p.region]),
-        });
-      }
+  const addPlace = (name: string, region: string) => {
+    const norm = normalizeText(name);
+    const existing = byNormalized.get(norm);
+    if (existing) {
+      existing.regions.add(region);
+    } else {
+      byNormalized.set(norm, {
+        canonicalValue: name,
+        regions: new Set([region]),
+      });
     }
+  };
+  for (const p of PLACES) {
+    for (const place of [...p.cities, ...p.neighborhoods])
+      addPlace(place, p.region);
   }
+  for (const q of QUARTIERS) addPlace(q.name, q.region);
+
   for (const [norm, { canonicalValue, regions }] of byNormalized) {
     entries.push({
       normalized: norm,
@@ -131,8 +144,10 @@ function findUniqueFuzzy(
  * Lieux (régions/villes/quartiers), indépendants de la langue — ne comptent
  * jamais dans `signals` (appelé hors du runExtractors par dictionnaire,
  * voir extractCriteria.ts). Un nom de région seul → region seule (règle 1).
- * Une ville/quartier connue → city + region déduite si unique (règle 2).
- * Plusieurs lieux de régions différentes → rien d'extrait (règle 3).
+ * Une ville/quartier connue → cityContains + region déduite si unique
+ * (règle 2, lot 2b : city exact n'est plus émis, city étant un champ texte
+ * libre en base). Plusieurs lieux de régions différentes → rien d'extrait
+ * (règle 3).
  */
 export function extractPlaces(
   tokens: Token[],
@@ -226,13 +241,13 @@ export function extractPlaces(
   );
   if (distinctPlaceValues.size > 1) {
     // Plusieurs villes/quartiers différents cités → region seule si connue
-    // (règle 3), jamais de city ambigu.
+    // (règle 3), jamais de cityContains ambigu.
     return { region, consumed, matchedSpans };
   }
 
   return {
     region,
-    city: placeMatches[0].entry.canonicalValue,
+    cityContains: placeMatches[0].entry.canonicalValue,
     consumed,
     matchedSpans,
   };

@@ -7,7 +7,17 @@
  * du point `.`, le contexte (suffixe k/m, mot-clé de prix) tranche.
  */
 export function stripAccents(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  // œ/æ sont des ligatures, pas une lettre + accent combinant : NFD ne les
+  // décompose pas (ex. "Sacré-Cœur" → "cœur" resterait "c" + "ur" une fois
+  // le œ non reconnu remplacé par un espace, lot 2b). Dépliées à la main
+  // avant la décomposition NFD.
+  return s
+    .replace(/œ/g, 'oe')
+    .replace(/Œ/g, 'OE')
+    .replace(/æ/g, 'ae')
+    .replace(/Æ/g, 'AE')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
 }
 
 export function normalizeText(s: string): string {

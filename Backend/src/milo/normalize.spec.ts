@@ -12,6 +12,10 @@ describe('stripAccents', () => {
     );
   });
 
+  it('déplie la ligature œ (ex. « Cœur ») — NFD seul ne la décompose pas (lot 2b)', () => {
+    expect(stripAccents('Sacré-Cœur')).toBe('Sacre-Coeur');
+  });
+
   it('ne modifie pas une chaîne déjà sans accent', () => {
     expect(stripAccents('villa calme')).toBe('villa calme');
   });
