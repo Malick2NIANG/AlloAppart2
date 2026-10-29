@@ -384,17 +384,17 @@ export default async function HomePage() {
             </div>
           ) : (
             /* ── Visiteur anonyme ── Milo remplace le bouton « Rechercher »
-                PC (lot 5a) ; « Créer un compte » reste en dessous. Sans
-                effet sous 768px (bloc mobile déjà affiché plus haut, cf.
-                MiloHeroSearch ci-dessus — le bloc ci-dessous est hidden
-                md:block pour ne pas le dupliquer). ── */
-            <div className="animate-fadeUp delay-400 mt-10 flex flex-col items-center gap-4">
+                PC (lot 5a) ; « Créer un compte » reste en dessous, en
+                bouton doré (lot 6.0 — même style que les autres CTA
+                principaux du site). Sans effet sous 768px (bloc mobile déjà
+                affiché plus haut, cf. MiloHeroSearch ci-dessus — le bloc
+                ci-dessous est hidden md:block pour ne pas le dupliquer). ── */
+            <div className="animate-fadeUp delay-400 mt-8 flex flex-col items-center gap-5">
               <div className="hidden md:block w-full max-w-xl">
                 <MiloHeroSearch />
               </div>
-              <Link href="/sign-up"
-                className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/20 transition-colors">
-                <i className="fa-solid fa-arrow-right" /> {t('ctaCreateAccount')}
+              <Link href="/sign-up" className="btn-gold">
+                {t('ctaCreateAccount')} <i className="fa-solid fa-arrow-right" />
               </Link>
             </div>
           )}

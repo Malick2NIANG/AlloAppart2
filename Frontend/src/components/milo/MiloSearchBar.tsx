@@ -1,73 +1,83 @@
 'use client';
 
-import { forwardRef, useId, useImperativeHandle, useState, useSyncExternalStore } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { parseQuery, strictFiltersToParams } from '@/lib/milo';
 
-const MOBILE_QUERY = '(max-width: 640px)';
-
-function subscribe(callback: () => void) {
-  const mql = window.matchMedia(MOBILE_QUERY);
-  mql.addEventListener('change', callback);
-  return () => mql.removeEventListener('change', callback);
-}
-function getSnapshot() {
-  return window.matchMedia(MOBILE_QUERY).matches;
-}
-/** SSR-safe : rendu serveur = `false` (placeholder complet), corrigé au montage. */
-function useIsMobile(): boolean {
-  return useSyncExternalStore(subscribe, getSnapshot, () => false);
-}
+const ROTATION_MS = 3500;
+const MAX_LENGTH = 300; // miroir de ParseQueryDto.text @MaxLength(300) — Backend/src/milo/dto/parse-query.dto.ts
+const MIN_SUBMIT_LENGTH = 2;
 
 interface Props {
   placeholder: string;
-  mobilePlaceholder?: string;
   ariaLabel: string;
+  /** Étiquette du bouton « effacer » (croix) — FR/EN via l'appelant (next-intl). */
+  clearLabel: string;
   initialValue?: string;
   autoFocus?: boolean;
   size?: 'hero' | 'compact';
   className?: string;
   /** Lot 5b : le tiroir /listings referme la barre après envoi. */
   onSubmitted?: () => void;
+  /**
+   * Lot 6.0 — accueil uniquement (`size="hero"`) : phrases qui alternent
+   * dans le placeholder quand le champ est vide et sans focus. Calque
+   * décoratif aria-hidden, l'étiquette accessible (`ariaLabel`) reste
+   * statique — cf. commentaire sur le rendu plus bas.
+   */
+  rotatingPhrases?: readonly string[];
 }
 
-/** Exposé via ref — utilisé par les pastilles d'exemples (lot 5a) pour
- * remplir ET lancer la recherche en un clic, sans dupliquer la logique
- * d'envoi hors du composant. */
-export interface MiloSearchBarHandle {
-  fillAndSubmit: (text: string) => void;
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /**
- * Barre de recherche en langage naturel Milo — réutilisée à l'identique sur
- * l'accueil (hero) et sur /listings (bouton « Demander à Milo »), cf.
+ * Barre de recherche en langage naturel Milo — réutilisée sur l'accueil
+ * (hero) et sur /listings (bouton « Demander à Milo »), cf.
  * PLAN_SEARCH_V0.md § 2.d : « déplie la même barre ».
  *
  * Honnêteté (Milo.md) : Milo comprend UNE recherche décrite en une phrase,
  * il ne converse pas — un seul champ, un seul envoi, pas de tour-par-tour.
  */
-const MiloSearchBar = forwardRef<MiloSearchBarHandle, Props>(function MiloSearchBar({
+export default function MiloSearchBar({
   placeholder,
-  mobilePlaceholder,
   ariaLabel,
+  clearLabel,
   initialValue = '',
   autoFocus = false,
   size = 'hero',
   className = '',
   onSubmitted,
-}, ref) {
+  rotatingPhrases,
+}: Props) {
   const router = useRouter();
   const siteLocale = useLocale() as 'fr' | 'en';
   const [text, setText] = useState(initialValue);
   const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [phraseIndex, setPhraseIndex] = useState(0);
   const inputId = useId();
-  const isMobile = useIsMobile();
-  const effectivePlaceholder = isMobile && mobilePlaceholder ? mobilePlaceholder : placeholder;
+  const isHero = size === 'hero';
+
+  // Rotation du placeholder (lot 6.0, hero uniquement) : s'arrête au focus,
+  // dès qu'il y a du texte, ou si prefers-reduced-motion (phrase fixe,
+  // jamais de minuteur lancé dans ce cas).
+  useEffect(() => {
+    if (!isHero || !rotatingPhrases || rotatingPhrases.length < 2) return;
+    if (focused || text || prefersReducedMotion()) return;
+    const timer = setInterval(() => {
+      setPhraseIndex((i) => (i + 1) % rotatingPhrases.length);
+    }, ROTATION_MS);
+    return () => clearInterval(timer);
+  }, [isHero, rotatingPhrases, focused, text]);
 
   const submit = async (override?: string) => {
     const trimmed = (override ?? text).trim();
-    if (!trimmed || loading) return; // pas de double envoi, pas de requête vide
+    // Pas de double envoi, pas de requête trop courte (< 2 caractères après trim).
+    if (trimmed.length < MIN_SUBMIT_LENGTH || loading) return;
     setLoading(true);
 
     try {
@@ -93,7 +103,9 @@ const MiloSearchBar = forwardRef<MiloSearchBarHandle, Props>(function MiloSearch
       params.set('miloLang', result.detectedLanguage);
       params.set('miloText', trimmed);
       if (result.unmatchedTokens.length > 0) params.set('miloUnmatched', result.unmatchedTokens.join(','));
-      // softPreferences conservées mais ignorées pour l'instant (lot 6).
+      // softPreferences (lot 6a) : conservées dans l'URL, exploitées par
+      // ListingsFilters/listings.service — ce composant ne fait que les
+      // transmettre telles quelles.
       if (result.softPreferences.length > 0) params.set('prefs', result.softPreferences.join(','));
       router.push(`/listings?${params.toString()}`);
     } finally {
@@ -103,53 +115,78 @@ const MiloSearchBar = forwardRef<MiloSearchBarHandle, Props>(function MiloSearch
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Escape') {
       e.preventDefault();
-      void submit();
+      setText('');
     }
   };
 
-  useImperativeHandle(ref, () => ({
-    fillAndSubmit: (value: string) => {
-      setText(value);
-      void submit(value);
-    },
-  }));
-
-  const isHero = size === 'hero';
+  const canSubmit = !loading && text.trim().length >= MIN_SUBMIT_LENGTH;
 
   return (
-    <div
-      className={`flex w-full items-center gap-3 rounded-full border shadow-lg transition-colors ${
+    <form
+      role="search"
+      onSubmit={(e) => { e.preventDefault(); void submit(); }}
+      className={`group flex w-full items-center gap-3 rounded-full border shadow-lg transition-all duration-200 ${
         isHero
-          ? 'border-white/20 bg-white/95 px-5 py-3.5 dark:bg-card/95'
+          ? 'h-14 border-black/5 bg-white/90 px-5 shadow-black/5 backdrop-blur-sm focus-within:shadow-xl focus-within:ring-2 focus-within:ring-gold/60 md:h-16 md:max-w-[680px] md:mx-auto dark:border-white/10 dark:bg-card/90'
           : 'border-line bg-card px-4 py-3'
       } ${className}`}
     >
-      <i className={`fa-solid fa-wand-magic-sparkles shrink-0 ${isHero ? 'text-gold-dark' : 'text-gold-dark text-sm'}`} aria-hidden />
+      <i className={`fa-solid fa-wand-magic-sparkles shrink-0 text-gold-dark ${isHero ? '' : 'text-sm'}`} aria-hidden />
       <label htmlFor={inputId} className="sr-only">{ariaLabel}</label>
-      <input
-        id={inputId}
-        type="text"
-        inputMode="search"
-        autoFocus={autoFocus}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={loading}
-        placeholder={effectivePlaceholder}
-        className={`min-w-0 flex-1 bg-transparent text-left outline-none placeholder:text-sub/70 ${
-          isHero ? 'text-[16px] font-medium text-text' : 'text-[16px] text-text'
-        }`}
-        aria-label={ariaLabel}
-      />
+
+      <div className="relative min-w-0 flex-1">
+        <input
+          id={inputId}
+          type="text"
+          inputMode="search"
+          autoFocus={autoFocus}
+          value={text}
+          maxLength={MAX_LENGTH}
+          readOnly={loading}
+          aria-busy={loading}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          // Hero avec rotation : le placeholder natif reste vide, le calque
+          // aria-hidden ci-dessous porte le texte visible — un screen
+          // reader ne doit annoncer que l'étiquette statique (`ariaLabel`),
+          // jamais une phrase qui change toutes les 3,5 s.
+          placeholder={isHero && rotatingPhrases?.length ? '' : placeholder}
+          className="w-full min-w-0 bg-transparent text-left text-[16px] text-text outline-none"
+          aria-label={ariaLabel}
+        />
+        {isHero && rotatingPhrases && rotatingPhrases.length > 0 && !text && !focused && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 flex items-center overflow-hidden text-[16px] text-sub/70"
+          >
+            <span key={phraseIndex} className="animate-fadeSwap truncate">
+              {rotatingPhrases[phraseIndex % rotatingPhrases.length]}
+            </span>
+          </span>
+        )}
+      </div>
+
+      {text && !loading && (
+        <button
+          type="button"
+          onClick={() => setText('')}
+          aria-label={clearLabel}
+          className="tap-target flex shrink-0 items-center justify-center rounded-full text-sub transition-colors hover:text-text"
+        >
+          <i className="fa-solid fa-xmark text-sm" aria-hidden />
+        </button>
+      )}
+
       <button
-        type="button"
-        onClick={() => void submit()}
-        disabled={loading || !text.trim()}
+        type="submit"
+        disabled={!canSubmit}
         aria-label={ariaLabel}
-        className={`tap-target flex shrink-0 items-center justify-center rounded-full bg-gold text-gray-900 transition-colors disabled:opacity-40 ${
-          isHero ? 'h-11 w-11' : 'h-9 w-9'
+        className={`tap-target flex shrink-0 items-center justify-center rounded-full bg-gold text-gray-900 transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:hover:scale-100 ${
+          isHero ? 'h-10 w-10 md:h-11 md:w-11' : 'h-9 w-9'
         }`}
       >
         {loading ? (
@@ -158,8 +195,6 @@ const MiloSearchBar = forwardRef<MiloSearchBarHandle, Props>(function MiloSearch
           <i className="fa-solid fa-arrow-right text-sm" aria-hidden />
         )}
       </button>
-    </div>
+    </form>
   );
-});
-
-export default MiloSearchBar;
+}

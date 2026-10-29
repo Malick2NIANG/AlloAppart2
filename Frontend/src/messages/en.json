@@ -51,8 +51,9 @@
     "searchAriaLabel": "City or neighbourhood",
     "searchBtn": "Search",
     "miloPlaceholder": "Describe what you're looking for: 2 bedrooms in Almadies under 300k…",
-    "miloPlaceholderMobile": "E.g.: 2 bedrooms in Almadies under 300k",
     "miloAriaLabel": "Describe your search in one sentence",
+    "miloClear": "Clear search",
+    "miloHelpLine": "Milo understands location, budget, bedrooms, property type…",
     "popular": "Popular:",
     "stats": {
       "listings": "Active listings",
@@ -481,6 +482,7 @@
     "filtersButton": "Filters",
     "askMiloButton": "Ask Milo",
     "askMiloAriaLabel": "Describe your search in one sentence",
+    "askMiloClear": "Clear search",
     "filtersOwner": "Advertiser",
     "removeFilter": "Remove this filter",
     "applyFilters": "Apply",

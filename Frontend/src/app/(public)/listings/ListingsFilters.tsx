@@ -300,6 +300,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
             initialValue={miloText ?? ''}
             placeholder={t('askMiloButton')}
             ariaLabel={t('askMiloAriaLabel')}
+            clearLabel={t('askMiloClear')}
             onSubmitted={() => setMiloOpen(false)}
           />
         )}

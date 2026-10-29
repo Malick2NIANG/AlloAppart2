@@ -31,6 +31,13 @@
   0%   { transform: scale(1);    }
   100% { transform: scale(1.08); }
 }
+/* Placeholder tournant de la barre Milo (lot 6.0) : fondu pur, sans
+   déplacement vertical (contrairement à fadeIn) — le texte reste en place,
+   seule l'opacité change. */
+@keyframes fadeSwap {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 
 /* ── CSS Variables ─────────────────────────────────────────────────── */
 :root {
@@ -286,6 +293,7 @@ h1, h2, h3, h4, h5 {
 .animate-fadeUp     { animation: fadeUp      1s   ease      both; }
 .animate-fadeIn     { animation: fadeIn      0.4s ease-out  both; }
 .animate-fadeInLeft { animation: fadeInLeft  0.8s ease-out  both; }
+.animate-fadeSwap   { animation: fadeSwap    0.5s ease-out  both; }
 .animate-float      { animation: float       8s   ease-in-out infinite; }
 .animate-softBounce { animation: softBounce  3s   ease-in-out infinite; }
 .animate-zoomIn     { animation: zoomIn      18s  ease-in-out infinite alternate; }

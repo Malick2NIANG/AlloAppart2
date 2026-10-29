@@ -1,10 +1,11 @@
 /**
- * Milo Search v0 — lot 5a : vérifie que chaque pastille d'exemple du hero
- * (src/components/milo/examples.ts) est bien comprise (understood: true)
- * par le Backend réel. Script de vérification ponctuelle, PAS un test
- * Vitest : le job Frontend de la CI ne démarre pas le Backend, donc ce
- * script a besoin d'une instance locale déjà lancée (npm run start[:dev]
- * dans Backend/) pour fonctionner — usage manuel uniquement, comme
+ * Milo Search v0 — vérifie que chaque phrase du placeholder tournant de la
+ * barre hero (src/components/milo/examples.ts, lot 6.0 — plus de pastilles
+ * cliquables depuis ce lot) est bien comprise (understood: true) par le
+ * Backend réel. Script de vérification ponctuelle, PAS un test Vitest : le
+ * job Frontend de la CI ne démarre pas le Backend, donc ce script a besoin
+ * d'une instance locale déjà lancée (npm run start[:dev] dans Backend/) pour
+ * fonctionner — usage manuel uniquement, comme
  * Backend/scripts/milo-measure-robustness.ts.
  *
  * Usage : npx tsx scripts/milo-verify-examples.ts

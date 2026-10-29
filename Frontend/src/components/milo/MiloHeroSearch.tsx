@@ -1,43 +1,34 @@
 'use client';
 
-import { useRef } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import MiloSearchBar, { type MiloSearchBarHandle } from './MiloSearchBar';
+import MiloSearchBar from './MiloSearchBar';
 import { MILO_EXAMPLES } from './examples';
 
 /**
- * Hero accueil (lot 5a) : remplace le bouton « Rechercher » (PC) et la barre
- * blanche de recherche mobile — cf. PLAN_SEARCH_V0.md § 2.d. Les pastilles
- * d'exemples remplissent ET lancent la recherche en un clic (via la ref
- * exposée par MiloSearchBar), sans dupliquer la logique d'envoi.
+ * Hero accueil (lot 5a, finitions lot 6.0) : remplace le bouton
+ * « Rechercher » (PC) et la barre blanche de recherche mobile — cf.
+ * PLAN_SEARCH_V0.md § 2.d. Les pastilles d'exemples cliquables du lot 5a
+ * ont été retirées (lot 6.0) : les mêmes phrases alternent désormais dans
+ * le placeholder de la barre (rotatingPhrases), jamais cliquables.
  */
 export default function MiloHeroSearch() {
   const t = useTranslations('home');
   const locale = useLocale() as 'fr' | 'en';
-  const barRef = useRef<MiloSearchBarHandle>(null);
-  const examples = MILO_EXAMPLES[locale] ?? MILO_EXAMPLES.fr;
+  const rotatingPhrases = MILO_EXAMPLES[locale] ?? MILO_EXAMPLES.fr;
 
   return (
     <div className="w-full">
       <MiloSearchBar
-        ref={barRef}
         size="hero"
         placeholder={t('miloPlaceholder')}
-        mobilePlaceholder={t('miloPlaceholderMobile')}
         ariaLabel={t('miloAriaLabel')}
+        clearLabel={t('miloClear')}
+        rotatingPhrases={rotatingPhrases}
       />
-      <div className="mt-3 flex flex-wrap justify-center gap-2">
-        {examples.map((example) => (
-          <button
-            key={example}
-            type="button"
-            onClick={() => barRef.current?.fillAndSubmit(example)}
-            className="tap-target rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-xs font-medium text-white/90 backdrop-blur-sm transition-colors hover:bg-white/20"
-          >
-            {example}
-          </button>
-        ))}
-      </div>
+      {/* Ligne d'aide discrète (lot 6.0) : jamais de promesse de conversation. */}
+      <p className="mt-3 text-center text-xs text-gray-300/80">
+        {t('miloHelpLine')}
+      </p>
     </div>
   );
 }

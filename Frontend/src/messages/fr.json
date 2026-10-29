@@ -51,8 +51,9 @@
     "searchAriaLabel": "Ville ou quartier",
     "searchBtn": "Rechercher",
     "miloPlaceholder": "Décrivez ce que vous cherchez : F3 à Mermoz sous 400 000 FCFA…",
-    "miloPlaceholderMobile": "Ex. : F3 à Mermoz sous 400 000 FCFA",
     "miloAriaLabel": "Décrivez votre recherche en une phrase",
+    "miloClear": "Effacer la recherche",
+    "miloHelpLine": "Milo comprend le lieu, le budget, le nombre de chambres, le type de bien…",
     "popular": "Populaire :",
     "stats": {
       "listings": "Annonces actives",
@@ -481,6 +482,7 @@
     "filtersButton": "Filtres",
     "askMiloButton": "Demander à Milo",
     "askMiloAriaLabel": "Décrivez votre recherche en une phrase",
+    "askMiloClear": "Effacer la recherche",
     "filtersOwner": "Annonceur",
     "removeFilter": "Retirer ce filtre",
     "applyFilters": "Appliquer",

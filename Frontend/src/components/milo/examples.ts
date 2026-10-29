@@ -1,8 +1,9 @@
 /**
- * Milo Search v0 — lot 5a : pastilles d'exemples cliquables sous la barre
- * hero (une façon de montrer ce que Milo comprend sans explication, cf.
- * PLAN_SEARCH_V0.md § 2.d). Vérifiées « compris » (understood: true) une par
- * une contre le Backend réel — voir scripts/milo-verify-examples.ts.
+ * Milo Search v0 — phrases alternant dans le placeholder de la barre hero
+ * (lot 6.0 — remplace les pastilles cliquables du lot 5a, retirées : une
+ * façon de montrer ce que Milo comprend sans qu'elles soient actionnables).
+ * Vérifiées « compris » (understood: true) une par une contre le Backend
+ * réel — voir scripts/milo-verify-examples.ts.
  */
 
 export const MILO_EXAMPLES: Record<'fr' | 'en', readonly string[]> = {
