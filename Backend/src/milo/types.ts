@@ -16,6 +16,10 @@ export interface MiloStrictFilters {
   type?: ListingType;
   transactionType?: TransactionType;
   amenities?: string[];
+  /** Nom canonique de région, tel qu'accepté par le filtre `region` (lot 2). */
+  region?: string;
+  /** Valeur canonique de ville/quartier, telle qu'accepté par le filtre `city` (lot 2). */
+  city?: string;
 }
 
 export type MiloSpanCategory =
@@ -25,7 +29,8 @@ export type MiloSpanCategory =
   | 'type'
   | 'transaction'
   | 'amenity'
-  | 'softPreference';
+  | 'softPreference'
+  | 'place';
 
 export interface MiloMatchedSpan {
   category: MiloSpanCategory;

@@ -8,6 +8,7 @@ import { extractAmenities } from './extractors/amenities';
 import { extractSoftPreferences } from './extractors/softPreferences';
 import { extractRoomsAndBeds } from './extractors/roomsAndBeds';
 import { extractPrice } from './extractors/price';
+import { extractPlaces } from './extractors/places';
 import type {
   LanguageDictionary,
   MiloExtractionResult,
@@ -89,6 +90,15 @@ export function extractCriteria(text: string): MiloExtractionResult {
   const tokens = tokenize(normalized);
 
   const main = runExtractors(tokens, DICTIONARIES);
+
+  // Lieux : indépendants de la langue, appliqués hors du pipeline FR/EN —
+  // ne comptent jamais dans `signals` (règle 5 du lot 2), et ne retraitent
+  // pas les tokens déjà consommés par le lot 1 (règle 7).
+  const placesRes = extractPlaces(tokens, main.consumed);
+  if (placesRes.region) main.strictFilters.region = placesRes.region;
+  if (placesRes.city) main.strictFilters.city = placesRes.city;
+  placesRes.consumed.forEach((i) => main.consumed.add(i));
+  main.matchedSpans.push(...placesRes.matchedSpans);
 
   const stopWords = collectStopWords(DICTIONARIES);
   const unmatchedTokens = tokens

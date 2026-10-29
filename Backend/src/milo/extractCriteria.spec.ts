@@ -591,12 +591,13 @@ describe('extractCriteria — requêtes mixtes FR/EN (exemples du cahier des cha
     expect(r.strictFilters.type).toBeUndefined();
   });
 
-  it('"2 bedrooms à Dakar under 300k" (le lieu reste non extrait)', () => {
+  it('"2 bedrooms à Dakar under 300k" (le lieu est désormais extrait depuis le lot 2 — dictionnaire des lieux)', () => {
     const r = extractCriteria('2 bedrooms à Dakar under 300k');
     expect(r.strictFilters.minBeds).toBe(2);
     expect(r.strictFilters.maxBeds).toBe(2);
     expect(r.strictFilters.maxPrice).toBe(300000);
-    expect(r.unmatchedTokens).toEqual(['dakar']);
+    expect(r.strictFilters.region).toBe('Dakar');
+    expect(r.unmatchedTokens).toEqual([]);
   });
 
   it('"studio meublé, budget 150k"', () => {
