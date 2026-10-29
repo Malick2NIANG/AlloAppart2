@@ -25,6 +25,7 @@ describe('ListingsService', () => {
       update: jest.Mock;
       findUnique: jest.Mock;
       findUniqueOrThrow: jest.Mock;
+      findMany: jest.Mock;
       groupBy: jest.Mock;
     };
     boostPayment: {
@@ -52,6 +53,7 @@ describe('ListingsService', () => {
         update: jest.fn(),
         findUnique: jest.fn(),
         findUniqueOrThrow: jest.fn(),
+        findMany: jest.fn(),
         groupBy: jest.fn(),
       },
       boostPayment: {
@@ -894,6 +896,78 @@ describe('ListingsService', () => {
         regionsCount: 0,
         verifiedPercent: 0,
       });
+    });
+  });
+
+  // Milo Search v0 — lot 1a (PLAN_SEARCH_V0.md § 2.h) : nouveau filtre
+  // minBeds/maxBeds (champ "Chambres"), distinct de minRooms/maxRooms
+  // (champ "Pièces") déjà existant. Mêmes validateurs/transformations que
+  // minRooms/maxRooms côté DTO ; même construction gte/lte côté service —
+  // ces tests vérifient uniquement la clause `where` passée à Prisma (la
+  // sémantique gte/lte sur un champ nullable, qui exclut les NULL dès
+  // qu'un filtre est actif, est déléguée à Prisma/Postgres, comme pour
+  // `rooms` et `surface` déjà en place).
+  describe('findAll — filtre minBeds/maxBeds', () => {
+    const fakeListing = {
+      id: 'l1',
+      boostScore: 0,
+      isVerified: false,
+      boostUntil: null,
+      createdAt: new Date('2026-01-01'),
+      owner: { id: 'o1', roles: [], subscription: null },
+      reviews: [],
+    };
+
+    beforeEach(() => {
+      prismaMock.listing.findMany.mockResolvedValue([fakeListing]);
+    });
+
+    function whereArg(): Record<string, unknown> {
+      const calls = prismaMock.listing.findMany.mock.calls as Array<
+        [{ where: Record<string, unknown> }]
+      >;
+      return calls[calls.length - 1][0].where;
+    }
+
+    it('sans minBeds/maxBeds : aucune clause beds dans le where (comportement inchangé)', async () => {
+      await service.findAll({ page: 1, limit: 20 });
+      expect(whereArg()).not.toHaveProperty('beds');
+    });
+
+    it('minBeds seul → { gte }', async () => {
+      await service.findAll({ page: 1, limit: 20, minBeds: 2 });
+      expect(whereArg().beds).toEqual({ gte: 2 });
+    });
+
+    it('maxBeds seul → { lte }', async () => {
+      await service.findAll({ page: 1, limit: 20, maxBeds: 3 });
+      expect(whereArg().beds).toEqual({ lte: 3 });
+    });
+
+    it('minBeds et maxBeds ensemble → { gte, lte }', async () => {
+      await service.findAll({ page: 1, limit: 20, minBeds: 2, maxBeds: 4 });
+      expect(whereArg().beds).toEqual({ gte: 2, lte: 4 });
+    });
+
+    it('combiné avec minRooms/maxRooms : les deux clauses coexistent, indépendantes', async () => {
+      await service.findAll({
+        page: 1,
+        limit: 20,
+        minBeds: 2,
+        maxRooms: 5,
+      });
+      const where = whereArg();
+      expect(where.beds).toEqual({ gte: 2 });
+      expect(where.rooms).toEqual({ lte: 5 });
+    });
+
+    it("une annonce avec beds=null est renvoyée par Prisma quand aucun filtre beds n'est actif (where sans clause beds, vérifié ci-dessus) — le service ne filtre pas lui-même en mémoire", async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        { ...fakeListing, id: 'l-null-beds', beds: null },
+      ]);
+      const result = await service.findAll({ page: 1, limit: 20 });
+      expect(result.data).toHaveLength(1);
+      expect(whereArg()).not.toHaveProperty('beds');
     });
   });
 });

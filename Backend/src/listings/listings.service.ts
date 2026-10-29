@@ -111,6 +111,8 @@ export class ListingsService {
       isVerified,
       minRooms,
       maxRooms,
+      minBeds,
+      maxBeds,
       minSurface,
       maxSurface,
       amenities,
@@ -139,6 +141,14 @@ export class ListingsService {
             rooms: {
               ...(minRooms !== undefined && { gte: minRooms }),
               ...(maxRooms !== undefined && { lte: maxRooms }),
+            },
+          }
+        : {}),
+      ...(minBeds !== undefined || maxBeds !== undefined
+        ? {
+            beds: {
+              ...(minBeds !== undefined && { gte: minBeds }),
+              ...(maxBeds !== undefined && { lte: maxBeds }),
             },
           }
         : {}),

@@ -77,6 +77,18 @@ export class FilterListingsDto {
   @IsNumber()
   @Min(0)
   @Type(() => Number)
+  minBeds?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  maxBeds?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   minSurface?: number;
 
   @IsOptional()
