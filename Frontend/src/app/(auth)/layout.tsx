@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
 import AuthCarousel from './AuthCarousel';
@@ -33,16 +32,11 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           style={{ background: 'linear-gradient(90deg, #facc15, #b58900, transparent)' }}
         />
 
-        {/* Logo — mobile uniquement (lot 1) : le panneau carrousel qui porte
-            déjà le logo est masqué sous lg:, il faut un repère de marque en
-            haut de l'écran pour le mode app. Sans effet à partir de 768px. */}
-        <div className="md:hidden flex justify-center pt-5 shrink-0">
-          <Image src="/images/LOGO.png" alt="AlloAppart" width={220} height={63} className="h-9 w-auto" priority />
-        </div>
-
-        {/* Retour accueil */}
+        {/* Retour accueil — doré sous 768px (même couleur que les liens
+            « Se connecter » / « conditions générales »). Sans effet à partir
+            de 768px. */}
         <div className="shrink-0 px-4 pt-4 md:px-10">
-          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors max-md:text-gold-dark max-md:font-semibold max-md:hover:text-gold-dark">
             <i className="fa-solid fa-arrow-left text-xs" />
             {t('backToSite')}
           </Link>

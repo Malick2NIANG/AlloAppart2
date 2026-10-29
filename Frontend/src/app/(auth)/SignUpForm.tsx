@@ -119,6 +119,13 @@ export default function SignUpForm() {
         <motion.div key="register" variants={slide} initial="enter" animate="center" exit="exit"
           transition={{ duration: 0.25 }} className="flex flex-col gap-3.5">
 
+          {/* Titre court, mobile uniquement (comme « Bon retour » sur la
+              connexion) : remplace le logo retiré pour aérer l'écran. Sans
+              effet à partir de 768px (md:hidden). */}
+          <div className="text-center md:hidden">
+            <h1 className="text-xl font-bold text-text">{ts('title')}</h1>
+            <p className="text-sm text-sub">{ts('subtitle')}</p>
+          </div>
 
           <Flash flash={flash} />
 
