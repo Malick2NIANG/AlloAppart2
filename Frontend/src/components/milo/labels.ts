@@ -28,6 +28,14 @@ interface MiloLabels {
   /** Nombre exact (minBeds === maxBeds) : pluriel correct, sans « min./max. ». */
   bedsExact: (n: number) => string;
   roomsExact: (n: number) => string;
+  /** Lot 6a — préférences floues : CLASSENT, ne filtrent jamais — préfixe
+   * de pastille distinct des filtres stricts (« Milo classe en priorité »). */
+  rankedByPrefix: string;
+  preferences: Record<'near_sea' | 'quiet' | 'upscale', string>;
+  /** Message honnête (lot 6a) quand aucune annonce ne contient les
+   * mots-clés d'une préférence demandée — la liste de noms de préférence
+   * déjà traduits (preferences[id]) est insérée par l'appelant. */
+  preferenceNoMatch: (prefNames: string) => string;
 }
 
 const FR: MiloLabels = {
@@ -52,6 +60,14 @@ const FR: MiloLabels = {
   },
   bedsExact: (n) => `${n} chambre${n > 1 ? 's' : ''}`,
   roomsExact: (n) => `${n} pièce${n > 1 ? 's' : ''}`,
+  rankedByPrefix: 'Milo classe en priorité :',
+  preferences: {
+    near_sea: 'proche de la mer',
+    quiet: 'au calme',
+    upscale: 'haut standing',
+  },
+  preferenceNoMatch: (prefNames) =>
+    `Aucune annonce ne mentionne ${prefNames} ; résultats triés par défaut.`,
 };
 
 const EN: MiloLabels = {
@@ -76,6 +92,14 @@ const EN: MiloLabels = {
   },
   bedsExact: (n) => `${n} bedroom${n > 1 ? 's' : ''}`,
   roomsExact: (n) => `${n} room${n > 1 ? 's' : ''}`,
+  rankedByPrefix: 'Milo ranks higher:',
+  preferences: {
+    near_sea: 'near the sea',
+    quiet: 'quiet areas',
+    upscale: 'upscale properties',
+  },
+  preferenceNoMatch: (prefNames) =>
+    `No listing mentions ${prefNames} ; results sorted by default.`,
 };
 
 const SITE_LOCALE_NAMES: Record<MiloUiLocale, string> = { fr: 'français', en: 'English' };

@@ -115,4 +115,16 @@ export class FilterListingsDto {
   @IsOptional()
   @IsEnum(['PARTICULIER', 'AGENCE'])
   ownerType?: OwnerType;
+
+  /** Préférences floues (Milo, lot 6a) : CLASSENT les résultats, n'en
+   * excluent jamais — pas de @IsEnum ici volontairement : une valeur
+   * inconnue doit être ignorée silencieusement (ListingsService), pas
+   * rejetée en 400 (contrairement aux autres enums de ce DTO). */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Transform(({ value }: { value: string | string[] }) =>
+    typeof value === 'string' ? value.split(',').filter(Boolean) : value,
+  )
+  prefs?: string[];
 }

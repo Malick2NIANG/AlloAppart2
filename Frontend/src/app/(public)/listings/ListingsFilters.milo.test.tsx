@@ -81,3 +81,49 @@ describe('ListingsFilters — pastilles Milo (lot 5b)', () => {
     expect(screen.getByDisplayValue('F3 a Mermoz')).toBeInTheDocument();
   });
 });
+
+describe('ListingsFilters — pastilles de préférence floue (lot 6a)', () => {
+  beforeEach(() => {
+    push.mockReset();
+    siteLocale = 'fr';
+    params = new URLSearchParams();
+  });
+
+  it('affiche une pastille distincte « Milo classe en priorité : … » par préférence', () => {
+    params = new URLSearchParams({ prefs: 'near_sea,quiet' });
+    render(<ListingsFilters limit={6} locale="fr" />);
+    expect(screen.getAllByText(/Milo classe en priorité :/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/proche de la mer/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/au calme/).length).toBeGreaterThan(0);
+  });
+
+  it('retirer une pastille de préférence met à jour l’URL sans elle, sans toucher aux autres paramètres', async () => {
+    params = new URLSearchParams({ prefs: 'near_sea,quiet', region: 'Dakar' });
+    const user = userEvent.setup();
+    render(<ListingsFilters region="Dakar" limit={6} locale="fr" />);
+    const chip = screen.getAllByText(/proche de la mer/)[0].closest('span')!;
+    await user.click(chip.querySelector('button')!);
+    const url = push.mock.calls[0][0] as string;
+    expect(url).toContain('prefs=quiet');
+    expect(url).not.toContain('near_sea');
+    expect(url).toContain('region=Dakar');
+  });
+
+  it('identifiant inconnu dans prefs (URL manipulée à la main) : aucune pastille, pas de crash', () => {
+    params = new URLSearchParams({ prefs: 'bogus' });
+    render(<ListingsFilters limit={6} locale="fr" />);
+    expect(screen.queryByText(/Milo classe en priorité :/)).not.toBeInTheDocument();
+  });
+
+  it('message honnête quand prefsMatched=false : aucune pastille de filtre, juste le message', () => {
+    params = new URLSearchParams({ prefs: 'near_sea' });
+    render(<ListingsFilters limit={6} locale="fr" prefsMatched={false} />);
+    expect(screen.getAllByText(/Aucune annonce ne mentionne/).length).toBeGreaterThan(0);
+  });
+
+  it('prefsMatched=true : pas de message honnête affiché', () => {
+    params = new URLSearchParams({ prefs: 'near_sea' });
+    render(<ListingsFilters limit={6} locale="fr" prefsMatched={true} />);
+    expect(screen.queryByText(/Aucune annonce ne mentionne/)).not.toBeInTheDocument();
+  });
+});

@@ -28,6 +28,10 @@ import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 import { PlatformConfigService } from '../platform-config/platform-config.service';
 import { checkRegionConsistency } from './region-geo';
 import { normalizeText } from '../milo/normalize';
+import {
+  parsePreferenceIds,
+  scoreListingPreferences,
+} from '../milo/preferences';
 
 const BOOST_DAYS = 7;
 const BOOST_SCORE_GAIN = 10;
@@ -119,9 +123,11 @@ export class ListingsService {
       maxSurface,
       amenities,
       ownerType,
+      prefs,
       page = 1,
       limit = 20,
     } = filters;
+    const prefIds = parsePreferenceIds(prefs);
 
     const where = {
       status: ListingStatus.ACTIVE,
@@ -261,12 +267,24 @@ export class ListingsService {
 
       if (listing.isVerified) priority += 25;
 
-      return { listing, priority };
+      // Préférences floues (Milo, lot 6a) : CLASSENT, n'excluent jamais —
+      // prefScore=0 pour tout le monde si prefs est absent, comportement
+      // alors strictement identique à aujourd'hui (le tri retombe sur
+      // priority, comme avant ce lot).
+      const prefScore = scoreListingPreferences(
+        listing.title,
+        listing.description,
+        prefIds,
+      );
+
+      return { listing, priority, prefScore };
     });
 
-    // Tri par score décroissant, puis par date de création décroissante
+    // Tri par score de préférence D'ABORD (lot 6a), puis par score de
+    // priorité existant, puis par date de création décroissante.
     scored.sort(
       (a, b) =>
+        b.prefScore - a.prefScore ||
         b.priority - a.priority ||
         b.listing.createdAt.getTime() - a.listing.createdAt.getTime(),
     );
@@ -274,6 +292,12 @@ export class ListingsService {
     const total = scored.length;
     const page_ = page;
     const paginated = scored.slice((page_ - 1) * limit, page_ * limit);
+    // Message honnête (lot 6a) : le Frontend doit pouvoir dire « aucune
+    // annonce ne mentionne la mer » plutôt que de laisser croire que le tri
+    // a eu un effet — calculé sur l'ensemble des résultats (pas seulement la
+    // page), undefined si prefs n'était pas demandé (pas de sens à afficher).
+    const prefsMatched =
+      prefIds.length > 0 ? scored.some((s) => s.prefScore > 0) : undefined;
 
     const enriched = paginated.map(({ listing }) => {
       const ratings = listing.reviews.map((r) => r.rating);
@@ -288,7 +312,13 @@ export class ListingsService {
       return { ...rest, avgRating };
     });
 
-    return { data: enriched, total, page, limit };
+    return {
+      data: enriched,
+      total,
+      page,
+      limit,
+      ...(prefsMatched !== undefined && { prefsMatched }),
+    };
   }
 
   async findOne(id: string) {

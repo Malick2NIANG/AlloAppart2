@@ -279,7 +279,10 @@ export interface PaginatedResponse<T> {
   limit: number;
 }
 
-export type ListingsResponse = PaginatedResponse<Listing>;
+// prefsMatched (Milo, lot 6a) : présent seulement quand `prefs` était dans
+// la requête — true/false selon qu'au moins une annonce du résultat
+// (toutes pages confondues) correspond à une préférence floue demandée.
+export type ListingsResponse = PaginatedResponse<Listing> & { prefsMatched?: boolean };
 
 export type SubscriptionPlan = 'STARTER' | 'PRO';
 export type SubscriptionStatus = 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';

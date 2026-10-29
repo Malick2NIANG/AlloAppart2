@@ -19,12 +19,14 @@ export default async function ListingsPage({
     // amenities (CSV). milo/miloLang/miloMiss pilotent le message « vide ».
     cityContains?: string; minBeds?: string; maxBeds?: string; minRooms?: string; maxRooms?: string;
     amenities?: string; milo?: string; miloLang?: string; miloMiss?: string; miloText?: string; miloUnmatched?: string;
+    // Lot 6a — préférences floues (classent, n'excluent jamais).
+    prefs?: string;
   }>;
 }) {
   const {
     page = '1', city, type, q, minPrice, maxPrice, region, limit: limitParam, tab, ownerType, verified,
     transactionType: rawTransactionType, cityContains, minBeds, maxBeds, minRooms, maxRooms, amenities,
-    milo, miloLang, miloMiss, miloText, miloUnmatched,
+    milo, miloLang, miloMiss, miloText, miloUnmatched, prefs,
   } = await searchParams;
   const transactionType = rawTransactionType === 'LOCATION' || rawTransactionType === 'VENTE' ? rawTransactionType : undefined;
   const isMilo = milo === '1';
@@ -56,6 +58,7 @@ export default async function ListingsPage({
 
   let listings: Listing[] = [];
   let total = 0;
+  let prefsMatched: boolean | undefined;
 
   if (isFavorisTab) {
     // L'API renvoie tous les favoris d'un coup : on pagine ici.
@@ -81,10 +84,12 @@ export default async function ListingsPage({
         ...(minRooms  ? { minRooms }             : {}),
         ...(maxRooms  ? { maxRooms }             : {}),
         ...(amenities ? { amenities }            : {}),
+        ...(prefs     ? { prefs }                : {}),
       });
       const res = await api.get<ListingsResponse>(`/listings?${params}`);
       listings = Array.isArray(res?.data) ? res.data : [];
       total = res.total ?? 0;
+      prefsMatched = res.prefsMatched;
     } catch {
       listings = [];
       total = 0;
@@ -116,6 +121,7 @@ export default async function ListingsPage({
     if (minRooms)  params.set('minRooms', minRooms);
     if (maxRooms)  params.set('maxRooms', maxRooms);
     if (amenities) params.set('amenities', amenities);
+    if (prefs)     params.set('prefs', prefs);
     if (isMilo)    params.set('milo', '1');
     if (miloLang)  params.set('miloLang', miloLang);
     if (miloText)  params.set('miloText', miloText);
@@ -207,6 +213,7 @@ export default async function ListingsPage({
             ownerType={ownerType}
             limit={perPage}
             locale={locale}
+            prefsMatched={prefsMatched}
           />
         )}
 

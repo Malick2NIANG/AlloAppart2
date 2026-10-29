@@ -55,13 +55,17 @@ interface Props {
   ownerType?: string;
   limit:      number;
   locale:     string;
+  /** Lot 6a — vient de la réponse API (pas de l'URL) : présent seulement
+   * quand `prefs` était demandé, true/false selon qu'au moins une annonce
+   * correspond. */
+  prefsMatched?: boolean;
 }
 
 const CHIP_BASE = 'flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200';
 const CHIP_ON   = 'border-gold bg-gold text-gray-900 shadow-sm';
 const CHIP_OFF  = 'border-line bg-card text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-dark';
 
-export default function ListingsFilters({ type, region, q, city, minPrice, maxPrice, ownerType, limit, locale: _locale }: Props) {
+export default function ListingsFilters({ type, region, q, city, minPrice, maxPrice, ownerType, limit, locale: _locale, prefsMatched }: Props) {
   const t = useTranslations('listings');
   const siteLocale = useLocale() as 'fr' | 'en';
   const router = useRouter();
@@ -89,6 +93,12 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   const maxRooms       = urlParams.get('maxRooms') ?? undefined;
   const amenitiesCsv   = urlParams.get('amenities') ?? undefined;
   const amenitiesList  = amenitiesCsv ? amenitiesCsv.split(',').filter(Boolean) : [];
+  // Lot 6a — préférences floues : CLASSENT, ne filtrent jamais (pastilles à
+  // style distinct, cf. plus bas).
+  const prefsCsv  = urlParams.get('prefs') ?? undefined;
+  const prefsList = (prefsCsv ? prefsCsv.split(',').filter(Boolean) : []).filter(
+    (p): p is 'near_sea' | 'quiet' | 'upscale' => p === 'near_sea' || p === 'quiet' || p === 'upscale',
+  );
   const isMilo         = urlParams.get('milo') === '1';
   const miloMiss        = urlParams.get('miloMiss') === '1';
   const miloLangRaw     = urlParams.get('miloLang');
@@ -109,7 +119,8 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   const hasPrice = !!(minPrice || maxPrice);
   const hasFilters = !!(
     type || region || q || city || hasPrice || ownerType || isVerifiedOnly || transactionType ||
-    cityContains || minBeds || maxBeds || minRooms || maxRooms || amenitiesList.length > 0
+    cityContains || minBeds || maxBeds || minRooms || maxRooms || amenitiesList.length > 0 ||
+    prefsList.length > 0
   );
 
   // Les types spécifiques à l'autre mode n'ont pas de sens : on les masque.
@@ -125,6 +136,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
       q, city, minPrice, maxPrice, type, region, ownerType, verified, transactionType,
       cityContains, minBeds, maxBeds, minRooms, maxRooms,
       amenities: amenitiesCsv,
+      prefs: prefsCsv,
       milo: isMilo ? '1' : undefined, miloLang: miloLangRaw ?? undefined, miloText,
       miloUnmatched: miloUnmatchedCsv, miloMiss: miloMiss ? '1' : undefined,
       limit: String(limit), page: '1',
@@ -137,6 +149,11 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   const removeAmenity = (key: string) => {
     const next = amenitiesList.filter((a) => a !== key);
     push({ amenities: next.length > 0 ? next.join(',') : undefined });
+  };
+
+  const removePref = (id: string) => {
+    const next = prefsList.filter((p) => p !== id);
+    push({ prefs: next.length > 0 ? next.join(',') : undefined });
   };
 
   // Changer de transaction : on abandonne le type de bien devenu incohérent
@@ -204,6 +221,16 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
       onRemove: () => removeAmenity(key),
     });
   });
+
+  // ── Lot 6a : pastilles de préférence floue — style VOLONTAIREMENT
+  // distinct des pastilles de filtre ci-dessus (ce n'est pas un filtre, une
+  // préférence classe sans jamais exclure une annonce).
+  const prefChips = prefsList.map((id) => ({
+    key: `pref-${id}`,
+    icon: id === 'near_sea' ? 'fa-water' : id === 'quiet' ? 'fa-volume-xmark' : 'fa-gem',
+    label: miloLabels.preferences[id],
+    onRemove: () => removePref(id),
+  }));
 
   // ── Lot 2a : BottomSheet filtres mobile (sous 768px uniquement) ──────
   // Corrige le bug connu : le panneau « Filtres » absolument positionné
@@ -532,6 +559,34 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
           ))}
         </div>
       )}
+
+      {/* ── Lot 6a : pastilles de préférence floue — style distinct (bleu),
+          jamais mélangées aux pastilles de filtre ci-dessus. ─────────── */}
+      {prefChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {prefChips.map((c) => (
+            <span
+              key={c.key}
+              className="flex items-center gap-1.5 rounded-full border border-dashed border-blue-400/50 bg-blue-50 py-1 pl-3 pr-1.5 text-xs font-medium text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
+            >
+              <i className={`fa-solid ${c.icon} text-[10px]`} />
+              {miloLabels.rankedByPrefix} {c.label}
+              <button
+                onClick={c.onRemove}
+                aria-label={t('removeFilter')}
+                className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-blue-200/50 transition-colors"
+              >
+                <i className="fa-solid fa-xmark text-[10px]" />
+              </button>
+            </span>
+          ))}
+          {prefsMatched === false && (
+            <span className="text-xs italic text-sub">
+              {miloLabels.preferenceNoMatch(prefChips.map((c) => c.label).join(', '))}
+            </span>
+          )}
+        </div>
+      )}
       </div>
 
       {/* <768px (lot 2a) : bouton Filtres unique → BottomSheet pleine hauteur.
@@ -582,6 +637,33 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
                 </button>
               </span>
             ))}
+          </div>
+        )}
+
+        {/* Lot 6a — même style distinct qu'en desktop. */}
+        {prefChips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {prefChips.map((c) => (
+              <span
+                key={c.key}
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-dashed border-blue-400/50 bg-blue-50 py-1 pl-3 pr-1.5 text-xs font-medium text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
+              >
+                <i className={`fa-solid ${c.icon} text-[10px]`} />
+                {miloLabels.rankedByPrefix} {c.label}
+                <button
+                  onClick={c.onRemove}
+                  aria-label={t('removeFilter')}
+                  className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-blue-200/50 transition-colors"
+                >
+                  <i className="fa-solid fa-xmark text-[10px]" />
+                </button>
+              </span>
+            ))}
+            {prefsMatched === false && (
+              <span className="text-xs italic text-sub">
+                {miloLabels.preferenceNoMatch(prefChips.map((c) => c.label).join(', '))}
+              </span>
+            )}
           </div>
         )}
       </div>

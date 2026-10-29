@@ -39,4 +39,14 @@ describe('getMiloLabels — libellés indépendants de next-intl', () => {
     expect(getMiloLabels('fr').unsupportedNotice(getSiteLocaleName('fr'))).toContain('français');
     expect(getMiloLabels('en').unsupportedNotice(getSiteLocaleName('en'))).toContain('English');
   });
+
+  it('preferences (lot 6a) couvre les 3 identifiants connus, fr et en', () => {
+    expect(Object.keys(getMiloLabels('fr').preferences).sort()).toEqual(['near_sea', 'quiet', 'upscale']);
+    expect(Object.keys(getMiloLabels('en').preferences).sort()).toEqual(['near_sea', 'quiet', 'upscale']);
+  });
+
+  it('preferenceNoMatch insère les noms de préférence sans planter', () => {
+    expect(getMiloLabels('fr').preferenceNoMatch('la mer')).toContain('la mer');
+    expect(getMiloLabels('en').preferenceNoMatch('the sea')).toContain('the sea');
+  });
 });

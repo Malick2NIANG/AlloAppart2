@@ -1110,4 +1110,209 @@ describe('ListingsService', () => {
       expect(whereArg()).not.toHaveProperty('cityContains');
     });
   });
+
+  describe('findAll — classement par préférences floues (Milo, lot 6a)', () => {
+    function whereArg(): Record<string, unknown> {
+      const calls = prismaMock.listing.findMany.mock.calls as Array<
+        [{ where: Record<string, unknown> }]
+      >;
+      return calls[calls.length - 1][0].where;
+    }
+
+    function fakeListing(
+      id: string,
+      title: string,
+      description = '',
+      opts: { boostScore?: number; createdAt?: Date } = {},
+    ) {
+      return {
+        id,
+        title,
+        description,
+        city: 'Dakar',
+        boostScore: opts.boostScore ?? 0,
+        isVerified: false,
+        boostUntil: null,
+        createdAt: opts.createdAt ?? new Date('2026-01-01'),
+        owner: { id: 'o1', roles: [], subscription: null },
+        reviews: [],
+      };
+    }
+
+    it('sans prefs : comportement strictement identique à aujourd’hui (ordre par priorité/date uniquement)', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('l1', 'Villa standard', '', { boostScore: 5 }),
+        fakeListing('l2', 'Villa vue mer', '', { boostScore: 10 }),
+      ]);
+      const result = await service.findAll({ page: 1, limit: 20 });
+      // Priorité seule décide : l2 (boost 10) avant l1 (boost 5), le mot
+      // "mer" dans le titre de l2 n'a aucun effet sans `prefs`.
+      expect(result.data.map((d) => d.id)).toEqual(['l2', 'l1']);
+    });
+
+    it('1 préférence : une annonce correspondante passe devant une annonce boostée sans le mot-clé', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('boosted', 'Villa standard', '', { boostScore: 50 }),
+        fakeListing('sea', 'Villa vue mer', '', { boostScore: 0 }),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        prefs: ['near_sea'],
+      });
+      expect(result.data.map((d) => d.id)).toEqual(['sea', 'boosted']);
+    });
+
+    it('2 préférences : une annonce qui correspond aux deux passe devant une annonce qui n’en a qu’une', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('one', 'Villa calme', ''),
+        fakeListing('two', 'Villa calme vue mer', ''),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        prefs: ['near_sea', 'quiet'],
+      });
+      expect(result.data.map((d) => d.id)).toEqual(['two', 'one']);
+    });
+
+    it('égalité de score de préférence : retombe sur le score de priorité existant', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('low', 'Villa calme', '', { boostScore: 0 }),
+        fakeListing('high', 'Maison calme', '', { boostScore: 20 }),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        prefs: ['quiet'],
+      });
+      expect(result.data.map((d) => d.id)).toEqual(['high', 'low']);
+    });
+
+    it('aucun mot-clé trouvé pour aucune annonce : ordre inchangé (retombe sur la priorité)', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('a', 'Studio simple', '', { boostScore: 1 }),
+        fakeListing('b', 'Appartement basique', '', { boostScore: 5 }),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        prefs: ['near_sea', 'upscale'],
+      });
+      expect(result.data.map((d) => d.id)).toEqual(['b', 'a']);
+    });
+
+    it('accents : "océan" dans le titre compte pour near_sea', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('plain', 'Villa simple', ''),
+        fakeListing('ocean', 'Villa près de l’océan', ''),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        prefs: ['near_sea'],
+      });
+      expect(result.data.map((d) => d.id)).toEqual(['ocean', 'plain']);
+    });
+
+    it('fonctionne en anglais (seafront)', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('plain', 'Standard flat', ''),
+        fakeListing('sea', 'Seafront apartment', ''),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        prefs: ['near_sea'],
+      });
+      expect(result.data.map((d) => d.id)).toEqual(['sea', 'plain']);
+    });
+
+    it('identifiant inconnu dans prefs : ignoré, aucune erreur, aucun effet sur le tri', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('a', 'Villa simple', '', { boostScore: 1 }),
+        fakeListing('b', 'Villa vue mer', '', { boostScore: 5 }),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        prefs: ['bogus'],
+      });
+      // Seul "bogus" est demandé (inconnu) : aucun score de préférence nulle
+      // part, retombe sur la priorité — comme sans prefs.
+      expect(result.data.map((d) => d.id)).toEqual(['b', 'a']);
+    });
+
+    it('combiné avec un filtre strict (region) : les deux cohabitent, aucune annonce exclue par prefs', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('a', 'Villa simple', ''),
+        fakeListing('b', 'Villa vue mer', ''),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        region: 'Dakar',
+        prefs: ['near_sea'],
+      });
+      expect(whereArg().region).toBe('Dakar');
+      expect(result.total).toBe(2); // aucune annonce exclue par prefs
+      expect(result.data.map((d) => d.id)).toEqual(['b', 'a']);
+    });
+
+    it('prefsMatched=false quand aucune annonce ne contient le mot-clé (message honnête possible côté Frontend)', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('a', 'Villa simple', ''),
+        fakeListing('b', 'Appartement basique', ''),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        prefs: ['near_sea'],
+      });
+      expect(result.prefsMatched).toBe(false);
+    });
+
+    it('prefsMatched=true dès qu’une annonce correspond', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('a', 'Villa simple', ''),
+        fakeListing('b', 'Villa vue mer', ''),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        prefs: ['near_sea'],
+      });
+      expect(result.prefsMatched).toBe(true);
+    });
+
+    it('prefsMatched absent (undefined) quand prefs n’est pas demandé', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListing('a', 'Villa simple', ''),
+      ]);
+      const result = await service.findAll({ page: 1, limit: 20 });
+      expect(result.prefsMatched).toBeUndefined();
+    });
+
+    it('pagination cohérente avec le tri par préférence (page 2 contient le reste, triées)', async () => {
+      const data = [
+        fakeListing('a', 'Villa simple', ''),
+        fakeListing('b', 'Villa vue mer', ''),
+        fakeListing('c', 'Maison simple', ''),
+      ];
+      prismaMock.listing.findMany.mockResolvedValue(data);
+      const page1 = await service.findAll({
+        page: 1,
+        limit: 1,
+        prefs: ['near_sea'],
+      });
+      const page2 = await service.findAll({
+        page: 2,
+        limit: 1,
+        prefs: ['near_sea'],
+      });
+      expect(page1.total).toBe(3);
+      expect(page1.data.map((d) => d.id)).toEqual(['b']); // meilleur score en page 1
+      expect(page2.data.map((d) => d.id)).not.toContain('b');
+    });
+  });
 });
