@@ -1471,7 +1471,10 @@ function VerificationsPageContent() {
   return (
     <div className="space-y-6">
 
-      <div className="flex items-center justify-between gap-4">
+      {/* Sous 768px : bouton pleine largeur sous le titre plutôt que collé à
+          côté (plus d'espace pour le titre, cible tactile plus confortable) ;
+          inchangé ≥768px. */}
+      <div className="flex items-center justify-between gap-4 max-md:flex-col max-md:items-stretch max-md:gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-text flex items-center gap-2">
             <i className="fa-solid fa-shield-halved text-gold-dark" />
@@ -1479,7 +1482,7 @@ function VerificationsPageContent() {
           </h1>
           <p className="text-sm text-sub mt-0.5">{t('verificationsPageSub')}</p>
         </div>
-        <button onClick={() => { setPrefillListing(null); setEditingVerif(null); setNewVerifOpen(true); }} className="btn-gold text-sm flex items-center gap-2 rounded-full px-4 py-2 shrink-0">
+        <button onClick={() => { setPrefillListing(null); setEditingVerif(null); setNewVerifOpen(true); }} className="btn-gold text-sm flex items-center justify-center gap-2 rounded-full px-4 py-2 shrink-0 max-md:w-full">
           <i className="fa-solid fa-plus text-xs" />{t('verificationsNewRequest')}
         </button>
       </div>

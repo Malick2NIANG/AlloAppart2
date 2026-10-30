@@ -821,6 +821,12 @@ function ListingCard({
 }) {
   const t = useTranslations('bailleur');
   const boosted = !!listing.boostUntil && new Date(listing.boostUntil) > new Date();
+  // Menu ⋮ mobile (lot 6) : sous 768px, seul « Voir » reste visible dans la
+  // carte, le reste de la rangée d'actions (jusqu'à 4 liens) passe dans une
+  // feuille du bas avec libellés plutôt que des liens empilés horizontalement
+  // — PC inchangé (actions existantes, simplement masquées via max-md:hidden).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuTitleId = useId();
 
   const STATUS_LABELS: Record<ListingStatus, string> = {
     ACTIVE:    t('statusActive'),
@@ -888,6 +894,7 @@ function ListingCard({
             <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-dark hover:underline">
               {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
             </Link>
+            <div className="contents max-md:hidden">
             <button onClick={() => onUnpublish(listing.id, listing.title)}
               className="tap-target text-sm font-medium text-sub hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
               <i className="fa-solid fa-eye-slash text-xs mr-1" />{t('actionUnpublish')}
@@ -920,6 +927,11 @@ function ListingCard({
               className="tap-target text-sm font-medium text-sub hover:text-red-500 transition-colors ml-auto">
               <i className="fa-solid fa-box-archive text-xs mr-1" />{t('actionArchive')}
             </button>
+            </div>
+            <button type="button" onClick={() => setMenuOpen(true)} aria-label={t('actionMore')}
+              className="tap-target ml-auto hidden max-md:flex h-9 w-9 items-center justify-center rounded-lg border border-line text-sub hover:text-text transition-colors">
+              <i className="fa-solid fa-ellipsis-vertical text-sm" />
+            </button>
           </>
         )}
 
@@ -928,6 +940,7 @@ function ListingCard({
             <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-dark hover:underline">
               {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
             </Link>
+            <div className="contents max-md:hidden">
             <Link href={`/bailleur/listings/${listing.id}/edit`}
               className="tap-target text-sm font-medium text-sub hover:text-text transition-colors">
               <i className="fa-solid fa-pen-to-square text-xs mr-1" />{t('actionEdit')}
@@ -938,6 +951,11 @@ function ListingCard({
             <button onClick={() => onArchive(listing.id, listing.title)}
               className="tap-target text-sm font-medium text-sub hover:text-red-500 transition-colors ml-auto">
               <i className="fa-solid fa-box-archive text-xs mr-1" />{t('actionArchive')}
+            </button>
+            </div>
+            <button type="button" onClick={() => setMenuOpen(true)} aria-label={t('actionMore')}
+              className="tap-target ml-auto hidden max-md:flex h-9 w-9 items-center justify-center rounded-lg border border-line text-sub hover:text-text transition-colors">
+              <i className="fa-solid fa-ellipsis-vertical text-sm" />
             </button>
           </>
         )}
@@ -953,6 +971,7 @@ function ListingCard({
             <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-dark hover:underline">
               {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
             </Link>
+            <div className="contents max-md:hidden">
             <button
               onClick={() => onRestore(listing.id, listing.title, 'DRAFT')}
               className="tap-target text-sm font-medium text-sub hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
@@ -971,10 +990,62 @@ function ListingCard({
             >
               <i className="fa-solid fa-trash text-xs mr-1" />{t('actionDelete')}
             </button>
+            </div>
+            <button type="button" onClick={() => setMenuOpen(true)} aria-label={t('actionMore')}
+              className="tap-target ml-auto hidden max-md:flex h-9 w-9 items-center justify-center rounded-lg border border-line text-sub hover:text-text transition-colors">
+              <i className="fa-solid fa-ellipsis-vertical text-sm" />
+            </button>
           </>
         )}
 
       </div>
+
+      {/* Feuille d'actions mobile (lot 6) — mêmes gestionnaires que la
+          rangée desktop ci-dessus, juste avec des libellés complets. */}
+      <BottomSheet open={menuOpen} onClose={() => setMenuOpen(false)} titleId={menuTitleId}>
+        <h2 id={menuTitleId} className="mb-3 text-base font-bold text-text truncate">{listing.title}</h2>
+        <div className="flex flex-col gap-1">
+          {listing.status === 'ACTIVE' && (
+            <>
+              <SheetAction icon="fa-eye-slash" label={t('actionUnpublish')} onClick={() => { setMenuOpen(false); onUnpublish(listing.id, listing.title); }} />
+              <SheetAction icon="fa-rocket" label={boosted ? t('actionBoostRenew') : t('actionBoost')} onClick={() => { setMenuOpen(false); onBoost(listing.id, listing.title); }} />
+              {!listing.isVerified && (
+                <SheetAction icon="fa-shield-halved" label={t('actionAlloVerifie')} onClick={() => { setMenuOpen(false); onVerify(listing.id, listing.title); }} accent />
+              )}
+              <SheetAction icon="fa-box-archive" label={t('actionArchive')} onClick={() => { setMenuOpen(false); onArchive(listing.id, listing.title); }} danger />
+            </>
+          )}
+          {listing.status === 'DRAFT' && (
+            <>
+              <SheetAction icon="fa-pen-to-square" label={t('actionEdit')} href={`/bailleur/listings/${listing.id}/edit`} />
+              <SheetAction icon="fa-upload" label={t('actionPublish')} onClick={() => { setMenuOpen(false); onPublish(listing.id, listing.title); }} accent />
+              <SheetAction icon="fa-box-archive" label={t('actionArchive')} onClick={() => { setMenuOpen(false); onArchive(listing.id, listing.title); }} danger />
+            </>
+          )}
+          {listing.status === 'SUSPENDED' && (
+            <>
+              <SheetAction icon="fa-pen-to-square" label={t('actionRestoreDraft')} onClick={() => { setMenuOpen(false); onRestore(listing.id, listing.title, 'DRAFT'); }} />
+              <SheetAction icon="fa-upload" label={t('actionRestoreActive')} onClick={() => { setMenuOpen(false); onRestore(listing.id, listing.title, 'ACTIVE'); }} accent />
+              <SheetAction icon="fa-trash" label={t('actionDelete')} onClick={() => { setMenuOpen(false); onDelete(listing.id, listing.title); }} danger />
+            </>
+          )}
+        </div>
+      </BottomSheet>
     </div>
   );
+}
+
+/** Ligne d'action pleine largeur (≥44px) pour la feuille du bas d'une carte annonce. */
+function SheetAction({ icon, label, onClick, href, accent, danger }: {
+  icon: string; label: string; onClick?: () => void; href?: string; accent?: boolean; danger?: boolean;
+}) {
+  const className = `tap-target flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors ${
+    danger ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30'
+    : accent ? 'text-gold-dark hover:bg-gold-pale'
+    : 'text-text hover:bg-bg'
+  }`;
+  const content = <><i className={`fa-solid ${icon} w-4 text-xs`} />{label}</>;
+  return href
+    ? <Link href={href} className={className}>{content}</Link>
+    : <button type="button" onClick={onClick} className={className}>{content}</button>;
 }

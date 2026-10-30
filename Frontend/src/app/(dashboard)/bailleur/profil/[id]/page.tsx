@@ -144,13 +144,28 @@ export default function ProfilPage() {
                 <i className="fa-regular fa-calendar text-[10px] text-gold-dark/60" />
                 {t('profilMemberSince', { date: memberSince })}
               </div>
-              <Link href="/bailleur/messages" className="tap-target flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
+              {/* Sous 768px : passe en bouton pleine largeur sous l'avatar
+                  (ci-dessous) — ce lien, à côté de « Membre depuis » dans une
+                  colonne étroite, se cassait mot à mot. Inchangé ≥768px.
+                  max-md:hidden! (important) : .tap-target n'est pas dans une
+                  @layer Tailwind (globals.css), donc sans !, le display:flex
+                  de .tap-target (même media query, même spécificité) gagne
+                  sur le display:none de l'utilitaire — même cause que
+                  become-bailleur (lot 5), ici avec .tap-target au lieu de
+                  .btn-gold. */}
+              <Link href="/bailleur/messages" className="tap-target max-md:hidden! flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
                 <i className="fa-solid fa-message text-[10px]" />
                 {t('profilContactViaMessaging')}
               </Link>
             </div>
           </div>
         </div>
+
+        <Link href="/bailleur/messages"
+          className="tap-target hidden max-md:flex w-full items-center justify-center gap-2 mt-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-sm font-semibold py-2.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors">
+          <i className="fa-solid fa-message text-xs" />
+          {t('profilContactViaMessaging')}
+        </Link>
 
         {/* Bio */}
         {user.bio && (

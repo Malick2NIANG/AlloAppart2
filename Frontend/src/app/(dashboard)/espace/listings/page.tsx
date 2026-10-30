@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef, Suspense } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, useId, Suspense } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { formatPrice } from '@/lib/utils';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import BottomSheet from '@/components/ui/BottomSheet';
 import { useToast } from '@/components/ui/Toast';
 import { StatFilterCard } from '@/components/bookings/StatFilterCard';
 
@@ -358,6 +359,12 @@ function AdminListingCard({
 }) {
   const t = useTranslations('admin');
   const img = listing.images?.[0] ?? FALLBACK_IMG;
+  // Menu ⋮ mobile (lot 6) : sous 768px, seul « Voir » reste dans la rangée,
+  // Activer/Suspendre + Supprimer passent dans une feuille du bas avec
+  // libellés — PC inchangé (actions existantes, simplement masquées).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuTitleId = useId();
+  const canToggle = listing.status === 'SUSPENDED' || listing.status === 'DRAFT' || listing.status === 'ACTIVE';
 
   return (
     <div className="listing-card group flex flex-col">
@@ -403,6 +410,7 @@ function AdminListingCard({
           className="tap-target text-xs font-medium text-gold-dark hover:underline">
           {t('view')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
         </Link>
+        <div className="contents max-md:hidden">
         {listing.status === 'SUSPENDED' || listing.status === 'DRAFT' ? (
           <button
             onClick={onActivate}
@@ -433,7 +441,41 @@ function AdminListingCard({
             ? <i className="fa-solid fa-spinner fa-spin" />
             : <i className="fa-solid fa-trash text-xs" />}
         </button>
+        </div>
+        <button type="button" onClick={() => setMenuOpen(true)} aria-label={t('actionMore')}
+          className="tap-target ml-auto hidden max-md:flex h-9 w-9 items-center justify-center rounded-lg border border-line text-sub hover:text-text transition-colors">
+          <i className="fa-solid fa-ellipsis-vertical text-sm" />
+        </button>
       </div>
+
+      <BottomSheet open={menuOpen} onClose={() => setMenuOpen(false)} titleId={menuTitleId}>
+        <h2 id={menuTitleId} className="mb-3 text-base font-bold text-text truncate">{listing.title}</h2>
+        <div className="flex flex-col gap-1">
+          {canToggle && (listing.status === 'SUSPENDED' || listing.status === 'DRAFT') && (
+            <SheetAction icon="fa-circle-check" label={t('activate')} onClick={() => { setMenuOpen(false); onActivate(); }} accent />
+          )}
+          {canToggle && listing.status === 'ACTIVE' && (
+            <SheetAction icon="fa-ban" label={t('suspend')} onClick={() => { setMenuOpen(false); onSuspend(); }} />
+          )}
+          <SheetAction icon="fa-trash" label={t('delete')} onClick={() => { setMenuOpen(false); onDelete(); }} danger />
+        </div>
+      </BottomSheet>
     </div>
+  );
+}
+
+/** Ligne d'action pleine largeur (≥44px) pour la feuille du bas d'une carte annonce. */
+function SheetAction({ icon, label, onClick, accent, danger }: {
+  icon: string; label: string; onClick: () => void; accent?: boolean; danger?: boolean;
+}) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`tap-target flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors ${
+        danger ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30'
+        : accent ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+        : 'text-text hover:bg-bg'
+      }`}>
+      <i className={`fa-solid ${icon} w-4 text-xs`} />{label}
+    </button>
   );
 }
