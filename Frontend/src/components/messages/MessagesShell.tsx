@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import Pusher from 'pusher-js';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
@@ -185,6 +186,9 @@ export default function MessagesShell({ emptyHint, space }: Props) {
   const [editOriginal, setEditOriginal] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [archivingId,  setArchivingId]  = useState<string | null>(null);
+  // Menu d'actions de bulle (mobile uniquement) : feuille du bas ouverte par
+  // le bouton ⋮ au lieu des icônes toujours visibles de la version PC (lot 7).
+  const [bubbleMenuFor, setBubbleMenuFor] = useState<Message | null>(null);
 
   const isMobile = useIsMobile();
 
@@ -980,23 +984,31 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                       {/* Wrapper avec boutons d'action au survol */}
                       <div id={`msg-${msg.id}`} className={`group flex items-end gap-1.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
 
-                        {/* Actions côté gauche pour mes messages — visibles au survol sur
-                            PC ; toujours visibles sous @media (hover: none) (tactile), même
-                            traitement que ImageUploadZone (lot 0a). */}
+                        {/* Actions côté gauche pour mes messages — PC (≥768px, inchangé) :
+                            icônes visibles au survol. Mobile : un seul bouton ⋮ qui ouvre
+                            une feuille du bas (lot 7 — plus d'icônes toujours visibles). */}
                         {isMine && !isDeleted && (
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1 [@media(hover:none)]:opacity-100">
-                            {!isAudio && (
-                              <button type="button" onClick={() => startEdit(msg)} className={`${actionBtnClass} tap-target`} title="Modifier">
-                                <i className="fa-solid fa-pen text-[10px]" />
+                          isMobile ? (
+                            <button type="button" onClick={() => setBubbleMenuFor(msg)}
+                              className="tap-target flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sub mb-1"
+                              aria-label={t('moreActions')}>
+                              <i className="fa-solid fa-ellipsis-vertical text-xs" />
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1">
+                              {!isAudio && (
+                                <button type="button" onClick={() => startEdit(msg)} className={`${actionBtnClass} tap-target`} title="Modifier">
+                                  <i className="fa-solid fa-pen text-[10px]" />
+                                </button>
+                              )}
+                              <button type="button" onClick={() => void handleDelete(msg.id)} className={`${actionBtnClass} tap-target hover:text-red-500`} title="Supprimer">
+                                <i className="fa-solid fa-trash text-[10px]" />
                               </button>
-                            )}
-                            <button type="button" onClick={() => void handleDelete(msg.id)} className={`${actionBtnClass} tap-target hover:text-red-500`} title="Supprimer">
-                              <i className="fa-solid fa-trash text-[10px]" />
-                            </button>
-                            <button type="button" onClick={() => setReplyingTo(msg)} className={`${actionBtnClass} tap-target`} title={t('reply')}>
-                              <i className="fa-solid fa-reply text-[10px]" />
-                            </button>
-                          </div>
+                              <button type="button" onClick={() => setReplyingTo(msg)} className={`${actionBtnClass} tap-target`} title={t('reply')}>
+                                <i className="fa-solid fa-reply text-[10px]" />
+                              </button>
+                            </div>
+                          )
                         )}
 
                         {/* Bulle */}
@@ -1061,11 +1073,19 @@ export default function MessagesShell({ emptyHint, space }: Props) {
 
                         {/* Actions côté droit pour les autres */}
                         {!isMine && !isDeleted && (
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1 [@media(hover:none)]:opacity-100">
-                            <button type="button" onClick={() => setReplyingTo(msg)} className={`${actionBtnClass} tap-target`} title={t('reply')}>
-                              <i className="fa-solid fa-reply text-[10px]" />
+                          isMobile ? (
+                            <button type="button" onClick={() => setBubbleMenuFor(msg)}
+                              className="tap-target flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sub mb-1"
+                              aria-label={t('moreActions')}>
+                              <i className="fa-solid fa-ellipsis-vertical text-xs" />
                             </button>
-                          </div>
+                          ) : (
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mb-1">
+                              <button type="button" onClick={() => setReplyingTo(msg)} className={`${actionBtnClass} tap-target`} title={t('reply')}>
+                                <i className="fa-solid fa-reply text-[10px]" />
+                              </button>
+                            </div>
+                          )
                         )}
                       </div>
                     </div>
@@ -1212,6 +1232,42 @@ export default function MessagesShell({ emptyHint, space }: Props) {
             )}
           </div>
         </div>
+      )}
+
+      {/* Feuille d'actions de bulle (mobile, lot 7) — ouverte par le bouton
+          ⋮ ajouté sur chaque bulle sous 768px, à la place des icônes
+          toujours visibles de la version PC. */}
+      {bubbleMenuFor && typeof document !== 'undefined' && createPortal(
+        <>
+          <div className="fixed inset-0 z-110 bg-black/40" onClick={() => setBubbleMenuFor(null)} aria-hidden="true" />
+          <div role="dialog" aria-modal="true" className="fixed inset-x-0 bottom-0 z-110 rounded-t-3xl border-t border-line bg-card shadow-2xl pb-[calc(0.5rem+var(--safe-bottom,0px))]">
+            <div className="flex justify-center pt-2.5" aria-hidden="true">
+              <span className="h-1 w-10 rounded-full bg-line" />
+            </div>
+            <div className="py-2">
+              {bubbleMenuFor.senderId === me?.id && !isAudioMessage(bubbleMenuFor.content) && (
+                <button type="button"
+                  onClick={() => { startEdit(bubbleMenuFor); setBubbleMenuFor(null); }}
+                  className="flex min-h-11 w-full items-center gap-3 px-5 py-3 text-sm text-text hover:bg-bg transition-colors">
+                  <i className="fa-solid fa-pen text-gold-dark w-4" /> {t('editAction')}
+                </button>
+              )}
+              <button type="button"
+                onClick={() => { setReplyingTo(bubbleMenuFor); setBubbleMenuFor(null); }}
+                className="flex min-h-11 w-full items-center gap-3 px-5 py-3 text-sm text-text hover:bg-bg transition-colors">
+                <i className="fa-solid fa-reply text-gold-dark w-4" /> {t('reply')}
+              </button>
+              {bubbleMenuFor.senderId === me?.id && (
+                <button type="button"
+                  onClick={() => { void handleDelete(bubbleMenuFor.id); setBubbleMenuFor(null); }}
+                  className="flex min-h-11 w-full items-center gap-3 px-5 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+                  <i className="fa-solid fa-trash w-4" /> {t('deleteAction')}
+                </button>
+              )}
+            </div>
+          </div>
+        </>,
+        document.body,
       )}
     </div>
   );

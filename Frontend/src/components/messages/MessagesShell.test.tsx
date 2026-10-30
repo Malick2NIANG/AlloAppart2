@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MessagesShell from './MessagesShell';
 import type { MessageRoom, Message, User } from '@/types';
@@ -165,5 +165,57 @@ describe('MessagesShell — mode application mobile', () => {
     // à ce rendu (my-3, utilisé nulle part ailleurs dans ce composant).
     const separators = document.querySelectorAll('.my-3');
     expect(separators.length).toBe(2);
+  });
+
+  it('sous 768px : le bouton ⋮ sur une bulle ouvre une feuille d’actions (Modifier/Répondre/Supprimer pour mes messages, Répondre seul pour les autres)', async () => {
+    // useIsMobile() lit window.matchMedia directement — le polyfill global de
+    // vitest.setup.ts renvoie toujours matches:false, donc on le surcharge
+    // localement pour ce test puis on le restaure (les autres tests du
+    // fichier s'exécutent dans le même worker et supposent matches:false).
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('max-width: 767px'),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })) as typeof window.matchMedia;
+
+    try {
+      params = new URLSearchParams({ room: 'a' });
+      mockApiSequence([makeRoom('a')], [
+        { id: 'mine', content: 'Mon message', senderId: 'me', createdAt: new Date().toISOString(), readAt: null } as Message,
+        { id: 'other', content: 'Autre message', senderId: 'other-a', createdAt: new Date().toISOString(), readAt: null } as Message,
+      ]);
+      const user = userEvent.setup();
+      render(<MessagesShell />);
+      await waitFor(() => expect(screen.getByText('Mon message')).toBeInTheDocument());
+
+      // Scopé à la bulle (id="msg-<id>") pour exclure le bouton ⋮ du menu
+      // d'en-tête de conversation, qui partage le même aria-label.
+      const mineRow  = document.getElementById('msg-mine')!;
+      const otherRow = document.getElementById('msg-other')!;
+      const mineMenuBtn  = within(mineRow).getByLabelText('moreActions');
+      const otherMenuBtn = within(otherRow).getByLabelText('moreActions');
+
+      // Mon message : Modifier + Répondre + Supprimer.
+      await user.click(mineMenuBtn);
+      expect(screen.getByText('editAction')).toBeInTheDocument();
+      expect(screen.getByText('reply')).toBeInTheDocument();
+      expect(screen.getByText('deleteAction')).toBeInTheDocument();
+      await user.click(screen.getByText('editAction'));
+      expect(screen.queryByText('deleteAction')).not.toBeInTheDocument();
+
+      // Message de l'autre participant : Répondre seul (ni Modifier, ni Supprimer).
+      await user.click(otherMenuBtn);
+      expect(screen.getByText('reply')).toBeInTheDocument();
+      expect(screen.queryByText('editAction')).not.toBeInTheDocument();
+      expect(screen.queryByText('deleteAction')).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
   });
 });

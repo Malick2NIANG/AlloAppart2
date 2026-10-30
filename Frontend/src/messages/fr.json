@@ -1579,6 +1579,8 @@
     "messagePlaceholder": "Écrivez votre message…",
     "conversationFallback": "Conversation",
     "reply": "Répondre",
+    "editAction": "Modifier",
+    "deleteAction": "Supprimer",
     "archiveAction": "Archiver",
     "unarchiveAction": "Désarchiver",
     "archivedPill": "Archivées",
