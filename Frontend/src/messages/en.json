@@ -3010,5 +3010,10 @@
     "noResults": "No country found.",
     "countryButtonLabel": "Country code",
     "numberPlaceholder": "77 000 00 00"
+  },
+  "skeleton": {
+    "loading": "Loading…",
+    "retry": "Retry",
+    "loadError": "Couldn't load content."
   }
 }

@@ -3010,5 +3010,10 @@
     "noResults": "Aucun pays trouvé.",
     "countryButtonLabel": "Indicatif pays",
     "numberPlaceholder": "77 000 00 00"
+  },
+  "skeleton": {
+    "loading": "Chargement en cours…",
+    "retry": "Réessayer",
+    "loadError": "Impossible de charger le contenu."
   }
 }
