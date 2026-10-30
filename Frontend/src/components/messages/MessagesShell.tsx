@@ -8,6 +8,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import { BOTTOM_NAV_TOGGLE_EVENT } from '@/components/ui/BottomNav';
+import { useIsMobile } from '@/lib/useMediaQuery';
 import type { Message, MessageRoom, User } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -50,6 +51,8 @@ function getAudioUrl(content: string) {
 /* ── Custom audio player ─────────────────────────────────────────────────── */
 
 const PLAYBACK_SPEEDS = [1, 1.5, 2];
+/** ~4 lignes (textarea de saisie) — garde en phase avec la classe `max-h-28`. */
+const MAX_TEXTAREA_HEIGHT = 112;
 
 function AudioPlayer({ src, isMine }: { src: string; isMine: boolean }) {
   const audioRef   = useRef<HTMLAudioElement>(null);
@@ -170,7 +173,6 @@ export default function MessagesShell({ emptyHint, space }: Props) {
 
   const [me,           setMe]           = useState<User | null>(null);
   const [rooms,        setRooms]        = useState<MessageRoom[]>([]);
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [messages,     setMessages]     = useState<Message[]>([]);
   const [input,        setInput]        = useState('');
   const [sending,      setSending]      = useState(false);
@@ -184,12 +186,62 @@ export default function MessagesShell({ emptyHint, space }: Props) {
   const [showArchived, setShowArchived] = useState(false);
   const [archivingId,  setArchivingId]  = useState<string | null>(null);
 
-  // Ouvre une discussion en reflétant son id dans l'URL (?room=...) — ainsi
-  // le bouton "Retour" depuis la page profil d'un participant (router.back())
-  // restaure exactement cette discussion au lieu de revenir sur la liste vide.
+  const isMobile = useIsMobile();
+
+  // Mode application mobile : l'URL (?room=...) est l'UNIQUE source de
+  // vérité pour la conversation ouverte — plus d'état local dupliqué (bug
+  // corrigé : un retour système qui retire ?room= de l'URL ne resynchronisait
+  // jamais l'ancien `activeRoomId` local, laissant la conversation affichée
+  // malgré un retour "réussi"). useSearchParams() est réactif aux
+  // navigations, y compris retour/avant du navigateur.
+  const activeRoomId = roomFromUrl;
+
+  // Un lien direct ?room=<id> (partagé, notification, ListingContactCard)
+  // arrive sans « liste » dans l'historique : sans ce correctif, Retour
+  // quitterait la messagerie au lieu d'afficher la liste. On insère une
+  // entrée « liste » juste avant l'entrée courante, une seule fois, au
+  // premier rendu d'un tel lien direct — avec le router Next (pas l'API
+  // History brute) pour que useSearchParams reste synchronisé.
+  const bootstrappedRef   = useRef(false);
+  const pushedHistoryRef  = useRef(false);
+  useEffect(() => {
+    if (bootstrappedRef.current) return;
+    bootstrappedRef.current = true;
+    if (roomFromUrl) {
+      router.replace(pathname, { scroll: false });
+      router.push(`${pathname}?room=${roomFromUrl}`, { scroll: false });
+      pushedHistoryRef.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Ouvrir une conversation ajoute une entrée d'historique (retour système
+  // → liste). Changer de conversation pendant qu'une autre est déjà ouverte
+  // REMPLACE l'entrée courante (pas d'empilement) : retour doit toujours
+  // mener à la liste, jamais à la conversation précédemment consultée.
   const openRoom = useCallback((id: string | null) => {
-    setActiveRoomId(id);
-    router.replace(id ? `${pathname}?room=${id}` : pathname, { scroll: false });
+    const url = id ? `${pathname}?room=${id}` : pathname;
+    if (id && !activeRoomId) {
+      router.push(url, { scroll: false });
+      pushedHistoryRef.current = true;
+    } else {
+      router.replace(url, { scroll: false });
+      if (!id) pushedHistoryRef.current = false;
+    }
+  }, [router, pathname, activeRoomId]);
+
+  // Fermer la conversation (flèche retour mobile) : consomme l'entrée
+  // d'historique ajoutée à l'ouverture quand il y en a une (router.back,
+  // symétrique du retour système) ; replace sinon (ex. ouverte par
+  // remplacement lors d'un changement de conversation) — les deux mènent à
+  // la liste, comme demandé.
+  const closeRoom = useCallback(() => {
+    if (pushedHistoryRef.current) {
+      pushedHistoryRef.current = false;
+      router.back();
+    } else {
+      router.replace(pathname, { scroll: false });
+    }
   }, [router, pathname]);
 
   /* ── Voice recording ──────────────────────────────────────────────────── */
@@ -200,11 +252,36 @@ export default function MessagesShell({ emptyHint, space }: Props) {
   const timerRef         = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef  = useRef<HTMLInputElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef  = useRef<HTMLTextAreaElement>(null);
   const meRef     = useRef<User | null>(null);
   useEffect(() => { meRef.current = me; }, [me]);
 
+  // Textarea qui grandit avec le contenu (4 lignes max, puis défilement
+  // interne) — couvre la saisie clavier ET les changements programmatiques
+  // (édition d'un message existant, reprise après échec d'envoi).
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
+  }, [input]);
+
   const activeRoom = rooms.find((r) => r.id === activeRoomId) ?? null;
+
+  /* ── Menu ⋮ de l'en-tête de conversation (mobile) ─────────────────────── */
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!headerMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) setHeaderMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [headerMenuOpen]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- referme le menu en changeant de conversation
+  useEffect(() => { setHeaderMenuOpen(false); }, [activeRoomId]);
 
   // Cette page ouvre une conversation via ?room=... sur le MÊME chemin (pas
   // de route [roomId] dédiée empruntée) : isImmersiveRoute (basé sur le
@@ -218,6 +295,38 @@ export default function MessagesShell({ emptyHint, space }: Props) {
       window.dispatchEvent(new CustomEvent(BOTTOM_NAV_TOGGLE_EVENT, { detail: { hidden: false } }));
     };
   }, [activeRoomId]);
+
+  // Mode application mobile : la conversation est une superposition plein
+  // écran (position fixed, voir le rendu plus bas) — on verrouille le
+  // défilement de la page derrière, comme dans une vraie application.
+  // Sans effet ≥768px (deux panneaux, pas de superposition).
+  useEffect(() => {
+    if (!activeRoomId || !isMobile) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = original; };
+  }, [activeRoomId, isMobile]);
+
+  // Clavier virtuel (iOS surtout) : window.visualViewport reflète la
+  // hauteur RÉELLEMENT visible (le clavier la réduit, sans redimensionner
+  // window.innerHeight sur iOS Safari) — on cale la hauteur de la
+  // superposition dessus pour que la zone de saisie reste au-dessus du
+  // clavier plutôt que cachée dessous. resize ET scroll : iOS déclenche
+  // parfois seulement l'un des deux selon la version.
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (!activeRoomId || !isMobile) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setViewportHeight(vv.height);
+    update();
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, [activeRoomId, isMobile]);
 
   const SPACE_BADGE: Record<string, { label: string; icon: string; cls: string }> = {
     bailleur:  { label: t('spaceBailleur'),  ...SPACE_BADGE_CLS.bailleur  },
@@ -243,13 +352,9 @@ export default function MessagesShell({ emptyHint, space }: Props) {
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void loadRooms(); }, [loadRooms]);
 
-  // Auto-ouvrir la room passée en ?room= (ex: depuis la page vérifications)
-  useEffect(() => {
-    if (roomFromUrl && rooms.length > 0 && !activeRoomId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronisation depuis l'URL
-      setActiveRoomId(roomFromUrl);
-    }
-  }, [roomFromUrl, rooms, activeRoomId]);
+  // `activeRoomId` est dérivé de `roomFromUrl` (voir plus haut) : plus besoin
+  // d'effet pour « ouvrir » la room passée en ?room=, elle est déjà la
+  // conversation active dès le premier rendu qui a l'URL.
 
   /* ── Load messages ────────────────────────────────────────────────────── */
   const loadMessages = useCallback(async (roomId: string) => {
@@ -281,10 +386,57 @@ export default function MessagesShell({ emptyHint, space }: Props) {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, [activeRoomId, loadMessages]);
 
-  /* ── Scroll to bottom ─────────────────────────────────────────────────── */
+  /* ── Scroll to bottom ─────────────────────────────────────────────────────
+     Instantané à l'ouverture d'une conversation (premier chargement de ses
+     messages), fluide pour un nouveau message si l'utilisateur est déjà en
+     bas, sinon bouton flottant « ↓ » avec le nombre de nouveaux messages —
+     jamais un scroll forcé qui l'arracherait à ce qu'il est en train de
+     relire plus haut. */
+  const isNearBottomRef = useRef(true);
+  const prevMessagesLenRef = useRef(0);
+  const [newMessageCount, setNewMessageCount] = useState(0);
+
+  const checkNearBottom = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }, []);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const handler = () => {
+      isNearBottomRef.current = checkNearBottom();
+      if (isNearBottomRef.current) setNewMessageCount(0);
+    };
+    el.addEventListener('scroll', handler);
+    return () => el.removeEventListener('scroll', handler);
+  }, [checkNearBottom, activeRoomId]);
+
+  useEffect(() => {
+    if (messages.length === 0) { prevMessagesLenRef.current = 0; return; }
+    const isNewRoomLoad = prevMessagesLenRef.current === 0;
+    const added = messages.length - prevMessagesLenRef.current;
+    prevMessagesLenRef.current = messages.length;
+
+    if (isNewRoomLoad) {
+      bottomRef.current?.scrollIntoView({ behavior: 'auto' });
+      isNearBottomRef.current = true;
+      setNewMessageCount(0);
+      return;
+    }
+    if (added <= 0) return; // suppression/édition locale, pas un nouveau message
+    if (isNearBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      setNewMessageCount((c) => c + added);
+    }
   }, [messages]);
+
+  const scrollToBottomNow = () => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setNewMessageCount(0);
+  };
 
   /* ── Pusher realtime ──────────────────────────────────────────────────── */
   useEffect(() => {
@@ -304,7 +456,8 @@ export default function MessagesShell({ emptyHint, space }: Props) {
     const ch = client.subscribe(`room-${activeRoomId}`);
     ch.bind('new-message', (msg: Message) => {
       setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]);
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      // Le scroll est géré par l'effet [messages] ci-dessus (instantané à
+      // l'ouverture, fluide si déjà en bas, sinon bouton flottant).
       /* Message d'autrui reçu en temps réel → marquer lu immédiatement (l'utilisateur regarde) */
       if (msg.senderId !== meRef.current?.id) {
         void getToken().then((token) =>
@@ -584,6 +737,15 @@ export default function MessagesShell({ emptyHint, space }: Props) {
               <p className="text-xs text-sub mt-1">
                 {q ? t('noResultsFor', { search }) : (showArchived ? '' : (emptyHint ?? ''))}
               </p>
+              {/* Comment démarrer une conversation : contacter un bailleur
+                  depuis une annonce (ListingContactCard) — pas de sens en
+                  recherche/archives, seulement sur la boîte vide. Mobile
+                  uniquement (PC strictement inchangé, cf. règle d'or). */}
+              {isMobile && !q && !showArchived && (
+                <Link href="/listings" className="btn-gold mt-5 text-sm">
+                  <i className="fa-solid fa-magnifying-glass" /> {t('browseListings')}
+                </Link>
+              )}
             </div>
           ) : (
             <div className="p-2 flex flex-col gap-0.5">
@@ -605,7 +767,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                     tabIndex={0}
                     onClick={() => openRoom(room.id)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveRoomId(room.id); }
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRoom(room.id); }
                     }}
                     className={`group/row w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors cursor-pointer max-md:min-h-16 ${
                       isActive ? 'bg-gold-pale dark:bg-gold-dark/15 border border-gold-dark/20 dark:border-gold/25' : 'hover:bg-card'
@@ -686,13 +848,18 @@ export default function MessagesShell({ emptyHint, space }: Props) {
           </p>
         </div>
       ) : (
-        <div className="flex flex-col flex-1 min-w-0">
+        <div
+          className="flex flex-col flex-1 min-w-0 max-md:fixed max-md:inset-0 max-md:z-100 max-md:rounded-none max-md:border-0 max-md:bg-bg"
+          style={isMobile && viewportHeight ? { height: `${viewportHeight}px` } : undefined}
+        >
 
-          {/* Chat header */}
+          {/* Chat header — un seul en-tête : flèche retour, avatar, nom,
+              titre de l'annonce (touchable), menu ⋮ (voir l'annonce, archiver). */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-line bg-card shrink-0">
             <button
-              onClick={() => openRoom(null)}
-              className="tap-target md:hidden flex h-8 w-8 items-center justify-center rounded-full hover:bg-gold-pale text-sub hover:text-gold-dark transition-colors"
+              onClick={closeRoom}
+              aria-label={t('backToConversations')}
+              className="tap-target md:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-gold-pale text-sub hover:text-gold-dark transition-colors -ml-1.5"
             >
               <i className="fa-solid fa-arrow-left text-sm" />
             </button>
@@ -711,10 +878,22 @@ export default function MessagesShell({ emptyHint, space }: Props) {
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-text truncate text-sm">{otherName}</p>
               {activeRoom?.listing && (
-                <p className="text-xs text-sub truncate">
-                  <i className="fa-solid fa-house text-[9px] mr-1 text-gold-dark/60" />
-                  {activeRoom.listing.title}
-                </p>
+                // Titre touchable (ouvre l'annonce) sous 768px uniquement —
+                // PC strictement inchangé (texte simple, cf. règle d'or).
+                isMobile ? (
+                  <Link
+                    href={`/listings/${activeRoom.listingId}`}
+                    className="flex items-center text-xs text-sub truncate"
+                  >
+                    <i className="fa-solid fa-house text-[9px] mr-1 text-gold-dark/60" />
+                    <span className="truncate">{activeRoom.listing.title}</span>
+                  </Link>
+                ) : (
+                  <p className="text-xs text-sub truncate">
+                    <i className="fa-solid fa-house text-[9px] mr-1 text-gold-dark/60" />
+                    {activeRoom.listing.title}
+                  </p>
+                )
               )}
             </div>
             {otherParticipants[0] && (
@@ -726,15 +905,46 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                       ? `/bailleur/agents/${otherParticipants[0].id}`
                       : `/bailleur/profil/${otherParticipants[0].id}`
                 }
-                className="shrink-0 text-xs text-gold-dark hover:underline hidden sm:block"
+                className="shrink-0 text-xs text-gold-dark hover:underline hidden md:block"
               >
                 {t('viewProfile')} <i className="fa-solid fa-arrow-up-right-from-square text-[10px] ml-0.5" />
               </Link>
             )}
+            {/* Menu ⋮ — mobile uniquement (voir l'annonce, archiver). */}
+            <div className="relative md:hidden shrink-0" ref={headerMenuRef}>
+              <button
+                type="button"
+                onClick={() => setHeaderMenuOpen((o) => !o)}
+                aria-label={t('moreActions')}
+                aria-expanded={headerMenuOpen}
+                className="tap-target flex h-10 w-10 items-center justify-center rounded-full text-sub hover:bg-gold-pale hover:text-gold-dark transition-colors"
+              >
+                <i className="fa-solid fa-ellipsis-vertical text-sm" />
+              </button>
+              {headerMenuOpen && activeRoom && (
+                <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-line bg-card py-1.5 shadow-xl z-10">
+                  <Link
+                    href={`/listings/${activeRoom.listingId}`}
+                    className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-bg transition-colors"
+                    onClick={() => setHeaderMenuOpen(false)}
+                  >
+                    <i className="fa-solid fa-house text-xs text-gold-dark w-4" /> {t('viewListing')}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => { setHeaderMenuOpen(false); void toggleArchive(activeRoom.id, !activeRoom.archived); }}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-text hover:bg-bg transition-colors"
+                  >
+                    <i className={`fa-solid ${activeRoom.archived ? 'fa-box-open' : 'fa-box-archive'} text-xs text-gold-dark w-4`} />
+                    {activeRoom.archived ? t('unarchiveAction') : t('archiveAction')}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2 bg-bg/30">
+          <div ref={messagesContainerRef} className="relative flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2 bg-bg/30">
             {loadingMsgs ? (
               <div className="flex items-center justify-center py-12">
                 <i className="fa-solid fa-spinner fa-spin text-xl text-gold-dark" />
@@ -750,9 +960,15 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                   const showDate  = i === 0 || (
                     new Date(messages[i - 1].createdAt).toDateString() !== new Date(msg.createdAt).toDateString()
                   );
+                  // Regroupement des messages consécutifs du même auteur
+                  // (espacement serré, nom non répété) — mobile uniquement
+                  // (PC strictement inchangé, cf. règle d'or de ce lot).
+                  // Jamais à cheval sur un séparateur de date, qui marque
+                  // déjà une coupure visuelle.
+                  const isGrouped = isMobile && !showDate && i > 0 && messages[i - 1].senderId === msg.senderId;
                   const actionBtnClass = 'h-6 w-6 rounded-full flex items-center justify-center transition-colors text-sub hover:text-text hover:bg-line';
                   return (
-                    <div key={msg.id}>
+                    <div key={msg.id} className={isGrouped ? '-mt-1.5' : undefined}>
                       {showDate && (
                         <div className="flex items-center justify-center my-3">
                           <span className="text-[10px] text-sub bg-card border border-line rounded-full px-3 py-1">
@@ -784,14 +1000,14 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                         )}
 
                         {/* Bulle */}
-                        <div className={`max-w-[70%] max-md:max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+                        <div className={`max-w-[70%] max-md:max-w-[80%] wrap-break-word rounded-2xl px-3.5 py-2.5 shadow-sm ${
                           isDeleted
                             ? isMine ? 'bg-gold-dark/30 text-white/50' : 'bg-card border border-line text-sub'
                             : isMine
                               ? 'bg-gold-dark text-white rounded-br-sm'
                               : 'bg-card border border-line text-text rounded-bl-sm'
                         }`}>
-                          {!isMine && msg.sender && !isDeleted && (
+                          {!isMine && msg.sender && !isDeleted && !isGrouped && (
                             <p className="text-[10px] font-bold text-gold-dark mb-0.5">{getDisplayName(msg.sender, userFallback)}</p>
                           )}
 
@@ -856,6 +1072,20 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                   );
                 })}
                 <div ref={bottomRef} />
+                {/* Bouton flottant « nouveaux messages » — visible seulement
+                    quand on a défilé loin du bas pendant qu'un message
+                    arrive (sticky : reste visible en bas du cadre visible
+                    tant qu'on ne l'a pas dépassé en remontant). */}
+                {newMessageCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={scrollToBottomNow}
+                    aria-label={t('newMessages', { count: newMessageCount })}
+                    className="tap-target sticky bottom-2 z-10 mx-auto flex items-center gap-1.5 self-center rounded-full bg-gold-dark px-3.5 py-2 text-xs font-semibold text-white shadow-lg transition-transform hover:scale-105"
+                  >
+                    <i className="fa-solid fa-arrow-down text-[10px]" /> {newMessageCount}
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -901,8 +1131,8 @@ export default function MessagesShell({ emptyHint, space }: Props) {
             </div>
           )}
 
-          {/* Input */}
-          <div className="flex items-center gap-2 px-4 py-3 border-t border-line bg-card shrink-0">
+          {/* Input — collée en bas avec marge de sécurité (encoche) sous 768px. */}
+          <div className="flex items-end gap-2 px-4 py-3 border-t border-line bg-card shrink-0 max-md:pb-[calc(var(--safe-bottom,0)+0.75rem)]">
             {recording ? (
               /* ── Mode enregistrement ── */
               <>
@@ -937,13 +1167,22 @@ export default function MessagesShell({ emptyHint, space }: Props) {
             ) : (
               /* ── Mode normal ── */
               <>
-                <input
+                <textarea
                   ref={inputRef}
-                  type="text" value={input}
+                  rows={1}
+                  value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
+                  onKeyDown={(e) => {
+                    // Mobile : Entrée = saut de ligne (comportement natif du
+                    // textarea, rien à faire). PC : Entrée envoie, Maj+Entrée
+                    // insère une ligne.
+                    if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
+                      e.preventDefault();
+                      void handleSend();
+                    }
+                  }}
                   placeholder={t('messagePlaceholder')}
-                  className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:ring-2 focus:ring-gold-dark transition max-md:text-base"
+                  className="max-h-28 flex-1 resize-none rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:ring-2 focus:ring-gold-dark transition max-md:text-base"
                 />
                 {/* Micro si le champ est vide, sinon bouton envoyer */}
                 {input.trim() ? (

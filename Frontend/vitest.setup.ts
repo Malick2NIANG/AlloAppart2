@@ -22,3 +22,12 @@ if (!window.matchMedia) {
     dispatchEvent: () => false,
   }) as MediaQueryList;
 }
+
+// jsdom n'implémente pas Element.scrollIntoView (connu, jamais ajouté) —
+// requis par MessagesShell (lot messagerie mobile, défilement automatique
+// des messages). Sans ce polyfill, l'appel lève une TypeError à l'intérieur
+// d'un effet React après résolution d'une promesse (hors du flux await du
+// test), ce qui bloquait la suite entière au lieu d'échouer proprement.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}

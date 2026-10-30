@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/nextjs';
-import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import Pusher from 'pusher-js';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
@@ -17,6 +17,21 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
   const { getToken } = useAuth();
   const t = useTranslations('chatRoom');
   const locale = useLocale();
+  const router   = useRouter();
+  const pathname = usePathname();
+
+  // Cette route (/.../messages/[roomId]) est TOUJOURS atteinte par une
+  // navigation fraîche (ex. ListingContactCard, après prise de contact
+  // depuis une annonce) — jamais depuis un clic sur la liste elle-même
+  // (celle-ci utilise ?room= sur MessagesShell, pas cette route). Sans
+  // correctif, Retour mène à la page précédente (l'annonce), jamais à la
+  // liste des conversations. On insère la liste comme entrée d'historique
+  // juste avant la conversation, une seule fois au montage.
+  useEffect(() => {
+    router.replace(backUrl, { scroll: false });
+    router.push(pathname, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [messages, setMessages]   = useState<Message[]>([]);
   const [room, setRoom]           = useState<MessageRoom | null>(null);
   const [me, setMe]               = useState<User | null>(null);
@@ -132,9 +147,13 @@ export default function ChatRoom({ roomId, backUrl }: Props) {
 
       {/* Header */}
       <div className="flex items-center gap-3 pb-4 mb-4 border-b border-line shrink-0">
-        <Link href={backUrl} className="tap-target flex h-8 w-8 items-center justify-center rounded-full hover:bg-gold-pale text-sub hover:text-gold-dark transition-colors">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="tap-target flex h-11 w-11 items-center justify-center rounded-full hover:bg-gold-pale text-sub hover:text-gold-dark transition-colors -ml-1.5"
+        >
           <i className="fa-solid fa-arrow-left text-sm" />
-        </Link>
+        </button>
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-pale">
           <i className="fa-solid fa-user text-gold-dark text-sm" />
         </div>
