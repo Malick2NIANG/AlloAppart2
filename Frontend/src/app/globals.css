@@ -335,3 +335,12 @@ h1, h2, h3, h4, h5 {
 ::-webkit-scrollbar-track        { background: var(--aa-bg); }
 ::-webkit-scrollbar-thumb        { background: var(--aa-line); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover  { background: #facc15; }
+
+/* Mobile (< 768px) et appareils tactiles (tablettes, y compris en paysage) :
+   pas de barre de défilement visible, comme dans une application. Le
+   défilement fonctionne toujours. Un PC avec souris (pointeur précis) garde la
+   barre de 6px ci-dessus, strictement identique. */
+@media (max-width: 767px), (hover: none) and (pointer: coarse) {
+  * { scrollbar-width: none; }
+  *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+}

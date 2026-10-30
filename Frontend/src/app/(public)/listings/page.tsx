@@ -343,11 +343,14 @@ export default async function ListingsPage({
             </div>
 
             {/* Pied de liste : « Par page » à gauche, pagination centrée, sur la même ligne */}
-            <div className="mt-12 grid items-center gap-4 sm:grid-cols-[1fr_auto_1fr]">
+            {/* Sous 1024px (mobile et tablette) : tout est centré sur une
+                colonne — pagination d'abord, « Par page » dessous. À partir de
+                1024px : disposition en 3 colonnes inchangée. */}
+            <div className="mt-12 flex flex-col items-center gap-4 lg:grid lg:grid-cols-[1fr_auto_1fr]">
 
             {/* Par page — réglage rare, hors de la barre de filtres */}
             {total > 6 ? (
-              <div className="flex items-center justify-start gap-2">
+              <div className="flex items-center justify-start gap-2 max-lg:order-2 max-lg:justify-center">
                 <span className="text-xs text-sub">{t('perPage')}</span>
                 <div className="flex items-center gap-1 rounded-full border border-line bg-card p-1">
                   {[6, 12, 24].map((n) => (
@@ -363,11 +366,11 @@ export default async function ListingsPage({
                   ))}
                 </div>
               </div>
-            ) : <div className="hidden sm:block" />}
+            ) : <div className="hidden lg:block" />}
 
             {/* Pagination */}
             {totalPages > 1 ? (
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-2 max-lg:order-1 max-lg:flex-wrap">
 
                 {currentPage > 1 ? (
                   <Link href={pageUrl(currentPage - 1)}
@@ -380,6 +383,11 @@ export default async function ListingsPage({
                   </span>
                 )}
 
+                {/* Numéros de page : masqués sous 640px, remplacés par
+                    l'indicateur compact « 2 / 5 » plus bas (jamais de
+                    débordement sur petit écran). `contents` : sans effet sur
+                    la mise en page à partir de 640px. */}
+                <div className="contents max-sm:hidden">
                 {start > 1 && (
                   <>
                     <Link href={pageUrl(1)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">1</Link>
@@ -404,6 +412,12 @@ export default async function ListingsPage({
                     <Link href={pageUrl(totalPages)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">{totalPages}</Link>
                   </>
                 )}
+                </div>
+
+                {/* Indicateur compact — sous 640px uniquement. */}
+                <span aria-live="polite" className="sm:hidden flex h-11 min-w-24 items-center justify-center rounded-full border border-gold/40 bg-gold-pale px-4 text-sm font-semibold text-gold-dark">
+                  {currentPage} / {totalPages}
+                </span>
 
                 {currentPage < totalPages ? (
                   <Link href={pageUrl(currentPage + 1)}
@@ -416,10 +430,10 @@ export default async function ListingsPage({
                   </span>
                 )}
               </div>
-            ) : <div className="hidden sm:block" />}
+            ) : <div className="hidden lg:block" />}
 
             {/* Colonne vide : garde la pagination centrée */}
-            <div className="hidden sm:block" />
+            <div className="hidden lg:block" />
             </div>
           </>
         )}

@@ -53,7 +53,7 @@
     "miloPlaceholder": "Décrivez ce que vous cherchez : F3 à Mermoz sous 400 000 FCFA…",
     "miloAriaLabel": "Décrivez votre recherche en une phrase",
     "miloClear": "Effacer la recherche",
-    "miloHelpLine": "Milo comprend le lieu, le budget, le nombre de chambres, le type de bien…",
+    "miloHelpLine": "Dites à Milo AI ce que vous cherchez exactement : Milo comprend le lieu, le budget, le type de bien, et si vous voulez louer ou acheter…",
     "popular": "Populaire :",
     "stats": {
       "listings": "Annonces actives",
@@ -169,7 +169,9 @@
     "terms": "CGU",
     "cookies": "Cookies",
     "navAbout": "À propos",
-    "navSitemap": "Plan du site"
+    "navSitemap": "Plan du site",
+    "miloAskTitle": "Vous n'avez pas trouvé votre bien ?",
+    "miloAskSub": "Dites à Milo AI ce que vous cherchez : lieu, budget, type de bien, louer ou acheter…"
   },
   "auth": {
     "backToSite": "Retour au site",
@@ -483,6 +485,7 @@
     "askMiloButton": "Demander à Milo",
     "askMiloAriaLabel": "Décrivez votre recherche en une phrase",
     "askMiloClear": "Effacer la recherche",
+    "askMiloClose": "Fermer la barre Milo",
     "filtersOwner": "Annonceur",
     "removeFilter": "Retirer ce filtre",
     "applyFilters": "Appliquer",

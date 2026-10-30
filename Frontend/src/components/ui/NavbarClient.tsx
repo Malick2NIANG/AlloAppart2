@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import ThemeToggle from './ThemeToggle';
 import LanguageSwitcher from './LanguageSwitcher';
 import NotificationBell from './NotificationBell';
+import MiloSearchBar from '@/components/milo/MiloSearchBar';
 import type { Locale } from '@/i18n/config';
 import { api } from '@/lib/api';
 import type { MessageRoom, User } from '@/types';
@@ -143,6 +144,7 @@ export default function NavbarClient({ locale, labels }: Props) {
 
   const [scrolled,       setScrolled]       = useState(false);
   const [mobileOpen,     setMobileOpen]     = useState(false);
+  const [miloDrawerOpen, setMiloDrawerOpen] = useState(false);
   const [searchVal,      setSearchVal]      = useState('');
   const [minPrice,       setMinPrice]       = useState('');
   const [maxPrice,       setMaxPrice]       = useState('');
@@ -486,6 +488,43 @@ export default function NavbarClient({ locale, labels }: Props) {
         // l'en-tête de 56px et la barre du bas) et ne fait plus défiler la page
         // derrière. Sans effet à partir de 768px.
         <div className="lg:hidden glass border-t border-line px-4 pb-5 pt-3 max-md:max-h-[calc(100dvh-3.5rem-var(--safe-top,0px)-var(--bottom-nav-h,0px))] max-md:overflow-y-auto max-md:overscroll-contain md:max-lg:max-h-[calc(100dvh-5rem)] md:max-lg:overflow-y-auto md:max-lg:overscroll-contain">
+
+          {/* Milo — recherche en langage naturel, en tête du menu (mobile et
+              tablette < 1024px). Referme le menu après l'envoi. La recherche
+              classique reste juste en dessous. */}
+          <div className="mb-3">
+            {!miloDrawerOpen ? (
+              <button
+                type="button"
+                onClick={() => setMiloDrawerOpen(true)}
+                className="tap-target flex h-10 items-center gap-2 rounded-full border border-gold/40 bg-gold-pale px-4 text-sm font-medium text-gold-dark transition-colors hover:bg-gold/20"
+              >
+                <i className="fa-solid fa-wand-magic-sparkles text-xs" />
+                {tListings('askMiloButton')}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <MiloSearchBar
+                  size="compact"
+                  autoFocus
+                  className="min-w-0 flex-1"
+                  placeholder={tListings('askMiloButton')}
+                  ariaLabel={tListings('askMiloAriaLabel')}
+                  clearLabel={tListings('askMiloClear')}
+                  onSubmitted={() => { setMiloDrawerOpen(false); setMobileOpen(false); }}
+                />
+                {/* Croix : referme la barre et ré-affiche le bouton. */}
+                <button
+                  type="button"
+                  onClick={() => setMiloDrawerOpen(false)}
+                  aria-label={tListings('askMiloClose')}
+                  className="tap-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-card text-sub transition-colors hover:border-gold hover:text-text"
+                >
+                  <i className="fa-solid fa-xmark" aria-hidden />
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Recherche */}
           <form onSubmit={handleSearch} className="mb-3 grid gap-2 p-3 rounded-2xl border border-line bg-card">

@@ -53,7 +53,7 @@
     "miloPlaceholder": "Describe what you're looking for: 2 bedrooms in Almadies under 300k…",
     "miloAriaLabel": "Describe your search in one sentence",
     "miloClear": "Clear search",
-    "miloHelpLine": "Milo understands location, budget, bedrooms, property type…",
+    "miloHelpLine": "Tell Milo AI exactly what you're looking for: Milo understands location, budget, property type, and whether you want to rent or buy…",
     "popular": "Popular:",
     "stats": {
       "listings": "Active listings",
@@ -169,7 +169,9 @@
     "terms": "Terms",
     "cookies": "Cookies",
     "navAbout": "About",
-    "navSitemap": "Sitemap"
+    "navSitemap": "Sitemap",
+    "miloAskTitle": "Didn't find your place?",
+    "miloAskSub": "Tell Milo AI what you're looking for: location, budget, property type, rent or buy…"
   },
   "auth": {
     "backToSite": "Back to site",
@@ -483,6 +485,7 @@
     "askMiloButton": "Ask Milo",
     "askMiloAriaLabel": "Describe your search in one sentence",
     "askMiloClear": "Clear search",
+    "askMiloClose": "Close the Milo bar",
     "filtersOwner": "Advertiser",
     "removeFilter": "Remove this filter",
     "applyFilters": "Apply",

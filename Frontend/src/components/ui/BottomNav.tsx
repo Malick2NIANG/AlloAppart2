@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { isImmersiveRoute } from '@/lib/isImmersiveRoute';
@@ -41,6 +41,7 @@ interface Props {
  */
 export default function BottomNav({ items, showMore = false, onMoreClick, unreadMessagesCount = 0 }: Props) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const tNav = useTranslations('nav');
   const tDashboard = useTranslations('dashboard');
   const immersive = isImmersiveRoute(pathname);
@@ -74,8 +75,17 @@ export default function BottomNav({ items, showMore = false, onMoreClick, unread
   const translate = (item: BottomNavItem) =>
     item.i18nNamespace === 'nav' ? tNav(item.labelKey) : tDashboard(item.labelKey);
 
-  const isActive = (href: string) =>
-    pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
+  // « Favoris » (public) redirige vers /listings?tab=favoris : sans ce test,
+  // c'est l'onglet « Annonces » (même chemin /listings) qui restait en jaune.
+  const onFavoritesTab = pathname === '/listings' && searchParams.get('tab') === 'favoris';
+
+  const isActive = (href: string) => {
+    if (href === '/favoris') {
+      return pathname === href || pathname.startsWith(`${href}/`) || onFavoritesTab;
+    }
+    if (href === '/listings' && onFavoritesTab) return false;
+    return pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
+  };
 
   return (
     <nav

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
+import MiloFooterAsk from '@/components/milo/MiloFooterAsk';
 
 // Un href '#' est filtré au rendu plus bas (voir Col 1) — pratique pour
 // masquer un réseau tant que son lien n'existe pas encore.
@@ -44,6 +45,9 @@ export default async function Footer() {
       />
 
       <div className="aa-container py-14">
+        {/* Milo : accès en fin de page, pour qui n'a pas trouvé son bien. */}
+        <MiloFooterAsk title={t('miloAskTitle')} subtitle={t('miloAskSub')} />
+
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
 
           {/* Col 1 — Brand */}

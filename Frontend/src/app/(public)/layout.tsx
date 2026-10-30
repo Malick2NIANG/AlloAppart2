@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
+import FooterGate from '@/components/ui/FooterGate';
 import PublicSkeletonOverlay from '@/components/ui/PublicSkeletonOverlay';
 import BottomNav from '@/components/ui/BottomNav';
 import { getBottomNavItems } from '@/lib/getBottomNavItems';
@@ -13,7 +14,9 @@ export default async function PublicLayout({ children }: { children: React.React
     <>
       <Navbar />
       <div className="flex-1">{children}</div>
-      <Footer />
+      <FooterGate>
+        <Footer />
+      </FooterGate>
       <PublicSkeletonOverlay />
       <BottomNav items={items} />
     </>

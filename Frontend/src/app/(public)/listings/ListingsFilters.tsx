@@ -321,15 +321,29 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
           </button>
         )}
         {miloOpen && (
-          <MiloSearchBar
-            size="compact"
-            autoFocus
-            initialValue={miloText ?? ''}
-            placeholder={t('askMiloButton')}
-            ariaLabel={t('askMiloAriaLabel')}
-            clearLabel={t('askMiloClear')}
-            onSubmitted={() => setMiloOpen(false)}
-          />
+          <div className="flex items-center gap-2">
+            <MiloSearchBar
+              size="compact"
+              autoFocus
+              className="min-w-0 flex-1"
+              initialValue={miloText ?? ''}
+              placeholder={t('askMiloButton')}
+              ariaLabel={t('askMiloAriaLabel')}
+              clearLabel={t('askMiloClear')}
+              onSubmitted={() => setMiloOpen(false)}
+            />
+            {/* Croix : referme la barre et ré-affiche le bouton « Demander à
+                Milo ». Hors de la barre pour ne pas se confondre avec la
+                croix « effacer le texte » qui est à l'intérieur. */}
+            <button
+              type="button"
+              onClick={() => setMiloOpen(false)}
+              aria-label={t('askMiloClose')}
+              className="tap-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-card text-sub transition-colors hover:border-gold hover:text-text"
+            >
+              <i className="fa-solid fa-xmark" aria-hidden />
+            </button>
+          </div>
         )}
 
         {/* Bandeau « Milo a compris » (milo=1, lot 5b, parcours § 2.d #2). */}

@@ -325,6 +325,13 @@ export default async function HomePage() {
             <MiloHeroSearch />
           </div>
 
+          {/* Même barre sur PC et tablette (≥768px), pour TOUS les profils
+              connectés ou non (avant : visiteur anonyme seulement). Les
+              boutons propres à chaque rôle restent en dessous. */}
+          <div className="hidden md:block mx-auto mt-8 w-full max-w-xl animate-fadeUp delay-300">
+            <MiloHeroSearch />
+          </div>
+
           {/* ── CTA dynamiques ── */}
           {isAdmin ? (
             <div className="cta-group animate-fadeUp delay-400 mt-10 flex flex-wrap justify-center gap-3">
@@ -390,9 +397,6 @@ export default async function HomePage() {
                 affiché plus haut, cf. MiloHeroSearch ci-dessus — le bloc
                 ci-dessous est hidden md:block pour ne pas le dupliquer). ── */
             <div className="animate-fadeUp delay-400 mt-8 flex flex-col items-center gap-5">
-              <div className="hidden md:block w-full max-w-xl">
-                <MiloHeroSearch />
-              </div>
               <Link href="/sign-up" className="btn-gold">
                 {t('ctaCreateAccount')} <i className="fa-solid fa-arrow-right" />
               </Link>
@@ -493,8 +497,11 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            {/* Grille agences */}
-            <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {/* Grille agences — ≥768px inchangée. Sous 768px : carrousel
+                horizontal à défilement accroché (snap), comme les annonces et
+                les régions ; la carte suivante dépasse pour montrer qu'il y a
+                plus de contenu. */}
+            <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-md:-mx-4 max-md:flex max-md:snap-x max-md:snap-mandatory max-md:gap-3 max-md:overflow-x-auto max-md:scroll-smooth max-md:px-4 max-md:pb-2">
               {agencies.slice(0, 8).map((agency) => {
                 const name    = agency.agencyName ?? `${agency.firstName} ${agency.lastName}`;
                 const isPro   = agency.subscription?.plan === 'PRO' && agency.subscription?.status === 'ACTIVE';
@@ -502,7 +509,7 @@ export default async function HomePage() {
                 const count   = agency._count.listings;
 
                 return (
-                  <div key={agency.id} className={`group rounded-2xl border bg-bg overflow-hidden transition-all duration-300 hover:shadow-lg ${isPro ? 'border-gold/40 hover:border-gold/70' : 'border-line hover:border-gold/30'}`}>
+                  <div key={agency.id} className={`group rounded-2xl border bg-bg overflow-hidden transition-all duration-300 hover:shadow-lg max-md:w-[72%] max-md:max-w-64 max-md:shrink-0 max-md:snap-start ${isPro ? 'border-gold/40 hover:border-gold/70' : 'border-line hover:border-gold/30'}`}>
 
                     {/* Bandeau PRO */}
                     {isPro && (
