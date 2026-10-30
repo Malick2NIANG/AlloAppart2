@@ -1,13 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
-import { useTranslations, useLocale } from 'next-intl';
-import { api } from '@/lib/api';
-import { BOTTOM_NAV_TOGGLE_EVENT } from '@/components/ui/BottomNav';
-import type { MessageRoom, Message } from '@/types';
+import { useTranslations } from 'next-intl';
+import MessagesShell from '@/components/messages/MessagesShell';
 
 function VisitorGate({ t }: { t: ReturnType<typeof useTranslations<'messages'>> }) {
   return (
@@ -24,184 +20,20 @@ function VisitorGate({ t }: { t: ReturnType<typeof useTranslations<'messages'>> 
   );
 }
 
-function avatarInitials(firstName?: string, lastName?: string) {
-  return `${(firstName ?? '?')[0]}${(lastName ?? '')[0] ?? ''}`.toUpperCase();
-}
-
-function formatTime(
-  iso: string,
-  locale: string,
-  yesterday: string,
-): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffH = diffMs / (1000 * 60 * 60);
-  if (diffH < 24) return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
-  if (diffH < 48) return yesterday;
-  return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
-}
-
+/**
+ * Messagerie publique — lot « messagerie mode application » : réutilise
+ * MessagesShell (mêmes fonctions que les espaces bailleur/locataire/agent :
+ * non-lus, archivage, vocal, temps réel Soketi, ?room=, séparateurs de
+ * date…) au lieu de l'ancienne implémentation dédiée qui n'avait aucune de
+ * ces fonctions et ouvrait toujours la première conversation (jamais la
+ * liste sur mobile). ?room=, VisitorGate et BOTTOM_NAV_TOGGLE_EVENT
+ * conservés — ce dernier est géré par MessagesShell lui-même.
+ */
 export default function MessagesPage() {
-  const { isSignedIn, getToken, userId } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
   const t = useTranslations('messages');
-  const locale = useLocale();
-  const numLocale = locale === 'en' ? 'en-US' : 'fr-SN';
-  const searchParams = useSearchParams();
-  const preSelectedRoomId = searchParams.get('room');
 
-  const [mounted, setMounted] = useState(false);
-  const [rooms, setRooms] = useState<MessageRoom[]>([]);
-  const [activeRoom, setActiveRoom] = useState<MessageRoom | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [loadingRooms, setLoadingRooms] = useState(false);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollingRoomsRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollingMsgsRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const msgBackoffMs = useRef(2000);
-  const lastMsgCountRef = useRef(-1);
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration guard pattern
-  useEffect(() => { setMounted(true); }, []);
-
-  // /messages (public) n'a pas de route [roomId] dédiée (contrairement aux
-  // espaces locataire/bailleur/agent) : ouvrir une conversation ne change
-  // pas le chemin, donc isImmersiveRoute seul ne peut pas masquer la barre
-  // du bas. On le signale explicitement à BottomNav via un événement tant
-  // qu'une conversation est ouverte, et on la rétablit au retour à la liste
-  // ou en quittant la page. Sans effet ≥768px (BottomNav y est déjà masquée
-  // par son propre md:hidden).
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent(BOTTOM_NAV_TOGGLE_EVENT, { detail: { hidden: !!activeRoom } }));
-    return () => {
-      window.dispatchEvent(new CustomEvent(BOTTOM_NAV_TOGGLE_EVENT, { detail: { hidden: false } }));
-    };
-  }, [activeRoom]);
-
-  const loadRooms = useCallback(async () => {
-    if (!isSignedIn) return;
-    const token = await getToken();
-    if (!token) return;
-    try {
-      const data = await api.get<MessageRoom[]>('/messages/rooms', token);
-      setRooms(data);
-      return data;
-    } catch {
-      return undefined;
-    }
-  }, [isSignedIn, getToken]);
-
-  const loadMessages = useCallback(async (roomId: string): Promise<number> => {
-    const token = await getToken();
-    if (!token) return -1;
-    try {
-      const data = await api.get<Message[]>(`/messages/rooms/${roomId}`, token);
-      const reversed = [...data].reverse();
-      setMessages(reversed);
-      return reversed.length;
-    } catch {
-      return -1;
-    }
-  }, [getToken]);
-
-  const markRead = useCallback(async (roomId: string) => {
-    const token = await getToken();
-    if (!token) return;
-    await api.post(`/messages/rooms/${roomId}/read`, {}, token).catch(() => {});
-  }, [getToken]);
-
-  // Load rooms on mount + poll every 10s
-  useEffect(() => {
-    if (!isSignedIn || !mounted) return;
-
-    const init = async () => {
-      setLoadingRooms(true);
-      const data = await loadRooms();
-      setLoadingRooms(false);
-
-      if (data && data.length > 0) {
-        const target = preSelectedRoomId
-          ? data.find((r) => r.id === preSelectedRoomId) ?? data[0]
-          : data[0];
-        setActiveRoom(target);
-      }
-    };
-
-    init();
-
-    pollingRoomsRef.current = setInterval(loadRooms, 10000);
-    return () => { if (pollingRoomsRef.current) clearInterval(pollingRoomsRef.current); };
-  }, [isSignedIn, mounted, loadRooms, preSelectedRoomId]);
-
-  // Load messages + poll avec exponential backoff (2s → 30s si pas de nouveaux msgs)
-  useEffect(() => {
-    if (!activeRoom) return;
-    if (pollingMsgsRef.current) clearTimeout(pollingMsgsRef.current);
-
-    msgBackoffMs.current = 2000;
-    lastMsgCountRef.current = -1;
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading state set in effect body
-    setLoadingMessages(true);
-    loadMessages(activeRoom.id).then((count) => {
-      setLoadingMessages(false);
-      lastMsgCountRef.current = count;
-    });
-    markRead(activeRoom.id);
-
-    const schedule = () => {
-      pollingMsgsRef.current = setTimeout(async () => {
-        const newCount = await loadMessages(activeRoom.id);
-        if (newCount >= 0 && newCount > lastMsgCountRef.current) {
-          msgBackoffMs.current = 2000; // nouveau message → reset backoff
-          lastMsgCountRef.current = newCount;
-        } else if (newCount >= 0) {
-          msgBackoffMs.current = Math.min(msgBackoffMs.current * 1.5, 30_000); // ralentir
-        }
-        schedule();
-      }, msgBackoffMs.current);
-    };
-    schedule();
-
-    return () => { if (pollingMsgsRef.current) clearTimeout(pollingMsgsRef.current); };
-  }, [activeRoom?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Scroll to bottom when messages load
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const selectRoom = (room: MessageRoom) => {
-    setActiveRoom(room);
-    markRead(room.id);
-  };
-
-  const send = async () => {
-    if (!input.trim() || !activeRoom || sending) return;
-    const token = await getToken();
-    if (!token) return;
-    setSending(true);
-    const text = input.trim();
-    setInput('');
-
-    try {
-      const msg = await api.post<Message>(`/messages/rooms/${activeRoom.id}/send`, { content: text }, token);
-      setMessages((prev) => [...prev, msg]);
-      // Refresh room list to update last message preview
-      loadRooms();
-    } catch {
-      setInput(text); // restore if failed
-    } finally {
-      setSending(false);
-    }
-  };
-
-  if (!mounted) return null;
+  if (!isLoaded) return null;
 
   if (!isSignedIn) {
     return (
@@ -213,224 +45,17 @@ export default function MessagesPage() {
     );
   }
 
-  const yesterday = t('yesterday');
-
-  const filteredRooms = searchQuery.trim()
-    ? rooms.filter((r) =>
-        r.listing?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.participants.some((p) =>
-          `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      )
-    : rooms;
-
-  const otherParticipants = (room: MessageRoom) =>
-    room.participants.filter((p) => p.id !== userId);
-
-  const totalUnread = 0; // unread count requires extra field from API
-
   return (
-    // ≥768px : hauteur strictement inchangée (calc(100vh - 64px), portée par
-    // une classe plutôt qu'un style inline pour pouvoir la surcharger sous
-    // 768px). Sous 768px : la navbar publique fait 3.5rem (NavbarClient.tsx,
-    // max-md:h-14, lot 2a) et non 64px ; 100dvh tient compte du clavier
-    // virtuel ; --bottom-offset réserve la place de la barre de navigation
-    // du bas (visible ici, page non immersive tant qu'aucune conversation
-    // n'a sa propre route) + l'encoche.
-    <main className="bg-bg h-[calc(100vh-64px)] max-md:h-[calc(100dvh-3.5rem-var(--bottom-offset,0))]">
-      <div className="aa-container max-w-5xl h-full flex flex-col py-6 px-4">
-
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-xl font-extrabold text-text flex items-center gap-2">
-            <i className="fa-solid fa-comments text-gold-dark" />
-            {t('title')}
-            {totalUnread > 0 && (
-              <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-gray-900">
-                {totalUnread}
-              </span>
-            )}
-          </h1>
-          <Link href="/espace" className="text-xs text-sub hover:text-gold-dark transition-colors">
-            {t('backToSpace')}
-          </Link>
-        </div>
-
-        <div className="flex flex-1 overflow-hidden rounded-2xl border border-line bg-card min-h-0">
-
-          {/* Thread list — plein écran sur mobile tant qu'aucune conversation n'est ouverte */}
-          <div className={`w-full md:w-72 shrink-0 border-r border-line flex-col overflow-hidden ${activeRoom ? 'hidden md:flex' : 'flex'}`}>
-            <div className="p-3 border-b border-line">
-              <div className="flex items-center gap-2 rounded-xl bg-bg px-3 py-2 text-xs">
-                <i className="fa-solid fa-magnifying-glass text-[11px] text-sub" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('search')}
-                  className="flex-1 bg-transparent text-text placeholder:text-sub outline-none text-xs max-md:text-base"
-                />
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {loadingRooms && rooms.length === 0 ? (
-                <div className="flex items-center justify-center py-12 text-sub text-sm">
-                  <i className="fa-solid fa-spinner fa-spin mr-2" /> {t('loading')}
-                </div>
-              ) : filteredRooms.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-                  <i className="fa-solid fa-comment-slash text-2xl text-sub/40 mb-3" />
-                  <p className="text-sm text-sub">{t('noRooms')}</p>
-                  <p className="text-xs text-sub/60 mt-1">{t('noRoomsHint')}</p>
-                </div>
-              ) : (
-                filteredRooms.map((room) => {
-                  const others = otherParticipants(room);
-                  const name = others.length > 0
-                    ? `${others[0].firstName} ${others[0].lastName}`
-                    : t('roomFallback');
-                  const lastMsg = room.messages?.[0];
-                  const initials = others.length > 0
-                    ? avatarInitials(others[0].firstName, others[0].lastName)
-                    : '??';
-
-                  return (
-                    <button
-                      key={room.id}
-                      onClick={() => selectRoom(room)}
-                      className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-bg border-b border-line/50 max-md:min-h-16 ${activeRoom?.id === room.id ? 'bg-gold-pale dark:bg-gold-dark/15' : ''}`}
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-pale text-xs font-bold text-gold-dark">
-                        {initials}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-bold text-text truncate">{name}</p>
-                          {lastMsg && (
-                            <p className="text-[10px] text-sub shrink-0 ml-1">{formatTime(lastMsg.createdAt, numLocale, yesterday)}</p>
-                          )}
-                        </div>
-                        <p className="truncate text-xs text-sub">
-                          {room.listing?.title ?? t('listingFallback')}
-                        </p>
-                        {lastMsg && (
-                          <p className="truncate text-xs text-sub/70 mt-0.5">{lastMsg.content}</p>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Chat window — remplace la liste sur mobile une fois une conversation ouverte */}
-          {activeRoom ? (
-            <div className="flex flex-1 flex-col min-w-0">
-              {/* Header */}
-              <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
-                <button
-                  type="button"
-                  onClick={() => setActiveRoom(null)}
-                  aria-label={t('backToList')}
-                  className="md:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-bg active:bg-bg transition-colors -ml-1.5"
-                >
-                  <i className="fa-solid fa-arrow-left text-sub" />
-                </button>
-                {(() => {
-                  const others = otherParticipants(activeRoom);
-                  const name = others.length > 0 ? `${others[0].firstName} ${others[0].lastName}` : t('roomFallback');
-                  const initials = others.length > 0 ? avatarInitials(others[0].firstName, others[0].lastName) : '??';
-                  return (
-                    <>
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-pale text-xs font-bold text-gold-dark">
-                        {initials}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-text">{name}</p>
-                        <p className="text-xs text-sub truncate max-w-xs">{activeRoom.listing?.title ?? t('listingFallback')}</p>
-                      </div>
-                    </>
-                  );
-                })()}
-                <div className="ml-auto flex gap-2">
-                  <Link
-                    href={`/listings/${activeRoom.listingId}`}
-                    className="flex h-8 items-center gap-1.5 rounded-full border border-line px-3 text-xs text-sub hover:bg-bg transition"
-                  >
-                    <i className="fa-solid fa-house text-[10px]" /> {t('viewListing')}
-                  </Link>
-                </div>
-              </div>
-
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-3">
-                {loadingMessages && messages.length === 0 ? (
-                  <div className="flex items-center justify-center py-10 text-sub text-sm">
-                    <i className="fa-solid fa-spinner fa-spin mr-2" /> {t('messagesLoading')}
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="flex items-center justify-center py-10 text-sub text-sm">
-                    {t('noMessages')}
-                  </div>
-                ) : (
-                  messages.map((msg) => {
-                    const isMe = msg.senderId === userId || (msg.sender && msg.sender.id === userId);
-                    return (
-                      <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-xs max-md:max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
-                          isMe
-                            ? 'bg-gold text-gray-900 rounded-br-sm'
-                            : 'bg-bg text-text border border-line rounded-bl-sm'
-                        }`}>
-                          <p>{msg.content}</p>
-                          <p className={`mt-1 text-[10px] text-right ${isMe ? 'text-gray-700' : 'text-sub'}`}>
-                            {formatTime(msg.createdAt, numLocale, yesterday)}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input — collé en bas sous 768px (conversation en plein écran
-                  sur mobile, barre du bas masquée par la hauteur utile
-                  calculée plus haut). */}
-              <div className="border-t border-line p-4 flex items-center gap-3 max-md:sticky max-md:bottom-0 max-md:bg-bg max-md:pb-[calc(var(--safe-bottom,0)+1rem)]">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
-                  placeholder={t('writeMessage')}
-                  className="flex-1 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-text placeholder:text-sub outline-none focus:border-gold/50 transition-colors max-md:text-base"
-                />
-                <button
-                  onClick={send}
-                  disabled={!input.trim() || sending}
-                  className="tap-target flex h-10 w-10 items-center justify-center rounded-xl bg-gold text-gray-900 hover:bg-gold-dark hover:text-white transition-colors disabled:opacity-40"
-                >
-                  {sending
-                    ? <i className="fa-solid fa-spinner fa-spin text-sm" />
-                    : <i className="fa-solid fa-paper-plane text-sm" />
-                  }
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="hidden md:flex flex-1 flex-col items-center justify-center text-center p-10">
-              <i className="fa-solid fa-comments text-5xl text-sub/20 mb-4" />
-              <p className="text-sm text-sub">{t('selectRoom')}</p>
-            </div>
-          )}
-        </div>
-
-        <p className="mt-3 text-center text-xs text-sub">
-          <i className="fa-solid fa-circle-info mr-1 text-gold-dark" />
-          {t('realtimeNote')}
-        </p>
+    // ≥768px (tablette ET PC, NavbarClient.tsx ne varie pas entre les deux :
+    // h-20 partout à partir de 768px) : calc(100vh - 80px), pas 64px comme
+    // l'ancienne implémentation le supposait à tort (constat confirmé par
+    // capture — la navbar publique mesure réellement 80px dès 768px, jamais
+    // 64px). Sous 768px : la navbar publique fait 3.5rem (max-md:h-14, lot
+    // 2a) ; 100dvh tient compte du clavier virtuel ; --bottom-offset réserve
+    // la place de la barre de navigation du bas + l'encoche.
+    <main className="bg-bg h-[calc(100vh-80px)] max-md:h-[calc(100dvh-3.5rem-var(--bottom-offset,0))]">
+      <div className="aa-container max-w-5xl h-full py-6 px-4">
+        <MessagesShell emptyHint={t('noRoomsHint')} />
       </div>
     </main>
   );

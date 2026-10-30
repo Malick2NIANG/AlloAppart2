@@ -750,25 +750,10 @@
     "noVerifQueue": "No pending verifications."
   },
   "messages": {
-    "title": "Messaging",
-    "backToSpace": "← My space",
-    "backToList": "Back to conversations",
-    "search": "Search…",
-    "writeMessage": "Write a message…",
-    "realtimeNote": "Real-time messaging (Soketi) coming soon.",
     "visitorTitle": "Messaging",
     "visitorDesc": "Sign in to access your conversations with landlords and tenants.",
     "signIn": "Sign in",
-    "loading": "Loading…",
-    "noRooms": "No conversations",
-    "noRoomsHint": "Contact a landlord from a listing.",
-    "roomFallback": "Conversation",
-    "listingFallback": "Listing",
-    "viewListing": "View listing",
-    "messagesLoading": "Loading…",
-    "noMessages": "No messages yet — say hello!",
-    "selectRoom": "Select a conversation",
-    "yesterday": "Yesterday"
+    "noRoomsHint": "Contact a landlord from a listing."
   },
   "profil": {
     "title": "My profile",

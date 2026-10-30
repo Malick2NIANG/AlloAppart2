@@ -750,25 +750,10 @@
     "noVerifQueue": "Aucune vérification en attente."
   },
   "messages": {
-    "title": "Messagerie",
-    "backToSpace": "← Mon espace",
-    "backToList": "Retour aux conversations",
-    "search": "Rechercher…",
-    "writeMessage": "Écrivez un message…",
-    "realtimeNote": "La messagerie temps réel (Soketi) sera disponible prochainement.",
     "visitorTitle": "Messagerie",
     "visitorDesc": "Connectez-vous pour accéder à vos conversations avec les bailleurs et locataires.",
     "signIn": "Se connecter",
-    "loading": "Chargement…",
-    "noRooms": "Aucune conversation",
-    "noRoomsHint": "Contactez un bailleur depuis une annonce.",
-    "roomFallback": "Conversation",
-    "listingFallback": "Annonce",
-    "viewListing": "Voir l'annonce",
-    "messagesLoading": "Chargement…",
-    "noMessages": "Aucun message — dites bonjour !",
-    "selectRoom": "Sélectionnez une conversation",
-    "yesterday": "Hier"
+    "noRoomsHint": "Contactez un bailleur depuis une annonce."
   },
   "profil": {
     "title": "Mon profil",
