@@ -51,7 +51,10 @@ export function ReadoutCard({ icon, color, label, value }: { icon: string; color
         <i className={`fa-solid ${icon} text-sm`} style={{ color }} />
       </div>
       <div>
-        <p className="font-mono text-2xl font-extrabold text-text tabular-nums">
+        {/* Valeur monétaire longue (ex. « 16 330 000 F CFA ») dépassait la
+            carte à 360-390px (texte coupé en plein milieu de l'unité) — plus
+            petite et peut passer à la ligne sous 768px ; inchangé ≥768px. */}
+        <p className="font-mono text-2xl max-md:text-lg font-extrabold text-text tabular-nums max-md:wrap-break-word">
           {value}
         </p>
         <p className="mt-1 text-xs text-sub">{label}</p>

@@ -239,16 +239,18 @@ export default function AdminConfigPage() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Sous 768px : les 2 boutons empilés pleine largeur plutôt que
+            serrés sur une seule ligne (texte coupé) — inchangé ≥768px. */}
+        <div className="flex flex-col items-stretch gap-2 max-md:w-full sm:flex-row sm:items-center sm:shrink-0">
           {dirty && (
-            <span className="text-xs font-medium text-amber-600 dark:text-amber-400 whitespace-nowrap">
+            <span className="text-xs font-medium text-amber-600 dark:text-amber-400 whitespace-nowrap max-md:text-center">
               <i className="fa-solid fa-circle-exclamation mr-1" />{t('configUnsavedBadge')}
             </span>
           )}
           <button
             type="button"
             onClick={() => setPinModalOpen(true)}
-            className="tap-target text-xs font-medium border border-line bg-card px-3 py-2 rounded-lg text-sub hover:text-text transition-colors whitespace-nowrap"
+            className="tap-target text-xs font-medium border border-line bg-card px-3 py-2 rounded-lg text-sub hover:text-text transition-colors whitespace-nowrap max-md:w-full max-md:py-2.5"
           >
             <i className="fa-solid fa-key mr-1.5" />{t('configChangePinButton')}
           </button>
@@ -256,7 +258,7 @@ export default function AdminConfigPage() {
             type="button"
             onClick={() => setConfirmOpen(true)}
             disabled={!dirty}
-            className="tap-target btn-gold text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            className="tap-target btn-gold text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed max-md:w-full max-md:justify-center"
           >
             <i className="fa-solid fa-floppy-disk mr-1.5" />{t('configSaveChanges')}
           </button>

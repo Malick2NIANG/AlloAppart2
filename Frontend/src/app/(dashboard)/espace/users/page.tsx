@@ -326,8 +326,13 @@ export default function AdminUsersPage() {
                     className="tap-target rounded-lg border border-line bg-bg px-2.5 py-1.5 text-xs text-sub hover:text-text transition-colors">
                     <i className="fa-solid fa-eye text-xs" />
                   </button>
+                  {/* Sous 768px : seul « Voir les détails » reste dans la
+                      ligne (nom/e-mail restent lisibles, plus écrasés par 5
+                      icônes) — sa feuille du bas (ci-dessous, « MODAL — Voir
+                      plus ») porte déjà les mêmes actions, suppression avec
+                      confirmation comprise (lot 6). Inchangé ≥768px. */}
                   {!user.roles.includes('ADMIN') && (
-                    <>
+                    <div className="contents max-md:hidden">
                       <button onClick={() => openEdit(user)} title={t('titleEdit')}
                         className="tap-target rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 px-2.5 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 transition-colors">
                         <i className="fa-solid fa-pen text-xs" />
@@ -351,7 +356,7 @@ export default function AdminUsersPage() {
                         className="tap-target rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-2.5 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors">
                         <i className="fa-solid fa-trash text-xs" />
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
