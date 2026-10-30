@@ -175,7 +175,10 @@ export default function BecomeBailleurPage() {
         })}
       </div>
 
-      <div className="overflow-x-hidden max-md:flex max-md:flex-1 max-md:flex-col">
+      {/* max-lg:-mx-1 max-lg:px-1 : marge de 4px compensée par une marge négative
+          (mise en page identique) pour que l'anneau de focus des champs ne soit
+          plus rogné par overflow-x-hidden sur mobile/tablette ; PC inchangé. */}
+      <div className="overflow-x-hidden max-lg:-mx-1 max-lg:px-1 max-md:flex max-md:flex-1 max-md:flex-col">
         <AnimatePresence mode="wait" custom={dir}>
 
           {/* ── Step 0 : Téléphone ── */}

@@ -84,6 +84,12 @@ export default function BottomNav({ items, showMore = false, onMoreClick, unread
       return pathname === href || pathname.startsWith(`${href}/`) || onFavoritesTab;
     }
     if (href === '/listings' && onFavoritesTab) return false;
+    // Un onglet « racine » (ex. /locataire = Tableau de bord) dont un autre
+    // onglet est une sous-page (/locataire/bookings) ne s'active que sur son
+    // chemin exact — sinon il restait en jaune sur toutes les sous-pages du
+    // rôle (y compris celles accessibles via « Plus », comme Favoris).
+    const isRootOfAnother = items.some((o) => o.href !== href && o.href.startsWith(`${href}/`));
+    if (isRootOfAnother) return pathname === href;
     return pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
   };
 
