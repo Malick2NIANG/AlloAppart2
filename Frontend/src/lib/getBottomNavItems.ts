@@ -26,7 +26,12 @@ export interface BottomNavResult {
 const PUBLIC_ITEMS = (isLoggedIn: boolean): BottomNavItem[] => [
   { key: 'home', href: '/', icon: 'fa-solid fa-house', i18nNamespace: 'nav', labelKey: 'home' },
   { key: 'listings', href: '/listings', icon: 'fa-solid fa-list', i18nNamespace: 'nav', labelKey: 'listings' },
-  { key: 'favorites', href: '/favoris', icon: 'fa-solid fa-heart', i18nNamespace: 'nav', labelKey: 'favorites' },
+  // Connecté : « Mon espace » remplace « Favoris » (doublon avec les onglets
+  // « Toutes les annonces / Mes favoris » de /listings) ; /redirect envoie vers
+  // l'espace du bon rôle. Visiteur : « Favoris » inchangé.
+  isLoggedIn
+    ? { key: 'space', href: '/redirect', icon: 'fa-solid fa-gauge', i18nNamespace: 'nav', labelKey: 'mySpace' }
+    : { key: 'favorites', href: '/favoris', icon: 'fa-solid fa-heart', i18nNamespace: 'nav', labelKey: 'favorites' },
   { key: 'messages', href: isLoggedIn ? '/messages' : '/sign-in', icon: 'fa-solid fa-comment-dots', i18nNamespace: 'nav', labelKey: 'messages' },
   { key: 'account', href: isLoggedIn ? '/profil' : '/sign-in', icon: 'fa-solid fa-circle-user', i18nNamespace: 'nav', labelKey: 'account' },
 ];
@@ -110,7 +115,8 @@ export function getBottomNavItems(roles: string[], isLoggedIn: boolean): BottomN
       items: [
         { key: 'overview', href: '/locataire', icon: 'fa-solid fa-gauge', i18nNamespace: 'dashboard', labelKey: 'navOverview' },
         { key: 'bookings', href: '/locataire/bookings', icon: 'fa-solid fa-calendar-check', i18nNamespace: 'dashboard', labelKey: 'navMyBookings' },
-        { key: 'favorites', href: '/locataire/favorites', icon: 'fa-solid fa-heart', i18nNamespace: 'dashboard', labelKey: 'navFavorites' },
+        // « Favoris » retiré de la barre (4 emplacements au total avec « Plus »,
+        // sinon les libellés se chevauchent) : reste accessible via « Plus ».
         { key: 'messages', href: '/locataire/messages', icon: 'fa-solid fa-comment-dots', i18nNamespace: 'dashboard', labelKey: 'navMessages' },
       ],
     };

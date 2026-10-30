@@ -19,13 +19,21 @@ describe('getBottomNavItems', () => {
     expect(r.items.find((i) => i.key === 'account')?.href).toBe('/profil');
   });
 
-  it('locataire seul : 4 items, Plus visible', () => {
+  it('connecté (public) : « Mon espace » remplace « Favoris », toujours 5 items', () => {
+    const r = getBottomNavItems([], true);
+    expect(r.items).toHaveLength(5);
+    expect(r.items.map((i) => i.key)).toEqual(['home', 'listings', 'space', 'messages', 'account']);
+    expect(r.items.find((i) => i.key === 'space')?.href).toBe('/redirect');
+    expect(r.items.some((i) => i.key === 'favorites')).toBe(false);
+  });
+
+  it('locataire seul : 3 items + Plus (Favoris dans le menu)', () => {
     const r = getBottomNavItems(['LOCATAIRE'], true);
     expect(r.context).toBe('LOCATAIRE');
     expect(r.showMore).toBe(true);
-    expect(r.items).toHaveLength(4);
+    expect(r.items).toHaveLength(3);
     expect(r.items.map((i) => i.href)).toEqual([
-      '/locataire', '/locataire/bookings', '/locataire/favorites', '/locataire/messages',
+      '/locataire', '/locataire/bookings', '/locataire/messages',
     ]);
   });
 

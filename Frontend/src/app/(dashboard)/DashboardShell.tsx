@@ -656,7 +656,9 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
         </nav>
 
         {/* ── Pied de sidebar ── */}
-        <div className="shrink-0 border-t border-line px-2 py-3">
+        {/* Sous 768px la BottomNav (fixe, au-dessus du drawer) masquait
+            « Se déconnecter » : on réserve sa hauteur en bas du drawer. */}
+        <div className="shrink-0 border-t border-line px-2 py-3 max-md:pb-[calc(0.75rem+var(--bottom-nav-h,0px))]">
           <Link
             href="/"
             title={collapsed ? td('backToSite') : undefined}
@@ -708,7 +710,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
           >
             <i className="fa-solid fa-bars" />
           </button>
-          <Link href="/">
+          <Link href="/" className="max-md:hidden">
             <Image src="/images/LOGO.png" alt="AlloAppart" width={120} height={34} className="h-8 w-auto" />
           </Link>
           <div className="flex items-center gap-2">

@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import Pusher from 'pusher-js';
 import { api } from '@/lib/api';
 import { useTranslations } from 'next-intl';
@@ -41,6 +42,8 @@ export default function NotificationBell({ userId }: { userId: string }) {
   const [notifs,      setNotifs]      = useState<Notif[]>([]);
   const [unread,      setUnread]      = useState(0);
   const [open,        setOpen]        = useState(false);
+  // Sous 768px : feuille en bas d'écran (portail) au lieu du menu déroulant.
+  const [isMobile,    setIsMobile]    = useState(false);
   // Notifications dont le texte (souvent tronqué à 2 lignes) a été déplié
   // par l'utilisateur — clé = id de la notif, persiste tant que le menu
   // reste ouvert.
@@ -100,9 +103,32 @@ export default function NotificationBell({ userId }: { userId: string }) {
     return () => { ch.unbind_all(); client.unsubscribe(`user-${userId}`); client.disconnect(); };
   }, [userId]);
 
-  /* ── Fermer en cliquant dehors ────────────────────────────── */
+  /* ── Détection mobile (< 768px) ───────────────────────────── */
   useEffect(() => {
-    if (!open) return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  /* ── Feuille mobile : verrou du défilement + touche Échap ─── */
+  useEffect(() => {
+    if (!open || !isMobile) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, isMobile]);
+
+  /* ── Fermer en cliquant dehors (menu déroulant ≥ 768px ; sur
+        mobile c'est le fond assombri de la feuille qui ferme) ── */
+  useEffect(() => {
+    if (!open || isMobile) return;
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -110,7 +136,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  }, [open, isMobile]);
 
   /* ── Ouvrir dropdown + marquer tout lu ────────────────────── */
   const handleOpen = async () => {
@@ -137,6 +163,157 @@ export default function NotificationBell({ userId }: { userId: string }) {
     } catch {}
   };
 
+  // Le contenu de la feuille/menu est calculé avant le JSX de retour (plutôt
+  // que via une IIFE imbriquée dans {open && …}) pour que les gestionnaires
+  // onClick ci-dessous restent des enfants directs du corps du composant —
+  // une IIFE y cassait l'analyse de react-hooks/refs sur tokenRef/markOne.
+  let notifPanel: ReactNode = null;
+  if (open) {
+    const panel = (
+      <>
+        {/* Poignée (feuille mobile uniquement) */}
+        {isMobile && (
+          <div className="flex shrink-0 justify-center pt-2.5" aria-hidden="true">
+            <span className="h-1 w-10 rounded-full bg-line" />
+          </div>
+        )}
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between px-4 py-3 border-b border-line">
+          <p className="text-sm font-semibold text-main max-md:text-base">{t('title')}</p>
+          <div className="flex items-center gap-1">
+            {notifs.length > 0 && (
+              <button
+                onClick={async () => {
+                  const token = tokenRef.current ?? await getToken().catch(() => null);
+                  if (token) {
+                    await api.patch('/notifications/read-all', {}, token).catch(() => {});
+                    setUnread(0);
+                    setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })));
+                  }
+                }}
+                className="text-[10px] text-sub hover:text-gold-dark transition-colors max-md:flex max-md:h-11 max-md:items-center max-md:px-2 max-md:text-xs max-md:font-medium"
+              >
+                {t('markAllRead')}
+              </button>
+            )}
+            {isMobile && (
+              <button
+                onClick={() => setOpen(false)}
+                className="flex h-11 w-11 items-center justify-center rounded-full text-sub hover:bg-bg transition-colors"
+                aria-label={t('close')}
+              >
+                <i className="fa-solid fa-xmark" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Liste */}
+        <div className={`overflow-y-auto divide-y divide-line ${isMobile ? 'min-h-0 flex-1 overscroll-contain' : 'max-h-80'}`}>
+          {notifs.length === 0 ? (
+            <div className="py-10 text-center">
+              <i className="fa-solid fa-bell-slash text-2xl text-line mb-2" />
+              <p className="text-xs text-sub">{t('empty')}</p>
+            </div>
+          ) : (
+            notifs.map((n) => {
+              const cfg = TYPE_ICON[n.type] ?? { icon: 'fa-circle-dot', color: 'text-sub' };
+              const isBroadcast = n.type === 'ADMIN_BROADCAST';
+              const isExpanded = !!expanded[n.id];
+              // Heuristique simple : au-delà de ~90 caractères, le corps
+              // dépasse quasi systématiquement 2 lignes sur la largeur du
+              // menu (320px) — on propose donc le dépli uniquement dans ce
+              // cas, plutôt que de mesurer le DOM.
+              const isLong = n.body.length > 90;
+              return (
+                <div
+                  key={n.id}
+                  onClick={() => void markOne(n.id)}
+                  className={`flex items-start gap-3 px-4 py-3 max-md:py-3.5 cursor-pointer transition-colors ${
+                    isBroadcast
+                      ? 'bg-gold-pale/50 dark:bg-gold-dark/10 border-l-2 border-gold-dark hover:bg-gold-pale/70 dark:hover:bg-gold-dark/20'
+                      : `hover:bg-bg ${!n.isRead ? 'bg-blue-50 dark:bg-blue-950/40' : ''}`
+                  }`}
+                >
+                  <div className={`shrink-0 h-8 w-8 max-md:h-10 max-md:w-10 rounded-xl flex items-center justify-center mt-0.5 ${
+                    isBroadcast ? 'bg-gold-pale' : 'bg-bg border border-line'
+                  }`}>
+                    <i className={`fa-solid ${cfg.icon} text-xs max-md:text-sm ${cfg.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {isBroadcast && (
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-gold-dark leading-none mb-1">
+                        {t('directionBadge')}
+                      </p>
+                    )}
+                    <p className={`text-xs max-md:text-sm font-semibold text-main leading-snug ${!n.isRead ? 'font-bold' : ''}`}>
+                      {n.title}
+                    </p>
+                    <p className={`text-[11px] max-md:text-[13px] text-sub mt-0.5 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
+                      {n.body}
+                    </p>
+                    {isLong && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpanded((prev) => ({ ...prev, [n.id]: !prev[n.id] }));
+                        }}
+                        className="mt-0.5 text-[10px] max-md:text-xs max-md:py-1 font-semibold text-gold-dark hover:underline"
+                      >
+                        {isExpanded ? t('seeLessText') : t('seeMoreText')}
+                        <i className={`fa-solid fa-chevron-down text-[8px] ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
+                    <p className="text-[10px] max-md:text-xs text-sub/70 mt-1">{relativeTime(n.createdAt)}</p>
+                  </div>
+                  {!n.isRead && (
+                    <div className={`shrink-0 h-2 w-2 rounded-full mt-1.5 ${isBroadcast ? 'bg-gold-dark' : 'bg-blue-500'}`} />
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 border-t border-line px-4 py-2.5 text-center max-md:pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))]">
+          <Link
+            href="/notifications"
+            onClick={() => setOpen(false)}
+            className="text-xs font-medium text-gold-dark hover:underline max-md:flex max-md:h-11 max-md:items-center max-md:justify-center max-md:text-sm"
+          >
+            {t('seeAll')} <i className="fa-solid fa-arrow-right text-[10px] ml-1" />
+          </Link>
+        </div>
+      </>
+    );
+
+    notifPanel = isMobile && typeof document !== 'undefined'
+      ? createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-[60] bg-black/40"
+              onClick={() => setOpen(false)}
+              aria-hidden="true"
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={t('title')}
+              className="fixed inset-x-0 bottom-0 z-[60] flex max-h-[85dvh] flex-col overflow-hidden rounded-t-3xl border-t border-line bg-card shadow-2xl"
+            >
+              {panel}
+            </div>
+          </>,
+          document.body,
+        )
+      : (
+          <div className="absolute right-0 top-11 z-50 w-80 rounded-2xl border border-line bg-card shadow-xl overflow-hidden">
+            {panel}
+          </div>
+        );
+  }
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -152,107 +329,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
         )}
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-11 z-50 w-80 rounded-2xl border border-line bg-card shadow-xl overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-line">
-            <p className="text-sm font-semibold text-main">{t('title')}</p>
-            {notifs.length > 0 && (
-              <button
-                onClick={async () => {
-                  const token = tokenRef.current ?? await getToken().catch(() => null);
-                  if (token) {
-                    await api.patch('/notifications/read-all', {}, token).catch(() => {});
-                    setUnread(0);
-                    setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })));
-                  }
-                }}
-                className="text-[10px] text-sub hover:text-gold-dark transition-colors"
-              >
-                {t('markAllRead')}
-              </button>
-            )}
-          </div>
-
-          {/* Liste */}
-          <div className="max-h-80 overflow-y-auto divide-y divide-line">
-            {notifs.length === 0 ? (
-              <div className="py-10 text-center">
-                <i className="fa-solid fa-bell-slash text-2xl text-line mb-2" />
-                <p className="text-xs text-sub">{t('empty')}</p>
-              </div>
-            ) : (
-              notifs.map((n) => {
-                const cfg = TYPE_ICON[n.type] ?? { icon: 'fa-circle-dot', color: 'text-sub' };
-                const isBroadcast = n.type === 'ADMIN_BROADCAST';
-                const isExpanded = !!expanded[n.id];
-                // Heuristique simple : au-delà de ~90 caractères, le corps
-                // dépasse quasi systématiquement 2 lignes sur la largeur du
-                // menu (320px) — on propose donc le dépli uniquement dans ce
-                // cas, plutôt que de mesurer le DOM.
-                const isLong = n.body.length > 90;
-                return (
-                  <div
-                    key={n.id}
-                    onClick={() => void markOne(n.id)}
-                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${
-                      isBroadcast
-                        ? 'bg-gold-pale/50 dark:bg-gold-dark/10 border-l-2 border-gold-dark hover:bg-gold-pale/70 dark:hover:bg-gold-dark/20'
-                        : `hover:bg-bg ${!n.isRead ? 'bg-blue-50 dark:bg-blue-950/40' : ''}`
-                    }`}
-                  >
-                    <div className={`shrink-0 h-8 w-8 rounded-xl flex items-center justify-center mt-0.5 ${
-                      isBroadcast ? 'bg-gold-pale' : 'bg-bg border border-line'
-                    }`}>
-                      <i className={`fa-solid ${cfg.icon} text-xs ${cfg.color}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {isBroadcast && (
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-gold-dark leading-none mb-1">
-                          {t('directionBadge')}
-                        </p>
-                      )}
-                      <p className={`text-xs font-semibold text-main leading-snug ${!n.isRead ? 'font-bold' : ''}`}>
-                        {n.title}
-                      </p>
-                      <p className={`text-[11px] text-sub mt-0.5 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
-                        {n.body}
-                      </p>
-                      {isLong && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpanded((prev) => ({ ...prev, [n.id]: !prev[n.id] }));
-                          }}
-                          className="mt-0.5 text-[10px] font-semibold text-gold-dark hover:underline"
-                        >
-                          {isExpanded ? t('seeLessText') : t('seeMoreText')}
-                          <i className={`fa-solid fa-chevron-down text-[8px] ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                        </button>
-                      )}
-                      <p className="text-[10px] text-sub/70 mt-1">{relativeTime(n.createdAt)}</p>
-                    </div>
-                    {!n.isRead && (
-                      <div className={`shrink-0 h-2 w-2 rounded-full mt-1.5 ${isBroadcast ? 'bg-gold-dark' : 'bg-blue-500'}`} />
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="border-t border-line px-4 py-2.5 text-center">
-            <Link
-              href="/notifications"
-              onClick={() => setOpen(false)}
-              className="text-xs font-medium text-gold-dark hover:underline"
-            >
-              {t('seeAll')} <i className="fa-solid fa-arrow-right text-[10px] ml-1" />
-            </Link>
-          </div>
-        </div>
-      )}
+      {notifPanel}
     </div>
   );
 }
