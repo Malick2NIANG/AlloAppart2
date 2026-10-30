@@ -223,18 +223,33 @@ h1, h2, h3, h4, h5 {
    ToastProvider, ListingContactCard, future barre de navigation).
    .tap-target : zone cliquable ≥44×44px, à appliquer explicitement aux
    éléments interactifs qui en ont besoin (ne s'applique à rien tant que la
-   classe n'est pas posée). Les deux sont sans effet à partir de 768px. */
+   classe n'est pas posée). Les deux sont sans effet à partir de 768px.
+   .tap-target dans @layer components (contrôle final vérification, lot
+   final) : sans cette couche, une classe CSS globale hors @layer gagne
+   TOUJOURS sur un utilitaire Tailwind de même spécificité, même responsive
+   (max-md:min-h-12, max-md:hidden…) — peu importe l'ordre d'écriture dans
+   le fichier (@layer base/components/utilities passe toujours après le CSS
+   non calé). Repéré avec .btn-gold (lot 5/8, corrigés par `!` au cas par
+   cas) ; pour .tap-target, qui ne s'applique déjà que sous 768px via son
+   propre @media, la caler dans @layer la fait simplement rivaliser à
+   armes égales avec les utilitaires au lieu de les emporter d'office — SANS
+   AUCUN changement à partir de 768px (son @media interne, inchangé, ne
+   s'y applique jamais). */
+@layer components {
+  @media (max-width: 767px) {
+    .tap-target {
+      min-width: 44px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}
 @media (max-width: 767px) {
   :root {
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  .tap-target {
-    min-width: 44px;
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
   }
 }
 
