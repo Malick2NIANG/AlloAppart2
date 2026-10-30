@@ -35,7 +35,11 @@ export function StatFilterCard({
       </div>
       <div className="min-w-0">
         <p className="text-lg font-bold text-text">{value}</p>
-        <p className="text-xs text-sub truncate">{label}</p>
+        {/* 2 lignes max plutôt qu'une troncature à la volée (lot 2) — en
+            rangée de 3 colonnes, un libellé d'une ligne était souvent coupé
+            en plein mot (« À… », « Annonces si… ») ; sans effet sur les
+            pages à 2 colonnes, où le libellé tenait déjà sur une ligne. */}
+        <p className="text-xs text-sub line-clamp-2 leading-snug">{label}</p>
         {active && <p className="text-[11px] text-gold-dark font-medium mt-0.5">{selectedLabel}</p>}
       </div>
     </button>

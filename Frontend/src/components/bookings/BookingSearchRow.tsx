@@ -38,7 +38,10 @@ export function BookingSearchRow({
         )}
       </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
+      {/* Réglage rare, hors de la zone utile sous 768px (valeur par défaut
+          conservée) — même logique que la pagination compacte de /listings
+          (lot 5). Inchangé à partir de 768px. */}
+      <div className="max-md:hidden flex items-center gap-1.5 shrink-0">
         <span className="text-xs text-sub whitespace-nowrap">{rowsLabel}</span>
         <div className="flex gap-1">
           {perPageOptions.map((n) => (

@@ -151,20 +151,24 @@ export default function AdminReviewsPage() {
         </div>
       </div>
 
-      {/* Cartes stat/filtre par note */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+      {/* Cartes stat/filtre par note — 6 cartes : sous 768px, rangée
+          défilante horizontale (comme le carrousel d'agences de l'accueil)
+          plutôt que 3 rangées de 2 avant le vrai contenu (lot 2). Inchangé
+          à partir de 768px (grille). */}
+      <div className="max-md:flex max-md:gap-3 max-md:overflow-x-auto max-md:snap-x max-md:snap-mandatory max-md:-mx-4 max-md:px-4 max-md:pb-1 sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
         {RATING_FILTERS.map((r) => (
-          <StatFilterCard
-            key={r}
-            icon={FILTER_ICONS[r]}
-            label={FILTER_LABELS[r]}
-            value={ratingCounts[r]}
-            color={STAT_CARD_COLORS[r].color}
-            bg={STAT_CARD_COLORS[r].bg}
-            active={ratingFilter === r}
-            onClick={() => handleFilterChange(r)}
-            selectedLabel={t('filterSelected')}
-          />
+          <div key={r} className="max-md:w-36 max-md:shrink-0 max-md:snap-start">
+            <StatFilterCard
+              icon={FILTER_ICONS[r]}
+              label={FILTER_LABELS[r]}
+              value={ratingCounts[r]}
+              color={STAT_CARD_COLORS[r].color}
+              bg={STAT_CARD_COLORS[r].bg}
+              active={ratingFilter === r}
+              onClick={() => handleFilterChange(r)}
+              selectedLabel={t('filterSelected')}
+            />
+          </div>
         ))}
       </div>
 

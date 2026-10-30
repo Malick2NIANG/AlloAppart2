@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import PhoneInput from '@/components/ui/PhoneInput';
+import StickyStepActions from '@/components/ui/StickyStepActions';
 
 type PhoneForm = z.infer<ReturnType<typeof createPhoneSchema>>;
 
@@ -137,7 +138,10 @@ export default function BecomeBailleurPage() {
   }
 
   return (
-    <div className="py-6">
+    // Sous 768px : colonne pleine hauteur pour que StickyStepActions colle
+    // le CTA principal en bas au-dessus de la BottomNav, comme /publier
+    // (lot 5) — inchangé ≥768px (py-6, boutons en flux normal).
+    <div className="py-6 max-md:flex max-md:flex-col max-md:min-h-[calc(100dvh-4rem)] max-md:pb-0">
 
       {step > 0 && (
         <button onClick={() => go(0)}
@@ -171,7 +175,7 @@ export default function BecomeBailleurPage() {
         })}
       </div>
 
-      <div className="overflow-x-hidden">
+      <div className="overflow-x-hidden max-md:flex max-md:flex-1 max-md:flex-col">
         <AnimatePresence mode="wait" custom={dir}>
 
           {/* ── Step 0 : Téléphone ── */}
@@ -209,7 +213,7 @@ export default function BecomeBailleurPage() {
                   )}
                 </div>
                 <button type="submit" disabled={busy}
-                  className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold disabled:opacity-50 max-md:min-h-12">
+                  className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold disabled:opacity-50 max-md:hidden!">
                   {busy
                     ? <><i className="fa-solid fa-spinner fa-spin" /> {t('saving')}</>
                     : <>{t('continue')} <i className="fa-solid fa-arrow-right ml-1 text-xs" /></>}
@@ -260,7 +264,7 @@ export default function BecomeBailleurPage() {
 
               <button onClick={handleActivate}
                 disabled={!accepted || busy}
-                className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold disabled:opacity-50 max-md:min-h-12">
+                className="btn-gold w-full justify-center rounded-full py-3 text-sm font-bold disabled:opacity-50 max-md:hidden!">
                 {busy
                   ? <><i className="fa-solid fa-spinner fa-spin" /> {t('activating')}</>
                   : <><i className="fa-solid fa-house-chimney-user" /> {t('activate')}</>}
@@ -270,6 +274,27 @@ export default function BecomeBailleurPage() {
 
         </AnimatePresence>
       </div>
+
+      {/* Barre d'actions mobile — sous 768px uniquement, même pattern que
+          /publier (StickyStepActions). ≥768px : boutons en flux normal
+          ci-dessus, inchangés. */}
+      <StickyStepActions>
+        {step === 0 ? (
+          <button type="button" disabled={busy} onClick={() => void handleSubmit(handlePhoneSubmit)()}
+            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-gold text-sm font-bold text-gray-900 shadow-md transition active:scale-[0.98] disabled:opacity-50">
+            {busy
+              ? <><i className="fa-solid fa-spinner fa-spin" /> {t('saving')}</>
+              : <>{t('continue')} <i className="fa-solid fa-arrow-right text-xs" /></>}
+          </button>
+        ) : (
+          <button type="button" onClick={handleActivate} disabled={!accepted || busy}
+            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-gold text-sm font-bold text-gray-900 shadow-md transition active:scale-[0.98] disabled:opacity-50">
+            {busy
+              ? <><i className="fa-solid fa-spinner fa-spin" /> {t('activating')}</>
+              : <><i className="fa-solid fa-house-chimney-user text-xs" /> {t('activate')}</>}
+          </button>
+        )}
+      </StickyStepActions>
     </div>
   );
 }

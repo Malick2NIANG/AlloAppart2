@@ -384,7 +384,12 @@ export default function EditListingPage() {
   }
 
   return (
-    <div ref={topRef}>
+    // Sous 768px : colonne pleine hauteur pour que StickyStepActions (déjà
+    // utilisé ci-dessous, cf. son propre commentaire) se colle réellement en
+    // bas au-dessus de la BottomNav au lieu de flotter sous le dernier champ
+    // — même technique que /publier (lot 5 ; le <main> du dashboard scrolle
+    // déjà, min-h suffit ici, pas besoin d'annuler son padding).
+    <div ref={topRef} className="max-md:flex max-md:flex-col max-md:min-h-[calc(100dvh-4rem)]">
       {/* Titre — remplacé sous 768px par MobileStepperBar */}
       <div className="mb-6 max-md:hidden">
         <h1 className="text-2xl font-bold text-text">{t('editPageTitle')}</h1>
@@ -408,7 +413,7 @@ export default function EditListingPage() {
         <StepIndicator current={step} steps={STEPS} />
       </div>
 
-      <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-5 max-md:mt-3">
+      <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-5 max-md:mt-3 max-md:flex-1">
         {stepErrors.length > 0 && (
           <div className="rounded-xl border border-gold-dark/30 dark:border-gold-dark/20 bg-gold-pale/40 dark:bg-gold-dark/10 p-4">
             <p className="text-sm font-semibold text-text mb-1.5">
