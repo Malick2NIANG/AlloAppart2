@@ -261,3 +261,151 @@ export function ProfileSkeleton() {
     </div>
   );
 }
+
+/* ── Héro de l'accueil — repris de PublicSkeletonOverlay (un seul endroit
+   définit ce gabarit, réutilisé par le changement de langue ET loading.tsx,
+   cf. commit « loading.tsx sur les routes serveur »). ── */
+export function HeroSkeleton() {
+  return (
+    <section className="flex min-h-[70vh] flex-col items-center justify-center gap-5 bg-linear-to-br from-slate-800 to-slate-950 px-4 py-24 text-center">
+      <Pulse className="h-11 w-full max-w-lg bg-white/15" />
+      <Pulse className="h-11 w-2/3 max-w-sm bg-white/15" />
+      <Pulse className="mt-2 h-4 w-full max-w-md bg-white/10" />
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <Pulse className="h-12 w-40 rounded-full bg-white/20" />
+        <Pulse className="h-12 w-48 rounded-full bg-white/10" />
+      </div>
+    </section>
+  );
+}
+
+export function StatsRowSkeleton() {
+  return (
+    <section className="border-t border-line bg-bg px-4 py-14">
+      <div className="aa-container grid grid-cols-1 gap-8 divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="flex flex-col items-center gap-3 px-8 py-4">
+            <Pulse className="h-9 w-20" />
+            <Pulse className="h-3 w-24" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ── Grille de cartes dans sa section (titre + grille) — accueil, /listings,
+   /agences, /regions/[slug], /favoris, /search. ── */
+export function CardsSectionSkeleton({ count = 8, title = true }: { count?: number; title?: boolean }) {
+  return (
+    <section className="bg-bg px-4 py-14">
+      <div className="aa-container">
+        {title && (
+          <div className="mb-8 space-y-2">
+            <Pulse className="h-7 w-64 max-w-full" />
+            <Pulse className="h-4 w-80 max-w-full" />
+          </div>
+        )}
+        <ListingGridSkeleton count={count} />
+      </div>
+    </section>
+  );
+}
+
+/* ── Vitrine agence — bandeau héro compact (logo, nom, stats) puis grille
+   d'annonces (/agences/[slug]). ── */
+export function VitrineSkeleton() {
+  return (
+    <>
+      <section className="flex flex-col items-center gap-3 bg-linear-to-br from-slate-900 to-slate-950 px-5 py-10 text-center">
+        <Pulse className="h-16 w-16 rounded-2xl bg-white/20" />
+        <Pulse className="h-5 w-48 bg-white/20" />
+        <Pulse className="h-3 w-64 max-w-full bg-white/10" />
+      </section>
+      <CardsSectionSkeleton count={6} title={false} />
+    </>
+  );
+}
+
+/* ── Pages de texte — /cgu, /confidentialite, /cookies, /a-propos,
+   /plan-du-site : titre + longues lignes de prose. ── */
+export function ProseDocSkeleton() {
+  return (
+    <div className="mx-auto max-w-3xl space-y-4">
+      <Pulse className="h-8 w-1/2" />
+      <div className="space-y-2.5 pt-2">
+        {Array.from({ length: 10 }).map((_, i) => (
+          <SkeletonLine key={i} width={i % 3 === 2 ? '65%' : '100%'} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Composés dashboard — combinent PageHeaderSkeleton avec le corps du
+   gabarit, pour que chaque loading.tsx ne soit qu'un appel à l'une de ces
+   fonctions (un par gabarit, comme demandé). ── */
+export function DashboardStatPageSkeleton({ statCount = 4, statCols = 4 }: { statCount?: number; statCols?: 2 | 3 | 4 | 5 }) {
+  return (
+    <div>
+      <PageHeaderSkeleton />
+      <StatGridSkeleton count={statCount} cols={statCols} />
+    </div>
+  );
+}
+
+export function DashboardListPageSkeleton({ rows = 5, withAction = true }: { rows?: number; withAction?: boolean }) {
+  return (
+    <div>
+      <PageHeaderSkeleton withAction={withAction} />
+      <ListRowsSkeleton count={rows} />
+    </div>
+  );
+}
+
+export function DashboardTablePageSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <div>
+      <PageHeaderSkeleton withAction />
+      <TableSkeleton rows={rows} />
+    </div>
+  );
+}
+
+export function DashboardFormPageSkeleton({ fields = 5 }: { fields?: number }) {
+  return (
+    <div>
+      <PageHeaderSkeleton />
+      <div className="max-w-xl rounded-2xl border border-line bg-card p-6">
+        <FormSkeleton fields={fields} />
+      </div>
+    </div>
+  );
+}
+
+export function DashboardDetailPageSkeleton() {
+  return (
+    <div>
+      <PageHeaderSkeleton />
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <ListingDetailSkeleton />
+      </div>
+    </div>
+  );
+}
+
+/* ── Messagerie — liste (gauche, ≥768px) + fil (droite) côte à côte, comme
+   MessagesShell ; sous 768px la liste seule occupe l'écran (pas de panneau
+   fil visible avant ouverture d'une conversation, donc rien à cacher). ── */
+export function MessagingPageSkeleton() {
+  return (
+    <div className="flex h-[70vh] overflow-hidden rounded-2xl border border-line">
+      <div className="w-full border-r border-line md:w-80 lg:w-96">
+        <ConversationListSkeleton />
+      </div>
+      <div className="hidden flex-1 md:block">
+        <ChatSkeleton />
+      </div>
+    </div>
+  );
+}

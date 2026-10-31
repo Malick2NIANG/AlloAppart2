@@ -4,7 +4,10 @@ import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useLocaleTransition } from './LocaleTransition';
-import { SkeletonLine } from './Skeleton';
+import {
+  HeroSkeleton, StatsRowSkeleton, CardsSectionSkeleton, ListingDetailSkeleton,
+  VitrineSkeleton, ProseDocSkeleton,
+} from './Skeleton';
 
 /**
  * Skeleton du site public (navbar + contenu), affiché pendant le changement
@@ -63,121 +66,26 @@ function NavbarSkeleton({ signedIn }: { signedIn: boolean }) {
   );
 }
 
-/* ── Accueil : héro plein écran + rangée de stats + grille d'annonces ── */
-function HeroSkeleton() {
-  return (
-    <section className="flex min-h-[70vh] flex-col items-center justify-center gap-5 bg-linear-to-br from-slate-800 to-slate-950 px-4 py-24 text-center">
-      <Pulse className="h-11 w-full max-w-lg bg-white/15" />
-      <Pulse className="h-11 w-2/3 max-w-sm bg-white/15" />
-      <Pulse className="mt-2 h-4 w-full max-w-md bg-white/10" />
-      <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Pulse className="h-12 w-40 rounded-full bg-white/20" />
-        <Pulse className="h-12 w-48 rounded-full bg-white/10" />
-      </div>
-    </section>
-  );
-}
-
-function StatsRowSkeleton() {
-  return (
-    <section className="border-t border-line bg-bg px-4 py-14">
-      <div className="aa-container grid grid-cols-1 gap-8 divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex flex-col items-center gap-3 px-8 py-4">
-            <Pulse className="h-9 w-20" />
-            <Pulse className="h-3 w-24" />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* ── Grille de cartes (annonces / agences) — accueil, /listings, /agences,
-   /regions/[slug], /favoris, /search partagent tous cette forme ── */
-function CardsGridSkeleton({ count = 8, title = true }: { count?: number; title?: boolean }) {
-  return (
-    <section className="bg-bg px-4 py-14">
-      <div className="aa-container">
-        {title && (
-          <div className="mb-8 space-y-2">
-            <Pulse className="h-7 w-64 max-w-full" />
-            <Pulse className="h-4 w-80 max-w-full" />
-          </div>
-        )}
-        <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: count }).map((_, i) => (
-            <div key={i} className="overflow-hidden rounded-2xl border border-line">
-              <Pulse className="h-56 w-full rounded-none" />
-              <div className="space-y-2.5 p-4">
-                <Pulse className="h-4 w-3/4" />
-                <Pulse className="h-3 w-1/2" />
-                <Pulse className="h-3 w-2/3" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── Fiche détail : /listings/[id], /bookings/[id] — galerie + panneau
-   latéral (infos + CTA) ── */
+/* HeroSkeleton, StatsRowSkeleton, CardsSectionSkeleton (ex-CardsGridSkeleton),
+   VitrineSkeleton : importés de Skeleton.tsx (un seul endroit définit ces
+   gabarits, réutilisés ici ET par loading.tsx — lot skeletons). Les 2
+   gabarits ci-dessous gardent un wrapper <main>/padding local propre à cet
+   overlay plein écran (loading.tsx n'en a pas besoin, le <main> du layout
+   suffit), d'où une fine enveloppe locale autour des pièces importées. */
 function DetailPageSkeleton() {
   return (
     <main className="px-4 py-10">
-      <div className="aa-container grid gap-8 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
-          <Pulse className="h-96 w-full rounded-2xl" />
-          <Pulse className="h-6 w-2/3" />
-          <Pulse className="h-4 w-1/3" />
-          <div className="space-y-2 pt-2">
-            <SkeletonLine width="100%" />
-            <SkeletonLine width="92%" />
-            <SkeletonLine width="96%" />
-            <SkeletonLine width="80%" />
-          </div>
-        </div>
-        <div className="h-fit space-y-4 rounded-2xl border border-line p-5">
-          <Pulse className="h-7 w-1/2" />
-          <Pulse className="h-10 w-full rounded-xl" />
-          <Pulse className="h-10 w-full rounded-xl" />
-          <Pulse className="h-12 w-full rounded-xl" />
-        </div>
+      <div className="aa-container">
+        <ListingDetailSkeleton />
       </div>
     </main>
   );
 }
 
-/* ── Vitrine agence : /agences/[slug] — bandeau héro compact (logo, nom,
-   stats) puis grille d'annonces, cf. AgenceClientShell.tsx ── */
-function VitrineSkeleton() {
-  return (
-    <>
-      <section className="flex flex-col items-center gap-3 bg-linear-to-br from-slate-900 to-slate-950 px-5 py-10 text-center">
-        <Pulse className="h-16 w-16 rounded-2xl bg-white/20" />
-        <Pulse className="h-5 w-48 bg-white/20" />
-        <Pulse className="h-3 w-64 max-w-full bg-white/10" />
-      </section>
-      <CardsGridSkeleton count={6} title={false} />
-    </>
-  );
-}
-
-/* ── Pages de texte : /cgu, /confidentialite, /cookies, /a-propos,
-   /plan-du-site — titre + longues lignes de prose ── */
-function ProseDocSkeleton() {
+function ProseDocWrapperSkeleton() {
   return (
     <main className="px-4 py-16">
-      <div className="mx-auto max-w-3xl space-y-4">
-        <Pulse className="h-8 w-1/2" />
-        <div className="space-y-2.5 pt-2">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <SkeletonLine key={i} width={i % 3 === 2 ? '65%' : '100%'} />
-          ))}
-        </div>
-      </div>
+      <ProseDocSkeleton />
     </main>
   );
 }
@@ -209,15 +117,15 @@ function ContentSkeleton({ pathname }: { pathname: string }) {
       <>
         <HeroSkeleton />
         <StatsRowSkeleton />
-        <CardsGridSkeleton count={8} />
+        <CardsSectionSkeleton count={8} />
       </>
     );
   }
-  if (pathname === '/agences') return <CardsGridSkeleton count={8} />;
+  if (pathname === '/agences') return <CardsSectionSkeleton count={8} />;
   if (/^\/agences\/[^/]+$/.test(pathname)) return <VitrineSkeleton />;
-  if (PROSE_ROUTES.includes(pathname)) return <ProseDocSkeleton />;
+  if (PROSE_ROUTES.includes(pathname)) return <ProseDocWrapperSkeleton />;
   if (GRID_ROUTES.includes(pathname) || pathname.startsWith('/regions/')) {
-    return <CardsGridSkeleton count={6} />;
+    return <CardsSectionSkeleton count={6} />;
   }
   if (/^\/listings\/[^/]+$/.test(pathname) || /^\/bookings\/[^/]+$/.test(pathname)) {
     return <DetailPageSkeleton />;
