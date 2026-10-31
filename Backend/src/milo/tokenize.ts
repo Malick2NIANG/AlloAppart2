@@ -9,18 +9,26 @@ export interface Token {
   index: number;
 }
 
-/** Ponctuation de fin de mot (virgule) à retirer — sauf dans un nombre
- * décimal à virgule ("1,5"), où elle fait partie du nombre. */
-function stripTrailingPunctuation(raw: string): string {
-  if (/^\d+,\d+$/.test(raw)) return raw;
-  return raw.replace(/,+$/, '');
+/**
+ * Ponctuation attenante (. , en début/fin de mot) à retirer — JAMAIS à
+ * l'intérieur d'un nombre ("150.000", "1,5", "30,000"), où elle fait partie
+ * de sa valeur. Un `.`/`,` en bout de mot ("Dakar." "mois," "svp.") est
+ * toujours de la ponctuation de phrase, jamais une partie du nombre : les
+ * séparateurs internes aux nombres ne sont, par construction, ni en
+ * première ni en dernière position du token (lot 7, règle 2 — ";:!?()«»"'"
+ * sont déjà retirés par normalizeText, qui ne les laisse pas passer).
+ * Appliqué une seule fois ici, en amont de tous les extracteurs (types,
+ * lieux, équipements compris).
+ */
+function stripAttachedPunctuation(raw: string): string {
+  return raw.replace(/^[.,]+/, '').replace(/[.,]+$/, '');
 }
 
 export function tokenize(normalizedText: string): Token[] {
   if (!normalizedText) return [];
   return normalizedText
     .split(' ')
-    .map(stripTrailingPunctuation)
+    .map(stripAttachedPunctuation)
     .filter((t) => t.length > 0)
     .map((raw, index) => ({ raw, index }));
 }

@@ -28,6 +28,7 @@ function runExtractors(tokens: Token[], dictionaries: LanguageDictionary[]) {
   const consumed = new Set<number>();
   const matchedSpans: MiloMatchedSpan[] = [];
   const strictFilters: MiloStrictFilters = {};
+  const extraAmbiguities: MiloAmbiguity[] = [];
 
   // Ordre : catégories non numériques d'abord, pièces/chambres ensuite,
   // montants en dernier (son filtre anti "nombre suivi d'une unité
@@ -54,15 +55,31 @@ function runExtractors(tokens: Token[], dictionaries: LanguageDictionary[]) {
   softRes.consumed.forEach((i) => consumed.add(i));
   matchedSpans.push(...softRes.matchedSpans);
 
-  const roomsRes = extractRoomsAndBeds(tokens, dictionaries, consumed);
+  // CHAMBRE (type) n'est posé que si aucun autre type n'a déjà été trouvé
+  // (`typeRes.type`) et qu'il n'y avait pas déjà un conflit de types
+  // (`typeRes.matchedSpans` avec >1 valeur de type) — coordination faite
+  // ici, extractRoomsAndBeds reste pur (lot 7, règle 3).
+  const typeAlreadyConflicted =
+    !typeRes.type &&
+    new Set(
+      typeRes.matchedSpans
+        .filter((s) => s.category === 'type')
+        .map((s) => s.value),
+    ).size > 1;
+  const roomsRes = extractRoomsAndBeds(tokens, dictionaries, consumed, {
+    existingType: typeRes.type,
+    typeAlreadyConflicted,
+  });
   if (roomsRes.minRooms !== undefined)
     strictFilters.minRooms = roomsRes.minRooms;
   if (roomsRes.maxRooms !== undefined)
     strictFilters.maxRooms = roomsRes.maxRooms;
   if (roomsRes.minBeds !== undefined) strictFilters.minBeds = roomsRes.minBeds;
   if (roomsRes.maxBeds !== undefined) strictFilters.maxBeds = roomsRes.maxBeds;
+  if (roomsRes.type && !strictFilters.type) strictFilters.type = roomsRes.type;
   roomsRes.consumed.forEach((i) => consumed.add(i));
   matchedSpans.push(...roomsRes.matchedSpans);
+  extraAmbiguities.push(...roomsRes.ambiguities);
 
   const priceRes = extractPrice(tokens, dictionaries, consumed);
   if (priceRes.minPrice !== undefined)
@@ -71,12 +88,17 @@ function runExtractors(tokens: Token[], dictionaries: LanguageDictionary[]) {
     strictFilters.maxPrice = priceRes.maxPrice;
   priceRes.consumed.forEach((i) => consumed.add(i));
   matchedSpans.push(...priceRes.matchedSpans);
+  extraAmbiguities.push(...priceRes.ambiguities);
 
   return {
     strictFilters,
-    softPreferences: softRes.softPreferences,
+    softPreferences: [
+      ...softRes.softPreferences,
+      ...amenitiesRes.softAmenities,
+    ],
     matchedSpans,
     consumed,
+    extraAmbiguities,
   };
 }
 
@@ -152,6 +174,8 @@ export function extractCriteria(text: string): MiloExtractionResult {
     main.strictFilters.cityContains = placesRes.cityContains;
   placesRes.consumed.forEach((i) => main.consumed.add(i));
   main.matchedSpans.push(...placesRes.matchedSpans);
+  main.extraAmbiguities.push(...placesRes.ambiguities);
+  main.softPreferences.push(...placesRes.softPreferences);
 
   const stopWords = collectStopWords(DICTIONARIES);
   const unmatchedTokens = tokens
@@ -175,6 +199,11 @@ export function extractCriteria(text: string): MiloExtractionResult {
       fr: frOnly.matchedSpans.length,
       en: enOnly.matchedSpans.length,
     },
-    ambiguities: deriveAmbiguities(main.strictFilters, main.matchedSpans),
+    ambiguities: [
+      ...new Set([
+        ...deriveAmbiguities(main.strictFilters, main.matchedSpans),
+        ...main.extraAmbiguities,
+      ]),
+    ],
   };
 }
