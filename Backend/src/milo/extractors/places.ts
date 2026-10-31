@@ -1,10 +1,15 @@
 import { normalizeText, levenshtein } from '../normalize';
 import type { Token } from '../tokenize';
 import { matchPhraseAt } from '../tokenize';
-import type { MiloMatchedSpan } from '../types';
+import type { MiloAmbiguity, MiloMatchedSpan } from '../types';
 import { PLACES } from '../places/places.data';
 import { PLACE_ALIASES } from '../places/aliases';
 import { QUARTIERS } from '../places/quartiers';
+import { LANDMARKS } from '../places/landmarks';
+import {
+  NUMBERED_DISTRICT_BASES,
+  parseDistrictNumber,
+} from '../places/numberedDistricts';
 
 export interface PlacesExtraction {
   region?: string;
@@ -13,8 +18,12 @@ export interface PlacesExtraction {
    * champ texte libre côté formulaire (78 % non canoniques, cf. rapport du
    * lot 2), l'égalité exacte y échoue trop souvent. */
   cityContains?: string;
+  /** Repère connu à préférence douce associée (ex. Corniche → near_sea,
+   * lot 7, règle 1.b). */
+  softPreferences: string[];
   consumed: Set<number>;
   matchedSpans: MiloMatchedSpan[];
+  ambiguities: MiloAmbiguity[];
 }
 
 interface PlaceEntry {
@@ -155,6 +164,8 @@ export function extractPlaces(
 ): PlacesExtraction {
   const consumed = new Set<number>();
   const matchedSpans: MiloMatchedSpan[] = [];
+  const softPreferences: string[] = [];
+  const ambiguities: MiloAmbiguity[] = [];
   const blocked = (s: number, e: number) =>
     isRangeConsumed(s, e, alreadyConsumed) || isRangeConsumed(s, e, consumed);
 
@@ -164,6 +175,75 @@ export function extractPlaces(
     end: number;
   }
   const matches: Match[] = [];
+
+  // ── Quartiers numérotés (Liberté 5, Sicap Liberté IV…) — avant tout le
+  // reste, pour que "Liberté" ne soit pas d'abord happé seul par le Pass 2
+  // (règle 1.c). Bases les plus longues essayées en premier ("sicap
+  // liberte" avant "liberte") pour ne jamais tronquer un nom composé. ────
+  const sortedBases = [...NUMBERED_DISTRICT_BASES].sort(
+    (a, b) => b.base.split(' ').length - a.base.split(' ').length,
+  );
+  for (const district of sortedBases) {
+    const baseWords = district.base.split(' ');
+    for (let i = 0; i + baseWords.length <= tokens.length; i++) {
+      if (blocked(i, i + baseWords.length)) continue;
+      const len = matchPhraseAt(tokens, i, district.base);
+      if (!len) continue;
+      // Connecteur optionnel ("unité"/"unite"/"unit") entre la base et le
+      // numéro — "Parcelles Assainies unité 15" (lot 7, règle 1.c).
+      const afterBase = i + len;
+      const hasConnector = ['unite', 'unité', 'unit'].includes(
+        tokens[afterBase]?.raw ?? '',
+      );
+      const numberIdx = hasConnector ? afterBase + 1 : afterBase;
+      const numberTok = tokens[numberIdx];
+      if (!numberTok) continue;
+      const n = parseDistrictNumber(numberTok.raw);
+      if (n === null || blocked(numberIdx, numberIdx + 1)) continue;
+      if (hasConnector && blocked(afterBase, afterBase + 1)) continue;
+
+      const known = district.knownNumbers.includes(n);
+      const canonicalValue = known
+        ? `${district.canonicalBase} ${n}`
+        : district.canonicalBase;
+      matches.push({
+        entry: {
+          normalized: district.base,
+          words: baseWords,
+          kind: 'place',
+          canonicalRegion: district.region,
+          canonicalValue,
+        },
+        start: i,
+        end: i + len, // le numéro (et le connecteur) ne sont pas inclus dans le span "place" générique
+      });
+      for (let k = i; k < i + len; k++) consumed.add(k);
+      if (hasConnector) consumed.add(afterBase);
+      consumed.add(numberIdx); // le numéro reste "compris" : jamais un mot non compris
+      if (!known) ambiguities.push('numberedDistrict');
+    }
+  }
+
+  // ── Repères/axes routiers (VDN, Corniche, autoroute, aéroport, "route
+  // de…") — jamais un cityContains (règle 1.b). Un repère déjà rattaché à
+  // une préférence douce connue (Corniche → near_sea) la déclenche ; les
+  // autres restent un mot non compris + ambiguïté "landmark" (non
+  // consommés, pour apparaître dans unmatchedTokens). ────────────────────
+  for (const landmark of LANDMARKS) {
+    const words = landmark.normalized.split(' ');
+    for (let i = 0; i + words.length <= tokens.length; i++) {
+      if (blocked(i, i + words.length)) continue;
+      const len = matchPhraseAt(tokens, i, landmark.normalized);
+      if (!len) continue;
+      ambiguities.push('landmark');
+      if (landmark.softPreference) {
+        softPreferences.push(landmark.softPreference);
+        for (let k = i; k < i + len; k++) consumed.add(k);
+      }
+      // Sans préférence douce associée : ni consommé ni ajouté à `matches`
+      // — reste dans unmatchedTokens (règle 1.b, "mot non compris").
+    }
+  }
 
   // Pass 1 : lieux à plusieurs mots d'abord (règle 4), avant les mots isolés.
   for (const entry of MULTI_WORD) {
@@ -226,14 +306,14 @@ export function extractPlaces(
   if (impliedRegions.size > 1) {
     // Conflit : régions différentes évoquées — rien d'extrait pour le lieu
     // (mentions comprises mais non retenues, même principe que type/transaction).
-    return { consumed, matchedSpans };
+    return { consumed, matchedSpans, softPreferences, ambiguities };
   }
 
   const region = impliedRegions.size === 1 ? [...impliedRegions][0] : undefined;
 
   if (placeMatches.length === 0) {
     // Que des mentions de région (règle 1 : « Dakar » seul → region only).
-    return { region, consumed, matchedSpans };
+    return { region, consumed, matchedSpans, softPreferences, ambiguities };
   }
 
   const distinctPlaceValues = new Set(
@@ -242,7 +322,7 @@ export function extractPlaces(
   if (distinctPlaceValues.size > 1) {
     // Plusieurs villes/quartiers différents cités → region seule si connue
     // (règle 3), jamais de cityContains ambigu.
-    return { region, consumed, matchedSpans };
+    return { region, consumed, matchedSpans, softPreferences, ambiguities };
   }
 
   return {
@@ -250,5 +330,7 @@ export function extractPlaces(
     cityContains: placeMatches[0].entry.canonicalValue,
     consumed,
     matchedSpans,
+    softPreferences,
+    ambiguities,
   };
 }

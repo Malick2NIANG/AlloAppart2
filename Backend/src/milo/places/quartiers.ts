@@ -21,6 +21,9 @@ export const QUARTIERS: Quartier[] = [
   { name: 'Point E', region: 'Dakar', needsValidation: true },
   { name: 'Mermoz', region: 'Dakar', needsValidation: true },
   { name: 'Sacré-Cœur', region: 'Dakar', needsValidation: true },
+  // Quartier composé distinct de "Mermoz" seul (lot 7, règle 1.c) — les deux
+  // noms restent aussi valables séparément ci-dessus.
+  { name: 'Mermoz Sacré-Cœur', region: 'Dakar', needsValidation: true },
   { name: 'Ouakam', region: 'Dakar', needsValidation: true },
   { name: 'Ngor', region: 'Dakar', needsValidation: true },
   { name: 'Yoff', region: 'Dakar', needsValidation: true },
@@ -37,7 +40,9 @@ export const QUARTIERS: Quartier[] = [
   { name: 'Hann', region: 'Dakar', needsValidation: true },
   { name: 'Gueule Tapée', region: 'Dakar', needsValidation: true },
   { name: 'Ouest Foire', region: 'Dakar', needsValidation: true },
-  { name: 'VDN', region: 'Dakar', needsValidation: true },
+  // VDN retiré (lot 7, règle 1.b) : axe routier qui traverse plusieurs
+  // quartiers, jamais un cityContains fiable — déplacé vers
+  // places/landmarks.ts (ambiguïté "landmark" au lieu d'un faux filtre).
   { name: 'Amitié', region: 'Dakar', needsValidation: true },
   { name: 'Grand Dakar', region: 'Dakar', needsValidation: true },
   { name: 'Dieuppeul', region: 'Dakar', needsValidation: true },
