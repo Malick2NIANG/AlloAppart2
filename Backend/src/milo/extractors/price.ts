@@ -342,14 +342,64 @@ export function extractPrice(
   }
 
   // ── Montants approximatifs (environ/autour de/vers/~) — maxPrice + 10 %,
-  // jamais minPrice (règle 2). Pris avant les mots-clés de direction : un
-  // "environ" l'emporte sur une lecture min/max du même montant. ─────────
+  // jamais minPrice. Deux garde-fous (lot 7, correction ciblée) :
+  // 1) le marqueur doit être ADJACENT au montant, collé sans aucun mot
+  //    entre les deux — "vers Keur Massar, 150.000 max" : "vers" n'est
+  //    jamais collé à "150.000" (le lieu s'intercale), jamais lu comme
+  //    approximatif ; "vers + lieu" reste une préposition de lieu (règle
+  //    2). Testé aussi : "villa vers Saly 80M max" — un lieu intercalé
+  //    entre le marqueur et le montant, même à 1 seul mot, suffit à
+  //    réintroduire le bug d'origine, d'où une adjacence STRICTE (0 mot)
+  //    plutôt que la tolérance d'1 mot envisagée au départ ;
+  // 2) un mot-clé de direction ATTACHÉ au même montant (prefixe ou
+  //    suffixe) annule l'approximation — "environ 150k max" reste 150000
+  //    exact, pas de majoration.
+  const ADJACENT_GAP = 0; // aucun mot entre le marqueur et le montant
+  function directionKeywordAttached(cand: NumberCandidate): boolean {
+    for (const dict of dictionaries) {
+      for (const kw of [...dict.price.maxKeywords, ...dict.price.minKeywords]) {
+        const words = kw.split(' ');
+        const from = cand.start - words.length;
+        if (from >= 0 && matchPhraseAt(tokens, from, kw) === words.length) {
+          return true;
+        }
+        for (
+          let i = cand.end;
+          i <= Math.min(cand.end + 4, tokens.length);
+          i++
+        ) {
+          if (matchPhraseAt(tokens, i, kw) === words.length) return true;
+        }
+      }
+    }
+    return false;
+  }
   for (const kw of approximateKeywords) {
     for (let i = 0; i + 1 <= tokens.length; i++) {
       const len = matchPhraseAt(tokens, i, kw);
       if (!len || isRangeConsumed(i, i + len, alreadyConsumed)) continue;
-      const cand = nearestUnclaimed(i + len, true);
+      // Préfixe ("environ 150k") : montant à 0 ou 1 mot après le marqueur.
+      let cand = availableCandidates.find(
+        (c) =>
+          !claimed.has(c) &&
+          !periodBlocked.has(c) &&
+          isUsableAlone(c) &&
+          c.start >= i + len &&
+          c.start <= i + len + ADJACENT_GAP,
+      );
+      // Suffixe ("150k environ") : marqueur à 0 ou 1 mot après le montant.
+      if (!cand) {
+        cand = availableCandidates.find(
+          (c) =>
+            !claimed.has(c) &&
+            !periodBlocked.has(c) &&
+            isUsableAlone(c) &&
+            c.end <= i &&
+            c.end + ADJACENT_GAP >= i,
+        );
+      }
       if (!cand) continue;
+      if (directionKeywordAttached(cand)) continue; // garde-fou 2 : direction explicite, pas d'approximation
       claimed.add(cand);
       const raised = cand.value * 1.1;
       const rounded =

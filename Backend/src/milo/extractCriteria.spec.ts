@@ -962,3 +962,47 @@ describe('extractCriteria — lot 7 : équipements', () => {
     expect(r.strictFilters.amenities ?? []).toEqual([]);
   });
 });
+
+describe('extractCriteria — lot 7 bis : approximatif seulement adjacent au montant', () => {
+  it('"vers + lieu" ne devient jamais approximatif, même avec un montant exact plus loin', () => {
+    const r = extractCriteria(
+      "Je cherche une maison à louer à l'année vers Keur Massar, 150.000 max.",
+    );
+    expect(r.strictFilters.maxPrice).toBe(150000);
+    expect(r.ambiguities).not.toContain('approximateAmount');
+  });
+
+  it('un lieu intercalé entre le marqueur et le montant annule l\'approximation ("vers Saly 80M max")', () => {
+    const r = extractCriteria('villa vers Saly 80M max');
+    expect(r.strictFilters.maxPrice).toBe(80000000);
+    expect(r.ambiguities).not.toContain('approximateAmount');
+  });
+
+  it('"vers" directement collé à un montant reste approximatif', () => {
+    const r = extractCriteria('villa vers 80M');
+    expect(r.strictFilters.maxPrice).toBe(88000000);
+    expect(r.ambiguities).toContain('approximateAmount');
+  });
+
+  it('"budget" après "vers + lieu" : montant exact, pas d\'approximation', () => {
+    const r = extractCriteria('maison vers Keur Massar budget 150.000');
+    expect(r.strictFilters.maxPrice).toBe(150000);
+    expect(r.ambiguities).not.toContain('approximateAmount');
+  });
+
+  it('mot-clé de direction attaché au montant annule l\'approximation ("autour de 100k max")', () => {
+    const r = extractCriteria('studio autour de 100k max');
+    expect(r.strictFilters.maxPrice).toBe(100000);
+    expect(r.ambiguities).not.toContain('approximateAmount');
+  });
+
+  it('EN : "around 60M" reste approximatif, "60M max around Dakar" reste exact', () => {
+    const r1 = extractCriteria('around 60M');
+    expect(r1.strictFilters.maxPrice).toBe(66000000);
+    expect(r1.ambiguities).toContain('approximateAmount');
+
+    const r2 = extractCriteria('60M max around Dakar');
+    expect(r2.strictFilters.maxPrice).toBe(60000000);
+    expect(r2.ambiguities).not.toContain('approximateAmount');
+  });
+});

@@ -56,6 +56,10 @@ function checkCase(
     for (const a of e.ambiguitiesInclude)
       if (!r.ambiguities.includes(a)) failed.push(`ambiguities:${a}`);
   }
+  if (e.ambiguitiesExclude) {
+    for (const a of e.ambiguitiesExclude)
+      if (r.ambiguities.includes(a)) failed.push(`ambiguities-excl:${a}`);
+  }
 
   return { ok: failed.length === 0, failedFields: failed };
 }

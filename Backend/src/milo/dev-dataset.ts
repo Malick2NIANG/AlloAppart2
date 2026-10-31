@@ -28,6 +28,7 @@ export interface DevCaseExpect {
   amenitiesInclude?: string[];
   softPreferencesInclude?: string[];
   ambiguitiesInclude?: MiloAmbiguity[];
+  ambiguitiesExclude?: MiloAmbiguity[];
 }
 
 export interface DevCase {
@@ -731,6 +732,80 @@ const FR: DevCase[] = [
     text: 'Appartement non meuble a Thies',
     expect: { amenitiesInclude: [] },
   },
+
+  // ── Prix : approximatif seulement adjacent au montant (lot 7 bis) ─────
+  {
+    id: 'fr-prix-036',
+    lang: 'fr',
+    locale: 'fr',
+    klass: 'prix',
+    text: "Maison a louer a l'annee vers Keur Massar, 150.000 max.",
+    expect: { maxPrice: 150000, ambiguitiesExclude: ['approximateAmount'] },
+  },
+  {
+    id: 'fr-prix-037',
+    lang: 'fr',
+    locale: 'fr',
+    klass: 'prix',
+    text: 'Villa vers Saly 80M max',
+    expect: { maxPrice: 80000000, ambiguitiesExclude: ['approximateAmount'] },
+  },
+  {
+    id: 'fr-prix-038',
+    lang: 'fr',
+    locale: 'fr',
+    klass: 'prix',
+    text: 'Villa vers 80M',
+    expect: { maxPrice: 88000000, ambiguitiesInclude: ['approximateAmount'] },
+  },
+  {
+    id: 'fr-prix-039',
+    lang: 'fr',
+    locale: 'fr',
+    klass: 'prix',
+    text: 'Maison vers Keur Massar budget 150.000',
+    expect: { maxPrice: 150000, ambiguitiesExclude: ['approximateAmount'] },
+  },
+  {
+    id: 'fr-prix-040',
+    lang: 'fr',
+    locale: 'fr',
+    klass: 'prix',
+    text: 'Studio autour de 100k max',
+    expect: { maxPrice: 100000, ambiguitiesExclude: ['approximateAmount'] },
+  },
+  {
+    id: 'fr-prix-041',
+    lang: 'fr',
+    locale: 'fr',
+    klass: 'prix',
+    text: 'Villa environ 200000 a Ouakam',
+    expect: { maxPrice: 220000, ambiguitiesInclude: ['approximateAmount'] },
+  },
+  {
+    id: 'fr-prix-042',
+    lang: 'fr',
+    locale: 'fr',
+    klass: 'prix',
+    text: 'Appartement vers Mermoz, budget 180000',
+    expect: { maxPrice: 180000, ambiguitiesExclude: ['approximateAmount'] },
+  },
+  {
+    id: 'fr-prix-043',
+    lang: 'fr',
+    locale: 'fr',
+    klass: 'prix',
+    text: 'Studio vers Plateau, 120000 maximum',
+    expect: { maxPrice: 120000, ambiguitiesExclude: ['approximateAmount'] },
+  },
+  {
+    id: 'fr-prix-044',
+    lang: 'fr',
+    locale: 'fr',
+    klass: 'prix',
+    text: 'Villa vers Ngaparou avec piscine',
+    expect: { maxPrice: null, ambiguitiesExclude: ['approximateAmount'] },
+  },
 ];
 
 const EN: DevCase[] = [
@@ -1292,6 +1367,56 @@ const EN: DevCase[] = [
     klass: 'equipements',
     text: 'Unfurnished apartment in Thies',
     expect: { amenitiesInclude: [] },
+  },
+
+  // ── Prices: approximate only when adjacent to the amount (lot 7 bis) ──
+  {
+    id: 'en-price-029',
+    lang: 'en',
+    locale: 'en',
+    klass: 'prix',
+    text: '60M max around Dakar',
+    expect: { maxPrice: 60000000, ambiguitiesExclude: ['approximateAmount'] },
+  },
+  {
+    id: 'en-price-030',
+    lang: 'en',
+    locale: 'en',
+    klass: 'prix',
+    text: 'around 60M',
+    expect: { maxPrice: 66000000, ambiguitiesInclude: ['approximateAmount'] },
+  },
+  {
+    id: 'en-price-031',
+    lang: 'en',
+    locale: 'en',
+    klass: 'prix',
+    text: 'Villa around Saly, budget 60M',
+    expect: { maxPrice: 60000000, ambiguitiesExclude: ['approximateAmount'] },
+  },
+  {
+    id: 'en-price-032',
+    lang: 'en',
+    locale: 'en',
+    klass: 'prix',
+    text: 'Studio about 150k max',
+    expect: { maxPrice: 150000, ambiguitiesExclude: ['approximateAmount'] },
+  },
+  {
+    id: 'en-price-033',
+    lang: 'en',
+    locale: 'en',
+    klass: 'prix',
+    text: 'Apartment about 150000 in Ouakam',
+    expect: { maxPrice: 165000, ambiguitiesInclude: ['approximateAmount'] },
+  },
+  {
+    id: 'en-price-034',
+    lang: 'en',
+    locale: 'en',
+    klass: 'prix',
+    text: 'House for rent around Rufisque, max 200000',
+    expect: { maxPrice: 200000, ambiguitiesExclude: ['approximateAmount'] },
   },
 ];
 
