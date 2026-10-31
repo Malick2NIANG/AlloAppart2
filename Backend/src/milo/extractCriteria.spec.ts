@@ -239,11 +239,11 @@ describe('extractCriteria — pièces (rooms) vs chambres (beds)', () => {
     expect(r.strictFilters.minBeds).toBeUndefined();
   });
 
-  it('NÉGATIF : "chambre" seule (sans nombre devant, hors phrase figée) reste non extraite', () => {
+  it('"chambre" seule (sans nombre devant, hors phrase figée) → type CHAMBRE (lot 7, règle 3)', () => {
     const r = extractCriteria('chambre');
     expect(r.strictFilters.minBeds).toBeUndefined();
-    expect(r.strictFilters.type).toBeUndefined();
-    expect(r.unmatchedTokens).toEqual(['chambre']);
+    expect(r.strictFilters.type).toBe('CHAMBRE');
+    expect(r.unmatchedTokens).toEqual([]);
   });
 
   it('"chambre a louer" / "chambre meublee" / "chambre individuelle" → type CHAMBRE', () => {
@@ -655,5 +655,310 @@ describe('extractCriteria — entrée vide / dégénérée', () => {
     expect(r.strictFilters).toEqual({});
     expect(r.softPreferences).toEqual([]);
     expect(r.unmatchedTokens).toEqual([]);
+  });
+});
+
+describe('extractCriteria — lot 7 (mesure indépendante) : montants', () => {
+  it('prix "par nuit"/"per night" : jamais un maxPrice, ambiguïté periodNotSupported', () => {
+    const r = extractCriteria('budget 20000 la nuit');
+    expect(r.strictFilters.maxPrice).toBeUndefined();
+    expect(r.ambiguities).toContain('periodNotSupported');
+  });
+
+  it('prix "par mois"/"monthly" : unité par défaut, extraction normale', () => {
+    const r = extractCriteria('budget 300000 par mois');
+    expect(r.strictFilters.maxPrice).toBe(300000);
+  });
+
+  it('durée seule ("a l\'annee", "4 jours") ne bloque jamais un prix sans rapport', () => {
+    const r = extractCriteria("maison a louer a l'annee, 150000 max");
+    expect(r.strictFilters.maxPrice).toBe(150000);
+  });
+
+  it('montant sans direction ni budget → ambiguïté amountDirection, aucun filtre', () => {
+    const r = extractCriteria('villa a Saly 80 millions');
+    expect(r.strictFilters.maxPrice).toBeUndefined();
+    expect(r.strictFilters.minPrice).toBeUndefined();
+    expect(r.ambiguities).toContain('amountDirection');
+  });
+
+  it('"budget X" → maxPrice (règle explicite)', () => {
+    expect(extractCriteria('budget 80 millions').strictFilters.maxPrice).toBe(
+      80000000,
+    );
+  });
+
+  it('mot-clé de direction APRÈS le montant ("300k maximum") → maxPrice', () => {
+    expect(extractCriteria('300k maximum').strictFilters.maxPrice).toBe(300000);
+    expect(
+      extractCriteria('budget 80M min').strictFilters.minPrice,
+    ).toBeUndefined();
+  });
+
+  it('montant approximatif (environ/around) → maxPrice x1.10, ambiguïté approximateAmount, jamais minPrice', () => {
+    const r = extractCriteria('environ 100000');
+    expect(r.strictFilters.maxPrice).toBe(110000);
+    expect(r.strictFilters.minPrice).toBeUndefined();
+    expect(r.ambiguities).toContain('approximateAmount');
+  });
+
+  it('fourchette tiret "200k-300k" → minPrice + maxPrice', () => {
+    const r = extractCriteria('200k-300k');
+    expect(r.strictFilters.minPrice).toBe(200000);
+    expect(r.strictFilters.maxPrice).toBe(300000);
+  });
+
+  it('fourchette EN "from X to Y" → minPrice + maxPrice', () => {
+    const r = extractCriteria('from 150000 to 250000');
+    expect(r.strictFilters.minPrice).toBe(150000);
+    expect(r.strictFilters.maxPrice).toBe(250000);
+  });
+
+  it('"100 mille"/"400 mille" → x1000', () => {
+    expect(extractCriteria('budget 100 mille').strictFilters.maxPrice).toBe(
+      100000,
+    );
+    expect(extractCriteria('budget 400 mille').strictFilters.maxPrice).toBe(
+      400000,
+    );
+  });
+
+  it('"300 K"/"80 M" (espace avant la lettre) → multiplicateur appliqué', () => {
+    expect(extractCriteria('maximum 300 K').strictFilters.maxPrice).toBe(
+      300000,
+    );
+    expect(extractCriteria('maximum 80 M').strictFilters.maxPrice).toBe(
+      80000000,
+    );
+  });
+
+  it('"30,000"/"12,000,000" (virgules milliers) reconnus comme montants', () => {
+    expect(extractCriteria('max 30,000 CFA').strictFilters.maxPrice).toBe(
+      30000,
+    );
+    expect(extractCriteria('max 12,000,000 CFA').strictFilters.maxPrice).toBe(
+      12000000,
+    );
+  });
+
+  it('petit nombre isolé ("3", "5") jamais pris pour un montant', () => {
+    const r = extractCriteria('3 chambres, budget 5');
+    expect(r.strictFilters.maxPrice).toBeUndefined();
+  });
+});
+
+describe('extractCriteria — lot 7 : lieux (repères, quartiers numérotés)', () => {
+  it('VDN/corniche/aeroport/autoroute ne deviennent jamais cityContains', () => {
+    expect(
+      extractCriteria('studio pres de la VDN').strictFilters.cityContains,
+    ).toBeUndefined();
+    expect(
+      extractCriteria("appartement pres de l'aeroport").strictFilters
+        .cityContains,
+    ).toBeUndefined();
+  });
+
+  it('repère landmark connu → ambiguïté landmark', () => {
+    expect(extractCriteria('studio pres de la VDN').ambiguities).toContain(
+      'landmark',
+    );
+  });
+
+  it("Corniche → préférence douce near_sea en plus de l'ambiguïté landmark", () => {
+    const r = extractCriteria('villa sur la corniche');
+    expect(r.softPreferences).toContain('near_sea');
+    expect(r.ambiguities).toContain('landmark');
+  });
+
+  it('région gardée même avec un repère non extrait à proximité', () => {
+    const r = extractCriteria('maison a Ouakam, pas loin de la VDN');
+    expect(r.strictFilters.cityContains).toBe('Ouakam');
+    expect(r.strictFilters.region).toBe('Dakar');
+  });
+
+  it('quartier numéroté connu (Liberté 5/6, HLM, Sicap Liberté) → cityContains complet, aucune ambiguïté', () => {
+    expect(
+      extractCriteria('appartement a Liberte 5').strictFilters.cityContains,
+    ).toBe('Liberté 5');
+    expect(
+      extractCriteria('appartement a Liberte 6').strictFilters.cityContains,
+    ).toBe('Liberté 6');
+    expect(
+      extractCriteria('appartement a HLM 5').strictFilters.cityContains,
+    ).toBe('HLM 5');
+    expect(
+      extractCriteria('maison Sicap Liberte 4').strictFilters.cityContains,
+    ).toBe('Sicap Liberté 4');
+    expect(extractCriteria('maison Sicap Liberte 4').ambiguities).not.toContain(
+      'numberedDistrict',
+    );
+  });
+
+  it('graphie romaine (Sicap Liberté IV) résolue vers la même forme arabe', () => {
+    expect(
+      extractCriteria('maison Sicap Liberte IV').strictFilters.cityContains,
+    ).toBe('Sicap Liberté 4');
+  });
+
+  it('quartier numéroté inconnu → cityContains SANS le numéro + ambiguïté numberedDistrict', () => {
+    const r = extractCriteria('studio Liberte 40');
+    expect(r.strictFilters.cityContains).toBe('Liberté');
+    expect(r.ambiguities).toContain('numberedDistrict');
+  });
+
+  it('Parcelles Assainies + unité : toujours le nom seul + ambiguïté (trop de numéros pour être fiable)', () => {
+    const r = extractCriteria('appartement Parcelles Assainies unite 15');
+    expect(r.strictFilters.cityContains).toBe('Parcelles Assainies');
+    expect(r.ambiguities).toContain('numberedDistrict');
+  });
+
+  it('"Parcelles Assainies" seule (sans numéro) reste un cityContains normal', () => {
+    const r = extractCriteria('Parcelles Assainies');
+    expect(r.strictFilters.cityContains).toBe('Parcelles Assainies');
+    expect(r.ambiguities).not.toContain('numberedDistrict');
+  });
+
+  it('Mermoz Sacré-Cœur reconnu comme quartier composé distinct de Mermoz seul', () => {
+    expect(
+      extractCriteria('appartement Mermoz Sacre-Coeur').strictFilters
+        .cityContains,
+    ).toBe('Mermoz Sacré-Cœur');
+  });
+});
+
+describe('extractCriteria — lot 7 : type CHAMBRE / nombre de chambres', () => {
+  it('"une chambre"/"a room" sans autre type → type CHAMBRE', () => {
+    expect(
+      extractCriteria('une chambre a louer a Dakar').strictFilters.type,
+    ).toBe('CHAMBRE');
+    expect(extractCriteria('a room for rent in Dakar').strictFilters.type).toBe(
+      'CHAMBRE',
+    );
+  });
+
+  it('"chambre pour 2 nuits" sans autre type → type CHAMBRE, "2 nuits" non lu comme chambres', () => {
+    const r = extractCriteria('chambre pour 2 nuits a Dakar');
+    expect(r.strictFilters.type).toBe('CHAMBRE');
+    expect(r.strictFilters.minBeds).toBeUndefined();
+  });
+
+  it('"2 chambres"/"3 bedrooms" → nombre de chambres, jamais le type', () => {
+    expect(extractCriteria('2 chambres a Dakar').strictFilters.minBeds).toBe(2);
+    expect(
+      extractCriteria('2 chambres a Dakar').strictFilters.type,
+    ).toBeUndefined();
+    expect(extractCriteria('3 bedrooms in Dakar').strictFilters.minBeds).toBe(
+      3,
+    );
+  });
+
+  it('"1 chambre" seule → ambiguïté chambreCount (type ou nombre)', () => {
+    const r = extractCriteria('1 chambre a Dakar');
+    expect(r.strictFilters.type).toBeUndefined();
+    expect(r.strictFilters.minBeds).toBeUndefined();
+    expect(r.ambiguities).toContain('chambreCount');
+  });
+
+  it('"1 chambre" avec un autre type déjà posé → nombre de chambres, jamais ambigu', () => {
+    const r = extractCriteria('appartement avec 1 chambre');
+    expect(r.strictFilters.type).toBe('APPARTEMENT');
+    expect(r.strictFilters.minBeds).toBe(1);
+    expect(r.ambiguities).not.toContain('chambreCount');
+  });
+
+  it('nombres écrits 1-10 ("trois chambres", "three bedrooms") → compte exact', () => {
+    expect(
+      extractCriteria('trois chambres a Dakar').strictFilters.minBeds,
+    ).toBe(3);
+    expect(
+      extractCriteria('three bedrooms in Dakar').strictFilters.minBeds,
+    ).toBe(3);
+    expect(extractCriteria('cinq chambres a Dakar').strictFilters.minBeds).toBe(
+      5,
+    );
+  });
+
+  it('forme avec tiret "3-bedroom" → compte exact', () => {
+    const r = extractCriteria('3-bedroom apartment in Dakar');
+    expect(r.strictFilters.minBeds).toBe(3);
+    expect(r.strictFilters.maxBeds).toBe(3);
+  });
+
+  it('"3 BR"/"3 chbres" (abréviations) → compte exact', () => {
+    expect(
+      extractCriteria('3 BR apartment in Dakar').strictFilters.minBeds,
+    ).toBe(3);
+    expect(
+      extractCriteria('appartement avec 3 chbres').strictFilters.minBeds,
+    ).toBe(3);
+  });
+
+  it('pluriels/fautes fréquentes de type sans faux positif', () => {
+    expect(extractCriteria('appartements a louer').strictFilters.type).toBe(
+      'APPARTEMENT',
+    );
+    expect(extractCriteria('apartement a louer').strictFilters.type).toBe(
+      'APPARTEMENT',
+    );
+    expect(extractCriteria('vila a vendre').strictFilters.type).toBe('VILLA');
+    expect(extractCriteria('maisson a vendre').strictFilters.type).toBe(
+      'MAISON',
+    );
+    expect(extractCriteria('houses for rent').strictFilters.type).toBe(
+      'MAISON',
+    );
+    expect(extractCriteria('flats for rent').strictFilters.type).toBe(
+      'APPARTEMENT',
+    );
+    expect(extractCriteria('lands for sale').strictFilters.type).toBe(
+      'TERRAIN',
+    );
+    expect(extractCriteria('plots for sale').strictFilters.type).toBe(
+      'TERRAIN',
+    );
+  });
+
+  it('"300m2"/"4 jours"/"2 nuits" jamais lus comme un nombre de chambres', () => {
+    expect(
+      extractCriteria('terrain 300m2 a vendre').strictFilters.minBeds,
+    ).toBeUndefined();
+    expect(
+      extractCriteria('villa pour 4 jours').strictFilters.minBeds,
+    ).toBeUndefined();
+  });
+});
+
+describe('extractCriteria — lot 7 : équipements', () => {
+  it('synonymes de piscine (pool, swimming pool, piscine privée)', () => {
+    expect(
+      extractCriteria('villa avec pool').strictFilters.amenities,
+    ).toContain('piscine');
+    expect(
+      extractCriteria('villa with swimming pool').strictFilters.amenities,
+    ).toContain('piscine');
+    expect(
+      extractCriteria('villa avec piscine privee').strictFilters.amenities,
+    ).toContain('piscine');
+  });
+
+  it('mot de préférence ("de préférence", "idéalement", "preferably") → préférence douce, pas un filtre strict', () => {
+    const r1 = extractCriteria('villa avec piscine de preference');
+    expect(r1.softPreferences).toContain('piscine');
+    expect(r1.strictFilters.amenities ?? []).not.toContain('piscine');
+
+    const r2 = extractCriteria('apartment with parking, preferably');
+    expect(r2.softPreferences).toContain('parking');
+    expect(r2.strictFilters.amenities ?? []).not.toContain('parking');
+  });
+
+  it('"meublé"/"furnished" : pas dans la liste réelle des équipements → mot non compris, aucune erreur', () => {
+    const r = extractCriteria('studio meuble a Dakar');
+    expect(r.strictFilters.amenities ?? []).toEqual([]);
+    expect(r.unmatchedTokens).toContain('meuble');
+  });
+
+  it('négation ("non meublé"/"unfurnished") : toujours pas de filtre meublé (absent de la liste réelle)', () => {
+    const r = extractCriteria('appartement non meuble');
+    expect(r.strictFilters.amenities ?? []).toEqual([]);
   });
 });
