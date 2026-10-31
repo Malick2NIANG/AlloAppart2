@@ -389,13 +389,22 @@ function AbonnementContent() {
   );
 }
 
+function AbonnementFallback() {
+  const t = useTranslations('skeleton');
+  return (
+    <SkeletonContainer label={t('loading')} className="space-y-8">
+      <div className="h-28 animate-pulse rounded-2xl border border-line bg-card" />
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="h-80 animate-pulse rounded-2xl border border-line bg-card" />
+        <div className="h-80 animate-pulse rounded-2xl border border-line bg-card" />
+      </div>
+    </SkeletonContainer>
+  );
+}
+
 export default function AbonnementPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center py-32">
-        <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
-      </div>
-    }>
+    <Suspense fallback={<AbonnementFallback />}>
       <AbonnementContent />
     </Suspense>
   );

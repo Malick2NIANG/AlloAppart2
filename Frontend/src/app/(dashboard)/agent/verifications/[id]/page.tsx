@@ -8,6 +8,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import BottomSheet from '@/components/ui/BottomSheet';
+import { SkeletonContainer, DashboardDetailPageSkeleton } from '@/components/ui/Skeleton';
 import type { Verification } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -35,6 +36,7 @@ export default function MissionDetailPage() {
   const { getToken } = useAuth();
   const { toast }    = useToast();
   const t            = useTranslations('agent');
+  const tSkeleton    = useTranslations('skeleton');
   const locale       = useLocale();
   const numLocale    = locale === 'en' ? 'en-US' : 'fr-FR';
   const toastRef     = useRef(toast);
@@ -130,9 +132,9 @@ export default function MissionDetailPage() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center py-24">
-      <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
-    </div>
+    <SkeletonContainer label={tSkeleton('loading')}>
+      <DashboardDetailPageSkeleton />
+    </SkeletonContainer>
   );
   if (!v) return null;
 
