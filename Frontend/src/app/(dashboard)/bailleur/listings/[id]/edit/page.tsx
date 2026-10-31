@@ -15,6 +15,7 @@ import MobileStepperBar from '@/components/ui/MobileStepperBar';
 import StickyStepActions from '@/components/ui/StickyStepActions';
 import { getListingProfile, sanitizeForType } from '@/lib/listingProfile';
 import { REGION_CENTERS, checkRegionConsistency, findRegionAt, getRegionFeature } from '@/lib/senegalRegions';
+import { SkeletonContainer, DashboardFormPageSkeleton } from '@/components/ui/Skeleton';
 
 // Types valides en mode LOCATION vs VENTE — cf. publier/page.tsx (même règle,
 // miroir du backend listings.service.ts#assertValidTransactionTypeUsage).
@@ -73,6 +74,7 @@ export default function EditListingPage() {
   // stepper, même clés i18n) — évite de dupliquer le texte, même pattern que
   // tUpgrade dans bailleur/listings/page.tsx.
   const tPublish = useTranslations('publish');
+  const tSkeleton = useTranslations('skeleton');
   const [mapReady, setMapReady]       = useState(false);
   const [step, setStep]               = useState(0);
   const [loadingData, setLoadingData] = useState(true);
@@ -365,9 +367,9 @@ export default function EditListingPage() {
 
   if (loadingData) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
-      </div>
+      <SkeletonContainer label={tSkeleton('loading')}>
+        <DashboardFormPageSkeleton fields={6} />
+      </SkeletonContainer>
     );
   }
 

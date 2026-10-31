@@ -12,6 +12,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { AGENCY_COLORS, getAgencyColorOption } from '@/lib/agencyColors';
 import { revalidateVitrineCache } from './actions';
+import { SkeletonContainer, PageHeaderSkeleton } from '@/components/ui/Skeleton';
 import type { User, Subscription, Listing, PaginatedResponse } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -28,6 +29,7 @@ export default function MaVitrinePage() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [activeCount,  setActiveCount]  = useState(0);
   const [loading,      setLoading]      = useState(true);
+  const [loadError,    setLoadError]    = useState(false);
   const [saving,       setSaving]       = useState(false);
   const [uploading,    setUploading]    = useState(false);
 
@@ -72,8 +74,10 @@ export default function MaVitrinePage() {
   const isDirtyRef = useRef(false);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
     const token = await getToken().catch(() => null);
-    if (!token) return;
+    if (!token) { setLoading(false); return; }
     try {
       const me = await api.get<User>('/auth/me', token);
       if (!me.roles?.includes('PRO_AGENCE')) {
@@ -109,7 +113,7 @@ export default function MaVitrinePage() {
       ]);
       setSubscription(sub);
       setActiveCount(mine?.data.filter((l) => l.status === 'ACTIVE').length ?? 0);
-    } catch { /* ignore */ }
+    } catch { setLoadError(true); }
     finally { setLoading(false); }
   }, [getToken, router]);
 
@@ -250,10 +254,25 @@ export default function MaVitrinePage() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center py-24">
-      <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
-    </div>
+    <SkeletonContainer label={t('vitrineTitle')} className="space-y-6">
+      <PageHeaderSkeleton withAction />
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
+        <div className="h-96 animate-pulse rounded-2xl border border-line bg-card" />
+        <div className="h-96 animate-pulse rounded-2xl border border-line bg-card" />
+      </div>
+    </SkeletonContainer>
   );
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
+        <p className="text-sm text-sub">{t('vitrineLoadError')}</p>
+        <button onClick={() => void load()} className="mt-4 btn-gold text-sm">
+          <i className="fa-solid fa-rotate-right mr-1.5" />{t('vitrineRetry')}
+        </button>
+      </div>
+    );
+  }
 
   const vitrinUrl     = user?.agencySlug ? `/agences/${user.agencySlug}` : null;
   const color         = getAgencyColorOption(agencyColor);

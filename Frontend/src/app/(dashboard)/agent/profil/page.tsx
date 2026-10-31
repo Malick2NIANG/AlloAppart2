@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import PhoneInput from '@/components/ui/PhoneInput';
+import { SkeletonContainer, StatGridSkeleton, ProfileSkeleton } from '@/components/ui/Skeleton';
 import type { User } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -32,6 +33,7 @@ export default function AgentProfilPage() {
   const [user,    setUser]    = useState<User | null>(null);
   const [stats,   setStats]   = useState<AgentStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState<string | null>(null);
   const [saving,  setSaving]  = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -46,8 +48,10 @@ export default function AgentProfilPage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     const token = await getToken().catch(() => null);
-    if (!token) return;
+    if (!token) { setLoading(false); return; }
     try {
       const [me, st] = await Promise.all([
         api.get<User>('/auth/me', token),
@@ -61,9 +65,9 @@ export default function AgentProfilPage() {
       setBio(me.bio ?? '');
       setCoverageZone(me.coverageZone ?? '');
       setAvatar(me.avatar ?? '');
-    } catch { /* ignore */ }
+    } catch { setError(t('profileLoadError')); }
     finally { setLoading(false); }
-  }, [getToken]);
+  }, [getToken, t]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void load(); }, [load]);
@@ -104,11 +108,23 @@ export default function AgentProfilPage() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center py-24">
-      <i className="fa-solid fa-spinner fa-spin text-2xl text-gold-dark" />
-    </div>
+    <SkeletonContainer label={t('profileTitle')} className="space-y-5">
+      <div className="h-6 w-48 animate-pulse rounded-xl bg-line" />
+      <StatGridSkeleton count={4} cols={4} />
+      <ProfileSkeleton />
+    </SkeletonContainer>
   );
-  if (!user) return null;
+  if (error || !user) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <i className="fa-solid fa-circle-exclamation text-2xl text-red-400 mb-3" />
+        <p className="text-sm text-sub">{error ?? t('profileLoadError')}</p>
+        <button onClick={() => void load()} className="mt-4 btn-gold text-sm">
+          <i className="fa-solid fa-rotate-right mr-1.5" />{t('retry')}
+        </button>
+      </div>
+    );
+  }
 
   const initials = `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase();
 

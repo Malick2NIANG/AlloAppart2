@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import Pusher from 'pusher-js';
 import { api } from '@/lib/api';
 import { useTranslations } from 'next-intl';
+import { SkeletonContainer, ListRowsSkeleton } from '@/components/ui/Skeleton';
 
 interface Notif {
   id: string;
@@ -38,9 +39,11 @@ const TYPE_ICON: Record<string, { icon: string; color: string }> = {
 
 export default function NotificationBell({ userId }: { userId: string }) {
   const t             = useTranslations('notifications');
+  const tSkeleton     = useTranslations('skeleton');
   const { getToken }  = useAuth();
   const [notifs,      setNotifs]      = useState<Notif[]>([]);
   const [unread,      setUnread]      = useState(0);
+  const [loading,     setLoading]     = useState(true);
   const [open,        setOpen]        = useState(false);
   // Sous 768px : feuille en bas d'écran (portail) au lieu du menu déroulant.
   const [isMobile,    setIsMobile]    = useState(false);
@@ -75,6 +78,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
       setNotifs(list);
       setUnread(countRes.count);
     } catch {}
+    finally { setLoading(false); }
   }, [getToken]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
@@ -210,7 +214,11 @@ export default function NotificationBell({ userId }: { userId: string }) {
 
         {/* Liste */}
         <div className={`overflow-y-auto divide-y divide-line ${isMobile ? 'min-h-0 flex-1 overscroll-contain' : 'max-h-80'}`}>
-          {notifs.length === 0 ? (
+          {loading ? (
+            <SkeletonContainer label={tSkeleton('loading')} className="p-3">
+              <ListRowsSkeleton count={4} />
+            </SkeletonContainer>
+          ) : notifs.length === 0 ? (
             <div className="py-10 text-center">
               <i className="fa-solid fa-bell-slash text-2xl text-line mb-2" />
               <p className="text-xs text-sub">{t('empty')}</p>

@@ -1857,6 +1857,8 @@
     "perMonth": "/month",
     "vitrineTitle": "My showcase",
     "vitrineSubtitle": "Customise your public catalogue and share it with your clients.",
+    "vitrineLoadError": "Couldn't load your showcase.",
+    "vitrineRetry": "Retry",
     "vitrineSeeLink": "View my showcase",
     "vitrineLogo": "Agency logo",
     "vitrineLogoHint": "Photo or logo of your agency",
@@ -2336,7 +2338,9 @@
     "accountInfo": "Account information",
     "accEmail": "Email",
     "accMemberSince": "Member since",
-    "accTotalCertifications": "Total certifications"
+    "accTotalCertifications": "Total certifications",
+    "profileLoadError": "Couldn't load profile.",
+    "retry": "Retry"
   },
   "admin": {
     "noEmailPhoneSignup": "No email (signed up by phone)",

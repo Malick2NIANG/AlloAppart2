@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
 import BottomSheet from '@/components/ui/BottomSheet';
+import { SkeletonContainer } from '@/components/ui/Skeleton';
 
 // Classes desktop (≥768px) de la modale de confirmation — identiques à son
 // rendu d'avant la migration BottomSheet (règle d'or du chantier mobile).
@@ -27,6 +28,7 @@ function AbonnementContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const t            = useTranslations('bailleur');
+  const tSkeleton    = useTranslations('skeleton');
   const locale       = useLocale();
   const numLocale    = locale === 'en' ? 'en-US' : 'fr-FR';
 
@@ -245,9 +247,13 @@ function AbonnementContent() {
       )}
 
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <i className="fa-solid fa-spinner fa-spin text-2xl text-gold" />
-        </div>
+        <SkeletonContainer label={tSkeleton('loading')} className="space-y-8">
+          <div className="h-28 animate-pulse rounded-2xl border border-line bg-card" />
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="h-80 animate-pulse rounded-2xl border border-line bg-card" />
+            <div className="h-80 animate-pulse rounded-2xl border border-line bg-card" />
+          </div>
+        </SkeletonContainer>
       )}
 
       {/* Plans */}

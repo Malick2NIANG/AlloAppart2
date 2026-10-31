@@ -10,6 +10,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import { BOTTOM_NAV_TOGGLE_EVENT } from '@/components/ui/BottomNav';
 import { useIsMobile } from '@/lib/useMediaQuery';
+import { SkeletonContainer, ChatSkeleton } from '@/components/ui/Skeleton';
 import type { Message, MessageRoom, User } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
@@ -165,6 +166,7 @@ const SPACE_BADGE_CLS = {
 export default function MessagesShell({ emptyHint, space }: Props) {
   const { getToken } = useAuth();
   const t = useTranslations('messagesShell');
+  const tSkeleton = useTranslations('skeleton');
   const locale = useLocale();
   const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
   const searchParams = useSearchParams();
@@ -950,9 +952,9 @@ export default function MessagesShell({ emptyHint, space }: Props) {
           {/* Messages */}
           <div ref={messagesContainerRef} className="relative flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2 bg-bg/30">
             {loadingMsgs ? (
-              <div className="flex items-center justify-center py-12">
-                <i className="fa-solid fa-spinner fa-spin text-xl text-gold-dark" />
-              </div>
+              <SkeletonContainer label={tSkeleton('loading')}>
+                <ChatSkeleton />
+              </SkeletonContainer>
             ) : messages.length === 0 ? (
               <p className="text-center text-sm text-sub py-12">{t('noMessages')}</p>
             ) : (

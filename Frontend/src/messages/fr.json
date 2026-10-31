@@ -1857,6 +1857,8 @@
     "perMonth": "/mois",
     "vitrineTitle": "Ma vitrine",
     "vitrineSubtitle": "Personnalisez votre catalogue public et partagez-le avec vos clients.",
+    "vitrineLoadError": "Impossible de charger votre vitrine.",
+    "vitrineRetry": "Réessayer",
     "vitrineSeeLink": "Voir ma vitrine",
     "vitrineLogo": "Logo de l'agence",
     "vitrineLogoHint": "Photo ou logo de votre agence",
@@ -2336,7 +2338,9 @@
     "accountInfo": "Informations du compte",
     "accEmail": "Email",
     "accMemberSince": "Membre depuis",
-    "accTotalCertifications": "Certifications totales"
+    "accTotalCertifications": "Certifications totales",
+    "profileLoadError": "Impossible de charger le profil.",
+    "retry": "Réessayer"
   },
   "admin": {
     "noEmailPhoneSignup": "Pas d'email (inscription par téléphone)",
