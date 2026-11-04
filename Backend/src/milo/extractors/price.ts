@@ -25,7 +25,53 @@ const FORBIDDEN_FOLLOW_WORDS = [
   'br',
   'm²',
   'm2',
+  // Surface (lot 7 bis, règle A) — un nombre collé à une unité de surface
+  // n'est jamais un prix ("1500 square meters" ≥ 1000 serait sinon un
+  // candidat utilisable seul). "m2"/"m²" déjà au-dessus.
+  'metre',
+  'metres',
+  'metres²',
+  'square',
+  'feet',
+  'sqm',
+  'ha',
+  'hectare',
+  'hectares',
+  // Personnes (règle A) — "8 personnes" n'est jamais un prix ni un nombre
+  // de chambres.
+  'personne',
+  'personnes',
+  'people',
+  'persons',
+  'pax',
+  'adultes',
+  'adulte',
+  'enfants',
+  'enfant',
 ];
+
+/** Mots-clés de direction grammaticalement valables APRÈS le montant
+ * ("300k maximum") — liste restreinte et volontairement plus courte que
+ * `maxKeywords`/`minKeywords` : "budget"/"moins de"/"jusqu'à"/"under"/
+ * "up to"… ne se disent jamais après le nombre ("3 budget" n'a aucun
+ * sens) et feraient sinon remonter un nombre sans rapport à 4 tokens de
+ * là (lot 7 bis, bug découvert sur "... budget 25mil/nuit" où "budget"
+ * en suffixe happait un "3" bien antérieur dans la phrase). */
+const POSTFIX_ELIGIBLE = new Set([
+  'maximum',
+  'max',
+  'au plus',
+  'minimum',
+  'min',
+  'au moins',
+  'at most',
+  'at least',
+]);
+
+/** Mot central nu pour une fourchette sans mot-clé introductif ("70 à 85
+ * millions", lot 7 bis, règle D) — "a" = "à" (accents retirés), "-" = tiret
+ * isolé (espaces autour, "–"/"—" déjà normalisés en "-" par normalize.ts). */
+const RANGE_BARE_MID_WORDS = ['a', 'to', '-'];
 
 interface NumberCandidate {
   value: number;
@@ -50,6 +96,173 @@ function isUsableAlone(c: NumberCandidate): boolean {
   return c.value >= 1000 || c.hasMultiplier || c.hasCurrency;
 }
 
+/**
+ * Nombres en lettres FR/EN (lot 7 bis, règle F — seulement après A-E,
+ * "simple et sûr" : un analyseur composé borné, pas une liste à plat de
+ * 1 à 999). "quatre-vingt-dix" reste UN token (le tiret n'est pas un
+ * séparateur, normalize.ts), donc une entrée directe dans les dictionnaires
+ * tens/teens/units suffit — pas besoin de recomposer "quatre"+"vingt"+"dix".
+ * En cas de doute (mot inconnu, ordre inattendu) : aucun match, le texte
+ * reste un mot non compris (jamais de valeur devinée).
+ */
+const FR_UNITS: Record<string, number> = {
+  un: 1,
+  une: 1,
+  deux: 2,
+  trois: 3,
+  quatre: 4,
+  cinq: 5,
+  six: 6,
+  sept: 7,
+  huit: 8,
+  neuf: 9,
+};
+const FR_TENS_TEENS_UNITS: Record<string, number> = {
+  ...FR_UNITS,
+  dix: 10,
+  onze: 11,
+  douze: 12,
+  treize: 13,
+  quatorze: 14,
+  quinze: 15,
+  seize: 16,
+  'dix-sept': 17,
+  'dix-huit': 18,
+  'dix-neuf': 19,
+  vingt: 20,
+  trente: 30,
+  quarante: 40,
+  cinquante: 50,
+  soixante: 60,
+  'soixante-dix': 70,
+  'quatre-vingt': 80,
+  'quatre-vingts': 80,
+  'quatre-vingt-dix': 90,
+};
+const EN_UNITS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+};
+const EN_TENS_TEENS_UNITS: Record<string, number> = {
+  ...EN_UNITS,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19,
+  twenty: 20,
+  thirty: 30,
+  forty: 40,
+  fifty: 50,
+  sixty: 60,
+  seventy: 70,
+  eighty: 80,
+  ninety: 90,
+};
+
+interface WrittenNumberMatch {
+  value: number;
+  end: number;
+  /** Un mot-multiplicateur (cent/mille/million…) a participé — compte comme
+   * `hasMultiplier` pour `isUsableAlone` (même traitement que "k"/"m"). */
+  hasMultiplier: boolean;
+}
+
+function parseWrittenNumber(
+  tokens: Token[],
+  start: number,
+): WrittenNumberMatch | null {
+  for (const [
+    units,
+    tensTeensUnits,
+    hundredWords,
+    thousandWord,
+    millionWords,
+  ] of [
+    [
+      FR_UNITS,
+      FR_TENS_TEENS_UNITS,
+      ['cent', 'cents'],
+      'mille',
+      ['million', 'millions'],
+    ],
+    [
+      EN_UNITS,
+      EN_TENS_TEENS_UNITS,
+      ['hundred'],
+      'thousand',
+      ['million', 'millions'],
+    ],
+  ] as const) {
+    let i = start;
+    let value = 0;
+    let hasMultiplier = false;
+    let matched = false;
+
+    const first = tokens[i]?.raw;
+    const second = tokens[i + 1]?.raw;
+    if (
+      first in units &&
+      second &&
+      (hundredWords as readonly string[]).includes(second)
+    ) {
+      value = units[first] * 100;
+      hasMultiplier = true;
+      matched = true;
+      i += 2;
+    } else if (first && (hundredWords as readonly string[]).includes(first)) {
+      value = 100;
+      hasMultiplier = true;
+      matched = true;
+      i += 1;
+      const next = tokens[i]?.raw;
+      if (next && next in tensTeensUnits) {
+        value += tensTeensUnits[next];
+        i += 1;
+      }
+    } else if (first && first in tensTeensUnits) {
+      value = tensTeensUnits[first];
+      matched = true;
+      i += 1;
+    }
+    if (!matched) continue;
+
+    const afterHundred = tokens[i]?.raw;
+    if (afterHundred === thousandWord) {
+      value *= 1_000;
+      hasMultiplier = true;
+      i += 1;
+    } else if (
+      afterHundred &&
+      (millionWords as readonly string[]).includes(afterHundred)
+    ) {
+      value *= 1_000_000;
+      hasMultiplier = true;
+      i += 1;
+    }
+
+    // Un seul mot-tens/teens/units nu, sans "cent"/"mille"/"million" —
+    // jamais un prix en soi ("trois" seul n'est pas 3, règle A) : on exige
+    // au moins un multiplicateur pour que ce soit un candidat plausible.
+    if (!hasMultiplier) continue;
+
+    return { value, end: i, hasMultiplier };
+  }
+  return null;
+}
+
 /** Détecte tous les nombres "en forme de prix" dans la liste de tokens —
  * fusionne les groupes de milliers ("350 000"), gère k/m/million(s),
  * rejette ce qui suit un mot-unité interdit (pièces/chambres/m²). Ne
@@ -70,8 +283,22 @@ function findNumberCandidates(
     let hasMultiplier = false;
     let multiplierFactor: number | undefined;
 
-    // "350k" / "1.5m" — suffixe multiplicateur collé au nombre.
-    const suffixMatch = /^(\d+(?:[.,]\d+)?)(k|m)$/.exec(raw);
+    // Nombres en lettres ("quatre-vingt-dix millions", "trois cent mille",
+    // "one hundred thousand" — lot 7 bis, règle F). Essayé en premier : ces
+    // mots ne collisionnent jamais avec les formes chiffrées ci-dessous.
+    // Valeur déjà finale (pas de `multiplierFactor` à prêter à un voisin
+    // dans une fourchette — limite acceptée, hors des exemples du lot).
+    const written = parseWrittenNumber(tokens, i);
+    if (written) {
+      value = written.value;
+      end = written.end;
+      hasMultiplier = written.hasMultiplier;
+    }
+
+    // "350k" / "1.5m" / "25mil" — suffixe multiplicateur collé au nombre
+    // ("mil" = abréviation FR de "mille", lot 7 bis, règle A).
+    const suffixMatch =
+      value === null ? /^(\d+(?:[.,]\d+)?)(k|m|mil)$/.exec(raw) : null;
     if (suffixMatch) {
       const base = Number(suffixMatch[1].replace(',', '.'));
       const mult = multipliers[suffixMatch[2]];
@@ -101,12 +328,14 @@ function findNumberCandidates(
     // ci-dessus) : liste explicite, pas tout `multipliers`.
     if (value === null && /^\d+(?:,\d+)?$/.test(raw)) {
       const next = tokens[i + 1]?.raw;
-      const WORD_MULTIPLIERS = ['million', 'millions', 'mille'];
+      const WORD_MULTIPLIERS = ['million', 'millions', 'mille', 'mil'];
       if (next && WORD_MULTIPLIERS.includes(next)) {
         const base = Number(raw.replace(',', '.'));
         if (Number.isFinite(base)) {
           const mult =
-            next === 'mille' ? 1_000 : (multipliers.million ?? 1_000_000);
+            next === 'mille' || next === 'mil'
+              ? 1_000
+              : (multipliers.million ?? 1_000_000);
           value = base * mult;
           hasMultiplier = true;
           multiplierFactor = mult;
@@ -238,10 +467,18 @@ export interface PriceExtraction {
  * budget/under/between…) n'est jamais extrait — il reste dans
  * `unmatchedTokens` (en cas de doute, ne pas extraire).
  */
+export interface PriceContext {
+  /** Type de transaction déjà déterminé (location/vente) — "contexte de
+   * budget clair" pour la règle G (lot 7 bis), transmis par
+   * extractCriteria.ts (déjà calculé par transaction.ts à ce stade). */
+  transactionType?: string;
+}
+
 export function extractPrice(
   tokens: Token[],
   dictionaries: LanguageDictionary[],
   alreadyConsumed: ReadonlySet<number>,
+  context: PriceContext = {},
 ): PriceExtraction {
   const multipliers: Record<string, number> = {};
   const currencyWords: string[] = [];
@@ -284,17 +521,64 @@ export function extractPrice(
     }
   }
 
+  // Montant "total" pour un séjour court (for N days/nights + total) —
+  // jamais un prix mensuel (lot 7 bis, règle A). "total"/"au total" adjacent
+  // au montant ET une durée en jours/nuits présente quelque part dans la
+  // requête : les deux conditions ensemble, pour ne jamais bloquer un
+  // "total" sans rapport (ex. un simple "au total" isolé).
+  const STAY_DURATION_WORDS = [
+    'jour',
+    'jours',
+    'nuit',
+    'nuits',
+    'day',
+    'days',
+    'night',
+    'nights',
+    'weekend',
+    'weekends',
+  ];
+  const TOTAL_WORDS = ['total', 'au total', 'in total'];
+  const hasStayDurationContext = tokens.some(
+    (t, idx) =>
+      /^\d{1,2}$/.test(t.raw) &&
+      STAY_DURATION_WORDS.includes(tokens[idx + 1]?.raw ?? ''),
+  );
+  const totalBlocked = new Set<NumberCandidate>();
+  if (hasStayDurationContext) {
+    for (const c of availableCandidates) {
+      if (periodBlocked.has(c)) continue;
+      if (adjacentPhrase(tokens, c, TOTAL_WORDS)) totalBlocked.add(c);
+    }
+  }
+
+  // Un candidat avec multiplicateur/devise est préféré au simple plus
+  // proche (lot 7 bis, règle A) : "budget 2000 ou 3 millions" doit choisir
+  // "3 millions", pas "2000" (plus proche mais sans indice de prix fort).
+  function candidateRank(c: NumberCandidate): number {
+    return c.hasMultiplier || c.hasCurrency ? 0 : 1;
+  }
+
   function nearestUnclaimed(
     fromIndex: number,
     requireUsableAlone: boolean,
+    preferMultiplier = false,
   ): NumberCandidate | undefined {
     let best: NumberCandidate | undefined;
     for (const c of availableCandidates) {
-      if (claimed.has(c) || periodBlocked.has(c)) continue;
+      if (claimed.has(c) || periodBlocked.has(c) || totalBlocked.has(c))
+        continue;
       if (c.start < fromIndex) continue;
       if (c.start - fromIndex > 4) continue; // fenêtre de recherche courte
       if (requireUsableAlone && !isUsableAlone(c)) continue;
-      if (!best || c.start < best.start) best = c;
+      if (
+        !best ||
+        (preferMultiplier && candidateRank(c) < candidateRank(best)) ||
+        ((!preferMultiplier || candidateRank(c) === candidateRank(best)) &&
+          c.start < best.start)
+      ) {
+        best = c;
+      }
     }
     return best;
   }
@@ -363,6 +647,7 @@ export function extractPrice(
         if (from >= 0 && matchPhraseAt(tokens, from, kw) === words.length) {
           return true;
         }
+        if (!POSTFIX_ELIGIBLE.has(kw)) continue;
         for (
           let i = cand.end;
           i <= Math.min(cand.end + 4, tokens.length);
@@ -383,6 +668,7 @@ export function extractPrice(
         (c) =>
           !claimed.has(c) &&
           !periodBlocked.has(c) &&
+          !totalBlocked.has(c) &&
           isUsableAlone(c) &&
           c.start >= i + len &&
           c.start <= i + len + ADJACENT_GAP,
@@ -393,6 +679,7 @@ export function extractPrice(
           (c) =>
             !claimed.has(c) &&
             !periodBlocked.has(c) &&
+            !totalBlocked.has(c) &&
             isUsableAlone(c) &&
             c.end <= i &&
             c.end + ADJACENT_GAP >= i,
@@ -473,12 +760,87 @@ export function extractPrice(
       }
     }
 
+    // "70 à 85 millions" / "70 to 85 million" / "70 - 85 million" — même
+    // fourchette, sans mot-clé introductif ("entre"/"between"/"from") : un
+    // mot central nu (à/to/-) entre deux candidats adjacents suffit (lot 7
+    // bis, règle D). Risque de faux positif jugé faible : le mot central
+    // doit être immédiatement collé aux deux nombres.
+    for (const mid of RANGE_BARE_MID_WORDS) {
+      for (let i = 0; i + 1 <= tokens.length; i++) {
+        const midLen = matchPhraseAt(tokens, i, mid);
+        if (!midLen || isRangeConsumed(i, i + midLen, alreadyConsumed))
+          continue;
+        const first = availableCandidates.find(
+          (c) => !claimed.has(c) && !periodBlocked.has(c) && c.end === i,
+        );
+        if (!first) continue;
+        const second = nearestUnclaimed(i + midLen, false);
+        if (!second || second.start !== i + midLen) continue;
+
+        let firstValue = first.value;
+        let secondValue = second.value;
+        if (
+          !first.hasMultiplier &&
+          !first.hasCurrency &&
+          second.hasMultiplier
+        ) {
+          firstValue = first.value * (second.multiplierFactor ?? 1);
+        } else if (
+          !second.hasMultiplier &&
+          !second.hasCurrency &&
+          first.hasMultiplier
+        ) {
+          secondValue = second.value * (first.multiplierFactor ?? 1);
+        }
+        const firstOk =
+          first.hasMultiplier || first.hasCurrency || firstValue >= 1000;
+        const secondOk =
+          second.hasMultiplier || second.hasCurrency || secondValue >= 1000;
+        if (!firstOk || !secondOk) continue;
+
+        claimed.add(first);
+        claimed.add(second);
+        const lo = Math.min(firstValue, secondValue);
+        const hi = Math.max(firstValue, secondValue);
+        minPrice = lo;
+        maxPrice = hi;
+        markSpan(first.start, first.end);
+        markSpan(i, i + midLen);
+        markSpan(second.start, second.end);
+        matchedSpans.push({
+          category: 'price',
+          text: `${firstValue} ${mid} ${secondValue}`,
+          value: `${lo}-${hi}`,
+        });
+      }
+    }
+  }
+
+  // Mots-clés simples (budget/max/min…) — SÉPARÉ de la boucle des
+  // fourchettes ci-dessus, et lancé seulement APRÈS elle pour TOUS les
+  // dictionnaires (pas seulement celui en cours) : "budget between 70 and
+  // 85 million" plantait sinon, "budget" (dict FR, traité avant le dict EN
+  // dans `dictionaries`) happait "85 million" via la préférence
+  // multiplicateur avant même que la boucle "between...and" (dict EN,
+  // traité après) ait sa chance — lot 7 bis, bug découvert sur ce cas réel.
+  // `maxKeywordPositions`/`minKeywordPositions` : certains mots-clés (ex.
+  // "budget") existent dans les deux dictionnaires (FR et EN) ; sans ce
+  // suivi, la même occurrence à l'index `i` matchait deux fois (une par
+  // dictionnaire), la 2e fois retombant sur un candidat non pertinent déjà
+  // libre et écrasant le prix correct — lot 7 bis, bug découvert sur
+  // "budget 2000 ou 3 millions pour une villa" (maxPrice=2000 au lieu de
+  // 3000000).
+  const maxKeywordPositions = new Set<number>();
+  const minKeywordPositions = new Set<number>();
+  for (const dict of dictionaries) {
     for (const kw of dict.price.maxKeywords) {
       for (let i = 0; i + 1 <= tokens.length; i++) {
+        if (maxKeywordPositions.has(i)) continue;
         const len = matchPhraseAt(tokens, i, kw);
         if (!len || isRangeConsumed(i, i + len, alreadyConsumed)) continue;
-        const cand = nearestUnclaimed(i + len, true);
+        const cand = nearestUnclaimed(i + len, true, true);
         if (!cand) continue;
+        maxKeywordPositions.add(i);
         claimed.add(cand);
         maxPrice =
           maxPrice === undefined ? cand.value : Math.min(maxPrice, cand.value);
@@ -494,10 +856,12 @@ export function extractPrice(
 
     for (const kw of dict.price.minKeywords) {
       for (let i = 0; i + 1 <= tokens.length; i++) {
+        if (minKeywordPositions.has(i)) continue;
         const len = matchPhraseAt(tokens, i, kw);
         if (!len || isRangeConsumed(i, i + len, alreadyConsumed)) continue;
-        const cand = nearestUnclaimed(i + len, true);
+        const cand = nearestUnclaimed(i + len, true, true);
         if (!cand) continue;
+        minKeywordPositions.add(i);
         claimed.add(cand);
         minPrice =
           minPrice === undefined ? cand.value : Math.max(minPrice, cand.value);
@@ -520,12 +884,24 @@ export function extractPrice(
   // montant déjà résolu par un mot-clé en préfixe n'est pas rouvert. ─────
   for (const dict of dictionaries) {
     for (const cand of availableCandidates) {
-      if (claimed.has(cand) || periodBlocked.has(cand)) continue;
+      if (
+        claimed.has(cand) ||
+        periodBlocked.has(cand) ||
+        totalBlocked.has(cand)
+      )
+        continue;
+      // Une virgule/point juste après le montant bloque toute recherche
+      // postfixe : "3 bedrooms, max 500000" ne doit pas laisser "max"
+      // (direction d'une tout autre clause) qualifier un montant qu'il ne
+      // suit pas vraiment — lot 7 bis, bug découvert sur ce cas réel.
+      if (tokens[cand.end - 1]?.brokenAfter) continue;
       let matchedMax: { i: number; len: number; kw: string } | undefined;
       let matchedMin: { i: number; len: number; kw: string } | undefined;
       for (let i = cand.end; i <= Math.min(cand.end + 4, tokens.length); i++) {
+        if (i > cand.end && tokens[i - 1]?.brokenAfter) break;
         if (!matchedMax) {
           for (const kw of dict.price.maxKeywords) {
+            if (!POSTFIX_ELIGIBLE.has(kw)) continue;
             const len = matchPhraseAt(tokens, i, kw);
             if (len && !isRangeConsumed(i, i + len, alreadyConsumed)) {
               matchedMax = { i, len, kw };
@@ -535,6 +911,7 @@ export function extractPrice(
         }
         if (!matchedMax && !matchedMin) {
           for (const kw of dict.price.minKeywords) {
+            if (!POSTFIX_ELIGIBLE.has(kw)) continue;
             const len = matchPhraseAt(tokens, i, kw);
             if (len && !isRangeConsumed(i, i + len, alreadyConsumed)) {
               matchedMin = { i, len, kw };
@@ -577,11 +954,37 @@ export function extractPrice(
   for (const c of periodBlocked) {
     if (isUsableAlone(c)) ambiguities.push('periodNotSupported');
   }
+  // Montant "total" pour un séjour court — jamais un prix (lot 7 bis, règle A).
+  for (const c of totalBlocked) {
+    if (isUsableAlone(c)) ambiguities.push('stayTotal');
+  }
   // Montant plausible, jamais réclamé par une fourchette/approximatif/
-  // direction : compris mais la direction (min ou max ?) reste inconnue.
+  // direction : compris, mais la direction (min ou max ?) reste inconnue —
+  // SAUF contexte de budget clair (lot 7 bis, règle G, décision produit) :
+  // location/vente déjà posée, ou période mensuelle adjacente -> maxPrice
+  // avec la même marge de +10 % que l'approximatif, ambiguïté targetAmount
+  // dédiée (jamais confondue avec un "environ" explicite).
   for (const c of availableCandidates) {
-    if (claimed.has(c) || periodBlocked.has(c)) continue;
-    if (isUsableAlone(c)) ambiguities.push('amountDirection');
+    if (claimed.has(c) || periodBlocked.has(c) || totalBlocked.has(c)) continue;
+    if (!isUsableAlone(c)) continue;
+    const clearBudgetContext =
+      adjacentPhrase(tokens, c, monthlyPeriodKeywords) ||
+      context?.transactionType !== undefined;
+    if (clearBudgetContext) {
+      const raised = c.value * 1.1;
+      const rounded =
+        raised >= 1000 ? Math.round(raised / 1000) * 1000 : Math.round(raised);
+      maxPrice = maxPrice === undefined ? rounded : Math.min(maxPrice, rounded);
+      ambiguities.push('targetAmount');
+      markSpan(c.start, c.end);
+      matchedSpans.push({
+        category: 'price',
+        text: String(c.value),
+        value: `~${rounded}`,
+      });
+    } else {
+      ambiguities.push('amountDirection');
+    }
   }
 
   return { minPrice, maxPrice, consumed, matchedSpans, ambiguities };

@@ -58,6 +58,15 @@ export const QUARTIERS: Quartier[] = [
   { name: 'Diamniadio', region: 'Dakar', needsValidation: true },
   { name: 'Guédiawaye', region: 'Dakar', needsValidation: true },
   { name: 'Pikine', region: 'Dakar', needsValidation: true },
+  // ── Dakar — complément lot 7 bis (règle E), needsValidation partout ──
+  { name: 'Mamelles', region: 'Dakar', needsValidation: true },
+  { name: 'Maristes', region: 'Dakar', needsValidation: true },
+  { name: 'Bel-Air', region: 'Dakar', needsValidation: true },
+  { name: 'Fass', region: 'Dakar', needsValidation: true },
+  { name: 'Mbao', region: 'Dakar', needsValidation: true },
+  { name: 'Sangalkam', region: 'Dakar', needsValidation: true },
+  { name: 'Bambilor', region: 'Dakar', needsValidation: true },
+  { name: 'Lac Rose', region: 'Dakar', needsValidation: true },
 
   // ── Thiès ──────────────────────────────────────────────────────────
   { name: 'Saly', region: 'Thiès', needsValidation: true },
@@ -66,4 +75,11 @@ export const QUARTIERS: Quartier[] = [
   { name: 'Popenguine', region: 'Thiès', needsValidation: true },
   { name: 'Mbour', region: 'Thiès', needsValidation: true },
   { name: 'Joal-Fadiouth', region: 'Thiès', needsValidation: true },
+  // Joal et Fadiouth cités séparément aussi (village-pont relié à Joal par
+  // une passerelle, parfois nommé seul — lot 7 bis, règle E).
+  { name: 'Joal', region: 'Thiès', needsValidation: true },
+  { name: 'Fadiouth', region: 'Thiès', needsValidation: true },
+  { name: 'Warang', region: 'Thiès', needsValidation: true },
+  { name: 'Pointe Sarène', region: 'Thiès', needsValidation: true },
+  { name: 'Toubab Dialaw', region: 'Thiès', needsValidation: true },
 ];

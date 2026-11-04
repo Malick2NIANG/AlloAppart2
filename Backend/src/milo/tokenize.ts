@@ -7,6 +7,13 @@
 export interface Token {
   raw: string;
   index: number;
+  /** Vrai si ce mot était suivi d'une virgule/point dans le texte original
+   * (avant leur retrait) — une rupture de clause. Les fenêtres d'adjacence
+   * à portée fixe ("2 chambres MINIMUM", "300k MAX") doivent s'arrêter à
+   * cette rupture pour ne pas happer un mot-clé d'une clause voisine sans
+   * rapport (lot 7 bis, bug découvert sur "minimum 3 bedrooms, max 500000"
+   * : "max" du prix suivant était consommé comme qualificatif de chambres). */
+  brokenAfter: boolean;
 }
 
 /**
@@ -28,9 +35,12 @@ export function tokenize(normalizedText: string): Token[] {
   if (!normalizedText) return [];
   return normalizedText
     .split(' ')
-    .map(stripAttachedPunctuation)
-    .filter((t) => t.length > 0)
-    .map((raw, index) => ({ raw, index }));
+    .map((chunk) => ({
+      raw: stripAttachedPunctuation(chunk),
+      brokenAfter: /[.,]$/.test(chunk),
+    }))
+    .filter((t) => t.raw.length > 0)
+    .map((t, index) => ({ raw: t.raw, index, brokenAfter: t.brokenAfter }));
 }
 
 /** Essaie de faire correspondre une phrase multi-mots (ex. "a vendre",

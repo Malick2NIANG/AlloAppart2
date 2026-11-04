@@ -49,6 +49,11 @@ export const en: LanguageDictionary = {
       millions: 1_000_000,
     },
     currencyWords: ['fcfa', 'cfa', 'xof', 'francs', 'franc', 'f'],
+    // NB : "/" est retiré par la normalisation (remplacé par un espace,
+    // jamais conservé dans un token — normalize.ts) : "250k/night" devient
+    // "250k night", déjà couvert par la forme nue "night" ci-dessous. Les
+    // anciennes entrées "/night" etc. ne pouvaient donc jamais matcher
+    // (code mort, retirées lot 7 bis).
     nonMonthlyPeriodKeywords: [
       'per night',
       'a night',
@@ -62,11 +67,8 @@ export const en: LanguageDictionary = {
       'per year',
       'a year',
       'year',
-      '/night',
-      '/day',
-      '/week',
     ],
-    monthlyPeriodKeywords: ['per month', 'a month', 'monthly', '/month'],
+    monthlyPeriodKeywords: ['per month', 'a month', 'monthly', 'month'],
     approximateKeywords: ['around', 'about', 'approximately', '~'],
   },
   rooms: {
@@ -74,8 +76,8 @@ export const en: LanguageDictionary = {
   },
   beds: {
     unitWords: ['bedrooms', 'bedroom', 'bed', 'beds', 'br'],
-    atLeastKeywords: ['at least', 'more than'],
-    atMostKeywords: ['at most', 'max', 'maximum'],
+    atLeastKeywords: ['at least', 'more than', 'minimum', 'min', 'or more'],
+    atMostKeywords: ['at most', 'max', 'maximum', 'up to'],
     writtenNumbers: {
       one: 1,
       two: 2,

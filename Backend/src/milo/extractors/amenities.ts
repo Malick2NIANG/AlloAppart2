@@ -1,4 +1,8 @@
-import type { LanguageDictionary, MiloMatchedSpan } from '../types';
+import type {
+  LanguageDictionary,
+  MiloAmbiguity,
+  MiloMatchedSpan,
+} from '../types';
 import type { Token } from '../tokenize';
 import { matchPhraseAt } from '../tokenize';
 import { isWordMatch } from '../normalize';
@@ -12,7 +16,28 @@ export interface AmenitiesExtraction {
   softAmenities: string[];
   consumed: Set<number>;
   matchedSpans: MiloMatchedSpan[];
+  /** "negatedAmenity" si au moins un équipement compris a été nié ("sans
+   * piscine", "no parking") — jamais ni strict ni souple (lot 7 bis, règle B). */
+  ambiguities: MiloAmbiguity[];
 }
+
+/** Négation, une seule des deux langues suffit — phrases les plus longues
+ * en premier (évite qu'une négation courte "masque" une variante plus
+ * longue au même endroit, sans incidence réelle ici mais plus sûr). */
+const NEGATION_PHRASES = [
+  'surtout pas de',
+  'no need for',
+  "don't want",
+  'pas de',
+  "pas d'",
+  'sans',
+  'non',
+  'aucun',
+  'aucune',
+  'without',
+  'no',
+  'not',
+];
 
 function isRangeConsumed(
   start: number,
@@ -54,6 +79,34 @@ function hasAdjacentPreferenceMarker(
   return false;
 }
 
+/** Une négation est-elle proche du span [start,end) ? Fenêtre de 3 mots,
+ * les deux sens — couvre "sans piscine ni parking" (la négation porte sur
+ * le second équipement malgré la conjonction) et "avec ou sans piscine"
+ * (une marque positive peut coexister, la négation l'emporte quand même,
+ * lot 7 bis, règle B). */
+function hasAdjacentNegation(
+  tokens: Token[],
+  start: number,
+  end: number,
+): boolean {
+  const WINDOW = 3;
+  for (const phrase of NEGATION_PHRASES) {
+    const words = phrase.split(' ');
+    for (let k = end; k <= end + WINDOW; k++) {
+      if (matchPhraseAt(tokens, k, phrase) === words.length) return true;
+    }
+    for (
+      let k = start - words.length;
+      k >= start - words.length - WINDOW;
+      k--
+    ) {
+      if (k >= 0 && matchPhraseAt(tokens, k, phrase) === words.length)
+        return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Équipements → clés canoniques de Frontend/src/lib/listingProfile.ts
  * (dupliquées dans dictionaries/amenityKeys.ts). Tolérance aux fautes sur
@@ -73,7 +126,16 @@ export function extractAmenities(
   const blocked = (s: number, e: number) =>
     isRangeConsumed(s, e, alreadyConsumed) || isRangeConsumed(s, e, consumed);
 
+  let negatedFound = false;
+
   function record(key: string, s: number, e: number, text: string) {
+    // Négation d'abord : ni strict ni souple pour cette mention (lot 7 bis,
+    // règle B) — l'équipement reste "compris" (ambiguïté côté
+    // extractCriteria.ts) mais n'est JAMAIS ajouté en positif.
+    if (hasAdjacentNegation(tokens, s, e)) {
+      negatedFound = true;
+      return;
+    }
     const soft = hasAdjacentPreferenceMarker(tokens, dictionaries, s, e);
     if (soft) foundSoft.add(key);
     else found.add(key);
@@ -112,5 +174,6 @@ export function extractAmenities(
     softAmenities: [...foundSoft],
     consumed,
     matchedSpans,
+    ambiguities: negatedFound ? ['negatedAmenity'] : [],
   };
 }

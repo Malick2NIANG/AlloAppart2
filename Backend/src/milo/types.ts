@@ -73,7 +73,17 @@ export type MiloAmbiguity =
   /** "1 chambre"/"1 room" : un seul chambre peut signifier le type CHAMBRE
    * ("une chambre à louer") ou un nombre de chambres (1 bedroom) — les deux
    * compris, aucun retenu (lot 7, règle 3). */
-  | 'chambreCount';
+  | 'chambreCount'
+  /** Montant "total" pour un séjour court (for N days/nights + total) —
+   * jamais un prix mensuel, aucun filtre posé (lot 7 bis, règle A). */
+  | 'stayTotal'
+  /** Équipement compris mais explicitement nié (sans/no/without…) — jamais
+   * en positif, strict ou souple (lot 7 bis, règle B). */
+  | 'negatedAmenity'
+  /** Montant nu (lot 7 bis, règle G) sans direction mais avec un contexte
+   * de budget clair (location/vente, période mensuelle) — maxPrice posé
+   * avec +10 %, affiché comme « ≈ » côté interface. */
+  | 'targetAmount';
 
 export interface MiloExtractionResult {
   strictFilters: MiloStrictFilters;

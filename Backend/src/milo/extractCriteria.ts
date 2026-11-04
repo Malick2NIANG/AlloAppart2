@@ -50,6 +50,7 @@ function runExtractors(tokens: Token[], dictionaries: LanguageDictionary[]) {
     strictFilters.amenities = amenitiesRes.amenities;
   amenitiesRes.consumed.forEach((i) => consumed.add(i));
   matchedSpans.push(...amenitiesRes.matchedSpans);
+  extraAmbiguities.push(...amenitiesRes.ambiguities);
 
   const softRes = extractSoftPreferences(tokens, dictionaries, consumed);
   softRes.consumed.forEach((i) => consumed.add(i));
@@ -81,7 +82,9 @@ function runExtractors(tokens: Token[], dictionaries: LanguageDictionary[]) {
   matchedSpans.push(...roomsRes.matchedSpans);
   extraAmbiguities.push(...roomsRes.ambiguities);
 
-  const priceRes = extractPrice(tokens, dictionaries, consumed);
+  const priceRes = extractPrice(tokens, dictionaries, consumed, {
+    transactionType: strictFilters.transactionType,
+  });
   if (priceRes.minPrice !== undefined)
     strictFilters.minPrice = priceRes.minPrice;
   if (priceRes.maxPrice !== undefined)

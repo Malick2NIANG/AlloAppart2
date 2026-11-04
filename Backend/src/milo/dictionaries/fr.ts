@@ -53,11 +53,17 @@ export const fr: LanguageDictionary = {
     rangeHyphen: true,
     multipliers: {
       k: 1_000,
+      mil: 1_000,
       m: 1_000_000,
       million: 1_000_000,
       millions: 1_000_000,
     },
     currencyWords: ['fcfa', 'cfa', 'xof', 'francs', 'franc', 'f'],
+    // NB : "/" est retiré par la normalisation (remplacé par un espace,
+    // jamais conservé dans un token — normalize.ts) : "25mil/nuit" devient
+    // "25mil nuit", déjà couvert par la forme nue "nuit" ci-dessous. Les
+    // anciennes entrées "/nuit" etc. ne pouvaient donc jamais matcher
+    // (code mort, retirées lot 7 bis).
     nonMonthlyPeriodKeywords: [
       'la nuit',
       'par nuit',
@@ -69,11 +75,8 @@ export const fr: LanguageDictionary = {
       'par an',
       'an',
       'annee',
-      '/nuit',
-      '/jour',
-      '/semaine',
     ],
-    monthlyPeriodKeywords: ['par mois', 'mensuel', 'mensuelle', '/mois'],
+    monthlyPeriodKeywords: ['par mois', 'mensuel', 'mensuelle', 'mois'],
     approximateKeywords: ['environ', 'autour de', 'vers', '~'],
   },
   rooms: {
@@ -84,7 +87,7 @@ export const fr: LanguageDictionary = {
     // déclencheur du type CHAMBRE quand aucun nombre ne le précède (lot 7,
     // règle 3), sinon un nombre de chambres comme les autres variantes.
     unitWords: ['chambres', 'ch', 'chbres', 'chbre'],
-    atLeastKeywords: ['au moins', 'plus de'],
+    atLeastKeywords: ['au moins', 'plus de', 'minimum', 'min', 'ou plus'],
     atMostKeywords: ['au plus', 'maximum', 'max'],
     writtenNumbers: {
       // "un"/"une" exclus volontairement : article indéfini ("une chambre"

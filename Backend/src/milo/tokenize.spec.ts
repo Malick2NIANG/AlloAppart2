@@ -3,10 +3,10 @@ import { tokenize, matchPhraseAt } from './tokenize';
 describe('tokenize', () => {
   it('découpe sur les espaces et indexe chaque token', () => {
     expect(tokenize('f3 climatise a louer')).toEqual([
-      { raw: 'f3', index: 0 },
-      { raw: 'climatise', index: 1 },
-      { raw: 'a', index: 2 },
-      { raw: 'louer', index: 3 },
+      { raw: 'f3', index: 0, brokenAfter: false },
+      { raw: 'climatise', index: 1, brokenAfter: false },
+      { raw: 'a', index: 2, brokenAfter: false },
+      { raw: 'louer', index: 3, brokenAfter: false },
     ]);
   });
 
@@ -35,6 +35,12 @@ describe('tokenize', () => {
       'budget',
       '1,5',
     ]);
+  });
+
+  it('marque brokenAfter=true sur le mot juste avant une virgule/point', () => {
+    expect(
+      tokenize('minimum 3 bedrooms, max 500000').map((t) => t.brokenAfter),
+    ).toEqual([false, false, true, false, false]);
   });
 
   it("filtre les tokens vides issus d'espaces multiples", () => {

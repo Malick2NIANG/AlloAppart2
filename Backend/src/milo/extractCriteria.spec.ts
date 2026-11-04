@@ -1006,3 +1006,32 @@ describe('extractCriteria — lot 7 bis : approximatif seulement adjacent au mon
     expect(r2.ambiguities).not.toContain('approximateAmount');
   });
 });
+
+describe('extractCriteria — lot 7 bis : corrections 2 (bugs cross-clause)', () => {
+  it('"budget" présent en FR et EN ne doit pas matcher deux fois : garde le montant à multiplicateur', () => {
+    const r1 = extractCriteria('budget 2000 ou 3 millions pour une villa');
+    expect(r1.strictFilters.maxPrice).toBe(3000000);
+
+    const r2 = extractCriteria('house budget 2000 or 3 million');
+    expect(r2.strictFilters.maxPrice).toBe(3000000);
+  });
+
+  it('une virgule entre deux clauses bloque le collage postfixe chambres/prix ("minimum 3 bedrooms, max 500000")', () => {
+    const r = extractCriteria('minimum 3 bedrooms, max 500000');
+    expect(r.strictFilters.minBeds).toBe(3);
+    expect(r.strictFilters.maxPrice).toBe(500000);
+  });
+
+  it('sans virgule, le qualificatif postfixe colle toujours normalement', () => {
+    const r1 = extractCriteria('2 chambres minimum');
+    expect(r1.strictFilters.minBeds).toBe(2);
+
+    const r2 = extractCriteria('2 bedrooms or more');
+    expect(r2.strictFilters.minBeds).toBe(2);
+
+    const r3 = extractCriteria('3 chambres, 60 millions maximum');
+    expect(r3.strictFilters.minBeds).toBe(3);
+    expect(r3.strictFilters.maxBeds).toBe(3);
+    expect(r3.strictFilters.maxPrice).toBe(60000000);
+  });
+});

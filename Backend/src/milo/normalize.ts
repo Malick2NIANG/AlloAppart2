@@ -21,11 +21,23 @@ export function stripAccents(s: string): string {
 }
 
 export function normalizeText(s: string): string {
-  return stripAccents(s.toLowerCase())
-    .replace(/[’‘]/g, "'")
-    .replace(/[^a-z0-9%²'.,\s-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return (
+    stripAccents(s.toLowerCase())
+      .replace(/[’‘]/g, "'")
+      // Tiret cadratin/demi-cadratin ("–"/"—", "70 – 85") → tiret simple :
+      // sinon retirés par le filtre ci-dessous (hors jeu de caractères
+      // autorisé) sans laisser de trace, rendant "70 – 85" indiscernable de
+      // "70 85" (deux nombres nus, aucun indice de fourchette) — lot 7 bis,
+      // règle D.
+      .replace(/[–—]/g, '-')
+      // "+" conservé (lot 7 bis) : "3+ bedrooms"/"3+ chambres" = "au moins 3",
+      // perdu sinon (remplacé par un espace comme toute ponctuation non
+      // listée) — seul caractère ajouté au jeu autorisé, sans incidence sur
+      // le reste (jamais utilisé ailleurs dans ce module).
+      .replace(/[^a-z0-9%²'.,+\s-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 }
 
 /** Distance d'édition de Levenshtein — utilisée uniquement pour la
