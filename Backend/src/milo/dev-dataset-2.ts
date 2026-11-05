@@ -1154,7 +1154,8 @@ const RAW: Array<
     'E',
     false,
     'villa a Toubab Dialaw',
-    { cityContains: 'Toubab Dialaw', region: 'Thiès' },
+    // Région corrigée lot 7 ter (règle 3) : Dakar/Rufisque, pas Thiès.
+    { cityContains: 'Toubab Dialaw', region: 'Dakar' },
   ],
   [
     'e-22',
@@ -1282,7 +1283,15 @@ const RAW: Array<
   ['e-47', 'E', true, 'villa a Grand', { cityContains: null }],
   ['e-48', 'E', true, 'studio a Sacre', { cityContains: null }],
   ['e-49', 'E', true, 'appart a PAS', { cityContains: null }],
-  ['e-50', 'E', true, 'villa a Yenne', { cityContains: null }],
+  // Yenne ajouté à quartiers.ts lot 7 ter (règle 3) : plus un piège négatif,
+  // confirmation positive désormais.
+  [
+    'e-50',
+    'E',
+    false,
+    'villa a Yenne',
+    { cityContains: 'Yenne', region: 'Dakar' },
+  ],
   ['e-51', 'E', true, 'appart dans un coin perdu', { cityContains: null }],
   ['e-52', 'E', true, 'villa a Boulevard', { cityContains: null }],
   ['e-53', 'E', true, 'studio a Centre Ville', { cityContains: null }],
