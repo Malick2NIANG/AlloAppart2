@@ -9,6 +9,7 @@ import { extractSoftPreferences } from './extractors/softPreferences';
 import { extractRoomsAndBeds } from './extractors/roomsAndBeds';
 import { extractPrice } from './extractors/price';
 import { extractPlaces } from './extractors/places';
+import { extractPhoneNumbers } from './extractors/phone';
 import type {
   LanguageDictionary,
   MiloAmbiguity,
@@ -24,8 +25,12 @@ const DICTIONARIES: LanguageDictionary[] = [fr, en];
  * (les deux langues ensemble pour l'extraction réelle ; une langue seule,
  * séparément, pour compter les `signals` par langue — lot 3).
  */
-function runExtractors(tokens: Token[], dictionaries: LanguageDictionary[]) {
-  const consumed = new Set<number>();
+function runExtractors(
+  tokens: Token[],
+  dictionaries: LanguageDictionary[],
+  preConsumed: ReadonlySet<number> = new Set(),
+) {
+  const consumed = new Set<number>(preConsumed);
   const matchedSpans: MiloMatchedSpan[] = [];
   const strictFilters: MiloStrictFilters = {};
   const extraAmbiguities: MiloAmbiguity[] = [];
@@ -166,7 +171,14 @@ export function extractCriteria(text: string): MiloExtractionResult {
   const normalized = normalizeText(text ?? '');
   const tokens = tokenize(normalized);
 
-  const main = runExtractors(tokens, DICTIONARIES);
+  // Téléphones : indépendants de la langue, comme les lieux (règle 5 du
+  // lot 2) — lancés AVANT le reste pour que leurs tokens soient déjà
+  // `consumed` quand price.ts/roomsAndBeds.ts tournent (lot 7 ter, règle 2 :
+  // jamais un prix, des pièces ni des chambres).
+  const phoneRes = extractPhoneNumbers(tokens);
+
+  const main = runExtractors(tokens, DICTIONARIES, phoneRes.consumed);
+  main.matchedSpans.push(...phoneRes.matchedSpans);
 
   // Lieux : indépendants de la langue, appliqués hors du pipeline FR/EN —
   // ne comptent jamais dans `signals` (règle 5 du lot 2), et ne retraitent
@@ -190,8 +202,8 @@ export function extractCriteria(text: string): MiloExtractionResult {
   // mots-clés reconnus par langue pour la détection de langue du lot 3,
   // n'influence jamais `strictFilters` (calculé ci-dessus avec les deux
   // dictionnaires ensemble, § PLAN_SEARCH_V0.md 2.c).
-  const frOnly = runExtractors(tokens, [fr]);
-  const enOnly = runExtractors(tokens, [en]);
+  const frOnly = runExtractors(tokens, [fr], phoneRes.consumed);
+  const enOnly = runExtractors(tokens, [en], phoneRes.consumed);
 
   return {
     strictFilters: main.strictFilters,

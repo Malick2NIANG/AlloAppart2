@@ -48,6 +48,12 @@ const FORBIDDEN_FOLLOW_WORDS = [
   'adulte',
   'enfants',
   'enfant',
+  // Formes EN manquantes (lot 7 ter) — "adulte(s)"/"enfant(s)" avaient
+  // leur pendant EN oublié.
+  'adult',
+  'adults',
+  'child',
+  'children',
 ];
 
 /** Mots-clés de direction grammaticalement valables APRÈS le montant
@@ -322,11 +328,14 @@ function findNumberCandidates(
       value = parseIntSafe(raw.replace(/,/g, ''));
     }
 
-    // "1,5" ou "2" suivi d'un mot-multiplicateur écrit : million(s) (FR/EN
-    // partagent le mot), ou "mille" = x1000 (FR, "100 mille"/"400 mille" —
-    // lot 7, règle 2). Jamais "k"/"m" ici (suffixe collé, forme à part
-    // ci-dessus) : liste explicite, pas tout `multipliers`.
-    if (value === null && /^\d+(?:,\d+)?$/.test(raw)) {
+    // "1,5" (FR) ou "1.5" (EN, lot 7 ter) suivi d'un mot-multiplicateur
+    // écrit : million(s) (FR/EN partagent le mot), ou "mille" = x1000 (FR,
+    // "100 mille"/"400 mille" — lot 7, règle 2). Jamais "k"/"m" ici
+    // (suffixe collé, forme à part ci-dessus) : liste explicite, pas tout
+    // `multipliers`. Le point décimal ("1.5") ne collisionne jamais avec
+    // le motif milliers ci-dessus (3 chiffres exacts après le point) —
+    // bug découvert sur "budget 1.5 million" (EN), jamais reconnu.
+    if (value === null && /^\d+(?:[.,]\d+)?$/.test(raw)) {
       const next = tokens[i + 1]?.raw;
       const WORD_MULTIPLIERS = ['million', 'millions', 'mille', 'mil'];
       if (next && WORD_MULTIPLIERS.includes(next)) {
@@ -526,6 +535,10 @@ export function extractPrice(
   // au montant ET une durée en jours/nuits présente quelque part dans la
   // requête : les deux conditions ensemble, pour ne jamais bloquer un
   // "total" sans rapport (ex. un simple "au total" isolé).
+  // "semaine(s)"/"week(s)" ajoutés (lot 7 ter, règle 4) — "mois"/"month"
+  // restent volontairement absents (décision de portée confirmée : une
+  // durée en mois n'empêche jamais un prix MENSUEL, c'est son unité par
+  // défaut).
   const STAY_DURATION_WORDS = [
     'jour',
     'jours',
@@ -535,6 +548,10 @@ export function extractPrice(
     'days',
     'night',
     'nights',
+    'semaine',
+    'semaines',
+    'week',
+    'weeks',
     'weekend',
     'weekends',
   ];
@@ -559,6 +576,20 @@ export function extractPrice(
     return c.hasMultiplier || c.hasCurrency ? 0 : 1;
   }
 
+  // Une virgule/point entre `fromIndex` et le candidat bloque la recherche
+  // (lot 7 ter, règle 1 : "même proposition, sans ponctuation entre eux")
+  // — perdue à la tokenisation mais retenue via `brokenAfter` sur chaque
+  // token. Bug découvert sur "3ème étage minimum, 350.000 FCFA par mois
+  // maximum" : "minimum" (collé à "étage", une quantité non monétaire)
+  // traversait la virgule pour happer le montant à tort (minPrice au lieu
+  // de maxPrice, le "maximum" directement collé au montant étant ignoré).
+  function crossesClauseBreak(fromIndex: number, toIndex: number): boolean {
+    for (let k = fromIndex - 1; k < toIndex; k++) {
+      if (tokens[k]?.brokenAfter) return true;
+    }
+    return false;
+  }
+
   function nearestUnclaimed(
     fromIndex: number,
     requireUsableAlone: boolean,
@@ -571,6 +602,7 @@ export function extractPrice(
       if (c.start < fromIndex) continue;
       if (c.start - fromIndex > 4) continue; // fenêtre de recherche courte
       if (requireUsableAlone && !isUsableAlone(c)) continue;
+      if (crossesClauseBreak(fromIndex, c.start)) continue;
       if (
         !best ||
         (preferMultiplier && candidateRank(c) < candidateRank(best)) ||
@@ -823,6 +855,76 @@ export function extractPrice(
   // dans `dictionaries`) happait "85 million" via la préférence
   // multiplicateur avant même que la boucle "between...and" (dict EN,
   // traité après) ait sa chance — lot 7 bis, bug découvert sur ce cas réel.
+  // Quantités NON monétaires (lot 7 ter, règle 1) — étend
+  // `FORBIDDEN_FOLLOW_WORDS` avec étage/floor (ordinal, aucun extracteur
+  // dédié) et les mots de durée (nuits/jours/semaines/années — déjà gérés
+  // pour le MONTANT lui-même via `periodBlocked`, pas encore pour le
+  // QUALIFICATIF qui le précède). Un qualificatif collé à l'une d'elles
+  // (juste avant OU juste après, "étage minimum"/"minimum 6 personnes")
+  // lui est déjà lié : il ne doit jamais descendre/remonter sur un
+  // montant plus loin — bug découvert sur "3ème étage minimum, 350.000
+  // FCFA par mois maximum" (minPrice posé au lieu de maxPrice).
+  const NON_MONETARY_QUALIFIER_NEIGHBORS = [
+    ...FORBIDDEN_FOLLOW_WORDS,
+    'etage',
+    'etages',
+    'floor',
+    'floors',
+    'nuit',
+    'nuits',
+    'night',
+    'nights',
+    'jour',
+    'jours',
+    'day',
+    'days',
+    'semaine',
+    'semaines',
+    'week',
+    'weeks',
+    'weekend',
+    'weekends',
+    'an',
+    'ans',
+    'annee',
+    'annees',
+    'year',
+    'years',
+  ];
+  function boundToNonMonetaryQuantity(
+    kw: string,
+    i: number,
+    len: number,
+  ): boolean {
+    // Seuls les mots-clés qui peuvent grammaticalement se lire AVANT OU
+    // APRÈS ("minimum"/"maximum"/"min"/"max"/"au moins"/"au plus"...,
+    // `POSTFIX_ELIGIBLE`) risquent d'être déjà "collés" à la quantité qui
+    // les précède ("étage minimum"). "budget"/"jusqu'à"/"up to"/"under"...
+    // ne se lisent jamais en arrière : les bloquer ici était un faux
+    // positif, bug découvert sur "2 chambres budget 250000" (maxPrice
+    // perdu à tort, "chambres" juste avant "budget").
+    if (!POSTFIX_ELIGIBLE.has(kw)) return false;
+    // Une virgule/point entre la quantité et le mot-clé ("chambres,
+    // jusqu'à") annule le collage : ce n'est plus "collé", c'est une
+    // clause séparée — bug découvert sur "au moins 3 chambres, jusqu'à
+    // 400k" (maxPrice perdu à tort).
+    if (
+      !tokens[i - 1]?.brokenAfter &&
+      NON_MONETARY_QUALIFIER_NEIGHBORS.includes(tokens[i - 1]?.raw ?? '')
+    ) {
+      return true;
+    }
+    const after = tokens[i + len]?.raw ?? '';
+    if (NON_MONETARY_QUALIFIER_NEIGHBORS.includes(after)) return true;
+    if (
+      /^\d{1,3}$/.test(after) &&
+      NON_MONETARY_QUALIFIER_NEIGHBORS.includes(tokens[i + len + 1]?.raw ?? '')
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   // `maxKeywordPositions`/`minKeywordPositions` : certains mots-clés (ex.
   // "budget") existent dans les deux dictionnaires (FR et EN) ; sans ce
   // suivi, la même occurrence à l'index `i` matchait deux fois (une par
@@ -838,6 +940,7 @@ export function extractPrice(
         if (maxKeywordPositions.has(i)) continue;
         const len = matchPhraseAt(tokens, i, kw);
         if (!len || isRangeConsumed(i, i + len, alreadyConsumed)) continue;
+        if (boundToNonMonetaryQuantity(kw, i, len)) continue;
         const cand = nearestUnclaimed(i + len, true, true);
         if (!cand) continue;
         maxKeywordPositions.add(i);
@@ -859,6 +962,7 @@ export function extractPrice(
         if (minKeywordPositions.has(i)) continue;
         const len = matchPhraseAt(tokens, i, kw);
         if (!len || isRangeConsumed(i, i + len, alreadyConsumed)) continue;
+        if (boundToNonMonetaryQuantity(kw, i, len)) continue;
         const cand = nearestUnclaimed(i + len, true, true);
         if (!cand) continue;
         minKeywordPositions.add(i);
@@ -890,6 +994,11 @@ export function extractPrice(
         totalBlocked.has(cand)
       )
         continue;
+      // `isUsableAlone` manquait ici (jamais vérifié pour le candidat
+      // postfixe) — un petit nombre nu sans rapport ("2" avant "etages")
+      // pouvait devenir la cible d'un "min"/"max" plus loin — lot 7 ter,
+      // bug découvert sur "villa 2 etages min, 2000000" (minPrice:2).
+      if (!isUsableAlone(cand)) continue;
       // Une virgule/point juste après le montant bloque toute recherche
       // postfixe : "3 bedrooms, max 500000" ne doit pas laisser "max"
       // (direction d'une tout autre clause) qualifier un montant qu'il ne
@@ -964,6 +1073,15 @@ export function extractPrice(
   // location/vente déjà posée, ou période mensuelle adjacente -> maxPrice
   // avec la même marge de +10 % que l'approximatif, ambiguïté targetAmount
   // dédiée (jamais confondue avec un "environ" explicite).
+  // `maxPrice` déjà posé avant cette boucle (budget/fourchette/etc.) est un
+  // montant CONFIRMÉ — un candidat restant ici (jamais réclamé, "parasite"
+  // possible comme un fragment de téléphone non reconnu) ne doit jamais
+  // l'abaisser via `Math.min` (lot 7 ter, règle 2 : "ne perds jamais le
+  // montant explicite à cause d'un nombre parasite"). Les candidats
+  // `targetAmount` restent regroupés entre eux (min conservateur) et ne
+  // s'appliquent à `maxPrice` que s'il est encore libre.
+  const maxPriceAlreadyConfirmed = maxPrice !== undefined;
+  let targetAmountCandidate: number | undefined;
   for (const c of availableCandidates) {
     if (claimed.has(c) || periodBlocked.has(c) || totalBlocked.has(c)) continue;
     if (!isUsableAlone(c)) continue;
@@ -974,7 +1092,10 @@ export function extractPrice(
       const raised = c.value * 1.1;
       const rounded =
         raised >= 1000 ? Math.round(raised / 1000) * 1000 : Math.round(raised);
-      maxPrice = maxPrice === undefined ? rounded : Math.min(maxPrice, rounded);
+      targetAmountCandidate =
+        targetAmountCandidate === undefined
+          ? rounded
+          : Math.min(targetAmountCandidate, rounded);
       ambiguities.push('targetAmount');
       markSpan(c.start, c.end);
       matchedSpans.push({
@@ -985,6 +1106,9 @@ export function extractPrice(
     } else {
       ambiguities.push('amountDirection');
     }
+  }
+  if (targetAmountCandidate !== undefined && !maxPriceAlreadyConfirmed) {
+    maxPrice = targetAmountCandidate;
   }
 
   return { minPrice, maxPrice, consumed, matchedSpans, ambiguities };

@@ -67,6 +67,16 @@ export const QUARTIERS: Quartier[] = [
   { name: 'Sangalkam', region: 'Dakar', needsValidation: true },
   { name: 'Bambilor', region: 'Dakar', needsValidation: true },
   { name: 'Lac Rose', region: 'Dakar', needsValidation: true },
+  // ── Dakar — complément lot 7 ter (règle 3, audit des régions) : toutes
+  // dans le département de Rufisque (région de Dakar), d'après le
+  // découpage administratif (Rufisque, Bargny, Diamniadio, Sangalkam,
+  // Bambilor ci-dessus en faisaient déjà partie, confirmés corrects).
+  { name: 'Sébikotane', region: 'Dakar', needsValidation: true },
+  { name: 'Yenne', region: 'Dakar', needsValidation: true },
+  { name: 'Kounoune', region: 'Dakar', needsValidation: true },
+  // Toubab Dialaw CORRIGÉ (lot 7 ter) : département de Rufisque (commune
+  // de Yène), région de Dakar — pas Thiès comme précédemment saisi.
+  { name: 'Toubab Dialaw', region: 'Dakar', needsValidation: true },
 
   // ── Thiès ──────────────────────────────────────────────────────────
   { name: 'Saly', region: 'Thiès', needsValidation: true },
@@ -81,5 +91,8 @@ export const QUARTIERS: Quartier[] = [
   { name: 'Fadiouth', region: 'Thiès', needsValidation: true },
   { name: 'Warang', region: 'Thiès', needsValidation: true },
   { name: 'Pointe Sarène', region: 'Thiès', needsValidation: true },
-  { name: 'Toubab Dialaw', region: 'Thiès', needsValidation: true },
+  // Pout et Sindia ajoutés (lot 7 ter, règle 3) : département de Thiès
+  // (Pout) et de Mbour (Sindia), région de Thiès.
+  { name: 'Pout', region: 'Thiès', needsValidation: true },
+  { name: 'Sindia', region: 'Thiès', needsValidation: true },
 ];

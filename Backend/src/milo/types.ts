@@ -32,7 +32,8 @@ export type MiloSpanCategory =
   | 'transaction'
   | 'amenity'
   | 'softPreference'
-  | 'place';
+  | 'place'
+  | 'phone';
 
 export interface MiloMatchedSpan {
   category: MiloSpanCategory;

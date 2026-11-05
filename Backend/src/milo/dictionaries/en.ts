@@ -54,19 +54,26 @@ export const en: LanguageDictionary = {
     // "250k night", déjà couvert par la forme nue "night" ci-dessous. Les
     // anciennes entrées "/night" etc. ne pouvaient donc jamais matcher
     // (code mort, retirées lot 7 bis).
+    // Pluriels ajoutés (lot 7 ter, règle 1/4) — même bug que côté FR, un
+    // nombre collé à "nights"/"days"/"weeks"/"years" (pluriel) n'était pas
+    // bloqué comme les formes singulières.
     nonMonthlyPeriodKeywords: [
       'per night',
       'a night',
       'night',
+      'nights',
       'per day',
       'a day',
       'day',
+      'days',
       'per week',
       'a week',
       'week',
+      'weeks',
       'per year',
       'a year',
       'year',
+      'years',
     ],
     monthlyPeriodKeywords: ['per month', 'a month', 'monthly', 'month'],
     approximateKeywords: ['around', 'about', 'approximately', '~'],

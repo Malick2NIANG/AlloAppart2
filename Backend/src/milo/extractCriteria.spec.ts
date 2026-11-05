@@ -1035,3 +1035,98 @@ describe('extractCriteria — lot 7 bis : corrections 2 (bugs cross-clause)', ()
     expect(r3.strictFilters.maxPrice).toBe(60000000);
   });
 });
+
+describe("extractCriteria — lot 7 ter : corrections 3 (classe 1, direction d'un montant)", () => {
+  it('un qualificatif collé à une quantité non monétaire (étage) ne descend jamais sur un montant plus loin', () => {
+    const r = extractCriteria(
+      'appartement a louer a Point E, 3eme etage minimum, 350.000 FCFA par mois maximum',
+    );
+    expect(r.strictFilters.minPrice).toBeUndefined();
+    expect(r.strictFilters.maxPrice).toBe(350000);
+  });
+
+  it('sans direction propre au montant, le qualificatif reste lié à la quantité non monétaire (ambiguïté, aucun filtre)', () => {
+    const r = extractCriteria('studio 3eme etage minimum, 200000');
+    expect(r.strictFilters.maxPrice).toBeUndefined();
+    expect(r.strictFilters.minPrice).toBeUndefined();
+    expect(r.ambiguities).toContain('amountDirection');
+  });
+
+  it('"budget" (mot-clé non postfixe) n\'est jamais bloqué par une quantité non monétaire qui le précède', () => {
+    const r = extractCriteria('appart 2 chambres budget 250000');
+    expect(r.strictFilters.minBeds).toBe(2);
+    expect(r.strictFilters.maxBeds).toBe(2);
+    expect(r.strictFilters.maxPrice).toBe(250000);
+  });
+
+  it('une virgule entre la quantité et le mot-clé annule le collage ("3 chambres, jusqu\'à 400k")', () => {
+    const r = extractCriteria("au moins 3 chambres, jusqu'a 400k");
+    expect(r.strictFilters.minBeds).toBe(3);
+    expect(r.strictFilters.maxPrice).toBe(400000);
+  });
+
+  it('pluriels des mots de durée (ans/semaines/années/weeks/years) bloquent aussi le nombre adjacent', () => {
+    const r1 = extractCriteria('villa 10 ans minimum, 80 millions maximum');
+    expect(r1.strictFilters.minPrice).toBeUndefined();
+    expect(r1.strictFilters.maxPrice).toBe(80000000);
+
+    const r2 = extractCriteria('house 3 weeks minimum, budget 500k');
+    expect(r2.strictFilters.maxPrice).toBe(500000);
+  });
+
+  it('"1.5 million" (point décimal, convention EN) est reconnu comme pour "1,5 million" (FR)', () => {
+    const r = extractCriteria('budget 1.5 million for a villa');
+    expect(r.strictFilters.maxPrice).toBe(1500000);
+  });
+
+  it("le qualificatif de pièces/chambres s'étend correctement, sans jamais poser l'égalité en plus du minimum/maximum", () => {
+    const r1 = extractCriteria('appart 3 pieces minimum, 250k maximum');
+    expect(r1.strictFilters.minRooms).toBe(3);
+    expect(r1.strictFilters.maxRooms).toBeUndefined();
+    expect(r1.strictFilters.maxPrice).toBe(250000);
+  });
+});
+
+describe('extractCriteria — lot 7 ter : corrections 3 (classe 2, numéros de téléphone)', () => {
+  it("un numéro de téléphone groupé (espaces) n'est jamais lu comme un prix/chambres", () => {
+    const r = extractCriteria('villa a Saly, tel 77.123.45.67, 3 chambres');
+    expect(r.strictFilters.minBeds).toBe(3);
+    expect(r.strictFilters.maxBeds).toBe(3);
+    expect(r.strictFilters.maxPrice).toBeUndefined();
+    expect(r.unmatchedTokens).not.toContain('3');
+  });
+
+  it('"budget" reste collé à son montant même avec un numéro de téléphone juste avant (FR, virgule comprise)', () => {
+    const r = extractCriteria(
+      'Villa a louer a Ngor, mon numero 77 123 45 67, budget 1,5 million par mois',
+    );
+    expect(r.strictFilters.maxPrice).toBe(1500000);
+  });
+
+  it("un montant groupé légitime (séparateur de milliers strict) n'est jamais lu comme un téléphone", () => {
+    const r1 = extractCriteria('villa budget 15 000');
+    expect(r1.strictFilters.maxPrice).toBe(15000);
+
+    const r2 = extractCriteria('maison budget 12.000.000');
+    expect(r2.strictFilters.maxPrice).toBe(12000000);
+  });
+
+  it('un montant bare explicitement cué par "budget" n\'est jamais lu comme un téléphone, même ≥ 9 chiffres', () => {
+    const r = extractCriteria('appart budget 900000000');
+    expect(r.strictFilters.maxPrice).toBe(900000000);
+  });
+
+  it('un montant bare plausible sans séparateur (7-8 chiffres) reste un prix normal, pas un téléphone', () => {
+    const r = extractCriteria('villa 5 hectares minimum, 1200000');
+    expect(r.strictFilters.maxPrice).toBeUndefined();
+    expect(r.ambiguities).toContain('amountDirection');
+  });
+
+  it('un numéro de téléphone international glué (préfixe pays) est reconnu et consommé', () => {
+    const r = extractCriteria(
+      'appart a Dakar, whatsapp 221771234567, 2 chambres',
+    );
+    expect(r.strictFilters.minBeds).toBe(2);
+    expect(r.strictFilters.maxBeds).toBe(2);
+  });
+});

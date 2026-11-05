@@ -64,17 +64,27 @@ export const fr: LanguageDictionary = {
     // "25mil nuit", déjà couvert par la forme nue "nuit" ci-dessous. Les
     // anciennes entrées "/nuit" etc. ne pouvaient donc jamais matcher
     // (code mort, retirées lot 7 bis).
+    // Pluriels ajoutés (lot 7 ter, règle 1/4) — absents jusque-là, un
+    // nombre collé à "nuits"/"semaines"/"ans"/"annees" (pluriel) n'était
+    // PAS bloqué comme les formes singulières, laissant un qualificatif
+    // postfixe ("minimum"/"maximum") s'y attacher à tort (bug découvert
+    // sur "10 ans minimum, 80 millions maximum" -> minPrice:10).
     nonMonthlyPeriodKeywords: [
       'la nuit',
       'par nuit',
       'nuit',
+      'nuits',
       'par jour',
       'jour',
+      'jours',
       'par semaine',
       'semaine',
+      'semaines',
       'par an',
       'an',
+      'ans',
       'annee',
+      'annees',
     ],
     monthlyPeriodKeywords: ['par mois', 'mensuel', 'mensuelle', 'mois'],
     approximateKeywords: ['environ', 'autour de', 'vers', '~'],
