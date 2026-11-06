@@ -24,11 +24,20 @@ import { REGION_CENTERS, checkRegionConsistency, findRegionAt, getRegionFeature 
 // abonnées actives uniquement) — APPARTEMENT/VILLA restent valides dans les
 // deux modes, le reste est réservé à un seul mode (cf. listings.service.ts
 // backend, assertValidTransactionTypeUsage, règle identique).
-const LOCATION_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
+// MAISON et LOCAL_COMMERCIAL ajoutés (lot meublé/durée) : déjà valides côté
+// backend en LOCATION (aucune restriction au niveau service), mais absents
+// jusqu'ici des types sélectionnables en location côté formulaire — la
+// règle "meublé" explicite pourtant ces deux types en LOCATION (obligatoire
+// pour MAISON, facultatif pour LOCAL_COMMERCIAL), donc ils doivent être
+// atteignables ici pour avoir un sens.
+const LOCATION_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU', 'MAISON', 'LOCAL_COMMERCIAL'] as const;
 const VENTE_TYPES = ['APPARTEMENT', 'VILLA', 'TERRAIN', 'MAISON', 'LOCAL_COMMERCIAL'] as const;
 const ALL_LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU', 'TERRAIN', 'MAISON', 'LOCAL_COMMERCIAL'] as const;
 const RENTAL_MODES = ['NIGHTLY', 'MONTHLY', 'MIXED'] as const;
 const TRANSACTION_TYPES = ['LOCATION', 'VENTE'] as const;
+// Types résidentiels : meublé obligatoire en LOCATION (même liste que
+// CreateListingDto backend, source de vérité partagée).
+const FURNISHED_REQUIRED_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'MAISON'] as const;
 
 const SENEGAL_REGIONS = [
   'Dakar', 'Thiès', 'Saint-Louis', 'Ziguinchor', 'Kaolack',
@@ -95,6 +104,10 @@ function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
     depositMonths: z.number().int().min(0, t('zDepositRequired')).optional(),
     chargesIncluded: z.boolean().optional(),
     minLeaseMonths:  z.number().int().min(1).optional(),
+    // Pas de valeur par défaut (sans objet en VENTE/TERRAIN ; obligatoire
+    // sans présélection pour un type résidentiel en LOCATION, afin de
+    // forcer un vrai choix — voir superRefine ci-dessous).
+    furnished:   z.boolean().optional(),
     images:      z.array(z.string()).min(1, t('zPhotoRequired')),
   }).superRefine((data, ctx) => {
     // Région choisie et point sur la carte doivent concorder (contours embarqués,
@@ -119,6 +132,16 @@ function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['price'], message: t('zSalePricePositive') });
       }
       return;
+    }
+    // Meublé obligatoire pour une NOUVELLE annonce de type résidentiel en
+    // LOCATION (même règle que CreateListingDto backend) — jamais en VENTE
+    // (déjà exclu par le `return` ci-dessus) ni pour BUREAU/LOCAL_COMMERCIAL/
+    // TERRAIN (facultatif/sans objet).
+    if (
+      (FURNISHED_REQUIRED_TYPES as readonly string[]).includes(data.type) &&
+      data.furnished === undefined
+    ) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['furnished'], message: t('zFurnishedRequired') });
     }
     // ── Mode LOCATION : validations historiques selon rentalMode ──
     const needsNightly = data.rentalMode === 'NIGHTLY' || data.rentalMode === 'MIXED';
@@ -155,7 +178,7 @@ const STEP_FIELDS: (keyof FormValues)[][] = [
   ['type', 'transactionType', 'title', 'description'],
   ['surface', 'rooms', 'beds', 'baths', 'amenities'],
   ['region', 'city', 'address', 'lat', 'lng'],
-  ['rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'],
+  ['rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths', 'furnished'],
   ['images'],
 ];
 
@@ -848,6 +871,35 @@ export default function PublierPage() {
                 <StepHeader title={STEP_HEADERS[3].title} sub={STEP_HEADERS[3].sub} />
 
                 <div>
+                  <FieldLabel
+                    label={t('furnishedLabel')}
+                    required={(FURNISHED_REQUIRED_TYPES as readonly string[]).includes(values.type)}
+                  />
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {([true, false] as const).map((option) => {
+                      const active = values.furnished === option;
+                      return (
+                        <button key={String(option)} type="button"
+                          onClick={() => setValue('furnished', option, { shouldValidate: true })}
+                          className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all max-md:min-h-11 ${
+                            active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
+                          }`}>
+                          <span className="flex items-center gap-2">
+                            <i className={`fa-solid ${option ? 'fa-couch' : 'fa-box-open'} ${active ? 'text-gold-dark' : 'text-sub'}`} />
+                            <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>
+                              {option ? t('furnishedYes') : t('furnishedNo')}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {errors.furnished && (
+                    <p className="mt-1.5 text-xs text-red-600">{errors.furnished.message}</p>
+                  )}
+                </div>
+
+                <div>
                   <FieldLabel label={t('rentalModeLabel')} required />
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                     {RENTAL_MODES.map((mode) => {
@@ -1272,6 +1324,12 @@ function RecapCard({
   const meta = TYPE_META[values.type];
 
   const recapItems = [
+    {
+      icon: values.furnished ? 'fa-couch' : 'fa-box-open',
+      label: t('furnishedLabel'),
+      value: values.furnished === undefined ? '—' : values.furnished ? t('furnishedYes') : t('furnishedNo'),
+      show: values.transactionType !== 'VENTE',
+    },
     { icon: 'fa-ruler-combined', label: t('recapSurface'), value: values.surface ? `${values.surface} m²` : '—', show: true },
     { icon: 'fa-door-open',      label: t('recapPieces'),  value: values.rooms?.toString() || '—',              show: profile.rooms },
     { icon: 'fa-bed',            label: t('recapBeds'),    value: values.beds?.toString() || '—',               show: profile.beds },

@@ -19,7 +19,9 @@ import { SkeletonContainer, DashboardFormPageSkeleton } from '@/components/ui/Sk
 
 // Types valides en mode LOCATION vs VENTE — cf. publier/page.tsx (même règle,
 // miroir du backend listings.service.ts#assertValidTransactionTypeUsage).
-const LOCATION_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU'] as const;
+// MAISON et LOCAL_COMMERCIAL ajoutés (lot meublé/durée) — cf. publier/page.tsx
+// pour le détail de cette décision.
+const LOCATION_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU', 'MAISON', 'LOCAL_COMMERCIAL'] as const;
 const VENTE_TYPES = ['APPARTEMENT', 'VILLA', 'TERRAIN', 'MAISON', 'LOCAL_COMMERCIAL'] as const;
 const ALL_LISTING_TYPES = ['APPARTEMENT', 'VILLA', 'STUDIO', 'CHAMBRE', 'BUREAU', 'TERRAIN', 'MAISON', 'LOCAL_COMMERCIAL'] as const;
 const RENTAL_MODES = ['NIGHTLY', 'MONTHLY', 'MIXED'] as const;
@@ -103,6 +105,10 @@ export default function EditListingPage() {
     depositMonths:   z.number().int().min(0, t('zDepositRequired')).optional(),
     chargesIncluded: z.boolean().optional(),
     minLeaseMonths:  z.number().int().min(1).optional(),
+    // Toujours facultatif en modification (contrairement à /publier) — une
+    // annonce ancienne à `null` (non précisé) reste modifiable sans jamais
+    // devoir renseigner ce champ pour sauvegarder le reste.
+    furnished:     z.boolean().optional(),
     lat:           z.number(),
     lng:           z.number(),
     address:       z.string().min(5, t('zAddressShort')),
@@ -178,6 +184,7 @@ export default function EditListingPage() {
     depositMonths:   t('fieldDepositMonths'),
     chargesIncluded: t('fieldChargesIncluded'),
     minLeaseMonths:  t('fieldMinLeaseMonths'),
+    furnished:     t('furnishedLabel'),
     lat:           'Latitude',
     lng:           'Longitude',
     address:       t('fieldAddress'),
@@ -196,7 +203,7 @@ export default function EditListingPage() {
     { label: t('stepTypeTitle'),  fields: ['title', 'description', 'type', 'transactionType'], icon: 'fa-tag' },
     { label: t('stepFeatures'),   fields: ['surface', 'rooms', 'beds', 'baths', 'amenities'], icon: 'fa-list-check' },
     { label: t('stepLocation'),   fields: ['address', 'city', 'region', 'lat', 'lng'], icon: 'fa-location-dot' },
-    { label: t('stepPrice'),      fields: ['rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths'], icon: 'fa-coins' },
+    { label: t('stepPrice'),      fields: ['rentalMode', 'price', 'pricePerNight', 'minimumNights', 'maximumNights', 'cleaningFee', 'depositMonths', 'chargesIncluded', 'minLeaseMonths', 'furnished'], icon: 'fa-coins' },
     { label: t('stepPhotos'),     fields: ['images'], icon: 'fa-images' },
     { label: t('stepReview'),     fields: [], icon: 'fa-eye' },
   ] as { label: string; fields: string[]; icon: string }[], [t]);
@@ -241,6 +248,7 @@ export default function EditListingPage() {
   const profile     = getListingProfile(type);
   const transactionType = watch('transactionType');
   const rentalMode  = watch('rentalMode');
+  const furnished   = watch('furnished');
   const priceWatch  = watch('price');
   const depositMonthsWatch = watch('depositMonths');
   const minLeaseMonthsWatch = watch('minLeaseMonths');
@@ -283,6 +291,7 @@ export default function EditListingPage() {
           depositMonths:   listing.depositMonths ?? undefined,
           chargesIncluded: listing.chargesIncluded ?? undefined,
           minLeaseMonths:  listing.minLeaseMonths ?? undefined,
+          furnished:     listing.furnished ?? undefined,
           lat:           listing.lat,
           lng:           listing.lng,
           address:       listing.address ?? '',
@@ -634,6 +643,36 @@ export default function EditListingPage() {
             ) : (
             <>
             <div>
+              <FieldLabel label={t('furnishedLabel')} />
+              <div className="grid grid-cols-3 gap-2.5">
+                {([true, false, undefined] as const).map((option) => {
+                  const active = furnished === option;
+                  const optionLabel = option === undefined
+                    ? t('furnishedUnspecified')
+                    : option ? t('furnishedYes') : t('furnishedNo');
+                  const optionIcon = option === undefined ? 'fa-circle-question' : option ? 'fa-couch' : 'fa-box-open';
+                  return (
+                    <button key={String(option)} type="button"
+                      onClick={() => setValue('furnished', option, { shouldValidate: true })}
+                      className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all max-md:min-h-11 ${
+                        active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
+                      }`}>
+                      <span className="flex items-center gap-2">
+                        <i className={`fa-solid ${optionIcon} ${active ? 'text-gold-dark' : 'text-sub'}`} />
+                        <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>{optionLabel}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {furnished === undefined && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-sub">
+                  <i className="fa-solid fa-circle-info" /> {t('furnishedNudge')}
+                </p>
+              )}
+            </div>
+
+            <div>
               <FieldLabel label={t('rentalModeLabel')} />
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 {RENTAL_MODES.map((mode) => {
@@ -959,6 +998,7 @@ function RecapCard({
     city: string; region: string; address: string;
     transactionType?: string; rentalMode?: string; price?: number; pricePerNight?: number;
     depositMonths?: number; amenities?: string[]; images?: string[];
+    furnished?: boolean;
   };
   typeMeta: Record<string, { icon: string; label: string }>;
   amenitiesList: { key: string; icon: string; label: string }[];
@@ -972,6 +1012,12 @@ function RecapCard({
   const meta = typeMeta[values.type];
 
   const recapItems = [
+    {
+      icon: values.furnished ? 'fa-couch' : 'fa-box-open',
+      label: t('furnishedLabel'),
+      value: values.furnished === undefined ? t('furnishedUnspecified') : values.furnished ? t('furnishedYes') : t('furnishedNo'),
+      show: values.transactionType !== 'VENTE',
+    },
     { icon: 'fa-ruler-combined', label: t('fieldSurface'), value: values.surface ? `${values.surface} m²` : '—', show: true },
     { icon: 'fa-door-open',      label: t('fieldRooms'),   value: values.rooms?.toString() || '—',            show: profile.rooms },
     { icon: 'fa-bed',            label: t('fieldBeds'),    value: values.beds?.toString() || '—',             show: profile.beds },
