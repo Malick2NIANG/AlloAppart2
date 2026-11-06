@@ -13,9 +13,20 @@ export const ALLOWED_FILTER_FIELDS = [
   'isVerified',
   'boostScore',
   'price',
+  // Meublé + système de location hybride (lot meublé/durée).
+  'furnished',
+  'rentalMode',
+  'pricePerNight',
 ];
 
-export const ALLOWED_SORT_FIELDS = ['boostScore', 'createdAt', 'price'];
+export const ALLOWED_SORT_FIELDS = [
+  'boostScore',
+  'createdAt',
+  'price',
+  'furnished',
+  'rentalMode',
+  'pricePerNight',
+];
 
 /**
  * Synonymes FR/EN de base pour la recherche texte (`q`) — chaque mot doit

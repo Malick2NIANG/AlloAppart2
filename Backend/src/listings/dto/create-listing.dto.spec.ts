@@ -76,7 +76,90 @@ describe('CreateListingDto — location', () => {
         transactionType: 'LOCATION',
         rentalMode: 'MONTHLY',
         depositMonths: 2,
+        furnished: true,
       }),
     ).toEqual([]);
+  });
+});
+
+describe('CreateListingDto — meublé (furnished)', () => {
+  const residentialTypes = [
+    'APPARTEMENT',
+    'VILLA',
+    'STUDIO',
+    'CHAMBRE',
+    'MAISON',
+  ];
+
+  it.each(residentialTypes)(
+    'obligatoire à la création pour %s en LOCATION',
+    async (type) => {
+      const props = await errorsFor({
+        ...base,
+        type,
+        transactionType: 'LOCATION',
+        rentalMode: 'MONTHLY',
+        depositMonths: 1,
+      });
+      expect(props).toContain('furnished');
+    },
+  );
+
+  it.each(residentialTypes)('accepté une fois renseigné (%s)', async (type) => {
+    const props = await errorsFor({
+      ...base,
+      type,
+      transactionType: 'LOCATION',
+      rentalMode: 'MONTHLY',
+      depositMonths: 1,
+      furnished: false,
+    });
+    expect(props).not.toContain('furnished');
+  });
+
+  it('facultatif pour BUREAU en LOCATION', async () => {
+    expect(
+      await errorsFor({
+        ...base,
+        type: 'BUREAU',
+        transactionType: 'LOCATION',
+        rentalMode: 'MONTHLY',
+        depositMonths: 1,
+      }),
+    ).not.toContain('furnished');
+  });
+
+  it('facultatif pour LOCAL_COMMERCIAL en LOCATION', async () => {
+    expect(
+      await errorsFor({
+        ...base,
+        type: 'LOCAL_COMMERCIAL',
+        transactionType: 'LOCATION',
+        rentalMode: 'MONTHLY',
+        depositMonths: 1,
+      }),
+    ).not.toContain('furnished');
+  });
+
+  it('ignoré pour TERRAIN (jamais requis, même en LOCATION)', async () => {
+    expect(
+      await errorsFor({
+        ...base,
+        type: 'TERRAIN',
+        transactionType: 'LOCATION',
+        rentalMode: 'MONTHLY',
+        depositMonths: 1,
+      }),
+    ).not.toContain('furnished');
+  });
+
+  it('ignoré en VENTE, même pour un type résidentiel', async () => {
+    expect(
+      await errorsFor({
+        ...base,
+        type: 'APPARTEMENT',
+        transactionType: 'VENTE',
+      }),
+    ).not.toContain('furnished');
   });
 });

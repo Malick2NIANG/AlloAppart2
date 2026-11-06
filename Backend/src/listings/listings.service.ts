@@ -124,6 +124,10 @@ export class ListingsService {
       amenities,
       ownerType,
       prefs,
+      furnished,
+      rentalMode,
+      minPricePerNight,
+      maxPricePerNight,
       page = 1,
       limit = 20,
     } = filters;
@@ -170,6 +174,30 @@ export class ListingsService {
         : {}),
       ...(amenities &&
         amenities.length > 0 && { amenities: { hasEvery: amenities } }),
+      // `furnished: true/false` exclut naturellement les annonces `null`
+      // (non précisé) côté SQL — ni l'un ni l'autre n'est une réponse au
+      // filtre, jamais besoin de le gérer explicitement.
+      ...(furnished !== undefined && { furnished }),
+      // NIGHTLY/MONTHLY incluent aussi les annonces MIXED (proposent les
+      // deux) — MIXED seul (s'il était un jour passé directement) reste
+      // une égalité stricte, sans intérêt pratique ici.
+      ...(rentalMode && {
+        rentalMode:
+          rentalMode === RentalMode.MIXED
+            ? rentalMode
+            : { in: [rentalMode, RentalMode.MIXED] },
+      }),
+      // Porte sur pricePerNight (jamais price/mensuel) — une annonce
+      // MONTHLY seule a pricePerNight: null, naturellement exclue par ce
+      // filtre sans condition supplémentaire sur rentalMode.
+      ...(minPricePerNight !== undefined || maxPricePerNight !== undefined
+        ? {
+            pricePerNight: {
+              ...(minPricePerNight !== undefined && { gte: minPricePerNight }),
+              ...(maxPricePerNight !== undefined && { lte: maxPricePerNight }),
+            },
+          }
+        : {}),
       // Filtre par type de propriétaire
       ...(ownerType === 'AGENCE' && {
         owner: { roles: { has: Role.PRO_AGENCE } },

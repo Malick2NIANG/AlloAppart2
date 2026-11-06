@@ -971,6 +971,113 @@ describe('ListingsService', () => {
     });
   });
 
+  // Lot meublé/durée de location : furnished (true/false, null exclu quand
+  // actif), rentalMode (NIGHTLY/MONTHLY incluent MIXED), minPricePerNight/
+  // maxPricePerNight (sur pricePerNight, jamais price). Mêmes principes de
+  // test que minBeds/maxBeds ci-dessus — vérifie uniquement la clause
+  // `where` passée à Prisma.
+  describe('findAll — filtre meublé / rentalMode / prix par nuit', () => {
+    const fakeListing = {
+      id: 'l1',
+      boostScore: 0,
+      isVerified: false,
+      boostUntil: null,
+      createdAt: new Date('2026-01-01'),
+      owner: { id: 'o1', roles: [], subscription: null },
+      reviews: [],
+    };
+
+    beforeEach(() => {
+      prismaMock.listing.findMany.mockResolvedValue([fakeListing]);
+    });
+
+    function whereArg(): Record<string, unknown> {
+      const calls = prismaMock.listing.findMany.mock.calls as Array<
+        [{ where: Record<string, unknown> }]
+      >;
+      return calls[calls.length - 1][0].where;
+    }
+
+    it('sans furnished/rentalMode/prix par nuit : aucune clause dans le where (comportement inchangé)', async () => {
+      await service.findAll({ page: 1, limit: 20 });
+      const where = whereArg();
+      expect(where).not.toHaveProperty('furnished');
+      expect(where).not.toHaveProperty('rentalMode');
+      expect(where).not.toHaveProperty('pricePerNight');
+    });
+
+    it('furnished=true → égalité stricte (exclut null côté SQL)', async () => {
+      await service.findAll({ page: 1, limit: 20, furnished: true });
+      expect(whereArg().furnished).toBe(true);
+    });
+
+    it('furnished=false → égalité stricte (distinct de true et de null)', async () => {
+      await service.findAll({ page: 1, limit: 20, furnished: false });
+      expect(whereArg().furnished).toBe(false);
+    });
+
+    it('rentalMode=NIGHTLY → inclut aussi MIXED', async () => {
+      await service.findAll({ page: 1, limit: 20, rentalMode: 'NIGHTLY' });
+      expect(whereArg().rentalMode).toEqual({ in: ['NIGHTLY', 'MIXED'] });
+    });
+
+    it('rentalMode=MONTHLY → inclut aussi MIXED', async () => {
+      await service.findAll({ page: 1, limit: 20, rentalMode: 'MONTHLY' });
+      expect(whereArg().rentalMode).toEqual({ in: ['MONTHLY', 'MIXED'] });
+    });
+
+    it('rentalMode=MIXED (direct) → égalité stricte', async () => {
+      await service.findAll({ page: 1, limit: 20, rentalMode: 'MIXED' });
+      expect(whereArg().rentalMode).toBe('MIXED');
+    });
+
+    it('minPricePerNight seul → { gte } sur pricePerNight, jamais sur price', async () => {
+      await service.findAll({ page: 1, limit: 20, minPricePerNight: 10000 });
+      const where = whereArg();
+      expect(where.pricePerNight).toEqual({ gte: 10000 });
+      expect(where).not.toHaveProperty('price');
+    });
+
+    it('maxPricePerNight seul → { lte }', async () => {
+      await service.findAll({ page: 1, limit: 20, maxPricePerNight: 50000 });
+      expect(whereArg().pricePerNight).toEqual({ lte: 50000 });
+    });
+
+    it('minPricePerNight et maxPricePerNight ensemble → { gte, lte }', async () => {
+      await service.findAll({
+        page: 1,
+        limit: 20,
+        minPricePerNight: 10000,
+        maxPricePerNight: 50000,
+      });
+      expect(whereArg().pricePerNight).toEqual({ gte: 10000, lte: 50000 });
+    });
+
+    it('prix par nuit ET prix mensuel (minPrice) combinés : deux clauses indépendantes', async () => {
+      await service.findAll({
+        page: 1,
+        limit: 20,
+        minPrice: 100000,
+        minPricePerNight: 10000,
+      });
+      const where = whereArg();
+      expect(where.price).toEqual({ gte: 100000 });
+      expect(where.pricePerNight).toEqual({ gte: 10000 });
+    });
+
+    it("combinaison incohérente (rentalMode=MONTHLY + minPricePerNight) : ne plante pas, se résout naturellement sur les annonces MIXED (les deux clauses s'appliquent, jamais rejetée)", async () => {
+      await service.findAll({
+        page: 1,
+        limit: 20,
+        rentalMode: 'MONTHLY',
+        minPricePerNight: 10000,
+      });
+      const where = whereArg();
+      expect(where.rentalMode).toEqual({ in: ['MONTHLY', 'MIXED'] });
+      expect(where.pricePerNight).toEqual({ gte: 10000 });
+    });
+  });
+
   // Milo Search v0 — lot 2b (PLAN_SEARCH_V0.md § 1.d) : city est un champ
   // texte libre à la publication (78 % des valeurs en base ne correspondent
   // à aucune ville canonique) — cityContains est un filtre TOLÉRANT en plus

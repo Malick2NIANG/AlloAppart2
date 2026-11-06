@@ -8,7 +8,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { ListingType, TransactionType } from '@prisma/client';
+import { ListingType, RentalMode, TransactionType } from '@prisma/client';
 import { Type, Transform } from 'class-transformer';
 
 export type OwnerType = 'PARTICULIER' | 'AGENCE';
@@ -127,4 +127,31 @@ export class FilterListingsDto {
     typeof value === 'string' ? value.split(',').filter(Boolean) : value,
   )
   prefs?: string[];
+
+  /** true/false seulement — une annonce `furnished: null` (non précisé)
+   * est toujours exclue quand ce filtre est actif (ni meublé ni non
+   * meublé, le filtre n'a pas de réponse pour elle). */
+  @IsOptional()
+  @Transform(({ value }: { value: string }) => value === 'true')
+  @IsBoolean()
+  furnished?: boolean;
+
+  /** NIGHTLY inclut aussi les annonces MIXED (proposent les deux) ; même
+   * principe pour MONTHLY. Absent = tous les modes. */
+  @IsOptional()
+  @IsEnum(RentalMode)
+  rentalMode?: RentalMode;
+
+  /** Porte sur `pricePerNight`, jamais sur `price` (mensuel) — n'importe
+   * que pour les annonces NIGHTLY/MIXED (les annonces MONTHLY seules ont
+   * `pricePerNight: null`, naturellement exclues par ce filtre). */
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  minPricePerNight?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  maxPricePerNight?: number;
 }

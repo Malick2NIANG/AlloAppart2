@@ -14,6 +14,16 @@ interface GeoSearchDto {
   radius?: number;
 }
 
+/** `pricePerNight` est un Decimal Prisma nullable — jamais 0 par défaut
+ * (contrairement à `price`, toujours renseigné) : une valeur absente doit
+ * rester `null` dans l'index, pas disparaître silencieusement. */
+function toNullableNumber(
+  value: { toNumber(): number } | number | null | undefined,
+): number | null {
+  if (value == null) return null;
+  return typeof value === 'number' ? value : value.toNumber();
+}
+
 @Injectable()
 export class SearchService implements OnModuleInit {
   private readonly logger = new Logger(SearchService.name);
@@ -97,6 +107,9 @@ export class SearchService implements OnModuleInit {
     city: string;
     region: string;
     price: { toNumber(): number } | number;
+    pricePerNight?: { toNumber(): number } | number | null;
+    furnished?: boolean | null;
+    rentalMode?: string | null;
     isVerified: boolean;
     boostScore: number;
     createdAt: Date;
@@ -116,6 +129,9 @@ export class SearchService implements OnModuleInit {
           typeof listing.price === 'number'
             ? listing.price
             : listing.price.toNumber(),
+        pricePerNight: toNullableNumber(listing.pricePerNight),
+        furnished: listing.furnished ?? null,
+        rentalMode: listing.rentalMode ?? null,
         isVerified: listing.isVerified,
         boostScore: listing.boostScore,
         createdAt: listing.createdAt.toISOString(),
@@ -192,6 +208,11 @@ export class SearchService implements OnModuleInit {
             typeof l.price === 'number'
               ? l.price
               : (l.price as { toNumber(): number }).toNumber(),
+          pricePerNight: toNullableNumber(
+            l.pricePerNight as { toNumber(): number } | number | null,
+          ),
+          furnished: l.furnished ?? null,
+          rentalMode: l.rentalMode ?? null,
           isVerified: l.isVerified,
           boostScore: l.boostScore,
           createdAt: l.createdAt.toISOString(),

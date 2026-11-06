@@ -89,6 +89,12 @@ model Listing {
   description  String
   price         Decimal       @db.Decimal(12, 2)   // Tarif mensuel (référence principale, affichage/tri)
   pricePerNight Decimal?      @db.Decimal(12, 2)   // Tarif par nuit (mode NIGHTLY ou MIXED)
+  // Meublé ou non. `null` = non précisé (toutes les annonces existantes au
+  // moment de cet ajout) — jamais `false` par défaut, pour ne pas prétendre
+  // à tort qu'une annonce ancienne est non meublée. Obligatoire à la
+  // création pour les types résidentiels en LOCATION (règle DTO), toujours
+  // modifiable ensuite même si encore `null`.
+  furnished     Boolean?
   minimumNights Int?                                // Durée minimum de séjour en nuits
   maximumNights Int?                                // Séjour maximum en nuits — optionnel, mode NIGHTLY uniquement
   // --- Système de location hybride (mensuel / nuitée / mixte) ---

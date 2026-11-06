@@ -214,4 +214,31 @@ export class CreateListingDto {
   @IsOptional()
   @IsEnum(ListingStatus)
   status?: ListingStatus;
+
+  /**
+   * Meublé ou non. Obligatoire pour une NOUVELLE annonce en LOCATION de
+   * type résidentiel (APPARTEMENT/VILLA/STUDIO/CHAMBRE/MAISON) — ces types
+   * n'ont pas de sens sans réponse. Facultatif pour BUREAU/LOCAL_COMMERCIAL
+   * (parfois pertinent, jamais obligatoire). Ignoré (jamais validé) pour
+   * TERRAIN (jamais meublé) et en VENTE (sans objet). Toujours facultatif
+   * en modification (UpdateListingDto, `PartialType`) : une annonce
+   * ancienne vaut `null` (non précisé) et reste modifiable sans jamais
+   * devoir renseigner `furnished` pour sauvegarder le reste.
+   */
+  @ValidateIf(
+    (o: CreateListingDto) =>
+      o.transactionType !== TransactionType.VENTE &&
+      (
+        [
+          ListingType.APPARTEMENT,
+          ListingType.VILLA,
+          ListingType.STUDIO,
+          ListingType.CHAMBRE,
+          ListingType.MAISON,
+        ] as ListingType[]
+      ).includes(o.type),
+  )
+  @IsNotEmpty()
+  @IsBoolean()
+  furnished?: boolean;
 }
