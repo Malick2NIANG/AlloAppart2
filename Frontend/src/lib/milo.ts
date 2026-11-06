@@ -5,8 +5,8 @@
  * la ferait porter sur l'IP du serveur, partagée par tous les visiteurs).
  */
 import type { MiloStrictFilters, ParseQueryResponse } from '@/components/milo/types';
+import { getApiBaseUrl } from './runtimeUrls';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 const TIMEOUT_MS = 4000;
 
 /**
@@ -21,7 +21,7 @@ export async function parseQuery(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(`${API_URL}/search/parse-query`, {
+    const res = await fetch(`${getApiBaseUrl()}/search/parse-query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, defaultLocale }),

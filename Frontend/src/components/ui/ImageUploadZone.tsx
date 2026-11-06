@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, DragEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import PhotoCropper from './PhotoCropper';
+import { getApiBaseUrl } from '@/lib/runtimeUrls';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 const MAX_IMG_SIZE   = 8   * 1024 * 1024; // 8 MB
 const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200 MB
 
@@ -106,7 +106,7 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
     const fd = new FormData();
     fd.append('file', file);
     try {
-      const res = await fetch(`${API_URL}/upload`, {
+      const res = await fetch(`${getApiBaseUrl()}/upload`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
@@ -199,7 +199,7 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
     const fd = new FormData();
     fd.append('file', new File([blob], 'photo.jpg', { type: 'image/jpeg' }));
     try {
-      const res = await fetch(`${API_URL}/upload`, {
+      const res = await fetch(`${getApiBaseUrl()}/upload`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { getApiBaseUrl } from '@/lib/runtimeUrls';
 
 type AlertLevel = 'ok' | 'warning' | 'critical' | 'expired' | 'none';
 
@@ -61,12 +62,10 @@ export default function SubscriptionAlert() {
   }, [sessionId, expiredKey]);
 
   useEffect(() => {
-    const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
-
     getToken().then(async (token) => {
       if (!token) return;
       try {
-        const res = await fetch(`${API}/subscriptions/me/alert`, {
+        const res = await fetch(`${getApiBaseUrl()}/subscriptions/me/alert`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {

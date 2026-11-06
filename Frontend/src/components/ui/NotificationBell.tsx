@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import Pusher from 'pusher-js';
 import { api } from '@/lib/api';
+import { getRealtimeConfig } from '@/lib/runtimeUrls';
 import { useTranslations } from 'next-intl';
 import { SkeletonContainer, ListRowsSkeleton } from '@/components/ui/Skeleton';
 
@@ -87,14 +88,11 @@ export default function NotificationBell({ userId }: { userId: string }) {
   /* ── Pusher temps réel ────────────────────────────────────── */
   useEffect(() => {
     if (!userId) return;
-    const key  = process.env.NEXT_PUBLIC_SOKETI_APP_KEY  ?? '';
-    const host = process.env.NEXT_PUBLIC_SOKETI_HOST     ?? 'localhost';
-    const port = Number(process.env.NEXT_PUBLIC_SOKETI_PORT ?? '6001');
+    const { key, host, port, useTLS } = getRealtimeConfig();
     if (!key) return;
 
-    // En prod, Soketi est servi en HTTPS/WSS via Caddy (port 443) — le
-    // navigateur bloque un ws:// non chiffré depuis une page https://.
-    const useTLS = port === 443;
+    // En prod (ou en mode tunnel), Soketi est servi en HTTPS/WSS (port 443)
+    // — le navigateur bloque un ws:// non chiffré depuis une page https://.
     const client = new Pusher(key, {
       cluster: 'mt1', wsHost: host, wsPort: port, wssPort: port,
       forceTLS: useTLS, enabledTransports: useTLS ? ['wss'] : ['ws'], disableStats: true,

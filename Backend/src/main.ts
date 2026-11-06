@@ -8,6 +8,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from './prisma/prisma.service';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { isProductionOriginAllowed } from './common/cors-origin.util';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
@@ -18,13 +19,29 @@ async function bootstrap() {
 
   // CORS — doit être activé AVANT helmet pour ne pas être écrasé
   const isDev = config.get<string>('NODE_ENV') !== 'production';
+  // Mode tunnel de développement : n'autorise l'origine d'un tunnel VS Code
+  // (https://<id>-3000.<région>.devtunnels.ms) QUE si ALLOW_DEV_TUNNELS=true
+  // est présent — absent (valeur par défaut) : comportement identique à
+  // avant, y compris en production (égalité stricte avec FRONTEND_URL).
+  const allowDevTunnels = config.get<string>('ALLOW_DEV_TUNNELS') === 'true';
   app.enableCors({
     origin: isDev
       ? (
           origin: string | undefined,
           cb: (err: Error | null, allow?: boolean) => void,
         ) => cb(null, true) // dev : tout localhost accepté
-      : (config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000'),
+      : (
+          origin: string | undefined,
+          cb: (err: Error | null, allow?: boolean) => void,
+        ) =>
+          cb(
+            null,
+            isProductionOriginAllowed(origin, {
+              frontendUrl:
+                config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000',
+              allowDevTunnels,
+            }),
+          ),
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

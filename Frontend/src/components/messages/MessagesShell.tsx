@@ -8,12 +8,11 @@ import Pusher from 'pusher-js';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
+import { getApiBaseUrl, getRealtimeConfig } from '@/lib/runtimeUrls';
 import { BOTTOM_NAV_TOGGLE_EVENT } from '@/components/ui/BottomNav';
 import { useIsMobile } from '@/lib/useMediaQuery';
 import { SkeletonContainer, ChatSkeleton } from '@/components/ui/Skeleton';
 import type { Message, MessageRoom, User } from '@/types';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -447,14 +446,11 @@ export default function MessagesShell({ emptyHint, space }: Props) {
   /* ── Pusher realtime ──────────────────────────────────────────────────── */
   useEffect(() => {
     if (!activeRoomId) return;
-    const pusherKey  = process.env.NEXT_PUBLIC_SOKETI_APP_KEY ?? '';
-    const pusherHost = process.env.NEXT_PUBLIC_SOKETI_HOST ?? 'localhost';
-    const pusherPort = Number(process.env.NEXT_PUBLIC_SOKETI_PORT ?? '6001');
+    const { key: pusherKey, host: pusherHost, port: pusherPort, useTLS } = getRealtimeConfig();
     if (!pusherKey) return;
 
-    // En prod, Soketi est servi en HTTPS/WSS via Caddy (port 443) — le
-    // navigateur bloque un ws:// non chiffré depuis une page https://.
-    const useTLS = pusherPort === 443;
+    // En prod (ou en mode tunnel), Soketi est servi en HTTPS/WSS (port 443)
+    // — le navigateur bloque un ws:// non chiffré depuis une page https://.
     const client = new Pusher(pusherKey, {
       cluster: 'mt1', wsHost: pusherHost, wsPort: pusherPort, wssPort: pusherPort,
       forceTLS: useTLS, enabledTransports: useTLS ? ['wss'] : ['ws'], disableStats: true,
@@ -616,7 +612,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
         try {
           const form = new FormData();
           form.append('file', blob, `voice.${ext}`);
-          const res = await fetch(`${API_URL}/upload`, {
+          const res = await fetch(`${getApiBaseUrl()}/upload`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
             body: form,

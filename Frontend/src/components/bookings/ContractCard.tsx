@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
+import { getApiBaseUrl } from '@/lib/runtimeUrls';
 import type { Contract } from '@/types';
 
 interface Props {
@@ -48,8 +49,6 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
   // ContractsService.buildContractPdf) et le retransmet — exactement le même
   // mécanisme que le reçu de paiement (fetch avec Bearer token → blob →
   // téléchargement forcé). Évite toute dépendance à un stockage tiers.
-  const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
-
   const handleDownload = async () => {
     if (downloading) return;
     setDownloading(true);
@@ -57,7 +56,7 @@ export default function ContractCard({ bookingId, viewerRole }: Props) {
     try {
       const token = await getToken();
       if (!token) return;
-      const res = await fetch(`${API}/contracts/booking/${bookingId}/download`, {
+      const res = await fetch(`${getApiBaseUrl()}/contracts/booking/${bookingId}/download`, {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store', // le PDF est régénéré à chaque appel, jamais de version en cache à réutiliser
       });

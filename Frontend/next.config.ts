@@ -24,4 +24,16 @@ const nextConfig: NextConfig = {
   },
 };
 
+// Mode tunnel de développement (VS Code Dev Tunnels) — uniquement en
+// développement (jamais en production, où `allowedDevOrigins` est de toute
+// façon ignoré par Next.js, mais on reste explicite). Permet au serveur de
+// dev d'accepter les requêtes venant de https://<id>-3000.<région>.devtunnels.ms
+// sans rien ajouter de permanent au tableau ci-dessus.
+if (process.env.NODE_ENV === 'development') {
+  nextConfig.allowedDevOrigins = [
+    ...(nextConfig.allowedDevOrigins ?? []),
+    '*.devtunnels.ms',
+  ];
+}
+
 export default withNextIntl(nextConfig);

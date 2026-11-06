@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+import { getApiBaseUrl } from './runtimeUrls';
 
 async function request<T>(
   path: string,
@@ -12,7 +12,7 @@ async function request<T>(
     ...(fetchOptions.headers ?? {}),
   };
 
-  const res = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers });
+  const res = await fetch(`${getApiBaseUrl()}${path}`, { ...fetchOptions, headers });
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }));
