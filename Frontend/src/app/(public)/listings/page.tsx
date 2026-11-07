@@ -21,12 +21,16 @@ export default async function ListingsPage({
     amenities?: string; milo?: string; miloLang?: string; miloMiss?: string; miloText?: string; miloUnmatched?: string;
     // Lot 6a — préférences floues (classent, n'excluent jamais).
     prefs?: string;
+    // Lot meublé/durée — filtres manuels (type de location, ameublement, prix
+    // par nuit, qui remplace le prix mensuel quand rentalMode=NIGHTLY).
+    rentalMode?: string; furnished?: string; minPricePerNight?: string; maxPricePerNight?: string;
   }>;
 }) {
   const {
     page = '1', city, type, q, minPrice, maxPrice, region, limit: limitParam, tab, ownerType, verified,
     transactionType: rawTransactionType, cityContains, minBeds, maxBeds, minRooms, maxRooms, amenities,
     milo, miloLang, miloMiss, miloText, miloUnmatched, prefs,
+    rentalMode, furnished, minPricePerNight, maxPricePerNight,
   } = await searchParams;
   const transactionType = rawTransactionType === 'LOCATION' || rawTransactionType === 'VENTE' ? rawTransactionType : undefined;
   const isMilo = milo === '1';
@@ -85,6 +89,10 @@ export default async function ListingsPage({
         ...(maxRooms  ? { maxRooms }             : {}),
         ...(amenities ? { amenities }            : {}),
         ...(prefs     ? { prefs }                : {}),
+        ...(rentalMode ? { rentalMode }          : {}),
+        ...(furnished  ? { furnished }           : {}),
+        ...(minPricePerNight ? { minPricePerNight } : {}),
+        ...(maxPricePerNight ? { maxPricePerNight } : {}),
       });
       const res = await api.get<ListingsResponse>(`/listings?${params}`);
       listings = Array.isArray(res?.data) ? res.data : [];
@@ -122,6 +130,10 @@ export default async function ListingsPage({
     if (maxRooms)  params.set('maxRooms', maxRooms);
     if (amenities) params.set('amenities', amenities);
     if (prefs)     params.set('prefs', prefs);
+    if (rentalMode) params.set('rentalMode', rentalMode);
+    if (furnished)  params.set('furnished', furnished);
+    if (minPricePerNight) params.set('minPricePerNight', minPricePerNight);
+    if (maxPricePerNight) params.set('maxPricePerNight', maxPricePerNight);
     if (isMilo)    params.set('milo', '1');
     if (miloLang)  params.set('miloLang', miloLang);
     if (miloText)  params.set('miloText', miloText);
@@ -213,6 +225,10 @@ export default async function ListingsPage({
             ownerType={ownerType}
             limit={perPage}
             locale={locale}
+            rentalMode={rentalMode}
+            furnished={furnished}
+            minPricePerNight={minPricePerNight}
+            maxPricePerNight={maxPricePerNight}
             prefsMatched={prefsMatched}
           />
         )}
@@ -312,6 +328,12 @@ export default async function ListingsPage({
                           {listing.beds != null && <span className="flex items-center gap-1"><i className="fa-solid fa-bed text-gold-dark text-xs" />{listing.beds}</span>}
                           {listing.baths != null && <span className="flex items-center gap-1"><i className="fa-solid fa-bath text-gold-dark text-xs" />{listing.baths}</span>}
                           {listing.surface != null && <span className="flex items-center gap-1"><i className="fa-solid fa-ruler-combined text-gold-dark text-xs" />{listing.surface} m²</span>}
+                          {listing.furnished != null && (
+                            <span className="flex items-center gap-1">
+                              <i className={`fa-solid ${listing.furnished ? 'fa-couch' : 'fa-box-open'} text-gold-dark text-xs`} />
+                              {listing.furnished ? t('furnishedFilterYes') : t('furnishedFilterNo')}
+                            </span>
+                          )}
                         </div>
                         <div className="mt-3 flex items-center gap-1 text-xs text-gold-dark/80 group-hover:text-gold-dark transition-colors duration-300">
                           {t('viewMore')}

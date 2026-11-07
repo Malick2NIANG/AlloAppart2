@@ -205,6 +205,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 { icon: 'fa-bed',            value: listing.beds,                           label: t('beds'),    show: profile.beds  },
                 { icon: 'fa-bath',           value: listing.baths,                          label: t('baths'),   show: profile.baths },
                 { icon: 'fa-ruler-combined', value: `${listing.surface} m²`,                label: t('surface'), show: listing.surface != null },
+                { icon: listing.furnished ? 'fa-couch' : 'fa-box-open', value: listing.furnished ? t('furnishedYes') : t('furnishedNo'), label: t('furnishedLabel'), show: listing.furnished != null },
                 { icon: 'fa-door-open',      value: listing.rooms,                          label: t('rooms'),   show: profile.rooms },
                 { icon: 'fa-city',           value: listing.city,                           label: t('region'),  show: true },
                 { icon: 'fa-house',          value: listing.type.charAt(0) + listing.type.slice(1).toLowerCase().replace(/_/g, ' '), label: t('type'), show: true },

@@ -55,17 +55,35 @@ interface Props {
   ownerType?: string;
   limit:      number;
   locale:     string;
+  /** Lot meublé/durée — filtres manuels au même titre que type/region/prix
+   * (pas des paramètres « Milo uniquement » comme cityContains/minBeds). */
+  rentalMode?:       string;
+  furnished?:        string;
+  minPricePerNight?: string;
+  maxPricePerNight?: string;
   /** Lot 6a — vient de la réponse API (pas de l'URL) : présent seulement
    * quand `prefs` était demandé, true/false selon qu'au moins une annonce
    * correspond. */
   prefsMatched?: boolean;
 }
 
+const RENTAL_MODE_FILTERS = [
+  { key: '',        tKey: 'rentalModeFilterAll'     },
+  { key: 'NIGHTLY', tKey: 'rentalModeFilterNightly' },
+  { key: 'MONTHLY', tKey: 'rentalModeFilterMonthly' },
+] as const;
+
+const FURNISHED_FILTERS = [
+  { key: '',      tKey: 'furnishedFilterAll' },
+  { key: 'true',  tKey: 'furnishedFilterYes' },
+  { key: 'false', tKey: 'furnishedFilterNo'  },
+] as const;
+
 const CHIP_BASE = 'flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200';
 const CHIP_ON   = 'border-gold bg-gold text-gray-900 shadow-sm';
 const CHIP_OFF  = 'border-line bg-card text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-dark';
 
-export default function ListingsFilters({ type, region, q, city, minPrice, maxPrice, ownerType, limit, locale: _locale, prefsMatched }: Props) {
+export default function ListingsFilters({ type, region, q, city, minPrice, maxPrice, ownerType, limit, locale: _locale, rentalMode, furnished, minPricePerNight, maxPricePerNight, prefsMatched }: Props) {
   const t = useTranslations('listings');
   const siteLocale = useLocale() as 'fr' | 'en';
   const router = useRouter();
@@ -114,11 +132,14 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   const activeType = type ?? '';
   const activeOwnerType = ownerType ?? '';
 
-  // Filtres rangés dans le panneau « Filtres » (annonceur + AlloVérifié).
-  const panelCount = (ownerType ? 1 : 0) + (isVerifiedOnly ? 1 : 0);
+  // Filtres rangés dans le panneau « Filtres » (annonceur + AlloVérifié +
+  // type de location + ameublement + prix, qui suit le mode nuitée/mensuel).
+  const panelCount = (ownerType ? 1 : 0) + (isVerifiedOnly ? 1 : 0) + (rentalMode ? 1 : 0) + (furnished ? 1 : 0);
   const hasPrice = !!(minPrice || maxPrice);
+  const hasPricePerNight = !!(minPricePerNight || maxPricePerNight);
   const hasFilters = !!(
-    type || region || q || city || hasPrice || ownerType || isVerifiedOnly || transactionType ||
+    type || region || q || city || hasPrice || hasPricePerNight || ownerType || isVerifiedOnly || transactionType ||
+    rentalMode || furnished ||
     cityContains || minBeds || maxBeds || minRooms || maxRooms || amenitiesList.length > 0 ||
     prefsList.length > 0
   );
@@ -134,6 +155,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
     const params = new URLSearchParams();
     const merged = {
       q, city, minPrice, maxPrice, type, region, ownerType, verified, transactionType,
+      rentalMode, furnished, minPricePerNight, maxPricePerNight,
       cityContains, minBeds, maxBeds, minRooms, maxRooms,
       amenities: amenitiesCsv,
       prefs: prefsCsv,
@@ -192,6 +214,21 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
       onRemove: () => push({ minPrice: undefined, maxPrice: undefined }),
     });
   }
+  if (hasPricePerNight) {
+    activeChips.push({
+      key: 'pricePerNight', icon: 'fa-coins',
+      label: `${minPricePerNight ? Number(minPricePerNight).toLocaleString('fr-FR') : '0'} – ${maxPricePerNight ? Number(maxPricePerNight).toLocaleString('fr-FR') : '∞'} FCFA/${t('perNight')}`,
+      onRemove: () => push({ minPricePerNight: undefined, maxPricePerNight: undefined }),
+    });
+  }
+  if (rentalMode) {
+    const rm = RENTAL_MODE_FILTERS.find((r) => r.key === rentalMode);
+    if (rm) activeChips.push({ key: 'rentalMode', icon: 'fa-moon', label: t(rm.tKey), onRemove: () => push({ rentalMode: undefined }) });
+  }
+  if (furnished) {
+    const fu = FURNISHED_FILTERS.find((f) => f.key === furnished);
+    if (fu) activeChips.push({ key: 'furnished', icon: 'fa-couch', label: t(fu.tKey), onRemove: () => push({ furnished: undefined }) });
+  }
   // ── Lot 5b : pastilles pour les paramètres que l'API accepte mais que
   // l'interface manuelle n'exposait pas jusqu'ici (Milo est leur seule
   // source pour l'instant) ──────────────────────────────────────────────
@@ -242,6 +279,12 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   const [draftRegion, setDraftRegion]            = useState(region ?? '');
   const [draftOwner, setDraftOwner]              = useState(activeOwnerType);
   const [draftVerified, setDraftVerified]        = useState(isVerifiedOnly);
+  const [draftRentalMode, setDraftRentalMode]    = useState(rentalMode ?? '');
+  const [draftFurnished, setDraftFurnished]      = useState(furnished ?? '');
+  const [draftMinPrice, setDraftMinPrice]        = useState(minPrice ?? '');
+  const [draftMaxPrice, setDraftMaxPrice]        = useState(maxPrice ?? '');
+  const [draftMinPricePerNight, setDraftMinPricePerNight] = useState(minPricePerNight ?? '');
+  const [draftMaxPricePerNight, setDraftMaxPricePerNight] = useState(maxPricePerNight ?? '');
   const filtersTitleId = useId();
 
   const openMobileFilters = () => {
@@ -250,6 +293,12 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
     setDraftRegion(region ?? '');
     setDraftOwner(activeOwnerType);
     setDraftVerified(isVerifiedOnly);
+    setDraftRentalMode(rentalMode ?? '');
+    setDraftFurnished(furnished ?? '');
+    setDraftMinPrice(minPrice ?? '');
+    setDraftMaxPrice(maxPrice ?? '');
+    setDraftMinPricePerNight(minPricePerNight ?? '');
+    setDraftMaxPricePerNight(maxPricePerNight ?? '');
     setMobileFiltersOpen(true);
   };
 
@@ -265,6 +314,14 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
       region: draftRegion || undefined,
       ownerType: draftOwner || undefined,
       verified: draftVerified ? 'true' : undefined,
+      rentalMode: draftRentalMode || undefined,
+      furnished: draftFurnished || undefined,
+      // Le prix suit le mode : nuitée → prix par nuit, sinon mensuel — un
+      // seul des deux couples est jamais rempli dans le tiroir à la fois.
+      minPrice: draftRentalMode === 'NIGHTLY' ? undefined : (draftMinPrice || undefined),
+      maxPrice: draftRentalMode === 'NIGHTLY' ? undefined : (draftMaxPrice || undefined),
+      minPricePerNight: draftRentalMode === 'NIGHTLY' ? (draftMinPricePerNight || undefined) : undefined,
+      maxPricePerNight: draftRentalMode === 'NIGHTLY' ? (draftMaxPricePerNight || undefined) : undefined,
       page: '1',
     });
     setMobileFiltersOpen(false);
@@ -277,7 +334,8 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
 
   const mobileFilterCount =
     (activeType ? 1 : 0) + (region ? 1 : 0) + (activeOwnerType ? 1 : 0) +
-    (isVerifiedOnly ? 1 : 0) + (transactionType ? 1 : 0);
+    (isVerifiedOnly ? 1 : 0) + (transactionType ? 1 : 0) +
+    (rentalMode ? 1 : 0) + (furnished ? 1 : 0) + (hasPrice ? 1 : 0) + (hasPricePerNight ? 1 : 0);
 
   // Types visibles dans le tiroir : dépend du DRAFT de transaction (pas de
   // l'URL), pour que le choix reste cohérent avant même d'appliquer.
@@ -302,7 +360,8 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
 
   const miloCriteriaCount = activeChips.filter((c) =>
     ['cityContains', 'beds', 'rooms'].includes(c.key) || c.key.startsWith('amenity-'),
-  ).length + (region ? 1 : 0) + (type ? 1 : 0) + (transactionType ? 1 : 0) + (hasPrice ? 1 : 0);
+  ).length + (region ? 1 : 0) + (type ? 1 : 0) + (transactionType ? 1 : 0) + (hasPrice ? 1 : 0) +
+    (hasPricePerNight ? 1 : 0) + (rentalMode ? 1 : 0) + (furnished ? 1 : 0);
 
   return (
     <div className="mb-8 space-y-3">
@@ -518,6 +577,64 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
                     <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${isVerifiedOnly ? 'left-[22px]' : 'left-0.5'}`} />
                   </span>
                 </button>
+              </div>
+
+              {/* Type de location (nuitée inclut aussi les annonces mixtes) */}
+              <div className="border-t border-line pt-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sub">{t('filtersRentalMode')}</p>
+                <div className="flex flex-wrap gap-2">
+                  {RENTAL_MODE_FILTERS.map((rm) => {
+                    const isActive = (rentalMode ?? '') === rm.key;
+                    return (
+                      <button key={rm.key} onClick={() => push({ rentalMode: rm.key || undefined, page: '1' })}
+                        className={`${CHIP_BASE} ${isActive ? CHIP_ON : CHIP_OFF} !px-3.5 !py-1.5`}>
+                        {t(rm.tKey)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Ameublement */}
+              <div className="border-t border-line pt-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sub">{t('filtersFurnished')}</p>
+                <div className="flex flex-wrap gap-2">
+                  {FURNISHED_FILTERS.map((fu) => {
+                    const isActive = (furnished ?? '') === fu.key;
+                    return (
+                      <button key={fu.key} onClick={() => push({ furnished: fu.key || undefined, page: '1' })}
+                        className={`${CHIP_BASE} ${isActive ? CHIP_ON : CHIP_OFF} !px-3.5 !py-1.5`}>
+                        {t(fu.tKey)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Prix — suit le mode : nuitée → prix par nuit, sinon mensuel (inchangé) */}
+              <div className="border-t border-line pt-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sub">
+                  {rentalMode === 'NIGHTLY' ? t('filtersPricePerNight') : t('filtersPrice')}
+                </p>
+                <div className="flex items-center gap-2">
+                  <input type="number" min={0} placeholder={t('priceMinPh')}
+                    defaultValue={rentalMode === 'NIGHTLY' ? minPricePerNight : minPrice}
+                    onBlur={(e) => push(
+                      rentalMode === 'NIGHTLY'
+                        ? { minPricePerNight: e.target.value || undefined, page: '1' }
+                        : { minPrice: e.target.value || undefined, page: '1' },
+                    )}
+                    className="input-field !py-1.5 text-sm" />
+                  <span className="text-sub text-xs">–</span>
+                  <input type="number" min={0} placeholder={t('priceMaxPh')}
+                    defaultValue={rentalMode === 'NIGHTLY' ? maxPricePerNight : maxPrice}
+                    onBlur={(e) => push(
+                      rentalMode === 'NIGHTLY'
+                        ? { maxPricePerNight: e.target.value || undefined, page: '1' }
+                        : { maxPrice: e.target.value || undefined, page: '1' },
+                    )}
+                    className="input-field !py-1.5 text-sm" />
+                </div>
               </div>
             </div>
           )}
@@ -813,6 +930,64 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
               <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${draftVerified ? 'left-[22px]' : 'left-0.5'}`} />
             </span>
           </button>
+        </div>
+
+        {/* Type de location */}
+        <div className="border-t border-line pt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sub">{t('filtersRentalMode')}</p>
+          <div className="flex flex-wrap gap-2">
+            {RENTAL_MODE_FILTERS.map((rm) => {
+              const isActive = draftRentalMode === rm.key;
+              return (
+                <button key={rm.key} onClick={() => setDraftRentalMode(rm.key)}
+                  className={`tap-target ${CHIP_BASE} ${isActive ? CHIP_ON : CHIP_OFF}`}>
+                  {t(rm.tKey)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Ameublement */}
+        <div className="border-t border-line pt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sub">{t('filtersFurnished')}</p>
+          <div className="flex flex-wrap gap-2">
+            {FURNISHED_FILTERS.map((fu) => {
+              const isActive = draftFurnished === fu.key;
+              return (
+                <button key={fu.key} onClick={() => setDraftFurnished(fu.key)}
+                  className={`tap-target ${CHIP_BASE} ${isActive ? CHIP_ON : CHIP_OFF}`}>
+                  {t(fu.tKey)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Prix — suit le mode nuitée/mensuel, comme dans le panneau PC */}
+        <div className="border-t border-line pt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sub">
+            {draftRentalMode === 'NIGHTLY' ? t('filtersPricePerNight') : t('filtersPrice')}
+          </p>
+          <div className="flex items-center gap-2">
+            {draftRentalMode === 'NIGHTLY' ? (
+              <>
+                <input type="number" min={0} placeholder={t('priceMinPh')} value={draftMinPricePerNight}
+                  onChange={(e) => setDraftMinPricePerNight(e.target.value)} className="input-field !py-1.5 text-sm" />
+                <span className="text-sub text-xs">–</span>
+                <input type="number" min={0} placeholder={t('priceMaxPh')} value={draftMaxPricePerNight}
+                  onChange={(e) => setDraftMaxPricePerNight(e.target.value)} className="input-field !py-1.5 text-sm" />
+              </>
+            ) : (
+              <>
+                <input type="number" min={0} placeholder={t('priceMinPh')} value={draftMinPrice}
+                  onChange={(e) => setDraftMinPrice(e.target.value)} className="input-field !py-1.5 text-sm" />
+                <span className="text-sub text-xs">–</span>
+                <input type="number" min={0} placeholder={t('priceMaxPh')} value={draftMaxPrice}
+                  onChange={(e) => setDraftMaxPrice(e.target.value)} className="input-field !py-1.5 text-sm" />
+              </>
+            )}
+          </div>
         </div>
       </BottomSheet>
     </div>
