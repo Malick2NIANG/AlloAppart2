@@ -58,10 +58,6 @@ export const en: LanguageDictionary = {
     // nombre collé à "nights"/"days"/"weeks"/"years" (pluriel) n'était pas
     // bloqué comme les formes singulières.
     nonMonthlyPeriodKeywords: [
-      'per night',
-      'a night',
-      'night',
-      'nights',
       'per day',
       'a day',
       'day',
@@ -75,6 +71,9 @@ export const en: LanguageDictionary = {
       'year',
       'years',
     ],
+    // Lot meublé/durée — déplacés hors de nonMonthlyPeriodKeywords (voir
+    // fr.ts pour l'explication).
+    nightlyPeriodKeywords: ['per night', 'a night', 'night', 'nights'],
     monthlyPeriodKeywords: ['per month', 'a month', 'monthly', 'month'],
     approximateKeywords: ['around', 'about', 'approximately', '~'],
   },

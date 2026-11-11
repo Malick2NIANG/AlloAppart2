@@ -10,6 +10,8 @@ import { extractRoomsAndBeds } from './extractors/roomsAndBeds';
 import { extractPrice } from './extractors/price';
 import { extractPlaces } from './extractors/places';
 import { extractPhoneNumbers } from './extractors/phone';
+import { extractFurnished } from './extractors/furnished';
+import { extractRentalModeHint } from './extractors/rentalModeHint';
 import type {
   LanguageDictionary,
   MiloAmbiguity,
@@ -94,6 +96,10 @@ function runExtractors(
     strictFilters.minPrice = priceRes.minPrice;
   if (priceRes.maxPrice !== undefined)
     strictFilters.maxPrice = priceRes.maxPrice;
+  if (priceRes.minPricePerNight !== undefined)
+    strictFilters.minPricePerNight = priceRes.minPricePerNight;
+  if (priceRes.maxPricePerNight !== undefined)
+    strictFilters.maxPricePerNight = priceRes.maxPricePerNight;
   priceRes.consumed.forEach((i) => consumed.add(i));
   matchedSpans.push(...priceRes.matchedSpans);
   extraAmbiguities.push(...priceRes.ambiguities);
@@ -176,9 +182,29 @@ export function extractCriteria(text: string): MiloExtractionResult {
   // `consumed` quand price.ts/roomsAndBeds.ts tournent (lot 7 ter, règle 2 :
   // jamais un prix, des pièces ni des chambres).
   const phoneRes = extractPhoneNumbers(tokens);
+  // Meublé + durée de location : comme les téléphones, vérifient eux-mêmes
+  // FR et EN ensemble (pas besoin d'être relancés par dictionnaire) —
+  // n'interfèrent jamais avec price.ts (adjacentPhrase, utilisé pour les
+  // périodes, ignore totalement l'état `consumed`).
+  const furnishedRes = extractFurnished(tokens);
+  const rentalModeHintRes = extractRentalModeHint(tokens);
+  const preConsumed = new Set<number>([
+    ...phoneRes.consumed,
+    ...furnishedRes.consumed,
+    ...rentalModeHintRes.consumed,
+  ]);
 
-  const main = runExtractors(tokens, DICTIONARIES, phoneRes.consumed);
-  main.matchedSpans.push(...phoneRes.matchedSpans);
+  const main = runExtractors(tokens, DICTIONARIES, preConsumed);
+  main.matchedSpans.push(
+    ...phoneRes.matchedSpans,
+    ...furnishedRes.matchedSpans,
+    ...rentalModeHintRes.matchedSpans,
+  );
+  if (furnishedRes.furnished !== undefined)
+    main.strictFilters.furnished = furnishedRes.furnished;
+  if (rentalModeHintRes.rentalMode !== undefined)
+    main.strictFilters.rentalMode = rentalModeHintRes.rentalMode;
+  main.extraAmbiguities.push(...rentalModeHintRes.ambiguities);
 
   // Lieux : indépendants de la langue, appliqués hors du pipeline FR/EN —
   // ne comptent jamais dans `signals` (règle 5 du lot 2), et ne retraitent
@@ -202,8 +228,8 @@ export function extractCriteria(text: string): MiloExtractionResult {
   // mots-clés reconnus par langue pour la détection de langue du lot 3,
   // n'influence jamais `strictFilters` (calculé ci-dessus avec les deux
   // dictionnaires ensemble, § PLAN_SEARCH_V0.md 2.c).
-  const frOnly = runExtractors(tokens, [fr], phoneRes.consumed);
-  const enOnly = runExtractors(tokens, [en], phoneRes.consumed);
+  const frOnly = runExtractors(tokens, [fr], preConsumed);
+  const enOnly = runExtractors(tokens, [en], preConsumed);
 
   return {
     strictFilters: main.strictFilters,

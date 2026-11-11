@@ -55,5 +55,9 @@ export function strictFiltersToParams(filters: MiloStrictFilters): Record<string
   if (filters.minBeds != null) params.minBeds = String(filters.minBeds);
   if (filters.maxBeds != null) params.maxBeds = String(filters.maxBeds);
   if (filters.amenities?.length) params.amenities = filters.amenities.join(',');
+  if (filters.furnished != null) params.furnished = String(filters.furnished);
+  if (filters.rentalMode) params.rentalMode = filters.rentalMode;
+  if (filters.minPricePerNight != null) params.minPricePerNight = String(filters.minPricePerNight);
+  if (filters.maxPricePerNight != null) params.maxPricePerNight = String(filters.maxPricePerNight);
   return params;
 }

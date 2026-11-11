@@ -3,7 +3,7 @@
  * 2.h ; Milo.md § 3.4, 3.4 bis). Fonctions pures : pas de base, pas de
  * réseau, pas de Meilisearch, pas de contrôleur Nest à ce stade.
  */
-import type { ListingType, TransactionType } from '@prisma/client';
+import type { ListingType, RentalMode, TransactionType } from '@prisma/client';
 
 /** Sous-ensemble de FilterListingsDto que l'extraction peut produire. */
 export interface MiloStrictFilters {
@@ -22,6 +22,16 @@ export interface MiloStrictFilters {
    * `cityContains` (lot 2b) — `city` (égalité exacte) n'est plus émis,
    * city étant un champ texte libre côté formulaire. */
   cityContains?: string;
+  /** Meublé/non meublé — même nom que FilterListingsDto.furnished (lot
+   * meublé/durée). */
+  furnished?: boolean;
+  /** NIGHTLY/MONTHLY (jamais MIXED en sortie de Milo — ambigu entre les deux
+   * sans indication explicite de nuitée ET de mensuel à la fois). */
+  rentalMode?: RentalMode;
+  /** Sur `pricePerNight`, jamais `price` — seulement quand une durée
+   * nuitée est comprise (lot meublé/durée). */
+  minPricePerNight?: number;
+  maxPricePerNight?: number;
 }
 
 export type MiloSpanCategory =
@@ -84,7 +94,14 @@ export type MiloAmbiguity =
   /** Montant nu (lot 7 bis, règle G) sans direction mais avec un contexte
    * de budget clair (location/vente, période mensuelle) — maxPrice posé
    * avec +10 %, affiché comme « ≈ » côté interface. */
-  | 'targetAmount';
+  | 'targetAmount'
+  /** Durée nuitée ET mensuelle comprises à la fois ("2 nuits par mois" —
+   * contradictoire) — rentalMode non posé (lot meublé/durée). */
+  | 'rentalModeConflict'
+  /** "budget X total pour N nuits/jours" (N explicite) — maxPricePerNight
+   * dérivé (X / N), distinct de `targetAmount` (jamais confondu avec un
+   * prix par nuit explicite) (lot meublé/durée). */
+  | 'derivedNightlyBudget';
 
 export interface MiloExtractionResult {
   strictFilters: MiloStrictFilters;
@@ -113,10 +130,17 @@ export interface LanguageDictionary {
     rangeHyphen: boolean;
     multipliers: Record<string, number>;
     currencyWords: string[];
-    /** Période NON mensuelle juste avant/après un montant (la nuit, par
-     * jour, per week…) — ce montant n'est alors JAMAIS un prix (lot 7,
-     * règle 1.a). */
+    /** Période NON mensuelle juste avant/après un montant (par jour, par
+     * semaine, par an…) — ce montant n'est alors JAMAIS un prix (lot 7,
+     * règle 1.a). "la nuit"/"par nuit" en sont volontairement absents
+     * depuis le lot meublé/durée : voir `nightlyPeriodKeywords`. */
     nonMonthlyPeriodKeywords: string[];
+    /** Période nuitée (la nuit, par nuit, night, per night…) — lot
+     * meublé/durée : un montant adjacent devient minPricePerNight/
+     * maxPricePerNight (jamais minPrice/maxPrice), remplaçant
+     * `periodNotSupported` pour ce cas précis (gardé pour semaine/jour/
+     * an, cf. `nonMonthlyPeriodKeywords`). */
+    nightlyPeriodKeywords: string[];
     /** Période mensuelle explicite (par mois, mensuel, monthly…) — unité par
      * défaut, n'empêche jamais l'extraction (lot 7, règle 1.a). */
     monthlyPeriodKeywords: string[];

@@ -70,10 +70,6 @@ export const fr: LanguageDictionary = {
     // postfixe ("minimum"/"maximum") s'y attacher à tort (bug découvert
     // sur "10 ans minimum, 80 millions maximum" -> minPrice:10).
     nonMonthlyPeriodKeywords: [
-      'la nuit',
-      'par nuit',
-      'nuit',
-      'nuits',
       'par jour',
       'jour',
       'jours',
@@ -86,6 +82,10 @@ export const fr: LanguageDictionary = {
       'annee',
       'annees',
     ],
+    // Lot meublé/durée — déplacés hors de nonMonthlyPeriodKeywords : un
+    // montant adjacent devient minPricePerNight/maxPricePerNight au lieu
+    // de rester periodNotSupported.
+    nightlyPeriodKeywords: ['la nuit', 'par nuit', 'nuit', 'nuits'],
     monthlyPeriodKeywords: ['par mois', 'mensuel', 'mensuelle', 'mois'],
     approximateKeywords: ['environ', 'autour de', 'vers', '~'],
   },

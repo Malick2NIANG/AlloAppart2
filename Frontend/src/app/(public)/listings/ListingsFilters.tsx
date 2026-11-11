@@ -412,7 +412,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
               <i className="fa-solid fa-wand-magic-sparkles mr-1.5 text-xs" />
               {miloLabels.understoodPrefix}{' '}
               <span className="font-medium">
-                {activeChips.filter((c) => ['region', 'cityContains', 'beds', 'rooms'].includes(c.key) || c.key.startsWith('amenity-'))
+                {activeChips.filter((c) => ['region', 'cityContains', 'beds', 'rooms', 'rentalMode', 'furnished', 'price', 'pricePerNight'].includes(c.key) || c.key.startsWith('amenity-'))
                   .map((c) => c.label).join(', ') || '—'}
               </span>
             </p>

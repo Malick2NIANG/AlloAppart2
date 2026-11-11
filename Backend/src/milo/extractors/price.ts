@@ -466,6 +466,9 @@ function adjacentPhrase(
 export interface PriceExtraction {
   minPrice?: number;
   maxPrice?: number;
+  /** Lot meublé/durée — jamais confondu avec minPrice/maxPrice (mensuel). */
+  minPricePerNight?: number;
+  maxPricePerNight?: number;
   consumed: Set<number>;
   matchedSpans: MiloMatchedSpan[];
   ambiguities: MiloAmbiguity[];
@@ -492,12 +495,14 @@ export function extractPrice(
   const multipliers: Record<string, number> = {};
   const currencyWords: string[] = [];
   const nonMonthlyPeriodKeywords: string[] = [];
+  const nightlyPeriodKeywords: string[] = [];
   const monthlyPeriodKeywords: string[] = [];
   const approximateKeywords: string[] = [];
   for (const dict of dictionaries) {
     Object.assign(multipliers, dict.price.multipliers);
     currencyWords.push(...dict.price.currencyWords);
     nonMonthlyPeriodKeywords.push(...dict.price.nonMonthlyPeriodKeywords);
+    nightlyPeriodKeywords.push(...dict.price.nightlyPeriodKeywords);
     monthlyPeriodKeywords.push(...dict.price.monthlyPeriodKeywords);
     approximateKeywords.push(...dict.price.approximateKeywords);
   }
@@ -523,8 +528,16 @@ export function extractPrice(
   // un prix, quel que soit le reste du contexte). Une période mensuelle
   // explicite adjacente n'a aucun effet (unité par défaut).
   const periodBlocked = new Set<NumberCandidate>();
+  // Nuitée (lot meublé/durée) : exclu de la résolution normale du prix
+  // mensuel (comme periodBlocked) mais traité à part plus bas
+  // (minPricePerNight/maxPricePerNight), jamais periodNotSupported.
+  const nightlyBlocked = new Set<NumberCandidate>();
   for (const c of availableCandidates) {
     if (adjacentPhrase(tokens, c, monthlyPeriodKeywords)) continue;
+    if (adjacentPhrase(tokens, c, nightlyPeriodKeywords)) {
+      nightlyBlocked.add(c);
+      continue;
+    }
     if (adjacentPhrase(tokens, c, nonMonthlyPeriodKeywords)) {
       periodBlocked.add(c);
     }
@@ -564,7 +577,7 @@ export function extractPrice(
   const totalBlocked = new Set<NumberCandidate>();
   if (hasStayDurationContext) {
     for (const c of availableCandidates) {
-      if (periodBlocked.has(c)) continue;
+      if (periodBlocked.has(c) || nightlyBlocked.has(c)) continue;
       if (adjacentPhrase(tokens, c, TOTAL_WORDS)) totalBlocked.add(c);
     }
   }
@@ -597,7 +610,12 @@ export function extractPrice(
   ): NumberCandidate | undefined {
     let best: NumberCandidate | undefined;
     for (const c of availableCandidates) {
-      if (claimed.has(c) || periodBlocked.has(c) || totalBlocked.has(c))
+      if (
+        claimed.has(c) ||
+        periodBlocked.has(c) ||
+        nightlyBlocked.has(c) ||
+        totalBlocked.has(c)
+      )
         continue;
       if (c.start < fromIndex) continue;
       if (c.start - fromIndex > 4) continue; // fenêtre de recherche courte
@@ -699,7 +717,7 @@ export function extractPrice(
       let cand = availableCandidates.find(
         (c) =>
           !claimed.has(c) &&
-          !periodBlocked.has(c) &&
+          !(periodBlocked.has(c) || nightlyBlocked.has(c)) &&
           !totalBlocked.has(c) &&
           isUsableAlone(c) &&
           c.start >= i + len &&
@@ -710,7 +728,7 @@ export function extractPrice(
         cand = availableCandidates.find(
           (c) =>
             !claimed.has(c) &&
-            !periodBlocked.has(c) &&
+            !(periodBlocked.has(c) || nightlyBlocked.has(c)) &&
             !totalBlocked.has(c) &&
             isUsableAlone(c) &&
             c.end <= i &&
@@ -803,7 +821,10 @@ export function extractPrice(
         if (!midLen || isRangeConsumed(i, i + midLen, alreadyConsumed))
           continue;
         const first = availableCandidates.find(
-          (c) => !claimed.has(c) && !periodBlocked.has(c) && c.end === i,
+          (c) =>
+            !claimed.has(c) &&
+            !(periodBlocked.has(c) || nightlyBlocked.has(c)) &&
+            c.end === i,
         );
         if (!first) continue;
         const second = nearestUnclaimed(i + midLen, false);
@@ -991,6 +1012,7 @@ export function extractPrice(
       if (
         claimed.has(cand) ||
         periodBlocked.has(cand) ||
+        nightlyBlocked.has(cand) ||
         totalBlocked.has(cand)
       )
         continue;
@@ -1056,6 +1078,87 @@ export function extractPrice(
     }
   }
 
+  // ── Classe prix-par-nuit (lot meublé/durée) ───────────────────────────
+  // Remplace periodNotSupported pour "la nuit"/"per night" uniquement
+  // (candidats dans `nightlyBlocked`, jamais `periodBlocked`) : mêmes
+  // règles de direction/approximation/cible que le prix mensuel,
+  // appliquées à pricePerNight au lieu de price.
+  let minPricePerNight: number | undefined;
+  let maxPricePerNight: number | undefined;
+  function findAttachedDirection(
+    cand: NumberCandidate,
+  ): 'max' | 'min' | undefined {
+    for (const dict of dictionaries) {
+      for (const [kws, dir] of [
+        [dict.price.maxKeywords, 'max' as const],
+        [dict.price.minKeywords, 'min' as const],
+      ] as const) {
+        for (const kw of kws) {
+          const words = kw.split(' ');
+          const from = cand.start - words.length;
+          if (from >= 0 && matchPhraseAt(tokens, from, kw) === words.length)
+            return dir;
+          if (!POSTFIX_ELIGIBLE.has(kw)) continue;
+          for (
+            let i = cand.end;
+            i <= Math.min(cand.end + 4, tokens.length);
+            i++
+          ) {
+            if (matchPhraseAt(tokens, i, kw) === words.length) return dir;
+          }
+        }
+      }
+    }
+    return undefined;
+  }
+  for (const c of nightlyBlocked) {
+    if (claimed.has(c) || !isUsableAlone(c)) continue;
+    const direction = findAttachedDirection(c);
+    if (direction) {
+      claimed.add(c);
+      markSpan(c.start, c.end);
+      matchedSpans.push({
+        category: 'price',
+        text: String(c.value),
+        value: `pricePerNight:${c.value}`,
+      });
+      if (direction === 'max') {
+        maxPricePerNight =
+          maxPricePerNight === undefined
+            ? c.value
+            : Math.min(maxPricePerNight, c.value);
+      } else {
+        minPricePerNight =
+          minPricePerNight === undefined
+            ? c.value
+            : Math.max(minPricePerNight, c.value);
+      }
+      continue;
+    }
+    const isApproximate = adjacentPhrase(tokens, c, approximateKeywords);
+    const clearBudgetContext =
+      isApproximate || context?.transactionType !== undefined;
+    if (clearBudgetContext) {
+      const raised = c.value * 1.1;
+      const rounded =
+        raised >= 1000 ? Math.round(raised / 1000) * 1000 : Math.round(raised);
+      claimed.add(c);
+      maxPricePerNight =
+        maxPricePerNight === undefined
+          ? rounded
+          : Math.min(maxPricePerNight, rounded);
+      ambiguities.push(isApproximate ? 'approximateAmount' : 'targetAmount');
+      markSpan(c.start, c.end);
+      matchedSpans.push({
+        category: 'price',
+        text: String(c.value),
+        value: `~${rounded}`,
+      });
+    } else {
+      ambiguities.push('amountDirection');
+    }
+  }
+
   // ── Montants compris mais sans filtre posé — ambiguïtés (lot 7) ───────
   // Période non mensuelle adjacente : toujours signalé si le montant
   // ressemblait à un prix (multiplicateur/devise/≥1000), qu'un mot-clé de
@@ -1083,7 +1186,13 @@ export function extractPrice(
   const maxPriceAlreadyConfirmed = maxPrice !== undefined;
   let targetAmountCandidate: number | undefined;
   for (const c of availableCandidates) {
-    if (claimed.has(c) || periodBlocked.has(c) || totalBlocked.has(c)) continue;
+    if (
+      claimed.has(c) ||
+      periodBlocked.has(c) ||
+      nightlyBlocked.has(c) ||
+      totalBlocked.has(c)
+    )
+      continue;
     if (!isUsableAlone(c)) continue;
     const clearBudgetContext =
       adjacentPhrase(tokens, c, monthlyPeriodKeywords) ||
@@ -1111,7 +1220,15 @@ export function extractPrice(
     maxPrice = targetAmountCandidate;
   }
 
-  return { minPrice, maxPrice, consumed, matchedSpans, ambiguities };
+  return {
+    minPrice,
+    maxPrice,
+    minPricePerNight,
+    maxPricePerNight,
+    consumed,
+    matchedSpans,
+    ambiguities,
+  };
 }
 
 function isRangeConsumed(

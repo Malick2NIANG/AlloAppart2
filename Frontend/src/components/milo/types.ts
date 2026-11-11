@@ -8,7 +8,22 @@
 
 export type DetectedLanguage = 'fr' | 'en' | 'unsupported';
 export type DetectionMethod = 'dictionary' | 'library' | 'default';
-export type MiloAmbiguity = 'type' | 'transactionType' | 'beds' | 'region';
+export type MiloAmbiguity =
+  | 'type'
+  | 'transactionType'
+  | 'beds'
+  | 'region'
+  | 'periodNotSupported'
+  | 'landmark'
+  | 'numberedDistrict'
+  | 'amountDirection'
+  | 'approximateAmount'
+  | 'chambreCount'
+  | 'stayTotal'
+  | 'negatedAmenity'
+  | 'targetAmount'
+  | 'rentalModeConflict'
+  | 'derivedNightlyBudget';
 
 export interface MiloStrictFilters {
   minPrice?: number;
@@ -22,6 +37,14 @@ export interface MiloStrictFilters {
   amenities?: string[];
   region?: string;
   cityContains?: string;
+  /** Meublé/non meublé — même nom que FilterListingsDto.furnished (lot
+   * meublé/durée). */
+  furnished?: boolean;
+  /** NIGHTLY/MONTHLY — jamais MIXED en sortie de Milo (lot meublé/durée). */
+  rentalMode?: 'NIGHTLY' | 'MONTHLY';
+  /** Sur pricePerNight, jamais price (lot meublé/durée). */
+  minPricePerNight?: number;
+  maxPricePerNight?: number;
 }
 
 export interface ParseQueryResponse {

@@ -493,13 +493,13 @@ describe('extractCriteria — équipements (amenities)', () => {
     ]);
   });
 
-  it('NÉGATIF : "meuble"/"furnished" n\'est pas une clé existante, jamais inventée', () => {
+  it('"meuble"/"furnished" n\'est jamais un équipement (amenities) — c\'est le filtre dédié `furnished` (lot meublé/durée)', () => {
     expect(extractCriteria('meuble').strictFilters.amenities).toBeUndefined();
     expect(
       extractCriteria('furnished').strictFilters.amenities,
     ).toBeUndefined();
-    expect(extractCriteria('meuble').unmatchedTokens).toEqual(['meuble']);
-    expect(extractCriteria('furnished').unmatchedTokens).toEqual(['furnished']);
+    expect(extractCriteria('meuble').strictFilters.furnished).toBe(true);
+    expect(extractCriteria('furnished').strictFilters.furnished).toBe(true);
   });
 
   it('NÉGATIF : "clm" (mot-clé court "clim", 4 lettres) n\'est pas toléré en faute de frappe', () => {
@@ -604,7 +604,8 @@ describe('extractCriteria — requêtes mixtes FR/EN (exemples du cahier des cha
     const r = extractCriteria('studio meublé, budget 150k');
     expect(r.strictFilters.type).toBe('STUDIO');
     expect(r.strictFilters.maxPrice).toBe(150000);
-    expect(r.unmatchedTokens).toEqual(['meuble']);
+    expect(r.strictFilters.furnished).toBe(true);
+    expect(r.unmatchedTokens).toEqual([]);
   });
 
   it('"villa avec piscine à vendre entre 80 et 120 millions"', () => {
@@ -659,10 +660,11 @@ describe('extractCriteria — entrée vide / dégénérée', () => {
 });
 
 describe('extractCriteria — lot 7 (mesure indépendante) : montants', () => {
-  it('prix "par nuit"/"per night" : jamais un maxPrice, ambiguïté periodNotSupported', () => {
+  it('prix "par nuit"/"per night" : jamais un maxPrice — maxPricePerNight dédié (lot meublé/durée, remplace periodNotSupported pour la nuit)', () => {
     const r = extractCriteria('budget 20000 la nuit');
     expect(r.strictFilters.maxPrice).toBeUndefined();
-    expect(r.ambiguities).toContain('periodNotSupported');
+    expect(r.strictFilters.maxPricePerNight).toBe(20000);
+    expect(r.ambiguities).not.toContain('periodNotSupported');
   });
 
   it('prix "par mois"/"monthly" : unité par défaut, extraction normale', () => {
@@ -951,15 +953,17 @@ describe('extractCriteria — lot 7 : équipements', () => {
     expect(r2.strictFilters.amenities ?? []).not.toContain('parking');
   });
 
-  it('"meublé"/"furnished" : pas dans la liste réelle des équipements → mot non compris, aucune erreur', () => {
+  it('"meublé"/"furnished" : jamais dans amenities — filtre dédié `furnished` (lot meublé/durée)', () => {
     const r = extractCriteria('studio meuble a Dakar');
     expect(r.strictFilters.amenities ?? []).toEqual([]);
-    expect(r.unmatchedTokens).toContain('meuble');
+    expect(r.strictFilters.furnished).toBe(true);
+    expect(r.unmatchedTokens).not.toContain('meuble');
   });
 
-  it('négation ("non meublé"/"unfurnished") : toujours pas de filtre meublé (absent de la liste réelle)', () => {
+  it('négation ("non meublé"/"unfurnished") : furnished=false, jamais dans amenities', () => {
     const r = extractCriteria('appartement non meuble');
     expect(r.strictFilters.amenities ?? []).toEqual([]);
+    expect(r.strictFilters.furnished).toBe(false);
   });
 });
 
