@@ -4,7 +4,12 @@
  * 30/min de POST /search/parse-query est par IP ; passer par le serveur Next
  * la ferait porter sur l'IP du serveur, partagée par tous les visiteurs).
  */
-import type { MiloStrictFilters, ParseQueryResponse } from '@/components/milo/types';
+import type {
+  DetectedLanguage,
+  MiloFaqResult,
+  MiloStrictFilters,
+  ParseQueryResponse,
+} from '@/components/milo/types';
 import { getApiBaseUrl } from './runtimeUrls';
 
 const TIMEOUT_MS = 4000;
@@ -77,12 +82,10 @@ export function strictFiltersToParams(filters: MiloStrictFilters): Record<string
  * - Compris → strictFilters sérialisés + `milo=1` + `miloLang` + `miloText`
  *   + `miloUnmatched` (CSV) + `prefs` (CSV) si présents.
  */
-export async function resolveMiloRedirectParams(
+function buildRedirectParams(
+  result: ParseQueryResponse | null,
   text: string,
-  siteLocale: 'fr' | 'en',
-): Promise<URLSearchParams> {
-  const result = await parseQuery(text, siteLocale);
-
+): URLSearchParams {
   if (!result) {
     return new URLSearchParams({ q: text });
   }
@@ -102,4 +105,34 @@ export async function resolveMiloRedirectParams(
   if (result.unmatchedTokens.length > 0) params.set('miloUnmatched', result.unmatchedTokens.join(','));
   if (result.softPreferences.length > 0) params.set('prefs', result.softPreferences.join(','));
   return params;
+}
+
+export async function resolveMiloRedirectParams(
+  text: string,
+  siteLocale: 'fr' | 'en',
+): Promise<URLSearchParams> {
+  const result = await parseQuery(text, siteLocale);
+  return buildRedirectParams(result, text);
+}
+
+/**
+ * Classification Milo FAQ-aware (lot « Milo FAQ ») : un seul appel réseau,
+ * utilisé par TOUS les points d'entrée qui doivent savoir si la réponse est
+ * une FAQ (jamais de navigation dans ce cas) ou une redirection classique
+ * vers /listings (`resolveMiloRedirectParams`, inchangé, reste utilisé par
+ * les appelants qui n'affichent pas de carte FAQ).
+ */
+export type MiloQueryClassification =
+  | { kind: 'faq'; faq: MiloFaqResult; detectedLanguage: DetectedLanguage }
+  | { kind: 'redirect'; params: URLSearchParams };
+
+export async function classifyMiloQuery(
+  text: string,
+  siteLocale: 'fr' | 'en',
+): Promise<MiloQueryClassification> {
+  const result = await parseQuery(text, siteLocale);
+  if (result?.faq) {
+    return { kind: 'faq', faq: result.faq, detectedLanguage: result.detectedLanguage };
+  }
+  return { kind: 'redirect', params: buildRedirectParams(result, text) };
 }

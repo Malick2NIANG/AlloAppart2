@@ -3048,5 +3048,32 @@
     "loading": "Loading…",
     "retry": "Retry",
     "loadError": "Couldn't load content."
+  },
+  "miloFaq": {
+    "linkLabel": "Learn more",
+    "searchInsteadLabel": "Search instead",
+    "closeLabel": "Close",
+    "tarifs_abonnements": "Listing is free for individual landlords. Agency accounts have a subscription: Starter at 75,000 FCFA (up to 10 listings) or Pro at 150,000 FCFA (unlimited listings).",
+    "moyens_paiement": "Payments are secured via PayDunya, which accepts Wave, Orange Money and bank cards.",
+    "remboursement": "Cancel more than 7 days before arrival: full refund. 7 days or less before: funds go to the landlord. Landlord-initiated cancellation: full refund to the tenant.",
+    "frais_commission": "AlloAppart's commission: 10% of the amount for a nightly booking, or the equivalent of one month's rent for a monthly rental (deducted from the deposit).",
+    "contrat_caution": "For a monthly rental, the commission (1 month's rent) is deducted from the security deposit collected when the tenant moves in; the landlord receives the first month's rent and the remaining deposit.",
+    "verification_bailleur": "The AlloVérifié™ badge confirms an AlloAppart agent visited the property. It's valid for 6 months; renewal costs 25,000 FCFA.",
+    "zones_couvertes": "AlloAppart covers all 14 regions of Senegal: Dakar, Thiès, Saint-Louis, Ziguinchor, Kaolack, Diourbel, Louga, Tambacounda, Kolda, Fatick, Kaffrine, Kédougou, Matam, Sédhiou.",
+    "contact_support": "Contact support at +221 33 832 69 72 or by email at alloappart221@gmail.com.",
+    "signaler_annonce_arnaque": "Open the listing and use the \"Report this listing\" button (scam/fraud, wrong price, wrong photos, already rented, wrong location, offensive content, other).",
+    "conditions_utilisation": "See the Terms of Use for the full platform rules.",
+    "confidentialite": "See the Privacy Policy to learn how your data is used and shared.",
+    "qu_est_ce_qu_alloappart": "AlloAppart is a platform for searching and publishing real estate listings (rental and sale) in Senegal.",
+    "milo_c_est_quoi": "Milo understands your search in natural language: location, budget, property type, furnished, duration, rent or buy.",
+    "milo_exemples": "Try for example: \"2 bedrooms in Almadies under 300k\", \"Villa with pool for sale in Saly\", \"Apartment with AC to rent in Mermoz\".",
+    "devenir_bailleur": "To become a landlord, go to the \"Become a landlord\" page and follow the steps.",
+    "creer_compte": "Create your account from the sign-up page.",
+    "supprimer_compte": "You can delete your account at any time from your personal space settings.",
+    "mode_vente": "Listing is free for individual landlords; the Sale option is reserved for agencies (PRO_AGENCE accounts) with an active subscription.",
+    "publier_annonce": "Publish your listing from the \"Publish\" page: property type, features, location, price and photos.",
+    "reserver": "Browse listings then start a booking request from the listing page you're interested in.",
+    "difference_roles": "Tenant: searches for and books housing. Landlord: publishes listings. Agency (PRO_AGENCE): professional landlord with a subscription, access to the Sale option.",
+    "unknown": "I don't have an answer to that question. Contact support at +221 33 832 69 72 or alloappart221@gmail.com."
   }
 }

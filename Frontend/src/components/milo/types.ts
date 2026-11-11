@@ -47,6 +47,16 @@ export interface MiloStrictFilters {
   maxPricePerNight?: number;
 }
 
+/** Milo FAQ (lot « Milo FAQ ») — présent uniquement quand la phrase est une
+ * question sur la plateforme sans aucun critère de recherche de logement.
+ * `answerKey` est résolu côté Frontend via le namespace i18n `miloFaq.*` —
+ * le Backend ne connaît jamais le texte de la réponse. */
+export interface MiloFaqResult {
+  id: string;
+  answerKey: string;
+  confidence: number;
+}
+
 export interface ParseQueryResponse {
   detectedLanguage: DetectedLanguage;
   languageConfidence: number;
@@ -56,4 +66,5 @@ export interface ParseQueryResponse {
   unmatchedTokens: string[];
   ambiguities: MiloAmbiguity[];
   understood: boolean;
+  faq?: MiloFaqResult;
 }

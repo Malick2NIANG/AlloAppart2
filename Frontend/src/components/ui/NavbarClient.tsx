@@ -12,7 +12,9 @@ import BottomSheet from './BottomSheet';
 import MiloSearchBar from '@/components/milo/MiloSearchBar';
 import type { Locale } from '@/i18n/config';
 import { api } from '@/lib/api';
-import { resolveMiloRedirectParams } from '@/lib/milo';
+import { classifyMiloQuery } from '@/lib/milo';
+import MiloFaqCard from '@/components/milo/MiloFaqCard';
+import type { MiloFaqResult } from '@/components/milo/types';
 import type { MessageRoom, User } from '@/types';
 import { useTranslations } from 'next-intl';
 
@@ -150,6 +152,7 @@ export default function NavbarClient({ locale, labels }: Props) {
   const [miloDrawerOpen, setMiloDrawerOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchLoading,  setSearchLoading]  = useState(false);
+  const [searchFaq,      setSearchFaq]      = useState<MiloFaqResult | null>(null);
   const [searchVal,      setSearchVal]      = useState('');
   const [minPrice,       setMinPrice]       = useState('');
   const [maxPrice,       setMaxPrice]       = useState('');
@@ -297,14 +300,28 @@ export default function NavbarClient({ locale, labels }: Props) {
     }
 
     setSearchLoading(true);
+    setSearchFaq(null);
     try {
-      const params = await resolveMiloRedirectParams(trimmed, locale);
+      // Lot « Milo FAQ » : une question sur la plateforme affiche une carte
+      // SOUS la barre, reste sur la page courante, ne navigue jamais.
+      const classification = await classifyMiloQuery(trimmed, locale);
+      if (classification.kind === 'faq') {
+        setSearchFaq(classification.faq);
+        return;
+      }
+      const params = classification.params;
       if (minPrice) params.set('minPrice', minPrice);
       if (maxPrice) params.set('maxPrice', maxPrice);
       router.push(`/listings?${params.toString()}`);
     } finally {
       setSearchLoading(false);
     }
+  };
+
+  // Bouton « Lancer une recherche à la place » de la carte FAQ du header.
+  const searchInstead = () => {
+    router.push(`/listings?q=${encodeURIComponent(searchVal.trim())}`);
+    setSearchFaq(null);
   };
 
   const toggleDropdown = (key: DropdownKey) =>
@@ -364,7 +381,7 @@ export default function NavbarClient({ locale, labels }: Props) {
             <div className="flex items-center gap-2 min-w-0 md:max-lg:flex-1">
               <i className="fa-solid fa-location-dot text-gold-dark text-sm opacity-80 shrink-0" />
               <input name="q" type="text" value={searchVal}
-                onChange={(e) => setSearchVal(e.target.value)}
+                onChange={(e) => { setSearchVal(e.target.value); if (searchFaq) setSearchFaq(null); }}
                 placeholder={labels.localityPlaceholder}
                 className="min-w-0 flex-1 bg-transparent text-sm text-text placeholder:text-sub outline-none" />
             </div>
@@ -512,6 +529,19 @@ export default function NavbarClient({ locale, labels }: Props) {
           </div>
 
         </div>
+
+        {/* Carte Milo FAQ (lot « Milo FAQ ») — sous la barre PC, jamais de
+            changement d'URL ni de perte de la page courante. hidden md:block
+            car la barre PC elle-même n'existe qu'à partir de 768px. */}
+        {searchFaq && (
+          <div className="hidden md:block pb-3">
+            <MiloFaqCard
+              faq={searchFaq}
+              onSearchInstead={searchInstead}
+              onClose={() => setSearchFaq(null)}
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Drawer mobile ─────────────────────────────────────────── */}
@@ -561,7 +591,7 @@ export default function NavbarClient({ locale, labels }: Props) {
           {/* Recherche */}
           <form onSubmit={handleSearch} className="mb-3 grid gap-2 p-3 rounded-2xl border border-line bg-card">
             <input type="text" name="q" value={searchVal}
-              onChange={(e) => setSearchVal(e.target.value)}
+              onChange={(e) => { setSearchVal(e.target.value); if (searchFaq) setSearchFaq(null); }}
               placeholder={labels.mobileSearchPlaceholder}
               className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text placeholder:text-sub outline-none max-md:text-base" />
             <div className="grid grid-cols-2 gap-2">
@@ -576,6 +606,18 @@ export default function NavbarClient({ locale, labels }: Props) {
               {labels.search}
             </button>
           </form>
+
+          {/* Carte Milo FAQ (lot « Milo FAQ ») — même principe que la barre PC,
+              pour la recherche classique du tiroir mobile. */}
+          {searchFaq && (
+            <div className="mb-3">
+              <MiloFaqCard
+                faq={searchFaq}
+                onSearchInstead={searchInstead}
+                onClose={() => setSearchFaq(null)}
+              />
+            </div>
+          )}
 
           {/* Nav mobile */}
           <nav className="flex flex-col gap-1">

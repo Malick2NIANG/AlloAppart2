@@ -5,12 +5,15 @@ import MiloSearchBar from './MiloSearchBar';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
-vi.mock('next-intl', () => ({ useLocale: () => 'fr' }));
+vi.mock('next-intl', () => ({
+  useLocale: () => 'fr',
+  useTranslations: () => (key: string) => `miloFaq.${key}`,
+}));
 
-const resolveMiloRedirectParams = vi.fn();
+const classifyMiloQuery = vi.fn();
 vi.mock('@/lib/milo', async () => {
   const actual = await vi.importActual<typeof import('@/lib/milo')>('@/lib/milo');
-  return { ...actual, resolveMiloRedirectParams: (...args: unknown[]) => resolveMiloRedirectParams(...args) };
+  return { ...actual, classifyMiloQuery: (...args: unknown[]) => classifyMiloQuery(...args) };
 });
 
 const PROPS = { placeholder: 'p', ariaLabel: 'Recherche Milo', clearLabel: 'Effacer' };
@@ -18,13 +21,14 @@ const PROPS = { placeholder: 'p', ariaLabel: 'Recherche Milo', clearLabel: 'Effa
 describe('MiloSearchBar', () => {
   beforeEach(() => {
     push.mockReset();
-    resolveMiloRedirectParams.mockReset();
+    classifyMiloQuery.mockReset();
   });
 
   it('envoi : requête comprise → navigue vers /listings avec les strictFilters sérialisés + milo=1', async () => {
-    resolveMiloRedirectParams.mockResolvedValue(
-      new URLSearchParams({ region: 'Dakar', cityContains: 'Mermoz', minRooms: '3', maxRooms: '3', milo: '1', miloLang: 'fr', miloText: 'F3 à Mermoz' }),
-    );
+    classifyMiloQuery.mockResolvedValue({
+      kind: 'redirect',
+      params: new URLSearchParams({ region: 'Dakar', cityContains: 'Mermoz', minRooms: '3', maxRooms: '3', milo: '1', miloLang: 'fr', miloText: 'F3 à Mermoz' }),
+    });
     const user = userEvent.setup();
     render(<MiloSearchBar {...PROPS} />);
     await user.type(screen.getByRole('textbox'), 'F3 à Mermoz');
@@ -40,9 +44,10 @@ describe('MiloSearchBar', () => {
   });
 
   it('repli : non compris → /listings?q=<texte>, sans paramètre milo', async () => {
-    resolveMiloRedirectParams.mockResolvedValue(
-      new URLSearchParams({ q: 'bla bla bla', miloMiss: '1', miloLang: 'fr' }),
-    );
+    classifyMiloQuery.mockResolvedValue({
+      kind: 'redirect',
+      params: new URLSearchParams({ q: 'bla bla bla', miloMiss: '1', miloLang: 'fr' }),
+    });
     const user = userEvent.setup();
     render(<MiloSearchBar {...PROPS} />);
     await user.type(screen.getByRole('textbox'), 'bla bla bla');
@@ -56,7 +61,7 @@ describe('MiloSearchBar', () => {
   });
 
   it('repli silencieux : délai dépassé / erreur réseau → /listings?q=<texte> brut', async () => {
-    resolveMiloRedirectParams.mockResolvedValue(new URLSearchParams({ q: 'villa Almadies' }));
+    classifyMiloQuery.mockResolvedValue({ kind: 'redirect', params: new URLSearchParams({ q: 'villa Almadies' }) });
     const user = userEvent.setup();
     render(<MiloSearchBar {...PROPS} />);
     await user.type(screen.getByRole('textbox'), 'villa Almadies');
@@ -66,9 +71,9 @@ describe('MiloSearchBar', () => {
     expect(push).toHaveBeenCalledWith('/listings?q=villa+Almadies');
   });
 
-  it("pas de double envoi : un clic pendant le chargement n'appelle pas resolveMiloRedirectParams deux fois", async () => {
+  it("pas de double envoi : un clic pendant le chargement n'appelle pas classifyMiloQuery deux fois", async () => {
     let resolve!: (v: unknown) => void;
-    resolveMiloRedirectParams.mockReturnValue(new Promise((r) => { resolve = r; }));
+    classifyMiloQuery.mockReturnValue(new Promise((r) => { resolve = r; }));
     const user = userEvent.setup();
     render(<MiloSearchBar {...PROPS} />);
     const input = screen.getByRole('textbox');
@@ -76,8 +81,8 @@ describe('MiloSearchBar', () => {
     const submitButton = screen.getByRole('button', { name: PROPS.ariaLabel });
     await user.click(submitButton);
     await user.click(submitButton); // second clic pendant le chargement — ignoré
-    expect(resolveMiloRedirectParams).toHaveBeenCalledTimes(1);
-    resolve(new URLSearchParams({ milo: '1', miloLang: 'fr' }));
+    expect(classifyMiloQuery).toHaveBeenCalledTimes(1);
+    resolve({ kind: 'redirect', params: new URLSearchParams({ milo: '1', miloLang: 'fr' }) });
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
   });
 
@@ -86,7 +91,7 @@ describe('MiloSearchBar', () => {
     render(<MiloSearchBar {...PROPS} />);
     await user.type(screen.getByRole('textbox'), ' a ');
     await user.keyboard('{Enter}');
-    expect(resolveMiloRedirectParams).not.toHaveBeenCalled();
+    expect(classifyMiloQuery).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: PROPS.ariaLabel })).toBeDisabled();
   });
 
@@ -123,5 +128,83 @@ describe('MiloSearchBar', () => {
     expect(screen.getByText('Phrase A')).toBeInTheDocument();
     await user.click(screen.getByRole('textbox'));
     expect(screen.queryByText('Phrase A')).not.toBeInTheDocument();
+  });
+});
+
+describe('MiloSearchBar — Milo FAQ (lot « Milo FAQ »)', () => {
+  beforeEach(() => {
+    push.mockReset();
+    classifyMiloQuery.mockReset();
+  });
+
+  it('faq détectée : affiche la carte, ne navigue jamais, ne ferme jamais onSubmitted', async () => {
+    classifyMiloQuery.mockResolvedValue({
+      kind: 'faq',
+      faq: { id: 'tarifs_abonnements', answerKey: 'tarifs_abonnements', confidence: 0.75 },
+      detectedLanguage: 'fr',
+    });
+    const onSubmitted = vi.fn();
+    const user = userEvent.setup();
+    render(<MiloSearchBar {...PROPS} onSubmitted={onSubmitted} />);
+    await user.type(screen.getByRole('textbox'), 'abonnement');
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByRole('status')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    expect(onSubmitted).not.toHaveBeenCalled();
+  });
+
+  it('bouton « Lancer une recherche à la place » : navigue vers /listings?q=, referme la carte', async () => {
+    classifyMiloQuery.mockResolvedValue({
+      kind: 'faq',
+      faq: { id: 'unknown', answerKey: 'unknown', confidence: 0.3 },
+      detectedLanguage: 'fr',
+    });
+    const onSubmitted = vi.fn();
+    const user = userEvent.setup();
+    render(<MiloSearchBar {...PROPS} onSubmitted={onSubmitted} />);
+    await user.type(screen.getByRole('textbox'), 'comment ca marche');
+    await user.keyboard('{Enter}');
+    await screen.findByRole('status');
+
+    await user.click(screen.getByText('miloFaq.searchInsteadLabel'));
+    expect(push).toHaveBeenCalledWith('/listings?q=comment%20ca%20marche');
+    expect(onSubmitted).toHaveBeenCalled();
+  });
+
+  it('Échap referme la carte faq sans vider le champ', async () => {
+    classifyMiloQuery.mockResolvedValue({
+      kind: 'faq',
+      faq: { id: 'contact_support', answerKey: 'contact_support', confidence: 1 },
+      detectedLanguage: 'fr',
+    });
+    const user = userEvent.setup();
+    render(<MiloSearchBar {...PROPS} />);
+    const input = screen.getByRole('textbox');
+    await user.type(input, 'contact');
+    await user.keyboard('{Enter}');
+    await screen.findByRole('status');
+
+    await user.click(input);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(input).toHaveValue('contact');
+  });
+
+  it('retaper du texte referme la carte faq précédente', async () => {
+    classifyMiloQuery.mockResolvedValue({
+      kind: 'faq',
+      faq: { id: 'contact_support', answerKey: 'contact_support', confidence: 1 },
+      detectedLanguage: 'fr',
+    });
+    const user = userEvent.setup();
+    render(<MiloSearchBar {...PROPS} />);
+    const input = screen.getByRole('textbox');
+    await user.type(input, 'contact');
+    await user.keyboard('{Enter}');
+    await screen.findByRole('status');
+
+    await user.type(input, ' encore');
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
   });
 });

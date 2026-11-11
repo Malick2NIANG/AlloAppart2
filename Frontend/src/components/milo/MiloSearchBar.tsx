@@ -3,7 +3,9 @@
 import { useEffect, useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
-import { resolveMiloRedirectParams } from '@/lib/milo';
+import { classifyMiloQuery } from '@/lib/milo';
+import type { MiloFaqResult } from './types';
+import MiloFaqCard from './MiloFaqCard';
 
 const ROTATION_MS = 3500;
 const MAX_LENGTH = 300; // miroir de ParseQueryDto.text @MaxLength(300) — Backend/src/milo/dto/parse-query.dto.ts
@@ -59,6 +61,7 @@ export default function MiloSearchBar({
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   const [phraseIndex, setPhraseIndex] = useState(0);
+  const [faqResult, setFaqResult] = useState<MiloFaqResult | null>(null);
   const inputId = useId();
   const isHero = size === 'hero';
 
@@ -79,21 +82,42 @@ export default function MiloSearchBar({
     // Pas de double envoi, pas de requête trop courte (< 2 caractères après trim).
     if (trimmed.length < MIN_SUBMIT_LENGTH || loading) return;
     setLoading(true);
+    setFaqResult(null);
 
     try {
-      // Logique partagée (lot « loupe du header ») — mêmes replis/paramètres
-      // pour tous les points d'entrée Milo, voir resolveMiloRedirectParams.
-      const params = await resolveMiloRedirectParams(trimmed, siteLocale);
-      router.push(`/listings?${params.toString()}`);
+      // Logique partagée (lot « loupe du header », étendue lot « Milo FAQ »)
+      // — mêmes replis/paramètres pour tous les points d'entrée Milo.
+      const classification = await classifyMiloQuery(trimmed, siteLocale);
+      if (classification.kind === 'faq') {
+        // Reste sur la page, jamais de navigation — la carte s'affiche sous
+        // la barre (règle 5 : jamais de changement d'URL pour une FAQ).
+        setFaqResult(classification.faq);
+        return;
+      }
+      router.push(`/listings?${classification.params.toString()}`);
+      onSubmitted?.();
     } finally {
       setLoading(false);
-      onSubmitted?.();
     }
+  };
+
+  // Bouton « Lancer une recherche à la place » de la carte FAQ : ignore
+  // Milo, force une recherche classique avec le même texte — jamais un
+  // second appel Milo (corrige une mauvaise interprétation sans deviner
+  // à nouveau).
+  const searchInstead = () => {
+    router.push(`/listings?q=${encodeURIComponent(text.trim())}`);
+    setFaqResult(null);
+    onSubmitted?.();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
       e.preventDefault();
+      if (faqResult) {
+        setFaqResult(null);
+        return;
+      }
       setText('');
     }
   };
@@ -101,6 +125,12 @@ export default function MiloSearchBar({
   const canSubmit = !loading && text.trim().length >= MIN_SUBMIT_LENGTH;
 
   return (
+    // La className de l'appelant portait AVANT sur le <form> lui-même (ex.
+    // `flex-1 min-w-0` dans un parent flex, ListingsFilters/NavbarClient) —
+    // elle reste sur ce conteneur englobant pour ne rien changer au
+    // dimensionnement existant ; le <form> garde ses propres classes de
+    // base, inchangées, la carte FAQ s'empile juste en dessous.
+    <div className={className}>
     <form
       role="search"
       onSubmit={(e) => { e.preventDefault(); void submit(); }}
@@ -108,7 +138,7 @@ export default function MiloSearchBar({
         isHero
           ? 'h-14 border-black/5 bg-white/90 px-5 shadow-black/5 backdrop-blur-sm focus-within:shadow-xl focus-within:ring-2 focus-within:ring-gold/60 md:h-16 md:max-w-[680px] md:mx-auto dark:border-white/10 dark:bg-card/90'
           : 'border-line bg-card px-4 py-3'
-      } ${className}`}
+      }`}
     >
       <i className={`fa-solid fa-wand-magic-sparkles shrink-0 text-gold-dark ${isHero ? '' : 'text-sm'}`} aria-hidden />
       <label htmlFor={inputId} className="sr-only">{ariaLabel}</label>
@@ -123,7 +153,7 @@ export default function MiloSearchBar({
           maxLength={MAX_LENGTH}
           readOnly={loading}
           aria-busy={loading}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => { setText(e.target.value); if (faqResult) setFaqResult(null); }}
           onKeyDown={handleKeyDown}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -173,5 +203,14 @@ export default function MiloSearchBar({
         )}
       </button>
     </form>
+    {faqResult && (
+      <MiloFaqCard
+        faq={faqResult}
+        onSearchInstead={searchInstead}
+        onClose={() => setFaqResult(null)}
+        className={`mt-2 ${isHero ? 'md:max-w-[680px] md:mx-auto' : ''}`}
+      />
+    )}
+    </div>
   );
 }

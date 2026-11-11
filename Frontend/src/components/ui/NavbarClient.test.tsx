@@ -28,10 +28,10 @@ vi.mock('./NotificationBell', () => ({ default: () => null }));
 vi.mock('./ThemeToggle', () => ({ default: () => null }));
 vi.mock('./LanguageSwitcher', () => ({ default: () => null }));
 
-const resolveMiloRedirectParams = vi.fn();
+const classifyMiloQuery = vi.fn();
 vi.mock('@/lib/milo', async () => {
   const actual = await vi.importActual<typeof import('@/lib/milo')>('@/lib/milo');
-  return { ...actual, resolveMiloRedirectParams: (...args: unknown[]) => resolveMiloRedirectParams(...args) };
+  return { ...actual, classifyMiloQuery: (...args: unknown[]) => classifyMiloQuery(...args) };
 });
 
 const LABELS = {
@@ -47,11 +47,11 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
   beforeEach(() => {
     push.mockReset();
     replace.mockReset();
-    resolveMiloRedirectParams.mockReset();
+    classifyMiloQuery.mockReset();
   });
 
-  it('PC : une phrase non vide passe par Milo (resolveMiloRedirectParams), jamais un q/minPrice direct', async () => {
-    resolveMiloRedirectParams.mockResolvedValue(new URLSearchParams({ region: 'Dakar', milo: '1', miloLang: 'fr' }));
+  it('PC : une phrase non vide passe par Milo (classifyMiloQuery), jamais un q/minPrice direct', async () => {
+    classifyMiloQuery.mockResolvedValue({ kind: 'redirect', params: new URLSearchParams({ region: 'Dakar', milo: '1', miloLang: 'fr' }) });
     const user = userEvent.setup();
     render(<NavbarClient locale="fr" labels={LABELS} />);
 
@@ -59,12 +59,12 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
     await user.type(input, 'studio mermoz');
     await user.keyboard('{Enter}');
 
-    await waitFor(() => expect(resolveMiloRedirectParams).toHaveBeenCalledWith('studio mermoz', 'fr'));
+    await waitFor(() => expect(classifyMiloQuery).toHaveBeenCalledWith('studio mermoz', 'fr'));
     await waitFor(() => expect(push).toHaveBeenCalledWith(expect.stringContaining('/listings?region=Dakar')));
   });
 
   it('PC : min/max saisis sont fusionnés par-dessus le résultat Milo, jamais perdus', async () => {
-    resolveMiloRedirectParams.mockResolvedValue(new URLSearchParams({ region: 'Dakar', milo: '1', miloLang: 'fr' }));
+    classifyMiloQuery.mockResolvedValue({ kind: 'redirect', params: new URLSearchParams({ region: 'Dakar', milo: '1', miloLang: 'fr' }) });
     const user = userEvent.setup();
     render(<NavbarClient locale="fr" labels={LABELS} />);
 
@@ -81,7 +81,7 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
   });
 
   it('PC : repli silencieux (Milo indisponible) → q brut + min/max, comme avant', async () => {
-    resolveMiloRedirectParams.mockResolvedValue(new URLSearchParams({ q: 'studio mermoz' }));
+    classifyMiloQuery.mockResolvedValue({ kind: 'redirect', params: new URLSearchParams({ q: 'studio mermoz' }) });
     const user = userEvent.setup();
     render(<NavbarClient locale="fr" labels={LABELS} />);
 
@@ -97,8 +97,39 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
     await user.type(screen.getByPlaceholderText('Min'), '50000');
     await user.keyboard('{Enter}');
 
-    expect(resolveMiloRedirectParams).not.toHaveBeenCalled();
+    expect(classifyMiloQuery).not.toHaveBeenCalled();
     await waitFor(() => expect(push).toHaveBeenCalledWith('/listings?minPrice=50000'));
+  });
+
+  it('PC : une question FAQ affiche la carte sous la barre, jamais de navigation', async () => {
+    classifyMiloQuery.mockResolvedValue({
+      kind: 'faq',
+      faq: { id: 'tarifs_abonnements', answerKey: 'tarifs_abonnements', confidence: 0.75 },
+      detectedLanguage: 'fr',
+    });
+    const user = userEvent.setup();
+    render(<NavbarClient locale="fr" labels={LABELS} />);
+    await user.type(screen.getByPlaceholderText('Localité'), 'abonnement');
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByRole('status')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('PC : « lancer une recherche à la place » navigue vers /listings?q=', async () => {
+    classifyMiloQuery.mockResolvedValue({
+      kind: 'faq',
+      faq: { id: 'unknown', answerKey: 'unknown', confidence: 0.3 },
+      detectedLanguage: 'fr',
+    });
+    const user = userEvent.setup();
+    render(<NavbarClient locale="fr" labels={LABELS} />);
+    await user.type(screen.getByPlaceholderText('Localité'), 'comment ca marche');
+    await user.keyboard('{Enter}');
+    await screen.findByRole('status');
+
+    await user.click(screen.getByText('searchInsteadLabel'));
+    expect(push).toHaveBeenCalledWith('/listings?q=comment%20ca%20marche');
   });
 
   it('mobile : la loupe ouvre une feuille avec le MiloSearchBar compact (plus de lien direct vers /search)', async () => {

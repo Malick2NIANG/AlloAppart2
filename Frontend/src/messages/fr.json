@@ -3048,5 +3048,32 @@
     "loading": "Chargement en cours…",
     "retry": "Réessayer",
     "loadError": "Impossible de charger le contenu."
+  },
+  "miloFaq": {
+    "linkLabel": "En savoir plus",
+    "searchInsteadLabel": "Lancer une recherche à la place",
+    "closeLabel": "Fermer",
+    "tarifs_abonnements": "La publication est gratuite pour les bailleurs particuliers. Les agences (comptes Agence) ont un abonnement : Starter à 75 000 FCFA (10 annonces max) ou Pro à 150 000 FCFA (annonces illimitées).",
+    "moyens_paiement": "Le paiement est sécurisé via PayDunya, qui accepte Wave, Orange Money et carte bancaire.",
+    "remboursement": "Annulation plus de 7 jours avant l'arrivée : remboursement intégral. 7 jours ou moins avant : les fonds sont libérés au bailleur. Annulation par le bailleur : remboursement intégral au locataire.",
+    "frais_commission": "Commission AlloAppart : 10 % du montant pour une réservation à la nuitée, ou l'équivalent d'un mois de loyer pour une location au mois (prélevé sur la caution).",
+    "contrat_caution": "Pour une location au mois, la commission (1 mois de loyer) est prélevée sur la caution encaissée à l'entrée du locataire ; le bailleur perçoit le loyer du premier mois et le solde de la caution.",
+    "verification_bailleur": "Le badge AlloVérifié™ atteste qu'un agent AlloAppart a visité le logement. Il est valable 6 mois ; le renouvellement coûte 25 000 FCFA.",
+    "zones_couvertes": "AlloAppart couvre les 14 régions du Sénégal : Dakar, Thiès, Saint-Louis, Ziguinchor, Kaolack, Diourbel, Louga, Tambacounda, Kolda, Fatick, Kaffrine, Kédougou, Matam, Sédhiou.",
+    "contact_support": "Contactez le support au +221 33 832 69 72 ou par e-mail à alloappart221@gmail.com.",
+    "signaler_annonce_arnaque": "Ouvrez l'annonce concernée et utilisez le bouton « Signaler cette annonce » (escroquerie/fraude, prix erroné, photos erronées, déjà louée, localisation erronée, contenu choquant, autre).",
+    "conditions_utilisation": "Consultez les Conditions Générales d'Utilisation pour le détail complet des règles de la plateforme.",
+    "confidentialite": "Consultez la Politique de confidentialité pour savoir comment vos données sont utilisées et partagées.",
+    "qu_est_ce_qu_alloappart": "AlloAppart est une plateforme de recherche et de publication d'annonces immobilières (location et vente) au Sénégal.",
+    "milo_c_est_quoi": "Milo comprend votre recherche en langage naturel : lieu, budget, type de bien, meublé, durée, louer ou acheter.",
+    "milo_exemples": "Essayez par exemple : « F3 à Mermoz sous 400 000 FCFA », « Villa avec piscine à Saly à vendre », « 2 chambres climatisées aux Almadies ».",
+    "devenir_bailleur": "Pour devenir bailleur, rendez-vous sur la page « Devenir bailleur » et suivez les étapes.",
+    "creer_compte": "Créez votre compte depuis la page d'inscription.",
+    "supprimer_compte": "Vous pouvez supprimer votre compte à tout moment depuis les paramètres de votre espace personnel.",
+    "mode_vente": "La publication d'annonces est gratuite pour les bailleurs particuliers ; l'option Vente est réservée aux agences (comptes PRO_AGENCE) avec un abonnement actif.",
+    "publier_annonce": "Publiez votre annonce depuis la page « Publier » : type de bien, caractéristiques, localisation, prix et photos.",
+    "reserver": "Parcourez les annonces puis lancez une demande de réservation depuis la fiche du logement qui vous intéresse.",
+    "difference_roles": "Locataire : cherche et réserve un logement. Bailleur : publie des annonces. Agence (PRO_AGENCE) : bailleur professionnel avec abonnement, accès à l'option Vente.",
+    "unknown": "Je n'ai pas la réponse à cette question. Contactez le support au +221 33 832 69 72 ou alloappart221@gmail.com."
   }
 }
