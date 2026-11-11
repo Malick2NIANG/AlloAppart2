@@ -1135,28 +1135,27 @@ export function extractPrice(
       }
       continue;
     }
+    // Contexte de budget déjà garanti ici : l'appartenance à `nightlyBlocked`
+    // suppose l'adjacence à un mot-clé nuitée (la nuit/per night/...), même
+    // principe que `adjacentPhrase(c, monthlyPeriodKeywords)` pour le montant
+    // nu mensuel (règle G) — jamais besoin de `transactionType` en plus pour
+    // un montant nu suivi de "la nuit" (fix lot meublé/durée).
     const isApproximate = adjacentPhrase(tokens, c, approximateKeywords);
-    const clearBudgetContext =
-      isApproximate || context?.transactionType !== undefined;
-    if (clearBudgetContext) {
-      const raised = c.value * 1.1;
-      const rounded =
-        raised >= 1000 ? Math.round(raised / 1000) * 1000 : Math.round(raised);
-      claimed.add(c);
-      maxPricePerNight =
-        maxPricePerNight === undefined
-          ? rounded
-          : Math.min(maxPricePerNight, rounded);
-      ambiguities.push(isApproximate ? 'approximateAmount' : 'targetAmount');
-      markSpan(c.start, c.end);
-      matchedSpans.push({
-        category: 'price',
-        text: String(c.value),
-        value: `~${rounded}`,
-      });
-    } else {
-      ambiguities.push('amountDirection');
-    }
+    const raised = c.value * 1.1;
+    const rounded =
+      raised >= 1000 ? Math.round(raised / 1000) * 1000 : Math.round(raised);
+    claimed.add(c);
+    maxPricePerNight =
+      maxPricePerNight === undefined
+        ? rounded
+        : Math.min(maxPricePerNight, rounded);
+    ambiguities.push(isApproximate ? 'approximateAmount' : 'targetAmount');
+    markSpan(c.start, c.end);
+    matchedSpans.push({
+      category: 'price',
+      text: String(c.value),
+      value: `~${rounded}`,
+    });
   }
 
   // ── Montants compris mais sans filtre posé — ambiguïtés (lot 7) ───────

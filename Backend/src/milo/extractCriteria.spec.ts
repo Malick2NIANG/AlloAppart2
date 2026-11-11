@@ -1134,3 +1134,69 @@ describe('extractCriteria — lot 7 ter : corrections 3 (classe 2, numéros de t
     expect(r.strictFilters.maxBeds).toBe(2);
   });
 });
+
+describe('extractCriteria — fix : prix nu par nuit en budget cible', () => {
+  it('montant nu + "la nuit", sans transactionType ni direction → maxPricePerNight ×1,10, ambiguïté targetAmount', () => {
+    const r = extractCriteria('studio 15000 la nuit');
+    expect(r.strictFilters.maxPricePerNight).toBe(17000);
+    expect(r.strictFilters.maxPrice).toBeUndefined();
+    expect(r.ambiguities).toContain('targetAmount');
+  });
+
+  it('variante EN ("per night") et postfixe ("/nuit") : même résolution', () => {
+    const r1 = extractCriteria('room 15000 per night');
+    expect(r1.strictFilters.maxPricePerNight).toBe(17000);
+    const r2 = extractCriteria('appart 30000 /nuit');
+    expect(r2.strictFilters.maxPricePerNight).toBe(33000);
+  });
+
+  it('un numéro de téléphone adjacent ne bloque pas la résolution du prix par nuit', () => {
+    const r = extractCriteria('numero 70 111 22 33, villa 60000 la nuit');
+    expect(r.strictFilters.maxPricePerNight).toBe(66000);
+    expect(r.ambiguities).toContain('targetAmount');
+  });
+
+  it('une direction propre (budget/max postfixe) reste prioritaire — jamais de targetAmount en plus', () => {
+    const r1 = extractCriteria('chambre budget 20000 la nuit');
+    expect(r1.strictFilters.maxPricePerNight).toBe(20000);
+    expect(r1.ambiguities).not.toContain('targetAmount');
+
+    const r2 = extractCriteria('chambre a louer, 20000 la nuit maximum');
+    expect(r2.strictFilters.maxPricePerNight).toBe(20000);
+    expect(r2.ambiguities).not.toContain('targetAmount');
+  });
+
+  it('un montant approximatif adjacent à "la nuit" garde l\'ambiguïté approximateAmount (jamais targetAmount)', () => {
+    const r = extractCriteria('chambre environ 20000 la nuit');
+    expect(r.strictFilters.maxPricePerNight).toBe(22000);
+    expect(r.ambiguities).toContain('approximateAmount');
+    expect(r.ambiguities).not.toContain('targetAmount');
+  });
+
+  it('le fix reste scopé aux montants nuitée : un montant nu sans mot-clé nuitée garde amountDirection, aucun prix', () => {
+    const r = extractCriteria('villa a Saly 80 millions');
+    expect(r.strictFilters.maxPrice).toBeUndefined();
+    expect(r.strictFilters.maxPricePerNight).toBeUndefined();
+    expect(r.ambiguities).toContain('amountDirection');
+  });
+
+  it('le fix ne récupère jamais une période non-nuitée (semaine/jour) — periodNotSupported inchangé', () => {
+    const r = extractCriteria('chambre 15000 par semaine');
+    expect(r.strictFilters.maxPricePerNight).toBeUndefined();
+    expect(r.ambiguities).toContain('periodNotSupported');
+    expect(r.ambiguities).not.toContain('targetAmount');
+  });
+
+  it('un mot-clé nuitée sans aucun montant adjacent ne fabrique jamais de prix', () => {
+    const r = extractCriteria('chambre a louer pour la nuit');
+    expect(r.strictFilters.maxPricePerNight).toBeUndefined();
+    expect(r.ambiguities).not.toContain('targetAmount');
+  });
+
+  it('le montant nu mensuel (règle G) reste sur maxPrice, jamais maxPricePerNight', () => {
+    const r = extractCriteria('chambre 300000 par mois');
+    expect(r.strictFilters.maxPrice).toBe(330000);
+    expect(r.strictFilters.maxPricePerNight).toBeUndefined();
+    expect(r.ambiguities).toContain('targetAmount');
+  });
+});
