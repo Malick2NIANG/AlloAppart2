@@ -4,13 +4,15 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useClerk, useUser } from '@clerk/nextjs';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import ThemeToggle from './ThemeToggle';
 import LanguageSwitcher from './LanguageSwitcher';
 import NotificationBell from './NotificationBell';
+import BottomSheet from './BottomSheet';
 import MiloSearchBar from '@/components/milo/MiloSearchBar';
 import type { Locale } from '@/i18n/config';
 import { api } from '@/lib/api';
+import { resolveMiloRedirectParams } from '@/lib/milo';
 import type { MessageRoom, User } from '@/types';
 import { useTranslations } from 'next-intl';
 
@@ -24,6 +26,7 @@ interface Labels {
   favorites: string; profileLabel: string; security: string;
   localityPlaceholder: string; mobileSearchPlaceholder: string;
   agencies: string; about: string;
+  closeSearch: string;
 }
 
 interface Props { locale: Locale; labels: Labels; }
@@ -145,6 +148,8 @@ export default function NavbarClient({ locale, labels }: Props) {
   const [scrolled,       setScrolled]       = useState(false);
   const [mobileOpen,     setMobileOpen]     = useState(false);
   const [miloDrawerOpen, setMiloDrawerOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [searchLoading,  setSearchLoading]  = useState(false);
   const [searchVal,      setSearchVal]      = useState('');
   const [minPrice,       setMinPrice]       = useState('');
   const [maxPrice,       setMaxPrice]       = useState('');
@@ -157,6 +162,7 @@ export default function NavbarClient({ locale, labels }: Props) {
 
   const navRef  = useRef<HTMLDivElement>(null);
   const authRef = useRef<HTMLDivElement>(null);
+  const mobileSearchTitleId = useId();
 
   /* ── Demo mode ───────────────────────────────────────────── */
   useEffect(() => {
@@ -271,15 +277,34 @@ export default function NavbarClient({ locale, labels }: Props) {
   }, [searchParams, pathname, onVitrine]);
 
   /* ── Handlers ────────────────────────────────────────────── */
-  const handleSearch = (e: React.FormEvent) => {
+  // La barre du header reste visuellement identique (Localité + Min + Max) —
+  // seul le comportement change (lot « loupe du header ») : une phrase dans
+  // le champ Localité passe désormais par Milo (même logique partagée que
+  // MiloSearchBar, cf. resolveMiloRedirectParams), min/max restent des
+  // filtres prix explicites fusionnés par-dessus le résultat de Milo (jamais
+  // perdus). Champ vide ou vitrine d'agence : comportement direct inchangé.
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams();
-    if (searchVal.trim()) params.set('q', searchVal.trim());
-    if (minPrice)         params.set('minPrice', minPrice);
-    if (maxPrice)         params.set('maxPrice', maxPrice);
-    // Sur une vitrine d'agence, on filtre sur place au lieu de partir vers
-    // /listings — ailleurs, comportement inchangé.
-    router.push(onVitrine ? `${pathname}?${params.toString()}` : `/listings?${params.toString()}`);
+    const trimmed = searchVal.trim();
+
+    if (!trimmed || onVitrine || searchLoading) {
+      const params = new URLSearchParams();
+      if (trimmed)  params.set('q', trimmed);
+      if (minPrice) params.set('minPrice', minPrice);
+      if (maxPrice) params.set('maxPrice', maxPrice);
+      router.push(onVitrine ? `${pathname}?${params.toString()}` : `/listings?${params.toString()}`);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const params = await resolveMiloRedirectParams(trimmed, locale);
+      if (minPrice) params.set('minPrice', minPrice);
+      if (maxPrice) params.set('maxPrice', maxPrice);
+      router.push(`/listings?${params.toString()}`);
+    } finally {
+      setSearchLoading(false);
+    }
   };
 
   const toggleDropdown = (key: DropdownKey) =>
@@ -301,6 +326,7 @@ export default function NavbarClient({ locale, labels }: Props) {
 
   /* ── RENDER ──────────────────────────────────────────────── */
   return (
+    <>
     <header className={`sticky top-0 z-50 transition-all duration-300 glass ${
       scrolled ? 'shadow-[0_10px_25px_-20px_rgba(0,0,0,0.35)] border-b border-line' : 'border-b border-transparent'
     }`}>
@@ -356,11 +382,15 @@ export default function NavbarClient({ locale, labels }: Props) {
                 onChange={(e) => setMaxPrice(e.target.value)} placeholder="Max"
                 className="w-16 bg-transparent text-sm text-text placeholder:text-sub outline-none" />
             </div>
-            <button type="submit"
-              className="ml-1 flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 rounded-full bg-gold hover:bg-[#fddb4f] text-gray-900 font-semibold text-sm shadow-sm hover:shadow hover:scale-[1.02] transition-all duration-300 shrink-0">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1C1C1C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-              </svg>
+            <button type="submit" disabled={searchLoading} aria-busy={searchLoading}
+              className="ml-1 flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 rounded-full bg-gold hover:bg-[#fddb4f] text-gray-900 font-semibold text-sm shadow-sm hover:shadow hover:scale-[1.02] transition-all duration-300 shrink-0 disabled:opacity-70 disabled:hover:scale-100">
+              {searchLoading ? (
+                <i className="fa-solid fa-circle-notch animate-spin text-sm" aria-hidden />
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1C1C1C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                </svg>
+              )}
               <span className="hidden lg:inline">{labels.search}</span>
             </button>
           </form>
@@ -455,13 +485,15 @@ export default function NavbarClient({ locale, labels }: Props) {
               </div>
             )}
 
-            {/* En-tête compact mobile (lot 2a) : recherche directe + cloche
-                de notifications si connecté, avant le bouton de menu. Sans
-                effet à partir de 768px. */}
-            <Link href="/search" aria-label={labels.search}
+            {/* En-tête compact mobile (lot 2a, loupe → Milo depuis lot « loupe du
+                header ») : ouvre une feuille plein écran avec le même
+                MiloSearchBar compact que /listings et le tiroir du menu —
+                plus de navigation directe vers /search. Sans effet à partir
+                de 768px. */}
+            <button type="button" onClick={() => setMobileSearchOpen(true)} aria-label={labels.search}
               className="tap-target md:hidden rounded-full text-text/70 hover:bg-card hover:text-gold-dark transition">
               <i className="fa-solid fa-magnifying-glass text-base" />
-            </Link>
+            </button>
             {effectiveSignedIn && (
               <div className="tap-target md:hidden">
                 <NotificationBell userId={user?.id ?? ''} />
@@ -671,5 +703,30 @@ export default function NavbarClient({ locale, labels }: Props) {
         </div>
       )}
     </header>
+
+    {/* Feuille plein écran : recherche Milo mobile (loupe du header, lot
+        « loupe du header ») — même MiloSearchBar compact que /listings et le
+        tiroir du menu, mêmes replis/limites (déjà gérés par la barre et par
+        resolveMiloRedirectParams). N'affecte rien ≥768px (déclencheur
+        md:hidden). */}
+    <BottomSheet open={mobileSearchOpen} onClose={() => setMobileSearchOpen(false)} titleId={mobileSearchTitleId} fullHeight>
+      <div className="flex items-center gap-2">
+        <h2 id={mobileSearchTitleId} className="sr-only">{labels.search}</h2>
+        <MiloSearchBar
+          size="compact"
+          autoFocus
+          className="min-w-0 flex-1"
+          placeholder={tListings('askMiloButton')}
+          ariaLabel={tListings('askMiloAriaLabel')}
+          clearLabel={tListings('askMiloClear')}
+          onSubmitted={() => setMobileSearchOpen(false)}
+        />
+        <button type="button" onClick={() => setMobileSearchOpen(false)} aria-label={labels.closeSearch}
+          className="tap-target flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-card text-sub transition-colors hover:border-gold hover:text-text">
+          <i className="fa-solid fa-xmark" aria-hidden />
+        </button>
+      </div>
+    </BottomSheet>
+    </>
   );
 }

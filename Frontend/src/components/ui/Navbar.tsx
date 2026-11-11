@@ -32,6 +32,7 @@ export default async function Navbar() {
         mobileSearchPlaceholder: t('mobileSearchPlaceholder'),
         agencies:                t('agencies'),
         about:                   t('about'),
+        closeSearch:             t('closeSearch'),
       }}
     />
   );
