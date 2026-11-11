@@ -61,3 +61,45 @@ export function strictFiltersToParams(filters: MiloStrictFilters): Record<string
   if (filters.maxPricePerNight != null) params.maxPricePerNight = String(filters.maxPricePerNight);
   return params;
 }
+
+/**
+ * Résolution Milo partagée (lot « loupe du header ») : même logique pour
+ * TOUS les points d'entrée (hero, /listings, footer, tiroir mobile, header)
+ * — un seul endroit à faire évoluer, jamais de copie de `submit()`. Renvoie
+ * les `URLSearchParams` à pousser vers `/listings` (jamais la navigation
+ * elle-même : l'appelant choisit `router.push` vs autre, et peut fusionner
+ * des paramètres additionnels — ex. min/max saisis à part dans le header).
+ *
+ * Replis identiques dans les 3 cas (silencieux, jamais d'écran bloquant) :
+ * - Milo injoignable/délai dépassé (`null`) → `q` seul.
+ * - Milo répond mais n'a rien compris (`understood: false`) → `q` +
+ *   `miloMiss=1` + `miloLang` (signal dédié pour /listings).
+ * - Compris → strictFilters sérialisés + `milo=1` + `miloLang` + `miloText`
+ *   + `miloUnmatched` (CSV) + `prefs` (CSV) si présents.
+ */
+export async function resolveMiloRedirectParams(
+  text: string,
+  siteLocale: 'fr' | 'en',
+): Promise<URLSearchParams> {
+  const result = await parseQuery(text, siteLocale);
+
+  if (!result) {
+    return new URLSearchParams({ q: text });
+  }
+
+  if (!result.understood) {
+    return new URLSearchParams({
+      q: text,
+      miloMiss: '1',
+      miloLang: result.detectedLanguage,
+    });
+  }
+
+  const params = new URLSearchParams(strictFiltersToParams(result.strictFilters));
+  params.set('milo', '1');
+  params.set('miloLang', result.detectedLanguage);
+  params.set('miloText', text);
+  if (result.unmatchedTokens.length > 0) params.set('miloUnmatched', result.unmatchedTokens.join(','));
+  if (result.softPreferences.length > 0) params.set('prefs', result.softPreferences.join(','));
+  return params;
+}

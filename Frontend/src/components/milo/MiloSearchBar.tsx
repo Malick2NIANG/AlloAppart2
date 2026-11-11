@@ -3,7 +3,7 @@
 import { useEffect, useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
-import { parseQuery, strictFiltersToParams } from '@/lib/milo';
+import { resolveMiloRedirectParams } from '@/lib/milo';
 
 const ROTATION_MS = 3500;
 const MAX_LENGTH = 300; // miroir de ParseQueryDto.text @MaxLength(300) — Backend/src/milo/dto/parse-query.dto.ts
@@ -81,32 +81,9 @@ export default function MiloSearchBar({
     setLoading(true);
 
     try {
-      const result = await parseQuery(trimmed, siteLocale);
-
-      if (!result) {
-        // Repli silencieux : délai dépassé (4 s) ou erreur réseau/HTTP.
-        router.push(`/listings?q=${encodeURIComponent(trimmed)}`);
-        return;
-      }
-
-      if (!result.understood) {
-        // « Non compris » : repli sur q, avec un signal discret (miloMiss)
-        // pour que /listings affiche le message dédié plutôt qu'une simple
-        // recherche texte classique silencieuse (PLAN § 2.d, parcours 5).
-        const params = new URLSearchParams({ q: trimmed, miloMiss: '1', miloLang: result.detectedLanguage });
-        router.push(`/listings?${params.toString()}`);
-        return;
-      }
-
-      const params = new URLSearchParams(strictFiltersToParams(result.strictFilters));
-      params.set('milo', '1');
-      params.set('miloLang', result.detectedLanguage);
-      params.set('miloText', trimmed);
-      if (result.unmatchedTokens.length > 0) params.set('miloUnmatched', result.unmatchedTokens.join(','));
-      // softPreferences (lot 6a) : conservées dans l'URL, exploitées par
-      // ListingsFilters/listings.service — ce composant ne fait que les
-      // transmettre telles quelles.
-      if (result.softPreferences.length > 0) params.set('prefs', result.softPreferences.join(','));
+      // Logique partagée (lot « loupe du header ») — mêmes replis/paramètres
+      // pour tous les points d'entrée Milo, voir resolveMiloRedirectParams.
+      const params = await resolveMiloRedirectParams(trimmed, siteLocale);
       router.push(`/listings?${params.toString()}`);
     } finally {
       setLoading(false);
