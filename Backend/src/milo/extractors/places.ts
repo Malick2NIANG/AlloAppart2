@@ -6,6 +6,7 @@ import { PLACES } from '../places/places.data';
 import { PLACE_ALIASES } from '../places/aliases';
 import { QUARTIERS } from '../places/quartiers';
 import { LANDMARKS } from '../places/landmarks';
+import { GATED_HOMONYMS, hasHomonymPlaceContext } from '../places/homonymGuard';
 import {
   NUMBERED_DISTRICT_BASES,
   parseDistrictNumber,
@@ -109,6 +110,9 @@ function buildIndex(): PlaceEntry[] {
 }
 
 const PLACE_INDEX = buildIndex();
+function isKnownPlaceToken(raw: string): boolean {
+  return PLACE_INDEX.some((e) => e.words.length === 1 && e.normalized === raw);
+}
 // Triés par nombre de mots décroissant (comme NUMBERED_DISTRICT_BASES
 // ci-dessous) : un nom composé emboîté dans un autre plus long (« Keur
 // Gorgui » dans « Cité Keur Gorgui ») doit être essayé APRÈS le plus long à
@@ -269,6 +273,21 @@ export function extractPlaces(
   for (let i = 0; i < tokens.length; i++) {
     if (blocked(i, i + 1)) continue;
     const raw = tokens[i].raw;
+
+    // Homonymes de mots courants (règle 2) : seuls ces 10 noms exigent un
+    // indice de lieu avant d'être retenus — tous les autres quartiers sont
+    // inchangés (lot « quartiers homonymes de mots courants »).
+    if (
+      GATED_HOMONYMS.has(raw) &&
+      !hasHomonymPlaceContext(
+        tokens,
+        i,
+        isKnownPlaceToken,
+        (k) => alreadyConsumed.has(k) || consumed.has(k),
+      )
+    ) {
+      continue;
+    }
 
     const exact =
       findExact(SINGLE_WORD_REGIONS, raw) ?? findExact(SINGLE_WORD_PLACES, raw);

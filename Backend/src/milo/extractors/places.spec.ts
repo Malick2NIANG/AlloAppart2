@@ -577,3 +577,185 @@ describe('extractPlaces — lot « quartiers complémentaires » : 17 nouveaux q
     });
   });
 });
+
+describe('extractPlaces — lot « quartiers homonymes de mots courants » (Liberté, Plateau, Golf, Amitié, Castors, Fass, Médina, Hann, Bopp, Sicap)', () => {
+  describe('positifs : indice de lieu présent → extrait', () => {
+    it.each([
+      ['studio Plateau', 'Plateau'],
+      ['villa Golf', 'Golf'],
+      ['chambre Fass', 'Fass'],
+      ['maison Bopp', 'Bopp'],
+      ['appart Castors', 'Castors'],
+      ['studio Amitie', 'Amitié'],
+      ['maison Hann', 'Hann'],
+      ['appartement Sicap', 'Sicap'],
+    ])('type de bien juste avant : "%s" → %s', (text, expected) => {
+      const r = extractCriteria(text);
+      expect(r.strictFilters.cityContains).toBe(expected);
+      expect(r.strictFilters.region).toBe('Dakar');
+    });
+
+    it.each([
+      ['a Liberte 6', 'Liberté 6'],
+      ['appartement a Liberte', 'Liberté'],
+      ['3 pieces Sicap Liberte', 'Liberté'],
+    ])('préposition/secteur : "%s" → %s', (text, expected) => {
+      const r = extractCriteria(text);
+      expect(r.strictFilters.cityContains).toBe(expected);
+      expect(r.strictFilters.region).toBe('Dakar');
+    });
+
+    it('préposition composée "près du Golf"', () => {
+      const r = extractCriteria('appartement près du Golf');
+      expect(r.strictFilters.cityContains).toBe('Golf');
+      expect(r.strictFilters.region).toBe('Dakar');
+    });
+
+    it.each([
+      ['quartier Plateau', 'Plateau'],
+      ['secteur Golf', 'Golf'],
+      ['zone Fass', 'Fass'],
+    ])('marqueur générique : "%s" → %s', (text, expected) => {
+      const r = extractCriteria(text);
+      expect(r.strictFilters.cityContains).toBe(expected);
+    });
+
+    it.each([
+      'Plateau',
+      'Golf',
+      'Fass',
+      'Médina',
+      'Hann',
+      'Bopp',
+      'Castors',
+      'Amitié',
+      'Sicap',
+      'Liberté',
+    ])(
+      'seul mot de la phrase (comportement déjà existant, inchangé) : "%s"',
+      (name) => {
+        const r = extractCriteria(name);
+        expect(r.strictFilters.cityContains).toBe(name);
+        expect(r.strictFilters.region).toBe('Dakar');
+      },
+    );
+
+    it('"Plateau 3 chambres" : le compte de pièces ne bloque pas le statut de seul mot porteur de sens', () => {
+      const r = extractCriteria('Plateau 3 chambres');
+      expect(r.strictFilters.cityContains).toBe('Plateau');
+    });
+
+    it('région suivie du quartier ("Dakar Plateau") : contexte de lieu via la région qui précède', () => {
+      const r = extractCriteria('appart Dakar Plateau');
+      expect(r.strictFilters.cityContains).toBe('Plateau');
+      expect(r.strictFilters.region).toBe('Dakar');
+    });
+
+    it.each([
+      ['studio in Plateau', 'Plateau'],
+      ['apartment near Golf', 'Golf'],
+      ['house at Fass', 'Fass'],
+      ['room in Medina', 'Médina'],
+      ['2 bedrooms around Hann', 'Hann'],
+    ])('EN : "%s" → %s', (text, expected) => {
+      const r = extractCriteria(text);
+      expect(r.strictFilters.cityContains).toBe(expected);
+      expect(r.strictFilters.region).toBe('Dakar');
+    });
+  });
+
+  describe("négatifs : aucun indice de lieu → pas d'extraction, reste un mot non compris", () => {
+    it.each([
+      'liberte de mouvement',
+      "liberte d'expression",
+      'liberte de la presse',
+      'je veux la liberte de choisir',
+    ])('"%s" : "liberté de…" n\'est jamais un lieu', (text) => {
+      const r = extractCriteria(text);
+      expect(r.strictFilters.cityContains).toBeUndefined();
+      expect(r.strictFilters.region).toBeUndefined();
+    });
+
+    it.each([
+      'plateau repas',
+      'plateau de fruits de mer',
+      'plateau en bois',
+      'un plateau d argent',
+    ])('"%s" : "plateau" culinaire/objet n\'est jamais un lieu', (text) => {
+      const r = extractCriteria(text);
+      expect(r.strictFilters.cityContains).toBeUndefined();
+    });
+
+    it.each([
+      'golf a proximite',
+      'golf de proximite',
+      'terrain de golf',
+      'cours de golf',
+    ])('"%s" : le sport n\'est jamais un lieu', (text) => {
+      const r = extractCriteria(text);
+      expect(r.strictFilters.cityContains).toBeUndefined();
+    });
+
+    it('"comment ca marche" : aucun des homonymes présents, rien extrait', () => {
+      const r = extractCriteria('comment ca marche');
+      expect(r.strictFilters.cityContains).toBeUndefined();
+      expect(r.strictFilters.region).toBeUndefined();
+    });
+
+    it('"golf near here" (EN, sans "a golf course") : "here" bloque le statut de seul mot porteur de sens', () => {
+      const r = extractCriteria('golf near here');
+      expect(r.strictFilters.cityContains).toBeUndefined();
+    });
+
+    it.each([
+      ['liberte de mouvement', 'liberte'],
+      ['plateau repas', 'plateau'],
+      ['golf a proximite', 'golf'],
+    ])(
+      '"%s" : "%s" reste dans unmatchedTokens, jamais consommé silencieusement',
+      (text, homonym) => {
+        const r = extractCriteria(text);
+        expect(r.unmatchedTokens).toContain(homonym);
+      },
+    );
+
+    it('"terrain de golf" : le type déjà consommé ne doit PAS rendre "golf" seul mot porteur de sens', () => {
+      const r = extractCriteria('terrain de golf');
+      expect(r.strictFilters.cityContains).toBeUndefined();
+      expect(r.strictFilters.type).toBe('TERRAIN');
+    });
+  });
+
+  describe('régression (série indépendante 2, id 11) : un type/transaction/prix déjà posés ailleurs ne bloquent pas un homonyme isolé en fin de phrase', () => {
+    it('"cherche local commercial a vendre plateau 30.000.000" → Plateau toujours extrait', () => {
+      const r = extractCriteria(
+        'cherche local commercial a vendre plateau 30.000.000',
+      );
+      expect(r.strictFilters.type).toBe('LOCAL_COMMERCIAL');
+      expect(r.strictFilters.transactionType).toBe('VENTE');
+      expect(r.strictFilters.maxPrice).toBe(33_000_000);
+      expect(r.strictFilters.cityContains).toBe('Plateau');
+      expect(r.strictFilters.region).toBe('Dakar');
+    });
+  });
+
+  describe('les quartiers composés utilisant ces mots restent inchangés', () => {
+    it.each([
+      ['F3 a Mermoz Sacre-Coeur', 'Mermoz Sacré-Cœur'],
+      ['studio Golf Sud', 'Golf Sud'],
+      ['studio a Sicap Baobab', 'Sicap Baobab'],
+    ])('"%s" → %s (jamais gaté : composé ≠ homonyme nu)', (text, expected) => {
+      const r = extractCriteria(text);
+      expect(r.strictFilters.cityContains).toBe(expected);
+    });
+  });
+
+  describe('les 10 autres quartiers déjà existants (non listés) restent non gatés', () => {
+    it.each(['Almadies', 'Ouakam', 'Ngor', 'Yoff'])(
+      '"%s" seul, toujours extrait sans aucun indice de lieu (comportement inchangé)',
+      (name) => {
+        expect(extractCriteria(name).strictFilters.cityContains).toBe(name);
+      },
+    );
+  });
+});
