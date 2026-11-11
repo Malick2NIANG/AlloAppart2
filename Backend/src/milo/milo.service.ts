@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { extractCriteria } from './extractCriteria';
 import { detectLanguage } from './language/detectLanguage';
+import { detectFaqIntent, type MiloFaqResult } from './faq/detectFaq';
 import type { ParseQueryDto } from './dto/parse-query.dto';
 import type {
   DetectedLanguage,
@@ -17,6 +18,11 @@ export interface ParseQueryResponse {
   unmatchedTokens: string[];
   ambiguities: MiloAmbiguity[];
   understood: boolean;
+  /** Milo FAQ (lot « Milo FAQ ») — présent uniquement quand la phrase est
+   * une question sur la plateforme sans aucun critère de recherche de
+   * logement. Un critère de recherche gagne toujours, même en cas de doute
+   * (voir detectFaqIntent). */
+  faq?: MiloFaqResult;
 }
 
 @Injectable()
@@ -37,6 +43,13 @@ export class MiloService {
       Object.keys(extraction.strictFilters).length > 0 ||
       extraction.softPreferences.length > 0;
 
+    const faq = detectFaqIntent(text, extraction.strictFilters);
+    // Un sujet FAQ précis compte comme "compris" ; le sujet `unknown`
+    // (question sans réponse identifiée) ne l'est pas — même sémantique
+    // que pour une recherche : `understood` reflète si Milo a vraiment
+    // reconnu quelque chose, jamais juste "ce n'est pas une recherche".
+    const faqUnderstood = faq !== undefined && faq.id !== 'unknown';
+
     return {
       detectedLanguage: language.language,
       languageConfidence: language.confidence,
@@ -45,7 +58,8 @@ export class MiloService {
       softPreferences: extraction.softPreferences,
       unmatchedTokens: extraction.unmatchedTokens,
       ambiguities: extraction.ambiguities,
-      understood,
+      understood: understood || faqUnderstood,
+      ...(faq && { faq }),
     };
   }
 }
