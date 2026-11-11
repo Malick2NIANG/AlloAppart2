@@ -149,9 +149,9 @@ describe('extractPlaces — aliases (variantes à la main)', () => {
     expect(r.strictFilters.region).toBe('Dakar');
   });
 
-  it('"Saly Portudal" (forme longue) → city=Saly, region=Thiès', () => {
+  it('"Saly Portudal" : quartier composé distinct de "Saly" seul (lot « quartiers complémentaires » — ancien alias vers "Saly" retiré)', () => {
     const r = extractCriteria('Saly Portudal');
-    expect(r.strictFilters.cityContains).toBe('Saly');
+    expect(r.strictFilters.cityContains).toBe('Saly Portudal');
     expect(r.strictFilters.region).toBe('Thiès');
   });
 });
@@ -457,5 +457,123 @@ describe('extractPlaces — phrases complètes (exemples du cahier des charges)'
     expect(r.strictFilters.maxBeds).toBeUndefined();
     expect(r.strictFilters.region).toBeUndefined();
     expect(r.strictFilters.cityContains).toBeUndefined();
+  });
+});
+
+describe('extractPlaces — lot « quartiers complémentaires » : 17 nouveaux quartiers Dakar + 3 Thiès', () => {
+  it.each([
+    ['appart a Keur Gorgui', 'Keur Gorgui'],
+    ['chambre a Nord Foire', 'Nord Foire'],
+    ['appart a Dalifort', 'Dalifort'],
+    ['studio a Sahm', 'Sahm'],
+    ['chambre a Hamo', 'Hamo'],
+    ['appart Zone B', 'Zone B'],
+    ['villa a Gibraltar', 'Gibraltar'],
+    ['chambre a Jaxaay', 'Jaxaay'],
+    ['villa a Tivaoune Peulh', 'Tivaoune Peulh'],
+    ['appart a Niacoulrab', 'Niacoulrab'],
+    ['villa a Cite Djily Mbaye', 'Cité Djily Mbaye'],
+    ['appart a Cite Comico', 'Cité Comico'],
+    ['chambre a Wakhinane Nimzatt', 'Wakhinane Nimzatt'],
+  ])('"%s" → cityContains=%s, region=Dakar', (text, expected) => {
+    const r = extractCriteria(text);
+    expect(r.strictFilters.cityContains).toBe(expected);
+    expect(r.strictFilters.region).toBe('Dakar');
+  });
+
+  it.each([
+    ['villa a Nianing', 'Nianing'],
+    ['studio a Mbodiene', 'Mbodiène'],
+  ])('"%s" → cityContains=%s, region=Thiès', (text, expected) => {
+    const r = extractCriteria(text);
+    expect(r.strictFilters.cityContains).toBe(expected);
+    expect(r.strictFilters.region).toBe('Thiès');
+  });
+
+  describe('composés vs préfixes (le composé gagne, les deux restent valables séparément)', () => {
+    it('"Sicap Baobab" ≠ "Sicap"', () => {
+      expect(
+        extractCriteria('studio a Sicap Baobab').strictFilters.cityContains,
+      ).toBe('Sicap Baobab');
+      expect(extractCriteria('studio a Sicap').strictFilters.cityContains).toBe(
+        'Sicap',
+      );
+    });
+
+    it('"Saly Portudal" ≠ "Saly"', () => {
+      expect(
+        extractCriteria('maison Saly Portudal').strictFilters.cityContains,
+      ).toBe('Saly Portudal');
+      expect(extractCriteria('maison a Saly').strictFilters.cityContains).toBe(
+        'Saly',
+      );
+    });
+
+    it('"Golf Sud" ≠ "Golf"', () => {
+      expect(
+        extractCriteria('studio Golf Sud').strictFilters.cityContains,
+      ).toBe('Golf Sud');
+      expect(extractCriteria('studio Golf').strictFilters.cityContains).toBe(
+        'Golf',
+      );
+    });
+
+    it('"Cité Keur Gorgui" ≠ "Keur Gorgui" (emboîtement à 2 niveaux — le plus long gagne)', () => {
+      expect(
+        extractCriteria('appart a Cite Keur Gorgui').strictFilters.cityContains,
+      ).toBe('Cité Keur Gorgui');
+      expect(
+        extractCriteria('appart a Keur Gorgui').strictFilters.cityContains,
+      ).toBe('Keur Gorgui');
+    });
+
+    it('"Médina Gounass" ≠ "Médina" (même principe, préfixe déjà existant)', () => {
+      expect(
+        extractCriteria('appart Medina Gounass').strictFilters.cityContains,
+      ).toBe('Médina Gounass');
+      expect(extractCriteria('appart Medina').strictFilters.cityContains).toBe(
+        'Médina',
+      );
+    });
+  });
+
+  describe('insensible à la casse, aux accents et aux tirets', () => {
+    it('casse : "APPART A SICAP BAOBAB" toujours reconnu', () => {
+      const r = extractCriteria('APPART A SICAP BAOBAB');
+      expect(r.strictFilters.cityContains).toBe('Sicap Baobab');
+    });
+
+    it('accents : "Medina Gounass" (sans accent) → "Médina Gounass" canonique', () => {
+      const r = extractCriteria('appart a Medina Gounass');
+      expect(r.strictFilters.cityContains).toBe('Médina Gounass');
+    });
+
+    it.each([
+      ['studio a golf-sud', 'Golf Sud'],
+      ['villa a CITE-KEUR-GORGUI', 'Cité Keur Gorgui'],
+      ['appart sicap-baobab', 'Sicap Baobab'],
+      ['maison saly-portudal', 'Saly Portudal'],
+    ])('tiret : "%s" → %s', (text, expected) => {
+      expect(extractCriteria(text).strictFilters.cityContains).toBe(expected);
+    });
+  });
+
+  describe('FR/EN', () => {
+    it.each([
+      ['2 bedrooms in Keur Gorgui', 'Keur Gorgui'],
+      ['apartment in Golf Sud', 'Golf Sud'],
+      ['house for rent in Sicap Baobab', 'Sicap Baobab'],
+      ['room in Nianing', 'Nianing'],
+    ])('"%s" → cityContains=%s', (text, expected) => {
+      expect(extractCriteria(text).strictFilters.cityContains).toBe(expected);
+    });
+  });
+
+  describe('ancien alias "saly portudal" → "Saly" retiré (superseded par le quartier composé)', () => {
+    it('"Saly Portudal" seul → cityContains="Saly Portudal", jamais collapsé vers "Saly"', () => {
+      const r = extractCriteria('Saly Portudal');
+      expect(r.strictFilters.cityContains).toBe('Saly Portudal');
+      expect(r.strictFilters.region).toBe('Thiès');
+    });
   });
 });

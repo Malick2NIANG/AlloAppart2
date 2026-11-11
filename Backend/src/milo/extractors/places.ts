@@ -109,7 +109,14 @@ function buildIndex(): PlaceEntry[] {
 }
 
 const PLACE_INDEX = buildIndex();
-const MULTI_WORD = PLACE_INDEX.filter((e) => e.words.length > 1);
+// Triés par nombre de mots décroissant (comme NUMBERED_DISTRICT_BASES
+// ci-dessous) : un nom composé emboîté dans un autre plus long (« Keur
+// Gorgui » dans « Cité Keur Gorgui ») doit être essayé APRÈS le plus long à
+// chaque position, sans quoi le plus court le consommerait en premier et le
+// plus long ne matcherait jamais (lot « quartiers complémentaires »).
+const MULTI_WORD = PLACE_INDEX.filter((e) => e.words.length > 1).sort(
+  (a, b) => b.words.length - a.words.length,
+);
 const SINGLE_WORD_REGIONS = PLACE_INDEX.filter(
   (e) => e.words.length === 1 && e.kind === 'region',
 );

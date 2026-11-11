@@ -78,6 +78,29 @@ export const QUARTIERS: Quartier[] = [
   // de Yène), région de Dakar — pas Thiès comme précédemment saisi.
   { name: 'Toubab Dialaw', region: 'Dakar', needsValidation: true },
 
+  // ── Dakar — complément « quartiers complémentaires » ──────────────────
+  { name: 'Keur Gorgui', region: 'Dakar', needsValidation: true },
+  // Composé distinct de "Keur Gorgui" seul (même principe que "Mermoz
+  // Sacré-Cœur") — les deux restent aussi valables séparément.
+  { name: 'Cité Keur Gorgui', region: 'Dakar', needsValidation: true },
+  // Composé distinct de "Sicap" seul (déjà listé ci-dessus).
+  { name: 'Sicap Baobab', region: 'Dakar', needsValidation: true },
+  { name: 'Nord Foire', region: 'Dakar', needsValidation: true },
+  { name: 'Dalifort', region: 'Dakar', needsValidation: true },
+  { name: 'Sahm', region: 'Dakar', needsValidation: true },
+  { name: 'Hamo', region: 'Dakar', needsValidation: true },
+  { name: 'Zone B', region: 'Dakar', needsValidation: true },
+  { name: 'Gibraltar', region: 'Dakar', needsValidation: true },
+  { name: 'Médina Gounass', region: 'Dakar', needsValidation: true },
+  // Composé distinct de "Golf" seul (déjà listé ci-dessus).
+  { name: 'Golf Sud', region: 'Dakar', needsValidation: true },
+  { name: 'Jaxaay', region: 'Dakar', needsValidation: true },
+  { name: 'Tivaoune Peulh', region: 'Dakar', needsValidation: true },
+  { name: 'Niacoulrab', region: 'Dakar', needsValidation: true },
+  { name: 'Cité Djily Mbaye', region: 'Dakar', needsValidation: true },
+  { name: 'Cité Comico', region: 'Dakar', needsValidation: true },
+  { name: 'Wakhinane Nimzatt', region: 'Dakar', needsValidation: true },
+
   // ── Thiès ──────────────────────────────────────────────────────────
   { name: 'Saly', region: 'Thiès', needsValidation: true },
   { name: 'Somone', region: 'Thiès', needsValidation: true },
@@ -95,4 +118,10 @@ export const QUARTIERS: Quartier[] = [
   // (Pout) et de Mbour (Sindia), région de Thiès.
   { name: 'Pout', region: 'Thiès', needsValidation: true },
   { name: 'Sindia', region: 'Thiès', needsValidation: true },
+
+  // ── Thiès — complément « quartiers complémentaires » ──────────────────
+  { name: 'Nianing', region: 'Thiès', needsValidation: true },
+  { name: 'Mbodiène', region: 'Thiès', needsValidation: true },
+  // Composé distinct de "Saly" seul (déjà listé ci-dessus).
+  { name: 'Saly Portudal', region: 'Thiès', needsValidation: true },
 ];
