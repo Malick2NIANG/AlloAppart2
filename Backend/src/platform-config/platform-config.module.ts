@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { PlatformConfigController } from './platform-config.controller';
+import { TarifsController } from './tarifs.controller';
 import { PlatformConfigService } from './platform-config.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 
@@ -8,7 +9,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 @Global()
 @Module({
   imports: [NotificationsModule],
-  controllers: [PlatformConfigController],
+  controllers: [PlatformConfigController, TarifsController],
   providers: [PlatformConfigService],
   exports: [PlatformConfigService],
 })

@@ -92,6 +92,20 @@ export interface PlatformPricing {
 }
 
 /**
+ * Sous-ensemble public de PlatformPricing — exactement ce qui est déjà
+ * affiché sur /bailleur/abonnement (plans + commissions + AlloVérifié),
+ * jamais `boostPriceFcfa` (page /bailleur/boost, hors scope de la page
+ * publique /tarifs). Consommé par TarifsController (lot « page /tarifs »).
+ */
+export interface PublicPricing {
+  starterPriceFcfa: number;
+  proPriceFcfaMonthly: number;
+  nightlyCommissionRate: number;
+  monthlyCommissionMonths: number;
+  auditBasicPriceFcfa: number;
+}
+
+/**
  * Configuration tarifaire de la plateforme (plans, commission, AlloVérifié,
  * boost) — éditable depuis espace/config, protégée par un code PIN (par
  * défaut 2002, modifiable) ou par un code de confirmation envoyé par email
@@ -203,6 +217,18 @@ export class PlatformConfigService {
       monthlyCommissionMonths: row.monthlyCommissionMonths,
       auditBasicPriceFcfa: row.auditBasicPriceFcfa,
       boostPriceFcfa: row.boostPriceFcfa,
+    };
+  }
+
+  /** Version publique (sans authentification) de getPricing() — voir PublicPricing. */
+  async getPublicPricing(): Promise<PublicPricing> {
+    const row = await this.getOrCreateRow();
+    return {
+      starterPriceFcfa: row.starterPriceFcfa,
+      proPriceFcfaMonthly: row.proPriceFcfaMonthly,
+      nightlyCommissionRate: row.nightlyCommissionRate,
+      monthlyCommissionMonths: row.monthlyCommissionMonths,
+      auditBasicPriceFcfa: row.auditBasicPriceFcfa,
     };
   }
 
