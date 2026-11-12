@@ -4,8 +4,10 @@
  * la carte n'affiche pas de lien, seulement le texte de réponse.
  */
 export const FAQ_LINKS: Record<string, string> = {
-  tarifs_abonnements: '/bailleur/abonnement',
-  moyens_paiement: '/bailleur/abonnement',
+  // Lot « page /tarifs » : les deux sujets tarifaires pointent désormais
+  // vers la page publique dédiée plutôt que vers l'espace bailleur connecté.
+  tarifs_abonnements: '/tarifs',
+  moyens_paiement: '/tarifs',
   remboursement: '/cgu',
   frais_commission: '/cgu',
   contrat_caution: '/cgu',
@@ -26,4 +28,9 @@ export const FAQ_LINKS: Record<string, string> = {
   notifications: '/notifications',
   avis: '/locataire/bookings',
   contacter_bailleur: '/listings',
+  // Lot « FAQ : décisions de contenu ».
+  connexion_probleme: '/sign-in',
+  annonce_validation: '/cgu',
+  // app_mobile : pas de lien — rien à ouvrir, l'installation se fait depuis
+  // le navigateur lui-même (menu natif), pas depuis une page de l'app.
 };

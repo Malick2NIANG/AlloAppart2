@@ -152,6 +152,7 @@
     "tagline": "Find your ideal home in Senegal with confidence. Every listing is verified on-site by our certified field agents.",
     "nav": "Navigation",
     "navListings": "Listings",
+    "navTarifs": "Pricing",
     "navSearch": "Search",
     "navRegions": "Regions",
     "navFavorites": "Favourites",
@@ -695,6 +696,10 @@
       {
         "label": "About us",
         "href": "/a-propos"
+      },
+      {
+        "label": "Pricing",
+        "href": "/tarifs"
       },
       {
         "label": "Terms of Service",
@@ -3081,6 +3086,26 @@
     "notifications": "The bell icon shows your notifications (new booking, booking confirmed/cancelled, review received, AlloVérifié steps, reported listing, dispute, admin announcement). Use \"Mark all as read\" or \"See all notifications\".",
     "avis": "The \"Leave a review\" button appears on the listing page once your stay is complete (\"You must have stayed at this property to leave a review.\"). Find your bookings in your tenant space.",
     "contacter_bailleur": "On a rental listing page, write your message then click \"Contact landlord\". For a sale listing, use \"Contact on WhatsApp\", call, or SMS to the agency.",
+    "app_mobile": "We don't have an app on the stores: AlloAppart installs directly from your browser. On Android: browser menu → \"Install\" or \"Add to Home screen\". On iPhone (Safari): \"Share\" button → \"Add to Home Screen\".",
+    "connexion_probleme": "If you can't sign in: click \"Forgot?\" on the sign-in page (you'll get an emailed code to set a new password), or use the \"Continue with Google\" button. If the problem continues, contact us.",
+    "annonce_validation": "Your listing is published immediately as soon as you submit it as active (the \"Publish\" button). It can later be suspended by our team if it doesn't comply with our Terms of Use.",
     "unknown": "I don't have an answer to that question. Contact support at +221 33 832 69 72 or alloappart221@gmail.com."
+  },
+  "tarifs": {
+    "metaTitle": "Pricing — AlloAppart",
+    "metaDescription": "Free listing for individuals, Starter and Pro subscriptions for agencies, commissions and AlloVérifié™: all AlloAppart pricing.",
+    "badge": "Pricing",
+    "title": "Our pricing",
+    "individualTitle": "Individual landlord",
+    "individualPrice": "Free",
+    "agencyTitle": "Agencies (PRO_AGENCE)",
+    "unavailable": "Pricing temporarily unavailable. Contact us to find out.",
+    "commissionTitle": "AlloAppart commission",
+    "commissionNightly": "{rate}% of the amount for a nightly booking",
+    "commissionMonthly": "{months} month's rent for a monthly rental, deducted from the deposit",
+    "auditTitle": "AlloVérifié™",
+    "auditValue": "{price} FCFA · valid for 6 months",
+    "ctaBecomeBailleur": "Become a landlord / agency",
+    "ctaContact": "Contact"
   }
 }

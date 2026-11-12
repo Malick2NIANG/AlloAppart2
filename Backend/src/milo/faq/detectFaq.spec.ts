@@ -235,3 +235,57 @@ describe('detectFaqIntent — lot « FAQ procédurales » (photos, modifier/supp
     expect(faqFor('contact support')?.id).toBe('contact_support');
   });
 });
+
+describe('detectFaqIntent — lot « FAQ : décisions de contenu » (app_mobile, connexion_probleme, annonce_validation)', () => {
+  it.each([
+    ['avez vous une application', 'app_mobile'],
+    ["comment installer l'application", 'app_mobile'],
+    ["comment installer l'app", 'app_mobile'],
+    ['application mobile', 'app_mobile'],
+    ['mot de passe oublie', 'connexion_probleme'],
+    ["je n'arrive pas a me connecter", 'connexion_probleme'],
+    ['probleme de connexion', 'connexion_probleme'],
+    ['comment me connecter', 'connexion_probleme'],
+    ['mon annonce est elle validee', 'annonce_validation'],
+    ["validation de l'annonce", 'annonce_validation'],
+    ['annonce en attente', 'annonce_validation'],
+    ['combien coute l abonnement', 'tarifs_abonnements'],
+  ])('FR : "%s" → %s', (text, expectedId) => {
+    expect(faqFor(text)?.id).toBe(expectedId);
+  });
+
+  it.each([
+    ['do you have an app', 'app_mobile'],
+    ['how do i install the app', 'app_mobile'],
+    ['is there an app', 'app_mobile'],
+    ['mobile app', 'app_mobile'],
+    ['forgot my password', 'connexion_probleme'],
+    ["i can't log in", 'connexion_probleme'],
+    ['login problem', 'connexion_probleme'],
+    ['trouble signing in', 'connexion_probleme'],
+    ['is my listing reviewed before publishing', 'annonce_validation'],
+    ['does my listing need approval', 'annonce_validation'],
+    ['is my listing pending approval', 'annonce_validation'],
+    ['how much does the subscription cost', 'tarifs_abonnements'],
+  ])('EN : "%s" → %s', (text, expectedId) => {
+    expect(faqFor(text)?.id).toBe(expectedId);
+  });
+
+  // Pièges explicites de la tâche : un critère de recherche présent gagne
+  // toujours, même quand la phrase contient un mot-clé de ces nouveaux sujets.
+  it.each(['studio avec connexion internet', 'villa avec application mobile'])(
+    '"%s" reste une recherche, jamais une faq (lot décisions de contenu)',
+    (text) => {
+      expect(faqFor(text)).toBeUndefined();
+    },
+  );
+
+  it("annonce_validation ne parle jamais d'un délai (réponse Backend = id seul, texte côté Frontend)", () => {
+    // Le Backend ne connaît jamais le texte de la réponse (answerKey
+    // uniquement, cf. doc de faqTopics.ts) — ce test garde seulement la
+    // trace que le sujet est bien actif et correctement identifié.
+    const faq = faqFor('mon annonce est elle validee');
+    expect(faq?.id).toBe('annonce_validation');
+    expect(faq?.answerKey).toBe('annonce_validation');
+  });
+});

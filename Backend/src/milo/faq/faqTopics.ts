@@ -7,9 +7,23 @@
  *
  * Seuls les sujets dont la réponse recopie un contenu RÉELLEMENT documenté
  * ailleurs dans le projet (CGU, page abonnement, examples.ts, Footer…) sont
- * listés ici — jamais un sujet inventé. Les sujets non couverts (ex.
- * annonce_validation, app_mobile, connexion_probleme) n'ont volontairement
- * aucune entrée : voir le rapport pour la liste à écrire.
+ * listés ici — jamais un sujet inventé.
+ *
+ * app_mobile/connexion_probleme/annonce_validation (lot « FAQ : décisions de
+ * contenu ») : les trois étaient en attente faute de contenu vérifié.
+ * - app_mobile : aucune bannière/texte PWA existant trouvé dans le code —
+ *   formulation générique (menu navigateur Android, Safari « Partager » sur
+ *   iPhone), aucune app sur les stores annoncée.
+ * - connexion_probleme : seuls « Mot de passe oublié ? » (reset par code
+ *   e-mail) et « Continuer avec Google » existent réellement sur /sign-in
+ *   (SignInForm.tsx) — pas de connexion par code e-mail autonome (le code
+ *   e-mail n'intervient que pour réinitialiser le mot de passe ou pour la
+ *   2FA, jamais comme mode de connexion à part entière).
+ * - annonce_validation : activé — le code confirme qu'une annonce soumise
+ *   avec status ACTIVE est publiée immédiatement (listings.service.ts
+ *   `create()`, `wantsToPublish`), sans validation admin préalable ; seule
+ *   une suspension a posteriori est possible (`suspendListing`, ADMIN).
+ *   Aucun délai documenté nulle part — jamais mentionné dans la réponse.
  */
 export interface FaqTopic {
   id: string;
@@ -455,6 +469,80 @@ export const FAQ_TOPICS: FaqTopic[] = [
         'how do i contact the landlord',
         'how do i reach the landlord',
         'talk to the landlord',
+      ],
+    },
+  },
+
+  // ── Lot « FAQ : décisions de contenu » — voir doc en tête de fichier ──
+  {
+    id: 'app_mobile',
+    answerKey: 'app_mobile',
+    keywords: {
+      fr: [
+        'avez vous une application',
+        'avez vous une app',
+        'application mobile',
+        'app mobile',
+        "comment installer l'application",
+        "comment installer l'app",
+        "installer l'application",
+        "telecharger l'application",
+        "telecharger l'app",
+        'y a t il une application',
+      ],
+      en: [
+        'do you have an app',
+        'do you have a mobile app',
+        'mobile app',
+        'how do i install the app',
+        'install the app',
+        'download the app',
+        'is there an app',
+      ],
+    },
+  },
+  {
+    id: 'connexion_probleme',
+    answerKey: 'connexion_probleme',
+    keywords: {
+      fr: [
+        'mot de passe oublie',
+        "j'ai oublie mon mot de passe",
+        "je n'arrive pas a me connecter",
+        'impossible de me connecter',
+        'probleme de connexion',
+        'je ne peux pas me connecter',
+        'comment me connecter',
+      ],
+      en: [
+        'forgot my password',
+        'forgot password',
+        "i can't log in",
+        'i cannot log in',
+        'unable to log in',
+        'login problem',
+        'trouble signing in',
+      ],
+    },
+  },
+  {
+    id: 'annonce_validation',
+    answerKey: 'annonce_validation',
+    keywords: {
+      fr: [
+        'mon annonce est elle validee',
+        'annonce validee par un admin',
+        "validation de l'annonce",
+        'mon annonce doit elle etre validee',
+        'mon annonce est elle en attente de validation',
+        'annonce en attente',
+        'mon annonce est elle visible immediatement',
+      ],
+      en: [
+        'is my listing reviewed before publishing',
+        'does my listing need approval',
+        'is my listing pending approval',
+        'is my listing live immediately',
       ],
     },
   },

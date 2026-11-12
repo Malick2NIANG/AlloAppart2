@@ -152,6 +152,7 @@
     "tagline": "Trouvez votre logement idéal au Sénégal en toute confiance. Chaque annonce est vérifiée sur place par nos agents terrain certifiés.",
     "nav": "Navigation",
     "navListings": "Annonces",
+    "navTarifs": "Tarifs",
     "navSearch": "Rechercher",
     "navRegions": "Régions",
     "navFavorites": "Favoris",
@@ -695,6 +696,10 @@
       {
         "label": "À propos",
         "href": "/a-propos"
+      },
+      {
+        "label": "Tarifs",
+        "href": "/tarifs"
       },
       {
         "label": "CGU",
@@ -3081,6 +3086,26 @@
     "notifications": "La cloche affiche vos notifications (nouvelle réservation, réservation confirmée/annulée, avis reçu, étapes AlloVérifié, annonce signalée, litige, annonce de l'admin). Utilisez « Tout marquer lu » ou « Voir toutes les notifications ».",
     "avis": "Le bouton « Laisser un avis » apparaît sur la fiche annonce une fois votre séjour terminé (« Vous devez avoir séjourné dans ce logement pour laisser un avis. »). Retrouvez vos réservations dans votre espace locataire.",
     "contacter_bailleur": "Sur la fiche d'une annonce en location, écrivez votre message puis cliquez sur « Contacter le bailleur ». Pour une annonce en vente, utilisez « Contacter sur WhatsApp », l'appel ou le SMS vers l'agence.",
+    "app_mobile": "Nous n'avons pas d'application sur les stores : AlloAppart s'installe directement depuis votre navigateur. Sur Android : menu du navigateur → « Installer » ou « Ajouter à l'écran d'accueil ». Sur iPhone (Safari) : bouton « Partager » → « Sur l'écran d'accueil ».",
+    "connexion_probleme": "Si vous n'arrivez pas à vous connecter : cliquez sur « Mot de passe oublié ? » sur la page de connexion (un code vous sera envoyé par e-mail pour en choisir un nouveau), ou utilisez le bouton « Continuer avec Google ». Si le problème persiste, contactez-nous.",
+    "annonce_validation": "Votre annonce est publiée immédiatement dès que vous la soumettez comme active (bouton « Publier »). Elle peut ensuite être suspendue a posteriori par notre équipe en cas de non-conformité à nos CGU.",
     "unknown": "Je n'ai pas la réponse à cette question. Contactez le support au +221 33 832 69 72 ou alloappart221@gmail.com."
+  },
+  "tarifs": {
+    "metaTitle": "Nos tarifs — AlloAppart",
+    "metaDescription": "Publication gratuite pour les particuliers, abonnements Starter et Pro pour les agences, commissions et AlloVérifié™ : tous les tarifs AlloAppart.",
+    "badge": "Tarifs",
+    "title": "Nos tarifs",
+    "individualTitle": "Bailleur particulier",
+    "individualPrice": "Gratuit",
+    "agencyTitle": "Agences (PRO_AGENCE)",
+    "unavailable": "Tarifs temporairement indisponibles. Contactez-nous pour les connaître.",
+    "commissionTitle": "Commission AlloAppart",
+    "commissionNightly": "{rate}% du montant pour une réservation à la nuitée",
+    "commissionMonthly": "{months} mois de loyer pour une location au mois, prélevé sur la caution",
+    "auditTitle": "AlloVérifié™",
+    "auditValue": "{price} FCFA · valable 6 mois",
+    "ctaBecomeBailleur": "Devenir bailleur / agence",
+    "ctaContact": "Contact"
   }
 }

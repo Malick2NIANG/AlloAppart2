@@ -30,7 +30,7 @@ describe('MiloFaqCard', () => {
       />,
     );
     const link = screen.getByRole('link', { name: 'miloFaq.linkLabel' });
-    expect(link).toHaveAttribute('href', '/bailleur/abonnement');
+    expect(link).toHaveAttribute('href', '/tarifs');
   });
 
   it.each([
@@ -42,6 +42,20 @@ describe('MiloFaqCard', () => {
     ['avis', '/locataire/bookings'],
     ['contacter_bailleur', '/listings'],
   ])('lien correct pour le sujet "%s" (lot FAQ procédurales)', (id, href) => {
+    render(
+      <MiloFaqCard
+        faq={{ id, answerKey: id, confidence: 0.75 }}
+        onSearchInstead={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('link', { name: 'miloFaq.linkLabel' })).toHaveAttribute('href', href);
+  });
+
+  it.each([
+    ['connexion_probleme', '/sign-in'],
+    ['annonce_validation', '/cgu'],
+  ])('lien correct pour le sujet "%s" (lot FAQ : décisions de contenu)', (id, href) => {
     render(
       <MiloFaqCard
         faq={{ id, answerKey: id, confidence: 0.75 }}
