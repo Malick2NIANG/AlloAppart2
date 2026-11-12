@@ -33,6 +33,25 @@ describe('MiloFaqCard', () => {
     expect(link).toHaveAttribute('href', '/bailleur/abonnement');
   });
 
+  it.each([
+    ['photos_annonce', '/publier'],
+    ['modifier_supprimer_annonce', '/bailleur/listings'],
+    ['favoris', '/locataire/favorites'],
+    ['messagerie', '/messages'],
+    ['notifications', '/notifications'],
+    ['avis', '/locataire/bookings'],
+    ['contacter_bailleur', '/listings'],
+  ])('lien correct pour le sujet "%s" (lot FAQ procédurales)', (id, href) => {
+    render(
+      <MiloFaqCard
+        faq={{ id, answerKey: id, confidence: 0.75 }}
+        onSearchInstead={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('link', { name: 'miloFaq.linkLabel' })).toHaveAttribute('href', href);
+  });
+
   it("n'affiche aucun lien quand le sujet n'en a pas (ex. milo_c_est_quoi)", () => {
     render(
       <MiloFaqCard

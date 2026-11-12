@@ -150,7 +150,12 @@ export const FAQ_TOPICS: FaqTopic[] = [
         'joindre le support',
         'service client',
       ],
-      en: ['contact', 'contact support', 'customer service'],
+      // "contact" nu volontairement absent côté EN (contrairement au FR) :
+      // "contact" est aussi le verbe nu de "contact the landlord"/"contact
+      // landlord" (lot « FAQ procédurales »), même token exact — jamais la
+      // bonne réponse dans ce cas. Le FR "contacter" (forme conjuguée) ne
+      // collisionne pas avec le "contact" nu, d'où l'asymétrie assumée.
+      en: ['contact support', 'customer service', 'support team'],
     },
   },
   {
@@ -324,6 +329,132 @@ export const FAQ_TOPICS: FaqTopic[] = [
       en: [
         'difference between tenant and landlord',
         'what are the account roles',
+      ],
+    },
+  },
+
+  // ── Lot « FAQ procédurales » : parcours réels, aucune limite/délai inventé ──
+  {
+    id: 'photos_annonce',
+    answerKey: 'photos_annonce',
+    keywords: {
+      fr: [
+        'comment ajouter des photos',
+        'comment mettre des photos',
+        'ajouter des photos a mon annonce',
+        'comment uploader des photos',
+        'format des photos',
+        'taille des photos',
+      ],
+      en: [
+        'how do i add photos',
+        'how to add photos',
+        'how do i upload photos',
+        'photo format',
+        'photo size limit',
+      ],
+    },
+  },
+  {
+    id: 'modifier_supprimer_annonce',
+    answerKey: 'modifier_supprimer_annonce',
+    keywords: {
+      fr: [
+        'comment modifier mon annonce',
+        'comment supprimer mon annonce',
+        'supprimer une annonce',
+        'modifier une annonce',
+      ],
+      en: [
+        'how do i edit my listing',
+        'how do i delete my listing',
+        'delete a listing',
+        'edit a listing',
+      ],
+    },
+  },
+  {
+    id: 'favoris',
+    answerKey: 'favoris',
+    keywords: {
+      fr: [
+        'comment ajouter aux favoris',
+        'comment voir mes favoris',
+        'ou sont mes favoris',
+        'liste de mes favoris',
+      ],
+      en: [
+        'how do i save a listing',
+        'how do i see my favorites',
+        'where are my favorites',
+        'my favorites list',
+      ],
+    },
+  },
+  {
+    id: 'messagerie',
+    answerKey: 'messagerie',
+    keywords: {
+      fr: [
+        'comment voir mes messages',
+        'ou sont mes messages',
+        'comment repondre a un message',
+        'ma messagerie',
+      ],
+      en: [
+        'where are my messages',
+        'how do i see my messages',
+        'how do i reply to a message',
+        'my messages',
+      ],
+    },
+  },
+  {
+    id: 'notifications',
+    answerKey: 'notifications',
+    keywords: {
+      fr: [
+        'comment voir mes notifications',
+        'a quoi servent les notifications',
+        'mes notifications',
+      ],
+      en: [
+        'how do i see my notifications',
+        'what are notifications for',
+        'my notifications',
+      ],
+    },
+  },
+  {
+    id: 'avis',
+    answerKey: 'avis',
+    keywords: {
+      fr: [
+        'comment laisser un avis',
+        'comment noter un logement',
+        'laisser une note',
+      ],
+      en: [
+        'how do i leave a review',
+        'how do i rate a property',
+        'leave a rating',
+      ],
+    },
+  },
+  {
+    id: 'contacter_bailleur',
+    answerKey: 'contacter_bailleur',
+    keywords: {
+      fr: [
+        'comment contacter le bailleur',
+        'comment contacter un bailleur',
+        'comment joindre le bailleur',
+        'parler au proprietaire',
+      ],
+      en: [
+        'how do i contact the landlord',
+        'how do i reach the landlord',
+        'talk to the landlord',
       ],
     },
   },

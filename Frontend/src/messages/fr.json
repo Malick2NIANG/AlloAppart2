@@ -3074,6 +3074,13 @@
     "publier_annonce": "Publiez votre annonce depuis la page « Publier » : type de bien, caractéristiques, localisation, prix et photos.",
     "reserver": "Parcourez les annonces puis lancez une demande de réservation depuis la fiche du logement qui vous intéresse.",
     "difference_roles": "Locataire : cherche et réserve un logement. Bailleur : publie des annonces. Agence (PRO_AGENCE) : bailleur professionnel avec abonnement, accès à l'option Vente.",
+    "photos_annonce": "Ajoutez vos photos en glissant-déposant ou en cliquant pour parcourir ; sur mobile, utilisez « Prendre une photo » ou « Choisir dans la galerie ». Formats acceptés : JPG, PNG, WEBP (8 Mo max) ; vidéo MP4, MOV, WEBM (200 Mo max).",
+    "modifier_supprimer_annonce": "Depuis vos annonces, cliquez sur « Modifier » pour éditer une annonce. Pour la supprimer, confirmez l'écran « Suppression définitive » (action irréversible) avec « Supprimer définitivement ».",
+    "favoris": "Sur une fiche annonce, cliquez sur « Ajouter aux favoris » (ou « Retirer des favoris »). Retrouvez-les ensuite dans « Favoris » depuis votre espace locataire.",
+    "messagerie": "Une conversation se lance depuis la fiche annonce (bouton « Contacter le bailleur »), jamais l'inverse. Retrouvez ensuite vos échanges dans « Messages » depuis votre espace.",
+    "notifications": "La cloche affiche vos notifications (nouvelle réservation, réservation confirmée/annulée, avis reçu, étapes AlloVérifié, annonce signalée, litige, annonce de l'admin). Utilisez « Tout marquer lu » ou « Voir toutes les notifications ».",
+    "avis": "Le bouton « Laisser un avis » apparaît sur la fiche annonce une fois votre séjour terminé (« Vous devez avoir séjourné dans ce logement pour laisser un avis. »). Retrouvez vos réservations dans votre espace locataire.",
+    "contacter_bailleur": "Sur la fiche d'une annonce en location, écrivez votre message puis cliquez sur « Contacter le bailleur ». Pour une annonce en vente, utilisez « Contacter sur WhatsApp », l'appel ou le SMS vers l'agence.",
     "unknown": "Je n'ai pas la réponse à cette question. Contactez le support au +221 33 832 69 72 ou alloappart221@gmail.com."
   }
 }

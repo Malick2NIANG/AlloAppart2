@@ -3074,6 +3074,13 @@
     "publier_annonce": "Publish your listing from the \"Publish\" page: property type, features, location, price and photos.",
     "reserver": "Browse listings then start a booking request from the listing page you're interested in.",
     "difference_roles": "Tenant: searches for and books housing. Landlord: publishes listings. Agency (PRO_AGENCE): professional landlord with a subscription, access to the Sale option.",
+    "photos_annonce": "Add your photos by drag-and-drop or by browsing; on mobile, use \"Take a photo\" or \"Choose from gallery\". Accepted formats: JPG, PNG, WEBP (8 MB max); video MP4, MOV, WEBM (200 MB max).",
+    "modifier_supprimer_annonce": "From your listings, click \"Edit\" to edit a listing. To delete it, confirm the \"Permanent deletion\" screen (irreversible action) with \"Delete permanently\".",
+    "favoris": "On a listing page, click \"Add to saved\" (or \"Remove from saved\"). Find them under \"Favorites\" in your tenant space.",
+    "messagerie": "A conversation starts from the listing page (the \"Contact landlord\" button), never the other way round. Find your conversations under \"Messages\" in your space.",
+    "notifications": "The bell icon shows your notifications (new booking, booking confirmed/cancelled, review received, AlloVérifié steps, reported listing, dispute, admin announcement). Use \"Mark all as read\" or \"See all notifications\".",
+    "avis": "The \"Leave a review\" button appears on the listing page once your stay is complete (\"You must have stayed at this property to leave a review.\"). Find your bookings in your tenant space.",
+    "contacter_bailleur": "On a rental listing page, write your message then click \"Contact landlord\". For a sale listing, use \"Contact on WhatsApp\", call, or SMS to the agency.",
     "unknown": "I don't have an answer to that question. Contact support at +221 33 832 69 72 or alloappart221@gmail.com."
   }
 }

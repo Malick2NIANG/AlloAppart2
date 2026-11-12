@@ -10,6 +10,16 @@ export interface MiloFaqResult {
   confidence: number;
 }
 
+/**
+ * Score pondéré par la longueur de la phrase reconnue (nombre de mots),
+ * jamais +1 par correspondance : sans ça, un mot-clé nu partagé par deux
+ * sujets (ex. "contact" pour contact_support) gagnerait à égalité contre une
+ * phrase bien plus spécifique d'un autre sujet (ex. "how do i contact the
+ * landlord" pour contacter_bailleur) simplement parce qu'il est déclaré en
+ * premier dans FAQ_TOPICS — même principe que le tri par longueur
+ * décroissante de MULTI_WORD dans extractors/places.ts (lot « quartiers
+ * complémentaires »).
+ */
 function countMatches(
   tokens: ReturnType<typeof tokenize>,
   keywords: readonly string[],
@@ -18,7 +28,7 @@ function countMatches(
   for (const kw of keywords) {
     const words = kw.split(' ');
     for (let i = 0; i + words.length <= tokens.length; i++) {
-      if (matchPhraseAt(tokens, i, kw) === words.length) score++;
+      if (matchPhraseAt(tokens, i, kw) === words.length) score += words.length;
     }
   }
   return score;

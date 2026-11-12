@@ -161,3 +161,77 @@ describe('detectFaqIntent — pièges explicites du cahier des charges', () => {
     expect(faq).toBeUndefined();
   });
 });
+
+describe('detectFaqIntent — lot « FAQ procédurales » (photos, modifier/supprimer, favoris, messagerie, notifications, avis, contacter_bailleur)', () => {
+  it.each([
+    ['comment ajouter des photos', 'photos_annonce'],
+    ['comment mettre des photos', 'photos_annonce'],
+    ['comment uploader des photos', 'photos_annonce'],
+    ['format des photos', 'photos_annonce'],
+    ['taille des photos', 'photos_annonce'],
+    ['comment modifier mon annonce', 'modifier_supprimer_annonce'],
+    ['comment supprimer mon annonce', 'modifier_supprimer_annonce'],
+    ['comment ajouter aux favoris', 'favoris'],
+    ['comment voir mes favoris', 'favoris'],
+    ['ou sont mes favoris', 'favoris'],
+    ['comment voir mes messages', 'messagerie'],
+    ['ou sont mes messages', 'messagerie'],
+    ['comment repondre a un message', 'messagerie'],
+    ['comment voir mes notifications', 'notifications'],
+    ['a quoi servent les notifications', 'notifications'],
+    ['comment laisser un avis', 'avis'],
+    ['comment noter un logement', 'avis'],
+    ['comment contacter le bailleur', 'contacter_bailleur'],
+    ['comment joindre le bailleur', 'contacter_bailleur'],
+    ['parler au proprietaire', 'contacter_bailleur'],
+  ])('FR : "%s" → %s', (text, expectedId) => {
+    expect(faqFor(text)?.id).toBe(expectedId);
+  });
+
+  it.each([
+    ['how do i add photos', 'photos_annonce'],
+    ['how to add photos', 'photos_annonce'],
+    ['how do i upload photos', 'photos_annonce'],
+    ['photo format', 'photos_annonce'],
+    ['photo size limit', 'photos_annonce'],
+    ['how do i edit my listing', 'modifier_supprimer_annonce'],
+    ['how do i delete my listing', 'modifier_supprimer_annonce'],
+    ['how do i save a listing', 'favoris'],
+    ['how do i see my favorites', 'favoris'],
+    ['where are my favorites', 'favoris'],
+    ['where are my messages', 'messagerie'],
+    ['how do i see my messages', 'messagerie'],
+    ['how do i reply to a message', 'messagerie'],
+    ['how do i see my notifications', 'notifications'],
+    ['what are notifications for', 'notifications'],
+    ['how do i leave a review', 'avis'],
+    ['how do i rate a property', 'avis'],
+    ['how do i contact the landlord', 'contacter_bailleur'],
+    ['how do i reach the landlord', 'contacter_bailleur'],
+    ['talk to the landlord', 'contacter_bailleur'],
+  ])('EN : "%s" → %s', (text, expectedId) => {
+    expect(faqFor(text)?.id).toBe(expectedId);
+  });
+
+  it.each(['photos', 'avis', 'favoris', 'messages', 'notifications'])(
+    '"%s" seul (sans verbe de question) ne déclenche rien',
+    (text) => {
+      expect(faqFor(text)).toBeUndefined();
+    },
+  );
+
+  it.each([
+    'studio avec photos',
+    'villa avec avis positifs',
+    'appart a louer avec messagerie',
+  ])('"%s" reste une recherche, jamais une faq', (text) => {
+    expect(faqFor(text)).toBeUndefined();
+  });
+
+  it('"how do i contact the landlord" ne collisionne jamais avec contact_support (score pondéré par longueur)', () => {
+    expect(faqFor('how do i contact the landlord')?.id).toBe(
+      'contacter_bailleur',
+    );
+    expect(faqFor('contact support')?.id).toBe('contact_support');
+  });
+});
