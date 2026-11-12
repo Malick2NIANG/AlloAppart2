@@ -1,11 +1,13 @@
 import type { MetadataRoute } from 'next';
 
-// Couleurs de marque (Frontend/motion/src/config/brand.ts) — identiques à
-// globals.css (--aa-bg clair, BRAND.gold). Le manifeste n'a qu'une seule
-// valeur statique par couleur (pas de variante sombre ici ; voir
-// layout.tsx > viewport.themeColor pour la version claire/sombre).
+// Couleurs de marque (Frontend/motion/src/config/brand.ts). Le manifeste n'a
+// qu'une seule valeur statique par couleur (voir layout.tsx >
+// viewport.themeColor pour la version claire/sombre du reste du site).
 const BRAND_GOLD = '#facc15';
-const BRAND_BG_LIGHT = '#FAFAFA';
+// Fond des icônes PWA (écran de démarrage/splash) : même bleu sombre que les
+// icônes elles-mêmes (#0f172a), jamais blanc ni transparent — lot « icônes
+// PWA ».
+const BRAND_BG_DARK = '#0f172a';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -16,7 +18,7 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: '/',
     display: 'standalone',
     lang: 'fr',
-    background_color: BRAND_BG_LIGHT,
+    background_color: BRAND_BG_DARK,
     theme_color: BRAND_GOLD,
     icons: [
       { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
