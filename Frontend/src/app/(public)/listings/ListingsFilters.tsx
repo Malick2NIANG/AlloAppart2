@@ -1,9 +1,10 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useRef, useEffect, useId } from 'react';
+import { useState, useRef, useEffect, useId, useTransition } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import BottomSheet from '@/components/ui/BottomSheet';
+import PendingButton from '@/components/ui/PendingButton';
 import MiloSearchBar from '@/components/milo/MiloSearchBar';
 import { resolveMiloLocale, getMiloLabels, getSiteLocaleName } from '@/components/milo/labels';
 
@@ -302,34 +303,59 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
     setMobileFiltersOpen(true);
   };
 
+  // Le tiroir ne se referme qu'une fois la transition de navigation
+  // terminée (isFiltersPending retombe à false) — sans ça, le tiroir se
+  // ferme instantanément et l'utilisateur se retrouve face à l'ancienne
+  // liste sans aucun signe qu'un chargement est en cours (lot « diagnostic
+  // performance mobile » : zéro retour visible sur ce bouton jusqu'ici).
+  const closeOnSettleRef = useRef(false);
+  const [isFiltersPending, startFiltersTransition] = useTransition();
+  // Lequel des deux boutons du tiroir a déclenché la transition en cours —
+  // l'autre reste seulement désactivé (pas de spinner dessus).
+  const [pendingFilterAction, setPendingFilterAction] = useState<'apply' | 'reset' | null>(null);
+
+  useEffect(() => {
+    if (!isFiltersPending && closeOnSettleRef.current) {
+      closeOnSettleRef.current = false;
+      setPendingFilterAction(null);
+      setMobileFiltersOpen(false);
+    }
+  }, [isFiltersPending]);
+
   const applyMobileFilters = () => {
     // Même garde-fou que changeTransaction : un type devenu incohérent avec
     // la transaction choisie dans le tiroir est abandonné à l'application.
     let nextType: string | undefined = draftType || undefined;
     if (draftTransaction === 'VENTE' && nextType && LOCATION_ONLY_KEYS.includes(nextType)) nextType = undefined;
     if (draftTransaction === 'LOCATION' && nextType && VENTE_ONLY_KEYS.includes(nextType)) nextType = undefined;
-    push({
-      transactionType: draftTransaction || undefined,
-      type: nextType,
-      region: draftRegion || undefined,
-      ownerType: draftOwner || undefined,
-      verified: draftVerified ? 'true' : undefined,
-      rentalMode: draftRentalMode || undefined,
-      furnished: draftFurnished || undefined,
-      // Le prix suit le mode : nuitée → prix par nuit, sinon mensuel — un
-      // seul des deux couples est jamais rempli dans le tiroir à la fois.
-      minPrice: draftRentalMode === 'NIGHTLY' ? undefined : (draftMinPrice || undefined),
-      maxPrice: draftRentalMode === 'NIGHTLY' ? undefined : (draftMaxPrice || undefined),
-      minPricePerNight: draftRentalMode === 'NIGHTLY' ? (draftMinPricePerNight || undefined) : undefined,
-      maxPricePerNight: draftRentalMode === 'NIGHTLY' ? (draftMaxPricePerNight || undefined) : undefined,
-      page: '1',
+    closeOnSettleRef.current = true;
+    setPendingFilterAction('apply');
+    startFiltersTransition(() => {
+      push({
+        transactionType: draftTransaction || undefined,
+        type: nextType,
+        region: draftRegion || undefined,
+        ownerType: draftOwner || undefined,
+        verified: draftVerified ? 'true' : undefined,
+        rentalMode: draftRentalMode || undefined,
+        furnished: draftFurnished || undefined,
+        // Le prix suit le mode : nuitée → prix par nuit, sinon mensuel — un
+        // seul des deux couples est jamais rempli dans le tiroir à la fois.
+        minPrice: draftRentalMode === 'NIGHTLY' ? undefined : (draftMinPrice || undefined),
+        maxPrice: draftRentalMode === 'NIGHTLY' ? undefined : (draftMaxPrice || undefined),
+        minPricePerNight: draftRentalMode === 'NIGHTLY' ? (draftMinPricePerNight || undefined) : undefined,
+        maxPricePerNight: draftRentalMode === 'NIGHTLY' ? (draftMaxPricePerNight || undefined) : undefined,
+        page: '1',
+      });
     });
-    setMobileFiltersOpen(false);
   };
 
   const resetMobileFilters = () => {
-    setMobileFiltersOpen(false);
-    router.push('/listings');
+    closeOnSettleRef.current = true;
+    setPendingFilterAction('reset');
+    startFiltersTransition(() => {
+      router.push('/listings');
+    });
   };
 
   const mobileFilterCount =
@@ -806,18 +832,22 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
         fullHeight
         footer={
           <div className="flex gap-3">
-            <button
+            <PendingButton
+              pending={isFiltersPending && pendingFilterAction === 'reset'}
+              disabled={isFiltersPending}
               onClick={resetMobileFilters}
               className="btn-outline h-12 flex-1 justify-center text-text"
             >
               {t('resetFilters')}
-            </button>
-            <button
+            </PendingButton>
+            <PendingButton
+              pending={isFiltersPending && pendingFilterAction === 'apply'}
+              disabled={isFiltersPending}
               onClick={applyMobileFilters}
               className="btn-gold h-12 flex-1 justify-center"
             >
               {t('applyFilters')}
-            </button>
+            </PendingButton>
           </div>
         }
       >
