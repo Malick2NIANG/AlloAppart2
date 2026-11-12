@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useDragControls, type PanInfo } from 'framer-motion';
 import { shouldDismissSheet } from '@/lib/sheetDismiss';
 
@@ -55,6 +56,18 @@ export default function BottomSheet({ open, onClose, children, titleId, fullHeig
   const desktopContainerRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const dragControls = useDragControls();
+  // Rendu via portail vers document.body (fix bug "modal cassé sur mobile") :
+  // sans ça, un ancêtre quelconque avec backdrop-filter/filter/transform/
+  // will-change (ex. les cartes "glass" `backdrop-blur-xl` de la fiche
+  // annonce) devient le bloc de confinement du `position: fixed` de la
+  // feuille — elle se recale alors sur CET ancêtre au lieu du viewport et
+  // flotte au milieu de la page au lieu d'être collée en bas. `mounted`
+  // évite un mismatch SSR (document indisponible côté serveur) ; une fois
+  // vrai il ne redevient jamais faux, donc n'interfère jamais avec les
+  // animations d'ouverture/fermeture d'AnimatePresence pilotées par `open`.
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- détection de montage client, SSR-safe (document indisponible côté serveur)
+  useEffect(() => { setMounted(true); }, []);
 
   // ── Échap, verrouillage du scroll de la page, focus piégé + restitué ────
   useEffect(() => {
@@ -105,7 +118,9 @@ export default function BottomSheet({ open, onClose, children, titleId, fullHeig
     }
   }, [onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
@@ -192,6 +207,7 @@ export default function BottomSheet({ open, onClose, children, titleId, fullHeig
           </div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
