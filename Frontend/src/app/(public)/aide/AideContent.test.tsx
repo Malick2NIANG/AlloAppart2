@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AideContent from './AideContent';
+import { NearMeProvider } from '@/components/listings/NearMeContext';
 import { FAQ_TOPIC_IDS } from '@/components/milo/faqTopicIds';
 
 vi.mock('next-intl', () => ({
@@ -25,7 +26,7 @@ function commonQuestionButton(id: string) {
 describe('AideContent', () => {
   it('un clic sur une question courante affiche la carte-réponse correspondante, sans appel réseau', async () => {
     const user = userEvent.setup();
-    render(<AideContent />);
+    render(<NearMeProvider><AideContent /></NearMeProvider>);
     await user.click(commonQuestionButton('tarifs_abonnements'));
     const status = screen.getByRole('status');
     expect(within(status).getByText('miloFaq.tarifs_abonnements')).toBeInTheDocument();
@@ -33,7 +34,7 @@ describe('AideContent', () => {
 
   it('une nouvelle question remplace la précédente (une seule carte à la fois, aucun historique)', async () => {
     const user = userEvent.setup();
-    render(<AideContent />);
+    render(<NearMeProvider><AideContent /></NearMeProvider>);
     await user.click(commonQuestionButton('tarifs_abonnements'));
     await user.click(commonQuestionButton('milo_c_est_quoi'));
 
@@ -45,7 +46,7 @@ describe('AideContent', () => {
 
   it('« Poser une autre question » vide la carte', async () => {
     const user = userEvent.setup();
-    render(<AideContent />);
+    render(<NearMeProvider><AideContent /></NearMeProvider>);
     await user.click(commonQuestionButton('tarifs_abonnements'));
     expect(screen.getByRole('status')).toBeInTheDocument();
 
@@ -54,7 +55,7 @@ describe('AideContent', () => {
   });
 
   it('affiche exactement un bouton « question courante » + un en-tête d\'accordéon par sujet FAQ activé, aucun sujet désactivé/inventé', () => {
-    render(<AideContent />);
+    render(<NearMeProvider><AideContent /></NearMeProvider>);
     const topicButtonNames = screen.getAllByRole('button')
       .map((el) => el.textContent)
       .filter((text): text is string => !!text && text.startsWith('miloFaqQuestions.'));
@@ -66,7 +67,7 @@ describe('AideContent', () => {
 
   it('accordéon : un clic révèle la réponse (mêmes clés i18n que la carte)', async () => {
     const user = userEvent.setup();
-    render(<AideContent />);
+    render(<NearMeProvider><AideContent /></NearMeProvider>);
     const accordionButton = screen.getByRole('button', { name: 'miloFaqQuestions.milo_exemples', expanded: false });
     expect(screen.queryByText('miloFaq.milo_exemples')).not.toBeInTheDocument();
     await user.click(accordionButton);

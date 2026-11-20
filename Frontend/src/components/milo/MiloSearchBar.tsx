@@ -4,6 +4,7 @@ import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } f
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { classifyMiloQuery } from '@/lib/milo';
+import { useNearMe } from '@/components/listings/NearMeContext';
 import type { MiloFaqResult } from './types';
 import MiloFaqCard from './MiloFaqCard';
 import MiloNearMeCard from './MiloNearMeCard';
@@ -80,6 +81,10 @@ function MiloSearchBar({
   // Réutilise les mêmes libellés d'erreur que le bouton « Près de moi » des
   // filtres /listings (ListingsFilters.tsx) — une seule source de vérité.
   const tNearMe = useTranslations('listings');
+  // Lot « raccourci » (vérification confidentialité) — la position va dans
+  // NearMeContext (jamais dans l'URL), le contexte vit au-dessus du routeur
+  // (RootLayout) donc survit à la navigation client-side vers /listings.
+  const { setPosition: setNearMePosition } = useNearMe();
   const [text, setText] = useState(initialValue);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -129,9 +134,12 @@ function MiloSearchBar({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setGeoLoading(false);
+        // Arrondie à 3 décimales (~110 m) avant même d'atteindre le Backend.
+        setNearMePosition(
+          Math.round(position.coords.latitude * 1000) / 1000,
+          Math.round(position.coords.longitude * 1000) / 1000,
+        );
         const params = nearMeParams ?? new URLSearchParams();
-        params.set('lat', String(position.coords.latitude));
-        params.set('lng', String(position.coords.longitude));
         router.push(`/listings?${params.toString()}`);
         setNearMeParams(null);
         onSubmitted?.();

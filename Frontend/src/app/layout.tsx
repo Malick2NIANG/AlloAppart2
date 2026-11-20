@@ -10,6 +10,7 @@ import ConnectivityWatcher from '@/components/ui/ConnectivityWatcher';
 import { LocaleTransitionProvider } from '@/components/ui/LocaleTransition';
 import LocaleTransitionOverlay from '@/components/ui/LocaleTransitionOverlay';
 import ServiceWorkerRegister from '@/components/ui/ServiceWorkerRegister';
+import { NearMeProvider } from '@/components/listings/NearMeContext';
 import './globals.css';
 
 const inter = Inter({
@@ -108,11 +109,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <NextIntlClientProvider locale={locale} messages={messages}>
             <LocaleTransitionProvider>
               <ToastProvider>
-                <ConnectivityWatcher />
-                {children}
-                <CookieConsentBanner />
-                <LocaleTransitionOverlay />
-                <ServiceWorkerRegister />
+                <NearMeProvider>
+                  <ConnectivityWatcher />
+                  {children}
+                  <CookieConsentBanner />
+                  <LocaleTransitionOverlay />
+                  <ServiceWorkerRegister />
+                </NearMeProvider>
               </ToastProvider>
             </LocaleTransitionProvider>
           </NextIntlClientProvider>

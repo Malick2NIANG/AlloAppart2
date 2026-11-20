@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MiloSearchBar from './MiloSearchBar';
 import { classifyMiloQuery } from '@/lib/milo';
+import { NearMeProvider, useNearMe } from '@/components/listings/NearMeContext';
 
 vi.mock('next-intl', () => ({
   useTranslations: (ns: string) => (key: string, params?: Record<string, unknown>) =>
@@ -26,6 +27,23 @@ afterEach(() => {
   delete navigator.geolocation;
 });
 
+// Lot « raccourci » (vérification confidentialité) — sonde de test qui
+// affiche lat/lng de NearMeContext, pour vérifier QUE la position y arrive
+// bien (en mémoire), jamais dans l'URL.
+function ContextProbe() {
+  const { lat, lng } = useNearMe();
+  return <span data-testid="near-me-probe">{lat ?? 'null'}/{lng ?? 'null'}</span>;
+}
+
+function renderBar() {
+  return render(
+    <NearMeProvider>
+      <ContextProbe />
+      <MiloSearchBar placeholder="p" ariaLabel="a" clearLabel="c" />
+    </NearMeProvider>,
+  );
+}
+
 async function submitText(user: ReturnType<typeof userEvent.setup>, text: string) {
   const input = screen.getByRole('textbox');
   await user.type(input, text);
@@ -39,7 +57,7 @@ describe('MiloSearchBar — « près de moi » (lot « raccourci »)', () => {
       params: new URLSearchParams({ milo: '1' }),
     });
     const user = userEvent.setup();
-    render(<MiloSearchBar placeholder="p" ariaLabel="a" clearLabel="c" />);
+    renderBar();
 
     await submitText(user, 'studio pres de moi');
 
@@ -47,13 +65,13 @@ describe('MiloSearchBar — « près de moi » (lot « raccourci »)', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('clic « Activer ma position » : succès → navigue avec lat/lng, jamais stockés ailleurs', async () => {
+  it('clic « Activer ma position » : succès → position dans NearMeContext (arrondie à 3 décimales), JAMAIS dans l\'URL de /listings', async () => {
     vi.mocked(classifyMiloQuery).mockResolvedValue({
       kind: 'nearMe',
       params: new URLSearchParams({ milo: '1' }),
     });
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
-      success({ coords: { latitude: 14.7, longitude: -17.4 } } as GeolocationPosition);
+      success({ coords: { latitude: 14.69284321, longitude: -17.46771999 } } as GeolocationPosition);
     });
     Object.defineProperty(navigator, 'geolocation', {
       value: { getCurrentPosition },
@@ -61,16 +79,20 @@ describe('MiloSearchBar — « près de moi » (lot « raccourci »)', () => {
       configurable: true,
     });
     const user = userEvent.setup();
-    render(<MiloSearchBar placeholder="p" ariaLabel="a" clearLabel="c" />);
+    renderBar();
 
     await submitText(user, 'studio pres de moi');
     await user.click(await screen.findByText('miloFaq.nearMeActivate'));
 
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
     const url = push.mock.calls[0][0] as string;
-    expect(url).toContain('lat=14.7');
-    expect(url).toContain('lng=-17.4');
-    // La carte se referme après la navigation.
+    // Vérification confidentialité : jamais lat/lng dans l'adresse de /listings.
+    expect(url).not.toMatch(/[?&]lat=/);
+    expect(url).not.toMatch(/[?&]lng=/);
+    expect(url).toBe('/listings?milo=1');
+    // La position EST bien arrivée — mais seulement dans le contexte React.
+    expect(screen.getByTestId('near-me-probe')).toHaveTextContent('14.693/-17.468');
+    // La carte se referme après l'activation.
     expect(screen.queryByText('miloFaq.nearMePrompt')).not.toBeInTheDocument();
   });
 
@@ -88,13 +110,14 @@ describe('MiloSearchBar — « près de moi » (lot « raccourci »)', () => {
       configurable: true,
     });
     const user = userEvent.setup();
-    render(<MiloSearchBar placeholder="p" ariaLabel="a" clearLabel="c" />);
+    renderBar();
 
     await submitText(user, 'studio pres de moi');
     await user.click(await screen.findByText('miloFaq.nearMeActivate'));
 
     expect(await screen.findByText('listings.nearMeDenied')).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
+    expect(screen.getByTestId('near-me-probe')).toHaveTextContent('null/null');
     // La recherche normale reste disponible : le bouton de repli est toujours là.
     expect(screen.getByText('miloFaq.searchInsteadLabel')).toBeInTheDocument();
   });
@@ -111,7 +134,7 @@ describe('MiloSearchBar — « près de moi » (lot « raccourci »)', () => {
       configurable: true,
     });
     const user = userEvent.setup();
-    render(<MiloSearchBar placeholder="p" ariaLabel="a" clearLabel="c" />);
+    renderBar();
 
     await submitText(user, 'studio pres de moi');
     await user.click(await screen.findByText('miloFaq.searchInsteadLabel'));
@@ -128,7 +151,7 @@ describe('MiloSearchBar — « près de moi » (lot « raccourci »)', () => {
     });
     // Pas de navigator.geolocation défini du tout.
     const user = userEvent.setup();
-    render(<MiloSearchBar placeholder="p" ariaLabel="a" clearLabel="c" />);
+    renderBar();
 
     await submitText(user, 'studio pres de moi');
     await user.click(await screen.findByText('miloFaq.nearMeActivate'));

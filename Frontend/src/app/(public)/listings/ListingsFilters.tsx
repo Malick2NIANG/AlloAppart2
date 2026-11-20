@@ -7,6 +7,7 @@ import BottomSheet from '@/components/ui/BottomSheet';
 import PendingButton from '@/components/ui/PendingButton';
 import MiloSearchBar from '@/components/milo/MiloSearchBar';
 import { resolveMiloLocale, getMiloLabels, getSiteLocaleName } from '@/components/milo/labels';
+import { useNearMe } from '@/components/listings/NearMeContext';
 
 // Ordre + icônes alignés sur le formulaire de publication (source de vérité,
 // cf. (public)/publier/page.tsx TYPE_ICONS) — ne pas diverger d'un fichier à
@@ -94,9 +95,10 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   const [miloOpen, setMiloOpen]     = useState(false);
   const regionRef = useRef<HTMLDivElement>(null);
   const panelRef  = useRef<HTMLDivElement>(null);
-  // Lot « raccourci » (près de moi) — position jamais stockée ailleurs que
-  // dans l'URL de CETTE recherche (lat/lng repartent avec elle) ; état local
-  // seulement pour le chargement/l'erreur, jamais la position elle-même.
+  // Lot « raccourci » (vérification confidentialité) — la position vit dans
+  // NearMeContext (jamais dans l'URL/sessionStorage/localStorage) ; l'état
+  // local ci-dessous ne porte que le chargement/l'erreur, jamais lat/lng.
+  const { active: nearMeActive, setPosition: setNearMePosition, clear: clearNearMe } = useNearMe();
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError]     = useState<string | null>(null);
 
@@ -110,10 +112,6 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   // (comme verified/transactionType déjà lus directement ici) : cityContains,
   // minBeds/maxBeds, minRooms/maxRooms, amenities (CSV) ne sont exposés par
   // aucun filtre manuel aujourd'hui, Milo est leur seule source.
-  // Lot « raccourci » (près de moi) — jamais lus comme des filtres manuels
-  // classiques : seulement posés par activateNearMe() ci-dessous.
-  const lat = urlParams.get('lat') ?? undefined;
-  const lng = urlParams.get('lng') ?? undefined;
   const cityContains = urlParams.get('cityContains') ?? undefined;
   const minBeds       = urlParams.get('minBeds') ?? undefined;
   const maxBeds       = urlParams.get('maxBeds') ?? undefined;
@@ -166,7 +164,6 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
     const merged = {
       q, city, minPrice, maxPrice, type, region, ownerType, verified, transactionType,
       rentalMode, furnished, minPricePerNight, maxPricePerNight,
-      lat, lng,
       cityContains, minBeds, maxBeds, minRooms, maxRooms,
       amenities: amenitiesCsv,
       prefs: prefsCsv,
@@ -202,8 +199,9 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   // clic (jamais au chargement). Détection de support avant tout appel :
   // si le téléphone ne sait pas géolocaliser, un message clair s'affiche et
   // la recherche normale reste disponible (aucune erreur visible, rien ne
-  // bloque). La position n'est jamais stockée ni journalisée ici — elle ne
-  // sert qu'à composer l'URL de cette recherche.
+  // bloque). La position va dans NearMeContext (état React), JAMAIS dans
+  // l'URL/sessionStorage/localStorage (vérif confidentialité) — arrondie à
+  // 3 décimales (~110 m) avant même d'atteindre le Backend.
   const activateNearMe = () => {
     setGeoError(null);
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -214,11 +212,11 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setGeoLoading(false);
-        push({
-          lat: String(position.coords.latitude),
-          lng: String(position.coords.longitude),
-          page: '1',
-        });
+        setNearMePosition(
+          Math.round(position.coords.latitude * 1000) / 1000,
+          Math.round(position.coords.longitude * 1000) / 1000,
+        );
+        push({ page: '1' });
       },
       (error) => {
         setGeoLoading(false);
@@ -244,7 +242,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
 
   // Pastilles des filtres actifs (hors transaction et type, déjà visibles dans la barre).
   const activeChips: { key: string; icon: string; label: string; onRemove: () => void }[] = [];
-  if (lat && lng) activeChips.push({ key: 'nearMe', icon: 'fa-location-crosshairs', label: t('nearMeChip'), onRemove: () => push({ lat: undefined, lng: undefined }) });
+  if (nearMeActive) activeChips.push({ key: 'nearMe', icon: 'fa-location-crosshairs', label: t('nearMeChip'), onRemove: () => clearNearMe() });
   if (region) activeChips.push({ key: 'region', icon: 'fa-map-pin', label: region, onRemove: () => push({ region: undefined }) });
   if (ownerType) {
     const ot = OWNER_TYPES.find((o) => o.key === ownerType);
@@ -715,7 +713,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
             au clic. Repli : si la géolocalisation échoue/refuse/indisponible,
             un message clair s'affiche ici, la recherche normale reste
             disponible (rien de bloqué). */}
-        {!(lat && lng) && (
+        {!nearMeActive && (
           <button
             onClick={activateNearMe}
             disabled={geoLoading}
@@ -832,7 +830,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
               </span>
             )}
           </button>
-          {!(lat && lng) && (
+          {!nearMeActive && (
             <button
               onClick={activateNearMe}
               disabled={geoLoading}

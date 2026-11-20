@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import NavbarClient from './NavbarClient';
+import { NearMeProvider } from '@/components/listings/NearMeContext';
 
 // Lot « loupe du header » — la barre PC garde son JSX (q/min/max/bouton)
 // inchangé, seul le comportement de soumission change (Milo partagé) ;
@@ -53,7 +54,7 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
   it('PC : une phrase non vide passe par Milo (classifyMiloQuery), jamais un q/minPrice direct', async () => {
     classifyMiloQuery.mockResolvedValue({ kind: 'redirect', params: new URLSearchParams({ region: 'Dakar', milo: '1', miloLang: 'fr' }) });
     const user = userEvent.setup();
-    render(<NavbarClient locale="fr" labels={LABELS} />);
+    render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
 
     const input = screen.getByPlaceholderText('Localité');
     await user.type(input, 'studio mermoz');
@@ -66,7 +67,7 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
   it('PC : min/max saisis sont fusionnés par-dessus le résultat Milo, jamais perdus', async () => {
     classifyMiloQuery.mockResolvedValue({ kind: 'redirect', params: new URLSearchParams({ region: 'Dakar', milo: '1', miloLang: 'fr' }) });
     const user = userEvent.setup();
-    render(<NavbarClient locale="fr" labels={LABELS} />);
+    render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
 
     await user.type(screen.getByPlaceholderText('Localité'), 'studio mermoz');
     await user.type(screen.getByPlaceholderText('Min'), '100000');
@@ -83,7 +84,7 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
   it('PC : repli silencieux (Milo indisponible) → q brut + min/max, comme avant', async () => {
     classifyMiloQuery.mockResolvedValue({ kind: 'redirect', params: new URLSearchParams({ q: 'studio mermoz' }) });
     const user = userEvent.setup();
-    render(<NavbarClient locale="fr" labels={LABELS} />);
+    render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
 
     await user.type(screen.getByPlaceholderText('Localité'), 'studio mermoz');
     await user.keyboard('{Enter}');
@@ -93,7 +94,7 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
 
   it('PC : champ vide → comportement direct inchangé, Milo jamais appelé', async () => {
     const user = userEvent.setup();
-    render(<NavbarClient locale="fr" labels={LABELS} />);
+    render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
     await user.type(screen.getByPlaceholderText('Min'), '50000');
     await user.keyboard('{Enter}');
 
@@ -108,7 +109,7 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
       detectedLanguage: 'fr',
     });
     const user = userEvent.setup();
-    render(<NavbarClient locale="fr" labels={LABELS} />);
+    render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
     await user.type(screen.getByPlaceholderText('Localité'), 'abonnement');
     await user.keyboard('{Enter}');
 
@@ -123,7 +124,7 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
       detectedLanguage: 'fr',
     });
     const user = userEvent.setup();
-    render(<NavbarClient locale="fr" labels={LABELS} />);
+    render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
     await user.type(screen.getByPlaceholderText('Localité'), 'comment ca marche');
     await user.keyboard('{Enter}');
     await screen.findByRole('status');
@@ -134,7 +135,7 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
 
   it('mobile : la loupe ouvre une feuille avec le MiloSearchBar compact (plus de lien direct vers /search)', async () => {
     const user = userEvent.setup();
-    const { container } = render(<NavbarClient locale="fr" labels={LABELS} />);
+    const { container } = render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
 
     expect(screen.queryByRole('link', { name: 'Rechercher' })).not.toBeInTheDocument();
     const loupe = container.querySelector('button[aria-label="Rechercher"]') as HTMLElement;
@@ -149,7 +150,7 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
 
   it('mobile : la croix de la feuille referme la recherche', async () => {
     const user = userEvent.setup();
-    const { container } = render(<NavbarClient locale="fr" labels={LABELS} />);
+    const { container } = render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
     const loupe = container.querySelector('button[aria-label="Rechercher"]') as HTMLElement;
     await user.click(loupe);
     await waitFor(() => expect(screen.getAllByRole('search').length).toBeGreaterThan(0));

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MiloSearchBar from './MiloSearchBar';
+import { NearMeProvider } from '@/components/listings/NearMeContext';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
@@ -30,7 +31,7 @@ describe('MiloSearchBar', () => {
       params: new URLSearchParams({ region: 'Dakar', cityContains: 'Mermoz', minRooms: '3', maxRooms: '3', milo: '1', miloLang: 'fr', miloText: 'F3 à Mermoz' }),
     });
     const user = userEvent.setup();
-    render(<MiloSearchBar {...PROPS} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} /></NearMeProvider>);
     await user.type(screen.getByRole('textbox'), 'F3 à Mermoz');
     await user.keyboard('{Enter}');
 
@@ -49,7 +50,7 @@ describe('MiloSearchBar', () => {
       params: new URLSearchParams({ q: 'bla bla bla', miloMiss: '1', miloLang: 'fr' }),
     });
     const user = userEvent.setup();
-    render(<MiloSearchBar {...PROPS} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} /></NearMeProvider>);
     await user.type(screen.getByRole('textbox'), 'bla bla bla');
     await user.keyboard('{Enter}');
 
@@ -63,7 +64,7 @@ describe('MiloSearchBar', () => {
   it('repli silencieux : délai dépassé / erreur réseau → /listings?q=<texte> brut', async () => {
     classifyMiloQuery.mockResolvedValue({ kind: 'redirect', params: new URLSearchParams({ q: 'villa Almadies' }) });
     const user = userEvent.setup();
-    render(<MiloSearchBar {...PROPS} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} /></NearMeProvider>);
     await user.type(screen.getByRole('textbox'), 'villa Almadies');
     await user.keyboard('{Enter}');
 
@@ -75,7 +76,7 @@ describe('MiloSearchBar', () => {
     let resolve!: (v: unknown) => void;
     classifyMiloQuery.mockReturnValue(new Promise((r) => { resolve = r; }));
     const user = userEvent.setup();
-    render(<MiloSearchBar {...PROPS} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} /></NearMeProvider>);
     const input = screen.getByRole('textbox');
     await user.type(input, 'F3 Dakar');
     const submitButton = screen.getByRole('button', { name: PROPS.ariaLabel });
@@ -88,7 +89,7 @@ describe('MiloSearchBar', () => {
 
   it('envoi bloqué sous 2 caractères après trim (bouton désactivé, Entrée sans effet)', async () => {
     const user = userEvent.setup();
-    render(<MiloSearchBar {...PROPS} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} /></NearMeProvider>);
     await user.type(screen.getByRole('textbox'), ' a ');
     await user.keyboard('{Enter}');
     expect(classifyMiloQuery).not.toHaveBeenCalled();
@@ -97,7 +98,7 @@ describe('MiloSearchBar', () => {
 
   it('bouton effacer (croix) vide le champ ; Échap aussi', async () => {
     const user = userEvent.setup();
-    render(<MiloSearchBar {...PROPS} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} /></NearMeProvider>);
     const input = screen.getByRole('textbox');
     await user.type(input, 'F3 Dakar');
     await user.click(screen.getByRole('button', { name: PROPS.clearLabel }));
@@ -109,13 +110,13 @@ describe('MiloSearchBar', () => {
   });
 
   it('role="search" porté par le conteneur, étiquette liée au champ', () => {
-    render(<MiloSearchBar {...PROPS} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} /></NearMeProvider>);
     expect(screen.getByRole('search')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: PROPS.ariaLabel })).toBeInTheDocument();
   });
 
   it('placeholder tournant (hero) : la première phrase est visible, en calque aria-hidden', () => {
-    render(<MiloSearchBar {...PROPS} size="hero" rotatingPhrases={['Phrase A', 'Phrase B']} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} size="hero" rotatingPhrases={['Phrase A', 'Phrase B']} /></NearMeProvider>);
     const layer = screen.getByText('Phrase A');
     expect(layer.closest('[aria-hidden]')).not.toBeNull();
     // L'étiquette accessible du champ reste statique, jamais une des phrases.
@@ -124,7 +125,7 @@ describe('MiloSearchBar', () => {
 
   it('la rotation ne se lance pas (et le calque disparaît) dès le focus ou du texte saisi', async () => {
     const user = userEvent.setup();
-    render(<MiloSearchBar {...PROPS} size="hero" rotatingPhrases={['Phrase A', 'Phrase B']} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} size="hero" rotatingPhrases={['Phrase A', 'Phrase B']} /></NearMeProvider>);
     expect(screen.getByText('Phrase A')).toBeInTheDocument();
     await user.click(screen.getByRole('textbox'));
     expect(screen.queryByText('Phrase A')).not.toBeInTheDocument();
@@ -145,7 +146,7 @@ describe('MiloSearchBar — Milo FAQ (lot « Milo FAQ »)', () => {
     });
     const onSubmitted = vi.fn();
     const user = userEvent.setup();
-    render(<MiloSearchBar {...PROPS} onSubmitted={onSubmitted} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} onSubmitted={onSubmitted} /></NearMeProvider>);
     await user.type(screen.getByRole('textbox'), 'abonnement');
     await user.keyboard('{Enter}');
 
@@ -162,7 +163,7 @@ describe('MiloSearchBar — Milo FAQ (lot « Milo FAQ »)', () => {
     });
     const onSubmitted = vi.fn();
     const user = userEvent.setup();
-    render(<MiloSearchBar {...PROPS} onSubmitted={onSubmitted} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} onSubmitted={onSubmitted} /></NearMeProvider>);
     await user.type(screen.getByRole('textbox'), 'comment ca marche');
     await user.keyboard('{Enter}');
     await screen.findByRole('status');
@@ -179,7 +180,7 @@ describe('MiloSearchBar — Milo FAQ (lot « Milo FAQ »)', () => {
       detectedLanguage: 'fr',
     });
     const user = userEvent.setup();
-    render(<MiloSearchBar {...PROPS} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} /></NearMeProvider>);
     const input = screen.getByRole('textbox');
     await user.type(input, 'contact');
     await user.keyboard('{Enter}');
@@ -198,7 +199,7 @@ describe('MiloSearchBar — Milo FAQ (lot « Milo FAQ »)', () => {
       detectedLanguage: 'fr',
     });
     const user = userEvent.setup();
-    render(<MiloSearchBar {...PROPS} />);
+    render(<NearMeProvider><MiloSearchBar {...PROPS} /></NearMeProvider>);
     const input = screen.getByRole('textbox');
     await user.type(input, 'contact');
     await user.keyboard('{Enter}');
