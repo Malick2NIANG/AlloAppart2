@@ -570,7 +570,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                   size="compact"
                   autoFocus
                   className="min-w-0 flex-1"
-                  placeholder={tListings('askMiloButton')}
+                  placeholder={tListings('askMiloPlaceholder')}
                   ariaLabel={tListings('askMiloAriaLabel')}
                   clearLabel={tListings('askMiloClear')}
                   onSubmitted={() => { setMiloDrawerOpen(false); setMobileOpen(false); }}
@@ -758,7 +758,7 @@ export default function NavbarClient({ locale, labels }: Props) {
           size="compact"
           autoFocus
           className="min-w-0 flex-1"
-          placeholder={tListings('askMiloButton')}
+          placeholder={tListings('askMiloPlaceholder')}
           ariaLabel={tListings('askMiloAriaLabel')}
           clearLabel={tListings('askMiloClear')}
           onSubmitted={() => setMobileSearchOpen(false)}

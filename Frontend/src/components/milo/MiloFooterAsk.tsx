@@ -49,7 +49,7 @@ export default function MiloFooterAsk({ title, subtitle }: Props) {
             size="compact"
             autoFocus
             className="min-w-0 flex-1"
-            placeholder={t('askMiloButton')}
+            placeholder={t('askMiloPlaceholder')}
             ariaLabel={t('askMiloAriaLabel')}
             clearLabel={t('askMiloClear')}
             onSubmitted={() => setOpen(false)}

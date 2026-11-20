@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { classifyMiloQuery } from '@/lib/milo';
@@ -29,6 +29,24 @@ interface Props {
    * statique — cf. commentaire sur le rendu plus bas.
    */
   rotatingPhrases?: readonly string[];
+  /**
+   * Lot « page /aide » : notifie le parent à chaque changement de la carte
+   * FAQ affichée (null = aucune) — permet à /aide d'afficher son propre
+   * bouton « Poser une autre question » sans dupliquer l'état de la carte
+   * (toujours rendue une seule fois, ici).
+   */
+  onFaqChange?: (faq: MiloFaqResult | null) => void;
+}
+
+/** Lot « page /aide » : actions pilotables depuis l'extérieur (boutons
+ * « questions courantes » du site), sans dupliquer MiloFaqCard ni la
+ * logique de classification — un seul état de carte, ici. */
+export interface MiloSearchBarHandle {
+  /** Affiche la carte FAQ pour ce sujet, comme si la question avait été
+   * tapée — sans appel réseau (l'id est déjà connu, `confidence: 1`). */
+  showFaq: (topic: { id: string; answerKey: string }) => void;
+  /** Vide la carte et le champ, puis rend le focus à la barre. */
+  reset: () => void;
 }
 
 function prefersReducedMotion(): boolean {
@@ -38,13 +56,13 @@ function prefersReducedMotion(): boolean {
 
 /**
  * Barre de recherche en langage naturel Milo — réutilisée sur l'accueil
- * (hero) et sur /listings (bouton « Demander à Milo »), cf.
+ * (hero), sur /listings (bouton « Demander à Milo ») et sur /aide, cf.
  * PLAN_SEARCH_V0.md § 2.d : « déplie la même barre ».
  *
  * Honnêteté (Milo.md) : Milo comprend UNE recherche décrite en une phrase,
  * il ne converse pas — un seul champ, un seul envoi, pas de tour-par-tour.
  */
-export default function MiloSearchBar({
+function MiloSearchBar({
   placeholder,
   ariaLabel,
   clearLabel,
@@ -53,8 +71,9 @@ export default function MiloSearchBar({
   size = 'hero',
   className = '',
   onSubmitted,
+  onFaqChange,
   rotatingPhrases,
-}: Props) {
+}: Props, ref: React.ForwardedRef<MiloSearchBarHandle>) {
   const router = useRouter();
   const siteLocale = useLocale() as 'fr' | 'en';
   const [text, setText] = useState(initialValue);
@@ -63,7 +82,24 @@ export default function MiloSearchBar({
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [faqResult, setFaqResult] = useState<MiloFaqResult | null>(null);
   const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const isHero = size === 'hero';
+
+  // Notifie le parent à chaque changement — jamais à l'identique (évite une
+  // boucle de rendu si le parent stocke la même référence).
+  useEffect(() => { onFaqChange?.(faqResult); }, [faqResult, onFaqChange]);
+
+  useImperativeHandle(ref, () => ({
+    showFaq: (topic) => {
+      setText('');
+      setFaqResult({ id: topic.id, answerKey: topic.answerKey, confidence: 1 });
+    },
+    reset: () => {
+      setFaqResult(null);
+      setText('');
+      inputRef.current?.focus();
+    },
+  }), []);
 
   // Rotation du placeholder (lot 6.0, hero uniquement) : s'arrête au focus,
   // dès qu'il y a du texte, ou si prefers-reduced-motion (phrase fixe,
@@ -145,6 +181,7 @@ export default function MiloSearchBar({
 
       <div className="relative min-w-0 flex-1">
         <input
+          ref={inputRef}
           id={inputId}
           type="text"
           inputMode="search"
@@ -214,3 +251,7 @@ export default function MiloSearchBar({
     </div>
   );
 }
+
+const MiloSearchBarWithRef = forwardRef(MiloSearchBar);
+MiloSearchBarWithRef.displayName = 'MiloSearchBar';
+export default MiloSearchBarWithRef;

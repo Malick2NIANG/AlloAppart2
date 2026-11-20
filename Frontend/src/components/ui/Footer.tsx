@@ -22,6 +22,7 @@ export default async function Footer() {
   const COL2 = [
     { label: t('navListings'),  href: '/listings'            },
     { label: t('navTarifs'),    href: '/tarifs'               },
+    { label: t('navAide'),      href: '/aide'                 },
     { label: t('navFavorites'), href: '/locataire/favorites' },
     { label: t('navMessages'),  href: '/locataire/messages'  },
   ];

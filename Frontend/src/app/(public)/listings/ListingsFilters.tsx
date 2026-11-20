@@ -412,7 +412,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
               autoFocus
               className="min-w-0 flex-1"
               initialValue={miloText ?? ''}
-              placeholder={t('askMiloButton')}
+              placeholder={t('askMiloPlaceholder')}
               ariaLabel={t('askMiloAriaLabel')}
               clearLabel={t('askMiloClear')}
               onSubmitted={() => setMiloOpen(false)}
