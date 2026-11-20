@@ -18,8 +18,9 @@ export const PLACE_ALIASES: Record<string, string> = {
   // distinct de "Saly" (même principe que "Mermoz Sacré-Cœur") — l'alias
   // le collapserait à tort vers "Saly" seul.
   // Lot 7 bis, règle E — variantes d'orthographe/abréviations. "pa"/"sc3"
-  // sont des abréviations courtes et peu sûres (needsValidation hérité de
-  // la cible) : à confirmer par Malick avant de les considérer fiables.
+  // restent des abréviations courtes, à surveiller en cas de collision avec
+  // un autre sens (indépendant de la validation des quartiers eux-mêmes,
+  // acquise depuis).
   'sacre coeur': 'Sacré-Cœur',
   sc3: 'Sacré-Cœur',
   pointe: 'Point E',
