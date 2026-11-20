@@ -6,6 +6,7 @@ import { Prisma, Role } from '@prisma/client';
 import { OnesignalService } from '../onesignal/onesignal.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PusherService } from '../pusher/pusher.service';
+import { PushService } from '../push/push.service';
 import { isPlaceholderEmail } from '../common/user-display.util';
 import {
   t,
@@ -84,6 +85,7 @@ export class NotificationsService {
     private readonly onesignal: OnesignalService,
     private readonly prisma: PrismaService,
     private readonly pusher: PusherService,
+    private readonly push: PushService,
   ) {
     this.transporter = nodemailer.createTransport({
       host: this.config.get<string>('SMTP_HOST') ?? 'smtp.gmail.com',
@@ -817,14 +819,23 @@ export class NotificationsService {
     roomId: string,
   ): void {
     /* Fire-and-forget : on résout la langue puis on pousse. */
-    void this.localeOf({ userId: recipientId }).then((loc) =>
-      this.onesignal.sendToExternalIds(
-        [recipientId],
-        t(loc, 'pushNewMessageTitle'),
-        t(loc, 'pushNewMessageBody', { senderName }),
-        { roomId },
-      ),
-    );
+    void this.localeOf({ userId: recipientId }).then((loc) => {
+      const title = t(loc, 'pushNewMessageTitle');
+      const body = t(loc, 'pushNewMessageBody', { senderName });
+      void this.onesignal.sendToExternalIds([recipientId], title, body, {
+        roomId,
+      });
+      // Lot « notifications push » (20/11/2026) — seul événement de la liste
+      // de Malick sans notification interne (pas de pushInApp pour les
+      // messages, cf. commentaire ci-dessous) : push Web Push direct, sans
+      // écriture en base ni entrée dans la cloche.
+      void this.push.sendToUser(recipientId, 'messages', {
+        title,
+        body,
+        url: `/messages?room=${roomId}`,
+        tag: `message-${roomId}`,
+      });
+    });
     /* Signal léger pour le badge Messages de la sidebar (DashboardShell) —
      * pas d'écriture en base ni d'entrée dans la cloche (déjà couvert par le
      * push OneSignal + la messagerie elle-même) : juste de quoi déclencher un
@@ -848,17 +859,50 @@ export class NotificationsService {
     metadata?: Prisma.InputJsonValue,
   ) {
     const loc = await this.localeOf({ userId });
+    const title = t(loc, titleKey, params);
+    const body = t(loc, bodyKey, params);
     const notif = await this.prisma.notification.create({
-      data: {
-        userId,
-        type,
-        title: t(loc, titleKey, params),
-        body: t(loc, bodyKey, params),
-        metadata,
-      },
+      data: { userId, type, title, body, metadata },
     });
     void this.pusher.trigger(`user-${userId}`, 'notification', notif);
+
+    // Lot « notifications push » — point d'entrée UNIQUE : tout type absent
+    // de la table de correspondance de PushService n'est jamais poussé (hors
+    // périmètre de la liste d'événements décidée par Malick). Jamais
+    // `await`é : un échec d'envoi ne doit jamais retarder/casser l'appelant.
+    const category = this.push.categoryForType(type);
+    if (category) {
+      const { url, tag } = this.resolvePushUrl(type, metadata);
+      void this.push.sendToUser(userId, category, { title, body, url, tag });
+    }
+
     return notif;
+  }
+
+  /** Chemin interne + tag de regroupement, dérivés du type + des mêmes
+   * métadonnées déjà attachées à la notification interne — aucune nouvelle
+   * donnée, jamais d'URL absolue/externe. Repli générique (`/notifications`)
+   * si aucun identifiant exploitable n'est disponible. */
+  private resolvePushUrl(
+    type: string,
+    metadata?: Prisma.InputJsonValue,
+  ): { url: string; tag: string } {
+    const m = (metadata ?? {}) as Record<string, unknown>;
+    const bookingId = typeof m.bookingId === 'string' ? m.bookingId : undefined;
+    const listingId = typeof m.listingId === 'string' ? m.listingId : undefined;
+
+    if (type.startsWith('VERIF_') || type === 'LISTING_SUSPENDED') {
+      return {
+        url: listingId
+          ? `/bailleur/listings/${listingId}/edit`
+          : '/bailleur/listings',
+        tag: listingId ? `listing-${listingId}` : type,
+      };
+    }
+    if (bookingId) {
+      return { url: `/bookings/${bookingId}`, tag: `booking-${bookingId}` };
+    }
+    return { url: '/notifications', tag: type };
   }
 
   // Agent : nouvelle mission assignée

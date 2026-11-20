@@ -5,6 +5,7 @@ import { NotificationsService } from './notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OnesignalService } from '../onesignal/onesignal.service';
 import { PusherService } from '../pusher/pusher.service';
+import { PushService } from '../push/push.service';
 
 // Ce fichier couvre broadcastPush() — le chemin exact emprunté par la page
 // admin espace/communications (POST /notifications/broadcast) : ciblage des
@@ -20,6 +21,7 @@ describe('NotificationsService.broadcastPush', () => {
   };
   let onesignalMock: { sendBroadcast: jest.Mock };
   let pusherMock: { trigger: jest.Mock };
+  let pushMock: { categoryForType: jest.Mock; sendToUser: jest.Mock };
 
   beforeEach(async () => {
     prismaMock = {
@@ -28,6 +30,10 @@ describe('NotificationsService.broadcastPush', () => {
     };
     onesignalMock = { sendBroadcast: jest.fn().mockResolvedValue(undefined) };
     pusherMock = { trigger: jest.fn().mockResolvedValue(undefined) };
+    pushMock = {
+      categoryForType: jest.fn().mockReturnValue(null),
+      sendToUser: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -35,6 +41,7 @@ describe('NotificationsService.broadcastPush', () => {
         { provide: PrismaService, useValue: prismaMock },
         { provide: OnesignalService, useValue: onesignalMock },
         { provide: PusherService, useValue: pusherMock },
+        { provide: PushService, useValue: pushMock },
         { provide: ConfigService, useValue: { get: jest.fn() } },
       ],
     }).compile();
