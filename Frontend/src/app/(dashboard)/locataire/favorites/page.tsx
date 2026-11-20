@@ -14,6 +14,7 @@ import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import { StatFilterCard } from '@/components/bookings/StatFilterCard';
 import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
 import { BookingPagination } from '@/components/bookings/BookingPagination';
+import BackButton from '@/components/ui/BackButton';
 
 type FavFilter = 'ALL' | 'VERIFIED' | 'NIGHTLY' | 'MONTHLY';
 const PER_PAGE_OPTIONS = [6, 9, 12] as const;
@@ -114,6 +115,9 @@ export default function FavoritesPage() {
 
   return (
     <div>
+      {/* Lot « boutons retour » — sidebar/BottomNav déjà disponibles, seul le
+          retour vers la question FAQ ouverte manque. */}
+      <BackButton mobileAlways={false} />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-text">{t('favoritesTitle')}</h1>
         <p className="mt-1 text-sm text-sub">

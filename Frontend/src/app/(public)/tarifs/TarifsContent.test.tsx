@@ -9,6 +9,13 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'fr',
 }));
 
+// Lot « boutons retour » — TarifsContent rend désormais BackButton
+// (useRouter/useSearchParams), jamais mocké jusqu'ici dans ce fichier.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 const PRICING: PublicPricing = {
   starterPriceFcfa: 75000,
   proPriceFcfaMonthly: 150000,

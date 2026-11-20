@@ -14,6 +14,7 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import BottomSheet from '@/components/ui/BottomSheet';
+import BackButton from '@/components/ui/BackButton';
 import { revalidateListingsCache } from './actions';
 
 interface VerifModal { listingId: string; title: string; }
@@ -399,6 +400,9 @@ function BailleurListingsContent() {
 
   return (
     <div>
+      {/* Lot « boutons retour » — sidebar/BottomNav déjà disponibles, seul le
+          retour vers la question FAQ ouverte manque. */}
+      <BackButton mobileAlways={false} />
       {/* Header */}
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-text">{t('listingsTitle')}</h1>

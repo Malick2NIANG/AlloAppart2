@@ -1,10 +1,13 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import MiloSearchBar, { type MiloSearchBarHandle } from '@/components/milo/MiloSearchBar';
 import type { MiloFaqResult } from '@/components/milo/types';
 import { FAQ_TOPIC_IDS } from '@/components/milo/faqTopicIds';
+
+const FAQ_TOPIC_ID_SET: ReadonlySet<string> = new Set(FAQ_TOPIC_IDS);
 
 /**
  * Page /aide (lot « page /aide ») — un seul endroit pour poser une question
@@ -20,6 +23,8 @@ export default function AideContent() {
   const tFaqQuestions = useTranslations('miloFaqQuestions');
   const tFaq = useTranslations('miloFaq');
   const barRef = useRef<MiloSearchBarHandle>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeFaq, setActiveFaq] = useState<MiloFaqResult | null>(null);
   const [openIds, setOpenIds] = useState<ReadonlySet<string>>(new Set());
 
@@ -30,6 +35,32 @@ export default function AideContent() {
       return next;
     });
   };
+
+  // Lot « boutons retour » — restaure la carte FAQ ouverte au retour depuis
+  // une page cul-de-sac (BackButton -> /aide?sujet=<id>). Sujet inconnu ou
+  // absent = ignoré sans erreur, jamais de donnée personnelle dans l'URL.
+  useEffect(() => {
+    const sujet = searchParams.get('sujet');
+    if (sujet && FAQ_TOPIC_ID_SET.has(sujet)) {
+      barRef.current?.showFaq({ id: sujet, answerKey: sujet });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- lecture unique au montage, jamais ré-exécutée à chaque frappe dans la barre
+  }, []);
+
+  // Garde `?sujet=` synchronisé avec la carte affichée (jamais d'historique
+  // supplémentaire — replace, pas push) pour que le lien « En savoir plus »
+  // ouvert depuis ici sache y revenir, et que BackButton retrouve la bonne
+  // question après un repli (pas d'historique same-origin).
+  useEffect(() => {
+    const current = searchParams.get('sujet');
+    const next = activeFaq?.id ?? null;
+    if (current === next) return;
+    const params = new URLSearchParams(searchParams.toString());
+    if (next) params.set('sujet', next); else params.delete('sujet');
+    const qs = params.toString();
+    router.replace(qs ? `/aide?${qs}` : '/aide', { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ne doit réagir qu'au changement de carte, jamais à searchParams/router (identité stable du routeur mise à part)
+  }, [activeFaq]);
 
   return (
     <main className="min-h-screen bg-bg py-14 px-4">

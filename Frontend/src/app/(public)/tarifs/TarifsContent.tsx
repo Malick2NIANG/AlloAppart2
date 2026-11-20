@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import { formatFcfa, type PublicPricing } from '@/lib/pricing';
+import BackButton from '@/components/ui/BackButton';
 
 interface Props {
   pricing: PublicPricing | null;
@@ -49,6 +50,9 @@ export default function TarifsContent({ pricing }: Props) {
   return (
     <main className="min-h-screen bg-bg py-14 px-4">
       <div className="aa-container max-w-5xl">
+
+        {/* Lot « boutons retour » — /tarifs n'avait aucune navigation de retour. */}
+        <BackButton />
 
         {/* En-tête */}
         <div className="mb-10 text-center">

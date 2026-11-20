@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AideContent from './AideContent';
@@ -11,8 +11,12 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'fr',
 }));
 
+const replace = vi.fn();
+let params = new URLSearchParams();
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace }),
+  useSearchParams: () => params,
 }));
 
 // Le libellé d'un sujet est partagé par le bouton « question courante » et
@@ -24,6 +28,11 @@ function commonQuestionButton(id: string) {
 }
 
 describe('AideContent', () => {
+  beforeEach(() => {
+    replace.mockReset();
+    params = new URLSearchParams();
+  });
+
   it('un clic sur une question courante affiche la carte-réponse correspondante, sans appel réseau', async () => {
     const user = userEvent.setup();
     render(<NearMeProvider><AideContent /></NearMeProvider>);
@@ -72,5 +81,35 @@ describe('AideContent', () => {
     expect(screen.queryByText('miloFaq.milo_exemples')).not.toBeInTheDocument();
     await user.click(accordionButton);
     expect(screen.getByText('miloFaq.milo_exemples')).toBeInTheDocument();
+  });
+
+  describe('lot « boutons retour » — restauration de la question via ?sujet=', () => {
+    it('?sujet=<id> connu au montage : la carte se rouvre automatiquement', () => {
+      params = new URLSearchParams({ sujet: 'tarifs_abonnements' });
+      render(<NearMeProvider><AideContent /></NearMeProvider>);
+      const status = screen.getByRole('status');
+      expect(within(status).getByText('miloFaq.tarifs_abonnements')).toBeInTheDocument();
+    });
+
+    it('?sujet= inconnu : ignoré sans erreur, aucune carte affichée', () => {
+      params = new URLSearchParams({ sujet: 'sujet_invente' });
+      render(<NearMeProvider><AideContent /></NearMeProvider>);
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    it('ouvrir une question courante reflète son id dans ?sujet= (replace, jamais push — pas de nouvel historique)', async () => {
+      const user = userEvent.setup();
+      render(<NearMeProvider><AideContent /></NearMeProvider>);
+      await user.click(commonQuestionButton('tarifs_abonnements'));
+      expect(replace).toHaveBeenCalledWith('/aide?sujet=tarifs_abonnements', { scroll: false });
+    });
+
+    it('« Poser une autre question » retire ?sujet= de l\'URL', async () => {
+      params = new URLSearchParams({ sujet: 'tarifs_abonnements' });
+      const user = userEvent.setup();
+      render(<NearMeProvider><AideContent /></NearMeProvider>);
+      await user.click(screen.getByText('aide.askAnotherLabel'));
+      expect(replace).toHaveBeenCalledWith('/aide', { scroll: false });
+    });
   });
 });

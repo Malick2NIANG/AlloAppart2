@@ -74,7 +74,10 @@ export default function MiloFaqCard({ faq, onSearchInstead, onClose, className =
       <div className="mt-2 flex flex-wrap items-center gap-3 pl-5">
         {href && (
           <Link
-            href={href}
+            // Marqueur d'origine (lot « boutons retour ») — jamais une donnée
+            // personnelle, juste de quoi faire savoir à BackButton où revenir
+            // (toujours /aide, même si la carte était affichée ailleurs).
+            href={`${href}?from=aide&sujet=${encodeURIComponent(faq.id)}`}
             className="text-xs font-semibold underline underline-offset-2 hover:text-gold-dark/80"
           >
             {t('linkLabel')}

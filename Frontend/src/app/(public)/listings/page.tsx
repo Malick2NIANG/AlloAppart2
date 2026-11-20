@@ -3,6 +3,7 @@ import { getTranslations, getLocale } from 'next-intl/server';
 import { auth } from '@clerk/nextjs/server';
 import ListingsFilters from './ListingsFilters';
 import ListingsResultsClient from './ListingsResultsClient';
+import BackButton from '@/components/ui/BackButton';
 import { type Listing, type ListingsResponse } from '@/types/listing';
 
 export default async function ListingsPage({
@@ -141,6 +142,10 @@ export default async function ListingsPage({
   return (
     <main className="py-10 px-4 bg-bg min-h-screen">
       <div className="aa-container">
+
+        {/* Lot « boutons retour » — nav par onglets déjà disponible (Accueil/
+            Annonces/...), seul le retour vers la question FAQ ouverte manque. */}
+        <BackButton mobileAlways={false} />
 
         {/* Header */}
         <div className="mb-6">

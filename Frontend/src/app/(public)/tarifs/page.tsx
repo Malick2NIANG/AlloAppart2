@@ -8,6 +8,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t('metaTitle'),
     description: t('metaDescription'),
+    // Lot « boutons retour » — ?from=aide&sujet=<id> (marqueur BackButton)
+    // ne doit jamais entrer dans l'URL canonique.
+    alternates: { canonical: '/tarifs' },
   };
 }
 

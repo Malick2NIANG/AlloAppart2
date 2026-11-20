@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
 import { useTranslations } from 'next-intl';
 import MessagesShell from '@/components/messages/MessagesShell';
+import BackButton from '@/components/ui/BackButton';
 
 function VisitorGate({ t }: { t: ReturnType<typeof useTranslations<'messages'>> }) {
   return (
@@ -39,6 +40,7 @@ export default function MessagesPage() {
     return (
       <main className="py-10 px-4 bg-bg min-h-screen">
         <div className="aa-container max-w-5xl">
+          <BackButton />
           <VisitorGate t={t} />
         </div>
       </main>
@@ -52,11 +54,20 @@ export default function MessagesPage() {
     // capture — la navbar publique mesure réellement 80px dès 768px, jamais
     // 64px). Sous 768px : la navbar publique fait 3.5rem (max-md:h-14, lot
     // 2a) ; 100dvh tient compte du clavier virtuel ; --bottom-offset réserve
-    // la place de la barre de navigation du bas + l'encoche.
-    <main className="bg-bg h-[calc(100vh-80px)] max-md:h-[calc(100dvh-3.5rem-var(--bottom-offset,0))]">
-      <div className="aa-container max-w-5xl h-full py-6 px-4">
-        <MessagesShell emptyHint={t('noRoomsHint')} />
+    // la place de la barre de navigation du bas + l'encoche. Hauteur totale
+    // inchangée par le lot « boutons retour » : BackButton prend sa place
+    // dans la colonne flex, MessagesShell se contente du reste (flex-1
+    // min-h-0) — zéro régression quand BackButton ne s'affiche pas (from=aide
+    // absent : aucun élément, aucune hauteur prise).
+    <div className="flex h-[calc(100vh-80px)] max-md:h-[calc(100dvh-3.5rem-var(--bottom-offset,0))] flex-col bg-bg">
+      <div className="aa-container max-w-5xl px-4">
+        <BackButton mobileAlways={false} />
       </div>
-    </main>
+      <main className="min-h-0 flex-1">
+        <div className="aa-container max-w-5xl h-full py-6 px-4">
+          <MessagesShell emptyHint={t('noRoomsHint')} />
+        </div>
+      </main>
+    </div>
   );
 }

@@ -16,6 +16,7 @@ import LocationPicker, { type MapFocus } from '@/components/map/LocationPicker';
 import MobileStepperBar from '@/components/ui/MobileStepperBar';
 import StickyStepActions from '@/components/ui/StickyStepActions';
 import BottomSheet from '@/components/ui/BottomSheet';
+import BackButton from '@/components/ui/BackButton';
 import { getListingProfile, sanitizeForType, TERRAIN_AMENITY_ICONS } from '@/lib/listingProfile';
 import { REGION_CENTERS, checkRegionConsistency, findRegionAt, getRegionFeature } from '@/lib/senegalRegions';
 
@@ -406,6 +407,10 @@ export default function PublierPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg px-4">
         <div className="w-full max-w-sm text-center">
+          {/* Lot « boutons retour » — seule page sans aucune navigation. */}
+          <div className="mb-5 text-left">
+            <BackButton />
+          </div>
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-gold-pale ring-4 ring-gold/20">
             <i className="fa-solid fa-house-chimney text-2xl text-gold-dark" />
           </div>

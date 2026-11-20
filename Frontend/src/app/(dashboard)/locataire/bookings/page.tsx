@@ -18,6 +18,7 @@ import { StatFilterCard } from '@/components/bookings/StatFilterCard';
 import { BookingSearchRow } from '@/components/bookings/BookingSearchRow';
 import { BookingPagination } from '@/components/bookings/BookingPagination';
 import BottomSheet from '@/components/ui/BottomSheet';
+import BackButton from '@/components/ui/BackButton';
 
 const DISPUTE_WINDOW_HOURS = 24;
 const PER_PAGE_OPTIONS = [6, 12, 24] as const;
@@ -179,6 +180,9 @@ export default function LocataireBookingsPage() {
 
   return (
     <div>
+      {/* Lot « boutons retour » — sidebar/BottomNav déjà disponibles, seul le
+          retour vers la question FAQ ouverte manque. */}
+      <BackButton mobileAlways={false} />
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-text">{t('bookingsTitle')}</h1>
         <p className="mt-1 text-sm text-sub">

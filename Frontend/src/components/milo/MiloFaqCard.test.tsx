@@ -30,7 +30,7 @@ describe('MiloFaqCard', () => {
       />,
     );
     const link = screen.getByRole('link', { name: 'miloFaq.linkLabel' });
-    expect(link).toHaveAttribute('href', '/tarifs');
+    expect(link).toHaveAttribute('href', '/tarifs?from=aide&sujet=tarifs_abonnements');
   });
 
   it.each([
@@ -41,7 +41,7 @@ describe('MiloFaqCard', () => {
     ['notifications', '/notifications'],
     ['avis', '/locataire/bookings'],
     ['contacter_bailleur', '/listings'],
-  ])('lien correct pour le sujet "%s" (lot FAQ procédurales)', (id, href) => {
+  ])('lien correct pour le sujet "%s" (lot FAQ procédurales), avec le marqueur d\'origine (lot « boutons retour »)', (id, href) => {
     render(
       <MiloFaqCard
         faq={{ id, answerKey: id, confidence: 0.75 }}
@@ -49,13 +49,13 @@ describe('MiloFaqCard', () => {
         onClose={vi.fn()}
       />,
     );
-    expect(screen.getByRole('link', { name: 'miloFaq.linkLabel' })).toHaveAttribute('href', href);
+    expect(screen.getByRole('link', { name: 'miloFaq.linkLabel' })).toHaveAttribute('href', `${href}?from=aide&sujet=${id}`);
   });
 
   it.each([
     ['connexion_probleme', '/sign-in'],
     ['annonce_validation', '/cgu'],
-  ])('lien correct pour le sujet "%s" (lot FAQ : décisions de contenu)', (id, href) => {
+  ])('lien correct pour le sujet "%s" (lot FAQ : décisions de contenu), avec le marqueur d\'origine (lot « boutons retour »)', (id, href) => {
     render(
       <MiloFaqCard
         faq={{ id, answerKey: id, confidence: 0.75 }}
@@ -63,7 +63,7 @@ describe('MiloFaqCard', () => {
         onClose={vi.fn()}
       />,
     );
-    expect(screen.getByRole('link', { name: 'miloFaq.linkLabel' })).toHaveAttribute('href', href);
+    expect(screen.getByRole('link', { name: 'miloFaq.linkLabel' })).toHaveAttribute('href', `${href}?from=aide&sujet=${id}`);
   });
 
   it("n'affiche aucun lien quand le sujet n'en a pas (ex. milo_c_est_quoi)", () => {
