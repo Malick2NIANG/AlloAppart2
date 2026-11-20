@@ -72,3 +72,36 @@ describe('ListingHeroCarousel — bouton Partager (lot « raccourci »)', () => 
     expect(await screen.findByText('detail.shareCopied')).toBeInTheDocument();
   });
 });
+
+describe('ListingHeroCarousel — photo originale dans la visionneuse (lot « mobile : langue, dark mode, photo originale »)', () => {
+  it('la visionneuse plein écran affiche originals[url] quand il existe, jamais le cadre publié', async () => {
+    const cropped = PROPS.images[0];
+    const original = 'https://res.cloudinary.com/demo/image/upload/v1/a-original.jpg';
+    const user = userEvent.setup();
+    render(<ListingHeroCarousel {...PROPS} originals={{ [cropped]: original }} isPublic={true} />);
+
+    // Ouvre la visionneuse en cliquant la photo du héros (desktop).
+    const heroImages = screen.getAllByAltText(PROPS.title);
+    await user.click(heroImages[0]);
+
+    const viewerImages = await screen.findAllByAltText(PROPS.title);
+    // La dernière occurrence est celle de la visionneuse (montée par-dessus
+    // le héros, qui reste dans le DOM) — son `src` encode l'ORIGINAL, jamais
+    // le cadre publié.
+    const viewerSrc = viewerImages[viewerImages.length - 1].getAttribute('src') ?? '';
+    expect(decodeURIComponent(viewerSrc)).toContain(original);
+    expect(decodeURIComponent(viewerSrc)).not.toContain('a.jpg');
+  });
+
+  it('sans entrée dans `originals` : la visionneuse affiche l\'URL publiée (anciennes annonces)', async () => {
+    const user = userEvent.setup();
+    render(<ListingHeroCarousel {...PROPS} isPublic={true} />);
+
+    const heroImages = screen.getAllByAltText(PROPS.title);
+    await user.click(heroImages[0]);
+
+    const viewerImages = await screen.findAllByAltText(PROPS.title);
+    const viewerSrc = viewerImages[viewerImages.length - 1].getAttribute('src') ?? '';
+    expect(decodeURIComponent(viewerSrc)).toContain('a.jpg');
+  });
+});
