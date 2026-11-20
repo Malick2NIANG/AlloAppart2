@@ -2,6 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { buildShareDescription, buildListingMetadata } from './shareMetadata';
 import type { Listing } from '@/types/listing';
 
+// `toLocaleString('fr-FR')` sépare les milliers par une espace insécable fine
+// (U+202F) sur les versions récentes de l'ICU de Node (vu avec Node 24 en
+// CI) — avant, une espace insécable normale (U+00A0). Les deux sont un
+// comportement Intl correct ; on les normalise ici en une espace simple
+// pour comparer, plutôt que de figer l'assertion sur un caractère précis.
+const normalizeSpaces = (s: string) => s.replace(/\s+/g, ' ');
+
 const BASE: Listing = {
   id: 'l1',
   title: 'Bel appartement',
@@ -32,7 +39,7 @@ const BASE: Listing = {
 describe('buildShareDescription — lot « raccourci » (partage)', () => {
   it('annonce VENTE : prix de vente, jamais /mois ni /nuit', () => {
     const listing: Listing = { ...BASE, transactionType: 'VENTE', price: 45000000, type: 'VILLA', city: 'Saly' };
-    const description = buildShareDescription(listing);
+    const description = normalizeSpaces(buildShareDescription(listing));
     expect(description).toContain('45 000 000 FCFA');
     expect(description).not.toMatch(/\/mois|\/nuit/);
     expect(description).toContain('Saly');
@@ -47,14 +54,14 @@ describe('buildShareDescription — lot « raccourci » (partage)', () => {
       type: 'STUDIO',
       city: 'Almadies',
     };
-    const description = buildShareDescription(listing);
+    const description = normalizeSpaces(buildShareDescription(listing));
     expect(description).toContain('25 000 FCFA/nuit');
     expect(description).not.toContain('750 000');
     expect(description).toContain('Almadies');
   });
 
   it('annonce mensuelle classique : prix par mois', () => {
-    const description = buildShareDescription(BASE);
+    const description = normalizeSpaces(buildShareDescription(BASE));
     expect(description).toContain('150 000 FCFA/mois');
   });
 

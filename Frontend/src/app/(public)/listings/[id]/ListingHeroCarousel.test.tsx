@@ -53,9 +53,13 @@ describe('ListingHeroCarousel — bouton Partager (lot « raccourci »)', () => 
   });
 
   it("repli « copier le lien » (avec confirmation) quand navigator.share est indisponible", async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, writable: true, configurable: true });
+    // userEvent.setup() installe paresseusement son propre faux
+    // navigator.clipboard (pour son émulation interne copier/coller) : le
+    // définir par Object.defineProperty AVANT cet appel se fait écraser
+    // silencieusement (0 appel enregistré, sans erreur). On espionne donc
+    // l'objet clipboard RÉEL de l'environnement de test, après coup.
     const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
     render(<ListingHeroCarousel {...PROPS} isPublic={true} />);
 
     const [shareBtn] = screen.getAllByRole('button', { name: 'detail.shareBtn' });
