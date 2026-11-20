@@ -23,6 +23,7 @@ import {
 } from '@prisma/client';
 import { CreateReportDto } from './dto/create-report.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { distanceKmOrNull } from './geo';
 import axios from 'axios';
 import { PaydunyaSoftpayService } from '../paydunya/paydunya-softpay.service';
 import { PlatformConfigService } from '../platform-config/platform-config.service';
@@ -128,6 +129,9 @@ export class ListingsService {
       rentalMode,
       minPricePerNight,
       maxPricePerNight,
+      lat,
+      lng,
+      radiusKm,
       page = 1,
       limit = 20,
     } = filters;
@@ -317,9 +321,43 @@ export class ListingsService {
         b.listing.createdAt.getTime() - a.listing.createdAt.getTime(),
     );
 
-    const total = scored.length;
+    // ── « Près de moi » (lot « raccourci ») ───────────────────────────
+    // lat/lng ne sont JAMAIS journalisés ni stockés ici — utilisés une
+    // seule fois, pour cette requête, puis oubliés. Remplace le tri
+    // précédent par la distance croissante (c'est tout le sens de la
+    // demande) ; une annonce sans coordonnées fiables est exclue du tri
+    // (distance null, toujours envoyée en dernier), jamais une erreur.
+    // radiusKm, si fourni, exclut aussi du RÉSULTAT les annonces hors
+    // rayon (y compris celles à distance inconnue — impossible de
+    // confirmer qu'elles sont dans le rayon).
+    let withDistance = scored.map((s) => ({
+      ...s,
+      distanceKm: null as number | null,
+    }));
+
+    if (lat !== undefined && lng !== undefined) {
+      withDistance = scored.map((s) => ({
+        ...s,
+        distanceKm: distanceKmOrNull(lat, lng, s.listing.lat, s.listing.lng),
+      }));
+
+      if (radiusKm !== undefined) {
+        withDistance = withDistance.filter(
+          (s) => s.distanceKm !== null && s.distanceKm <= radiusKm,
+        );
+      }
+
+      withDistance.sort((a, b) => {
+        if (a.distanceKm === null && b.distanceKm === null) return 0;
+        if (a.distanceKm === null) return 1;
+        if (b.distanceKm === null) return -1;
+        return a.distanceKm - b.distanceKm;
+      });
+    }
+
+    const total = withDistance.length;
     const page_ = page;
-    const paginated = scored.slice((page_ - 1) * limit, page_ * limit);
+    const paginated = withDistance.slice((page_ - 1) * limit, page_ * limit);
     // Message honnête (lot 6a) : le Frontend doit pouvoir dire « aucune
     // annonce ne mentionne la mer » plutôt que de laisser croire que le tri
     // a eu un effet — calculé sur l'ensemble des résultats (pas seulement la
@@ -327,7 +365,7 @@ export class ListingsService {
     const prefsMatched =
       prefIds.length > 0 ? scored.some((s) => s.prefScore > 0) : undefined;
 
-    const enriched = paginated.map(({ listing }) => {
+    const enriched = paginated.map(({ listing, distanceKm }) => {
       const ratings = listing.reviews.map((r) => r.rating);
       const avgRating =
         ratings.length > 0
@@ -337,7 +375,17 @@ export class ListingsService {
           : null;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { reviews: _reviews, ...rest } = listing;
-      return { ...rest, avgRating };
+      return {
+        ...rest,
+        avgRating,
+        // Présent seulement quand lat/lng ont été fournis (jamais `null`
+        // pour une recherche classique, qui ignore ce champ).
+        ...(lat !== undefined &&
+          lng !== undefined && {
+            distanceKm:
+              distanceKm !== null ? Math.round(distanceKm * 10) / 10 : null,
+          }),
+      };
     });
 
     return {

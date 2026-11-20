@@ -24,6 +24,9 @@ export default async function ListingsPage({
     // Lot meublé/durée — filtres manuels (type de location, ameublement, prix
     // par nuit, qui remplace le prix mensuel quand rentalMode=NIGHTLY).
     rentalMode?: string; furnished?: string; minPricePerNight?: string; maxPricePerNight?: string;
+    // Lot « raccourci » (près de moi) — jamais stockés, seulement transmis
+    // tels quels à GET /listings pour CETTE requête.
+    lat?: string; lng?: string;
   }>;
 }) {
   const {
@@ -31,6 +34,7 @@ export default async function ListingsPage({
     transactionType: rawTransactionType, cityContains, minBeds, maxBeds, minRooms, maxRooms, amenities,
     milo, miloLang, miloMiss, miloText, miloUnmatched, prefs,
     rentalMode, furnished, minPricePerNight, maxPricePerNight,
+    lat, lng,
   } = await searchParams;
   const transactionType = rawTransactionType === 'LOCATION' || rawTransactionType === 'VENTE' ? rawTransactionType : undefined;
   const isMilo = milo === '1';
@@ -60,7 +64,10 @@ export default async function ListingsPage({
     }
   }
 
-  let listings: Listing[] = [];
+  // Lot « raccourci » (près de moi) — distanceKm (km, arrondi) uniquement
+  // présent quand lat/lng ont été transmis à GET /listings.
+  type ListingWithDistance = Listing & { distanceKm?: number | null };
+  let listings: ListingWithDistance[] = [];
   let total = 0;
   let prefsMatched: boolean | undefined;
 
@@ -93,6 +100,7 @@ export default async function ListingsPage({
         ...(furnished  ? { furnished }           : {}),
         ...(minPricePerNight ? { minPricePerNight } : {}),
         ...(maxPricePerNight ? { maxPricePerNight } : {}),
+        ...(lat && lng ? { lat, lng } : {}),
       });
       const res = await api.get<ListingsResponse>(`/listings?${params}`);
       listings = Array.isArray(res?.data) ? res.data : [];
@@ -309,6 +317,11 @@ export default async function ListingsPage({
                         </div>
                         <p className="mt-1 flex items-center gap-1 text-sm text-sub">
                           <i className="fa-solid fa-location-dot text-gold-dark text-xs" />{listing.city}
+                          {listing.distanceKm != null && (
+                            <span className="ml-1 text-xs text-gold-dark font-medium">
+                              · {t('nearMeDistance', { km: listing.distanceKm.toLocaleString(numLocale, { maximumFractionDigits: 1 }) })}
+                            </span>
+                          )}
                         </p>
                         {listing.tourUrl && (
                           <span className="flex items-center gap-1 text-[10px] font-medium bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full">

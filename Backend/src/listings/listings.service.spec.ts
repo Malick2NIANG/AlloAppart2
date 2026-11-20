@@ -1422,4 +1422,139 @@ describe('ListingsService', () => {
       expect(page2.data.map((d) => d.id)).not.toContain('b');
     });
   });
+
+  describe('findAll — « Près de moi » (lot « raccourci »)', () => {
+    // Plateau (point de référence), Mermoz (~4 km), Saly (~75 km), Null
+    // Island (coordonnées non fiables, cf. geo.ts).
+    const USER = { lat: 14.6928, lng: -17.4467 };
+    function fakeListingAt(id: string, lat: number, lng: number) {
+      return {
+        id,
+        title: id,
+        description: '',
+        city: 'Dakar',
+        lat,
+        lng,
+        boostScore: 0,
+        isVerified: false,
+        boostUntil: null,
+        createdAt: new Date('2026-01-01'),
+        owner: { id: 'o1', roles: [], subscription: null },
+        reviews: [],
+      };
+    }
+
+    it('trie par distance croissante quand lat/lng sont fournis', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingAt('saly', 14.45, -17.0167),
+        fakeListingAt('plateau', 14.6928, -17.4467),
+        fakeListingAt('mermoz', 14.7167, -17.47),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        lat: USER.lat,
+        lng: USER.lng,
+      });
+      expect(result.data.map((d) => d.id)).toEqual([
+        'plateau',
+        'mermoz',
+        'saly',
+      ]);
+    });
+
+    it('renvoie distanceKm arrondi à 1 décimale sur chaque résultat', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingAt('mermoz', 14.7167, -17.47),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        lat: USER.lat,
+        lng: USER.lng,
+      });
+      const distance = (result.data[0] as { distanceKm?: number | null })
+        .distanceKm;
+      expect(distance).not.toBeNull();
+      expect(Number.isInteger((distance ?? 0) * 10)).toBe(true); // 1 décimale max
+    });
+
+    it('distanceKm absent (jamais présent) sur une recherche classique sans lat/lng', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingAt('plateau', 14.6928, -17.4467),
+      ]);
+      const result = await service.findAll({ page: 1, limit: 20 });
+      expect(result.data[0]).not.toHaveProperty('distanceKm');
+    });
+
+    it('annonce sans coordonnées fiables (0,0) : exclue du tri, jamais une erreur', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingAt('nullisland', 0, 0),
+        fakeListingAt('mermoz', 14.7167, -17.47),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        lat: USER.lat,
+        lng: USER.lng,
+      });
+      expect(result.data).toHaveLength(2);
+      expect(result.data.map((d) => d.id)).toEqual(['mermoz', 'nullisland']); // coordonnées non fiables toujours en dernier
+      expect(
+        (result.data[1] as { distanceKm?: number | null }).distanceKm,
+      ).toBeNull();
+    });
+
+    it('radiusKm exclut du résultat les annonces hors rayon (et les coordonnées non fiables, par prudence)', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingAt('mermoz', 14.7167, -17.47), // ~4 km
+        fakeListingAt('saly', 14.45, -17.0167), // ~75 km
+        fakeListingAt('nullisland', 0, 0),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        lat: USER.lat,
+        lng: USER.lng,
+        radiusKm: 10,
+      });
+      expect(result.data.map((d) => d.id)).toEqual(['mermoz']);
+      expect(result.total).toBe(1);
+    });
+
+    it('lat/lng absents du résultat de findAll (jamais retransmis tels quels, seulement distanceKm par annonce)', async () => {
+      prismaMock.listing.findMany.mockResolvedValueOnce([
+        fakeListingAt('mermoz', 14.7167, -17.47),
+      ]);
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        lat: USER.lat,
+        lng: USER.lng,
+      });
+      expect(result).not.toHaveProperty('lat');
+      expect(result).not.toHaveProperty('lng');
+    });
+
+    // "Performance" (lot « raccourci » § validation) : ce projet trie/pagine
+    // déjà TOUT en mémoire (JS), pas en SQL — aucune requête PostGIS/EXPLAIN
+    // n'existe à ce niveau (cf. rapport). Ce test vérifie la seule chose
+    // mesurable dans cette architecture : le tri par distance sur un volume
+    // réaliste reste rapide, jamais une dégradation quadratique visible.
+    it('performance : tri par distance sur 2000 annonces reste rapide (<300ms)', async () => {
+      const many = Array.from({ length: 2000 }, (_, i) =>
+        fakeListingAt(`l${i}`, 14 + Math.random() * 2, -18 + Math.random() * 2),
+      );
+      prismaMock.listing.findMany.mockResolvedValueOnce(many);
+      const start = Date.now();
+      const result = await service.findAll({
+        page: 1,
+        limit: 20,
+        lat: USER.lat,
+        lng: USER.lng,
+      });
+      expect(Date.now() - start).toBeLessThan(300);
+      expect(result.data).toHaveLength(20);
+    });
+  });
 });

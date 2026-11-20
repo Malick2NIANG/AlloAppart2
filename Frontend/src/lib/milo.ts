@@ -124,6 +124,11 @@ export async function resolveMiloRedirectParams(
  */
 export type MiloQueryClassification =
   | { kind: 'faq'; faq: MiloFaqResult; detectedLanguage: DetectedLanguage }
+  /** Lot « raccourci » (près de moi) — Milo n'a posé aucun filtre de lieu
+   * lui-même ; `params` contient les autres critères éventuels (type,
+   * équipements…) + milo=1, prêts à être complétés par lat/lng au clic de
+   * validation (jamais de permission demandée sans ce geste). */
+  | { kind: 'nearMe'; params: URLSearchParams }
   | { kind: 'redirect'; params: URLSearchParams };
 
 export async function classifyMiloQuery(
@@ -133,6 +138,9 @@ export async function classifyMiloQuery(
   const result = await parseQuery(text, siteLocale);
   if (result?.faq) {
     return { kind: 'faq', faq: result.faq, detectedLanguage: result.detectedLanguage };
+  }
+  if (result?.nearMe) {
+    return { kind: 'nearMe', params: buildRedirectParams(result, text) };
   }
   return { kind: 'redirect', params: buildRedirectParams(result, text) };
 }

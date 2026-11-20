@@ -67,4 +67,8 @@ export interface ParseQueryResponse {
   ambiguities: MiloAmbiguity[];
   understood: boolean;
   faq?: MiloFaqResult;
+  /** Lot « raccourci » (près de moi) — présent et `true` uniquement quand la
+   * phrase évoque la position de l'utilisateur ("près de moi", "near me"…).
+   * Milo ne pose jamais de filtre de lieu lui-même pour ces mots. */
+  nearMe?: true;
 }

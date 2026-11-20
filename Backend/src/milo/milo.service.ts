@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { extractCriteria } from './extractCriteria';
 import { detectLanguage } from './language/detectLanguage';
 import { detectFaqIntent, type MiloFaqResult } from './faq/detectFaq';
+import { detectNearMe } from './nearMe';
 import type { ParseQueryDto } from './dto/parse-query.dto';
 import type {
   DetectedLanguage,
@@ -23,6 +24,11 @@ export interface ParseQueryResponse {
    * logement. Un critère de recherche gagne toujours, même en cas de doute
    * (voir detectFaqIntent). */
   faq?: MiloFaqResult;
+  /** Lot « raccourci » (près de moi) — présent et `true` uniquement quand la
+   * phrase évoque la position de l'utilisateur ("près de moi", "near me"…).
+   * Milo ne pose jamais de filtre de lieu lui-même pour ces mots ; c'est au
+   * Frontend de déclencher la demande de position (geste utilisateur). */
+  nearMe?: true;
 }
 
 @Injectable()
@@ -49,6 +55,10 @@ export class MiloService {
     // que pour une recherche : `understood` reflète si Milo a vraiment
     // reconnu quelque chose, jamais juste "ce n'est pas une recherche".
     const faqUnderstood = faq !== undefined && faq.id !== 'unknown';
+    // nearMe est additif (coexiste avec des critères de recherche normaux,
+    // ex. "studio climatisé près de moi") — jamais un court-circuit comme
+    // la FAQ, qui elle est exclusive de toute recherche.
+    const nearMe = detectNearMe(text, extraction.strictFilters);
 
     return {
       detectedLanguage: language.language,
@@ -58,8 +68,9 @@ export class MiloService {
       softPreferences: extraction.softPreferences,
       unmatchedTokens: extraction.unmatchedTokens,
       ambiguities: extraction.ambiguities,
-      understood: understood || faqUnderstood,
+      understood: understood || faqUnderstood || nearMe,
       ...(faq && { faq }),
+      ...(nearMe && { nearMe: true as const }),
     };
   }
 }

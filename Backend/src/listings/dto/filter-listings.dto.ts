@@ -154,4 +154,30 @@ export class FilterListingsDto {
   @IsNumber()
   @Type(() => Number)
   maxPricePerNight?: number;
+
+  /** « Près de moi » (lot « raccourci ») — position de l'utilisateur,
+   * reçue uniquement pour trier/filtrer CETTE requête : jamais journalisée,
+   * jamais enregistrée en base, jamais transmise à un outil d'analytics
+   * (cf. ListingsService.findAll, aucun log ne doit jamais inclure ces deux
+   * champs). Rayon optionnel, borné 1 à 50 km. */
+  @IsOptional()
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  @Type(() => Number)
+  lat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  @Type(() => Number)
+  lng?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(50)
+  @Type(() => Number)
+  radiusKm?: number;
 }

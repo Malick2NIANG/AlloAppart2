@@ -2,10 +2,11 @@
 
 import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { classifyMiloQuery } from '@/lib/milo';
 import type { MiloFaqResult } from './types';
 import MiloFaqCard from './MiloFaqCard';
+import MiloNearMeCard from './MiloNearMeCard';
 
 const ROTATION_MS = 3500;
 const MAX_LENGTH = 300; // miroir de ParseQueryDto.text @MaxLength(300) — Backend/src/milo/dto/parse-query.dto.ts
@@ -76,11 +77,21 @@ function MiloSearchBar({
 }: Props, ref: React.ForwardedRef<MiloSearchBarHandle>) {
   const router = useRouter();
   const siteLocale = useLocale() as 'fr' | 'en';
+  // Réutilise les mêmes libellés d'erreur que le bouton « Près de moi » des
+  // filtres /listings (ListingsFilters.tsx) — une seule source de vérité.
+  const tNearMe = useTranslations('listings');
   const [text, setText] = useState(initialValue);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [faqResult, setFaqResult] = useState<MiloFaqResult | null>(null);
+  // Lot « raccourci » (près de moi) — `nearMeParams` = autres critères déjà
+  // extraits (type, équipements…) + milo=1, en attente du clic de
+  // validation ; la position elle-même n'est JAMAIS stockée dans cet état,
+  // seulement passée à router.push() une fois obtenue.
+  const [nearMeParams, setNearMeParams] = useState<URLSearchParams | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const isHero = size === 'hero';
@@ -92,14 +103,56 @@ function MiloSearchBar({
   useImperativeHandle(ref, () => ({
     showFaq: (topic) => {
       setText('');
+      setNearMeParams(null);
       setFaqResult({ id: topic.id, answerKey: topic.answerKey, confidence: 1 });
     },
     reset: () => {
       setFaqResult(null);
+      setNearMeParams(null);
+      setGeoError(null);
       setText('');
       inputRef.current?.focus();
     },
   }), []);
+
+  // Permission demandée seulement ici, au clic sur « Activer ma position »
+  // (jamais au chargement ni à la détection nearMe elle-même). Détection de
+  // support avant tout appel : si indisponible, message clair, la recherche
+  // normale (searchWithoutLocation) reste possible.
+  const activateNearMeLocation = () => {
+    setGeoError(null);
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGeoError(tNearMe('nearMeUnsupported'));
+      return;
+    }
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGeoLoading(false);
+        const params = nearMeParams ?? new URLSearchParams();
+        params.set('lat', String(position.coords.latitude));
+        params.set('lng', String(position.coords.longitude));
+        router.push(`/listings?${params.toString()}`);
+        setNearMeParams(null);
+        onSubmitted?.();
+      },
+      (error) => {
+        setGeoLoading(false);
+        setGeoError(
+          error.code === error.PERMISSION_DENIED ? tNearMe('nearMeDenied')
+            : error.code === error.TIMEOUT ? tNearMe('nearMeTimeout')
+            : tNearMe('nearMeUnavailable'),
+        );
+      },
+      { timeout: 8000, maximumAge: 60_000 },
+    );
+  };
+
+  const searchWithoutLocation = () => {
+    if (nearMeParams) router.push(`/listings?${nearMeParams.toString()}`);
+    setNearMeParams(null);
+    onSubmitted?.();
+  };
 
   // Rotation du placeholder (lot 6.0, hero uniquement) : s'arrête au focus,
   // dès qu'il y a du texte, ou si prefers-reduced-motion (phrase fixe,
@@ -119,6 +172,8 @@ function MiloSearchBar({
     if (trimmed.length < MIN_SUBMIT_LENGTH || loading) return;
     setLoading(true);
     setFaqResult(null);
+    setNearMeParams(null);
+    setGeoError(null);
 
     try {
       // Logique partagée (lot « loupe du header », étendue lot « Milo FAQ »)
@@ -128,6 +183,13 @@ function MiloSearchBar({
         // Reste sur la page, jamais de navigation — la carte s'affiche sous
         // la barre (règle 5 : jamais de changement d'URL pour une FAQ).
         setFaqResult(classification.faq);
+        return;
+      }
+      if (classification.kind === 'nearMe') {
+        // Milo n'a posé aucun filtre de lieu lui-même — la carte invite au
+        // clic de validation, jamais de navigation ni de demande de
+        // position ici (règle 5, Milo.md).
+        setNearMeParams(classification.params);
         return;
       }
       router.push(`/listings?${classification.params.toString()}`);
@@ -152,6 +214,11 @@ function MiloSearchBar({
       e.preventDefault();
       if (faqResult) {
         setFaqResult(null);
+        return;
+      }
+      if (nearMeParams) {
+        setNearMeParams(null);
+        setGeoError(null);
         return;
       }
       setText('');
@@ -190,7 +257,7 @@ function MiloSearchBar({
           maxLength={MAX_LENGTH}
           readOnly={loading}
           aria-busy={loading}
-          onChange={(e) => { setText(e.target.value); if (faqResult) setFaqResult(null); }}
+          onChange={(e) => { setText(e.target.value); if (faqResult) setFaqResult(null); if (nearMeParams) { setNearMeParams(null); setGeoError(null); } }}
           onKeyDown={handleKeyDown}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -245,6 +312,16 @@ function MiloSearchBar({
         faq={faqResult}
         onSearchInstead={searchInstead}
         onClose={() => setFaqResult(null)}
+        className={`mt-2 ${isHero ? 'md:max-w-[680px] md:mx-auto' : ''}`}
+      />
+    )}
+    {nearMeParams && (
+      <MiloNearMeCard
+        onActivate={activateNearMeLocation}
+        onSearchWithoutLocation={searchWithoutLocation}
+        onClose={() => { setNearMeParams(null); setGeoError(null); }}
+        loading={geoLoading}
+        error={geoError}
         className={`mt-2 ${isHero ? 'md:max-w-[680px] md:mx-auto' : ''}`}
       />
     )}

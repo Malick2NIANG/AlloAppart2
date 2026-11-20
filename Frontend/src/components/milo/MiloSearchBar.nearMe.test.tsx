@@ -1,0 +1,138 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import MiloSearchBar from './MiloSearchBar';
+import { classifyMiloQuery } from '@/lib/milo';
+
+vi.mock('next-intl', () => ({
+  useTranslations: (ns: string) => (key: string, params?: Record<string, unknown>) =>
+    params ? `${ns}.${key}(${JSON.stringify(params)})` : `${ns}.${key}`,
+  useLocale: () => 'fr',
+}));
+
+const push = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+}));
+
+vi.mock('@/lib/milo', () => ({
+  classifyMiloQuery: vi.fn(),
+}));
+
+afterEach(() => {
+  push.mockClear();
+  vi.mocked(classifyMiloQuery).mockReset();
+  // @ts-expect-error -- nettoyage d'un navigator.geolocation ajouté par un test
+  delete navigator.geolocation;
+});
+
+async function submitText(user: ReturnType<typeof userEvent.setup>, text: string) {
+  const input = screen.getByRole('textbox');
+  await user.type(input, text);
+  await user.keyboard('{Enter}');
+}
+
+describe('MiloSearchBar — « près de moi » (lot « raccourci »)', () => {
+  it('nearMe détecté : affiche la carte d\'invite, ne navigue jamais tout seul', async () => {
+    vi.mocked(classifyMiloQuery).mockResolvedValue({
+      kind: 'nearMe',
+      params: new URLSearchParams({ milo: '1' }),
+    });
+    const user = userEvent.setup();
+    render(<MiloSearchBar placeholder="p" ariaLabel="a" clearLabel="c" />);
+
+    await submitText(user, 'studio pres de moi');
+
+    expect(await screen.findByText('miloFaq.nearMePrompt')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('clic « Activer ma position » : succès → navigue avec lat/lng, jamais stockés ailleurs', async () => {
+    vi.mocked(classifyMiloQuery).mockResolvedValue({
+      kind: 'nearMe',
+      params: new URLSearchParams({ milo: '1' }),
+    });
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({ coords: { latitude: 14.7, longitude: -17.4 } } as GeolocationPosition);
+    });
+    Object.defineProperty(navigator, 'geolocation', {
+      value: { getCurrentPosition },
+      writable: true,
+      configurable: true,
+    });
+    const user = userEvent.setup();
+    render(<MiloSearchBar placeholder="p" ariaLabel="a" clearLabel="c" />);
+
+    await submitText(user, 'studio pres de moi');
+    await user.click(await screen.findByText('miloFaq.nearMeActivate'));
+
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    const url = push.mock.calls[0][0] as string;
+    expect(url).toContain('lat=14.7');
+    expect(url).toContain('lng=-17.4');
+    // La carte se referme après la navigation.
+    expect(screen.queryByText('miloFaq.nearMePrompt')).not.toBeInTheDocument();
+  });
+
+  it('permission refusée : message clair, jamais de navigation, la recherche normale reste possible', async () => {
+    vi.mocked(classifyMiloQuery).mockResolvedValue({
+      kind: 'nearMe',
+      params: new URLSearchParams({ milo: '1' }),
+    });
+    const getCurrentPosition = vi.fn((_success: PositionCallback, error: PositionErrorCallback) => {
+      error({ code: 1, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 } as GeolocationPositionError);
+    });
+    Object.defineProperty(navigator, 'geolocation', {
+      value: { getCurrentPosition },
+      writable: true,
+      configurable: true,
+    });
+    const user = userEvent.setup();
+    render(<MiloSearchBar placeholder="p" ariaLabel="a" clearLabel="c" />);
+
+    await submitText(user, 'studio pres de moi');
+    await user.click(await screen.findByText('miloFaq.nearMeActivate'));
+
+    expect(await screen.findByText('listings.nearMeDenied')).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    // La recherche normale reste disponible : le bouton de repli est toujours là.
+    expect(screen.getByText('miloFaq.searchInsteadLabel')).toBeInTheDocument();
+  });
+
+  it('« Lancer une recherche à la place » navigue sans jamais demander la position', async () => {
+    vi.mocked(classifyMiloQuery).mockResolvedValue({
+      kind: 'nearMe',
+      params: new URLSearchParams({ milo: '1' }),
+    });
+    const getCurrentPosition = vi.fn();
+    Object.defineProperty(navigator, 'geolocation', {
+      value: { getCurrentPosition },
+      writable: true,
+      configurable: true,
+    });
+    const user = userEvent.setup();
+    render(<MiloSearchBar placeholder="p" ariaLabel="a" clearLabel="c" />);
+
+    await submitText(user, 'studio pres de moi');
+    await user.click(await screen.findByText('miloFaq.searchInsteadLabel'));
+
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    expect(push.mock.calls[0][0]).not.toContain('lat=');
+  });
+
+  it('géolocalisation indisponible (détection de support) : message clair, pas de crash', async () => {
+    vi.mocked(classifyMiloQuery).mockResolvedValue({
+      kind: 'nearMe',
+      params: new URLSearchParams({ milo: '1' }),
+    });
+    // Pas de navigator.geolocation défini du tout.
+    const user = userEvent.setup();
+    render(<MiloSearchBar placeholder="p" ariaLabel="a" clearLabel="c" />);
+
+    await submitText(user, 'studio pres de moi');
+    await user.click(await screen.findByText('miloFaq.nearMeActivate'));
+
+    expect(await screen.findByText('listings.nearMeUnsupported')).toBeInTheDocument();
+  });
+});

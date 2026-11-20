@@ -94,6 +94,11 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   const [miloOpen, setMiloOpen]     = useState(false);
   const regionRef = useRef<HTMLDivElement>(null);
   const panelRef  = useRef<HTMLDivElement>(null);
+  // Lot « raccourci » (près de moi) — position jamais stockée ailleurs que
+  // dans l'URL de CETTE recherche (lat/lng repartent avec elle) ; état local
+  // seulement pour le chargement/l'erreur, jamais la position elle-même.
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError]     = useState<string | null>(null);
 
   const isVerifiedOnly = urlParams.get('verified') === 'true';
   const verified = isVerifiedOnly ? 'true' : undefined;
@@ -105,6 +110,10 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
   // (comme verified/transactionType déjà lus directement ici) : cityContains,
   // minBeds/maxBeds, minRooms/maxRooms, amenities (CSV) ne sont exposés par
   // aucun filtre manuel aujourd'hui, Milo est leur seule source.
+  // Lot « raccourci » (près de moi) — jamais lus comme des filtres manuels
+  // classiques : seulement posés par activateNearMe() ci-dessous.
+  const lat = urlParams.get('lat') ?? undefined;
+  const lng = urlParams.get('lng') ?? undefined;
   const cityContains = urlParams.get('cityContains') ?? undefined;
   const minBeds       = urlParams.get('minBeds') ?? undefined;
   const maxBeds       = urlParams.get('maxBeds') ?? undefined;
@@ -157,6 +166,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
     const merged = {
       q, city, minPrice, maxPrice, type, region, ownerType, verified, transactionType,
       rentalMode, furnished, minPricePerNight, maxPricePerNight,
+      lat, lng,
       cityContains, minBeds, maxBeds, minRooms, maxRooms,
       amenities: amenitiesCsv,
       prefs: prefsCsv,
@@ -188,6 +198,40 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
     push({ transactionType: value || undefined, type: nextType, page: '1' });
   };
 
+  // Lot « raccourci » (près de moi) — permission demandée seulement ici, au
+  // clic (jamais au chargement). Détection de support avant tout appel :
+  // si le téléphone ne sait pas géolocaliser, un message clair s'affiche et
+  // la recherche normale reste disponible (aucune erreur visible, rien ne
+  // bloque). La position n'est jamais stockée ni journalisée ici — elle ne
+  // sert qu'à composer l'URL de cette recherche.
+  const activateNearMe = () => {
+    setGeoError(null);
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGeoError(t('nearMeUnsupported'));
+      return;
+    }
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGeoLoading(false);
+        push({
+          lat: String(position.coords.latitude),
+          lng: String(position.coords.longitude),
+          page: '1',
+        });
+      },
+      (error) => {
+        setGeoLoading(false);
+        setGeoError(
+          error.code === error.PERMISSION_DENIED ? t('nearMeDenied')
+            : error.code === error.TIMEOUT ? t('nearMeTimeout')
+            : t('nearMeUnavailable'),
+        );
+      },
+      { timeout: 8000, maximumAge: 60_000 },
+    );
+  };
+
   /* Fermer les menus au clic extérieur */
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -200,6 +244,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
 
   // Pastilles des filtres actifs (hors transaction et type, déjà visibles dans la barre).
   const activeChips: { key: string; icon: string; label: string; onRemove: () => void }[] = [];
+  if (lat && lng) activeChips.push({ key: 'nearMe', icon: 'fa-location-crosshairs', label: t('nearMeChip'), onRemove: () => push({ lat: undefined, lng: undefined }) });
   if (region) activeChips.push({ key: 'region', icon: 'fa-map-pin', label: region, onRemove: () => push({ region: undefined }) });
   if (ownerType) {
     const ot = OWNER_TYPES.find((o) => o.key === ownerType);
@@ -666,6 +711,21 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
           )}
         </div>
 
+        {/* Près de moi (lot « raccourci ») — permission demandée seulement
+            au clic. Repli : si la géolocalisation échoue/refuse/indisponible,
+            un message clair s'affiche ici, la recherche normale reste
+            disponible (rien de bloqué). */}
+        {!(lat && lng) && (
+          <button
+            onClick={activateNearMe}
+            disabled={geoLoading}
+            className="flex h-10 items-center gap-2 rounded-full border border-line bg-card px-4 text-sm font-medium text-text transition-all duration-200 hover:border-gold/50 hover:bg-gold-pale hover:text-gold-dark disabled:opacity-60"
+          >
+            <i className={`fa-solid ${geoLoading ? 'fa-spinner fa-spin' : 'fa-location-crosshairs'} text-gold-dark text-xs`} />
+            {t('nearMeButton')}
+          </button>
+        )}
+
         {/* Tout effacer */}
         {hasFilters && (
           <button
@@ -677,6 +737,13 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
           </button>
         )}
       </div>
+
+      {geoError && (
+        <p className="text-xs text-red-500">
+          <i className="fa-solid fa-triangle-exclamation mr-1" />
+          {geoError}
+        </p>
+      )}
 
       {/* ── Ligne 2 : types de bien (adaptés à la transaction) ─── */}
       <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
@@ -765,6 +832,17 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
               </span>
             )}
           </button>
+          {!(lat && lng) && (
+            <button
+              onClick={activateNearMe}
+              disabled={geoLoading}
+              aria-label={t('nearMeButton')}
+              className="tap-target flex h-11 items-center gap-2 rounded-full border border-line bg-card px-4 text-sm font-medium text-text disabled:opacity-60"
+            >
+              <i className={`fa-solid ${geoLoading ? 'fa-spinner fa-spin' : 'fa-location-crosshairs'} text-gold-dark text-xs`} />
+              {t('nearMeButton')}
+            </button>
+          )}
           {hasFilters && (
             <button
               onClick={() => router.push('/listings')}
@@ -775,6 +853,13 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
             </button>
           )}
         </div>
+
+        {geoError && (
+          <p className="text-xs text-red-500">
+            <i className="fa-solid fa-triangle-exclamation mr-1" />
+            {geoError}
+          </p>
+        )}
 
         {mobileChips.length > 0 && (
           <div className="flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
