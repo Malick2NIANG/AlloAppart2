@@ -120,6 +120,7 @@ model Listing {
   boostUntil   DateTime?
   boostScore   Int           @default(0)
   images       String[]
+  imageOriginals Json        @default("{}")
   tourUrl      String?
   amenities    String[]
   ownerId      String

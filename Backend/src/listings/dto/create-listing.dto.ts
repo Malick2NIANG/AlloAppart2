@@ -13,6 +13,10 @@
   MaxLength,
   Min,
   ValidateIf,
+  IsObject,
+  Validate,
+  ValidatorConstraint,
+  type ValidatorConstraintInterface,
 } from 'class-validator';
 import {
   ListingStatus,
@@ -21,6 +25,36 @@ import {
   TransactionType,
 } from '@prisma/client';
 import { Type } from 'class-transformer';
+
+const CLOUDINARY_URL = /^https:\/\/res\.cloudinary\.com\//;
+
+/**
+ * Table « photo cadrée → photo d'origine » : clés et valeurs sont des URLs
+ * Cloudinary, 50 entrées maximum. Sert à montrer la photo entière dans la
+ * visionneuse alors que les cartes/le héros affichent la version cadrée.
+ */
+@ValidatorConstraint({ name: 'imageOriginalsMap', async: false })
+export class ImageOriginalsMapConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      return false;
+    }
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length > 50) return false;
+    return entries.every(
+      ([k, v]) =>
+        CLOUDINARY_URL.test(k) &&
+        typeof v === 'string' &&
+        CLOUDINARY_URL.test(v) &&
+        k.length <= 500 &&
+        v.length <= 500,
+    );
+  }
+
+  defaultMessage(): string {
+    return 'imageOriginals must map Cloudinary URLs to Cloudinary URLs';
+  }
+}
 
 export class CreateListingDto {
   @IsNotEmpty()
@@ -130,6 +164,12 @@ export class CreateListingDto {
     message: 'Images must be hosted on Cloudinary',
   })
   images?: string[];
+
+  /** URL de la photo cadrée → URL de la photo d'origine (visionneuse plein écran). */
+  @IsOptional()
+  @IsObject()
+  @Validate(ImageOriginalsMapConstraint)
+  imageOriginals?: Record<string, string>;
 
   /** Tarif par nuit — requis en mode NIGHTLY ou MIXED */
   @ValidateIf(
