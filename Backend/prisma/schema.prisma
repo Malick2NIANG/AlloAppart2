@@ -79,6 +79,8 @@ model User {
   agentRatings          AgentRating[]  @relation("AgentRatings")
   givenRatings          AgentRating[]  @relation("GivenRatings")
   reports               Report[]       @relation("UserReports")
+  pushSubscriptions      PushSubscription[]
+  notificationPreference NotificationPreference?
 
   @@map("users")
 }
@@ -342,6 +344,48 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+/// Lot « notifications push » — un abonnement Web Push par appareil/navigateur
+/// (clés p256dh/auth + endpoint du service de push, jamais le contenu d'une
+/// notification). `endpoint` est UNIQUE : un même appareil ne peut appartenir
+/// qu'à un seul utilisateur à la fois (reprendre l'abonnement le réassigne,
+/// jamais un doublon entre comptes). `onDelete: Cascade` — supprimer un
+/// utilisateur supprime ses abonnements, jamais l'inverse.
+model PushSubscription {
+  id         String   @id @default(uuid())
+  userId     String
+  endpoint   String   @unique @db.VarChar(500)
+  p256dh     String
+  auth       String
+  userAgent  String?  @db.VarChar(200)
+  locale     String?  @db.VarChar(5)
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+/// Lot « notifications push » — préférences par catégorie, un seul enregistrement
+/// par utilisateur (toutes les catégories activées par défaut à la création).
+/// « Couper sur cet appareil » n'a pas de champ dédié ici : ça correspond au
+/// désabonnement de CET appareil (DELETE PushSubscription), pas à une
+/// préférence par utilisateur — un même compte peut avoir un appareil coupé
+/// et un autre actif.
+model NotificationPreference {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  messages  Boolean  @default(true)
+  bookings  Boolean  @default(true)
+  payments  Boolean  @default(true)
+  // AlloVérifié + annonce suspendue — « certifications/annonces » côté UI.
+  listings  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
