@@ -6,6 +6,7 @@ import MiloFooterAsk from '@/components/milo/MiloFooterAsk';
 // Un href '#' est filtré au rendu plus bas (voir Col 1) — pratique pour
 // masquer un réseau tant que son lien n'existe pas encore.
 const SOCIALS = [
+  { icon: 'fa-brands fa-whatsapp',  href: 'https://wa.me/221781321595',                 label: 'WhatsApp', color: 'hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-600' },
   { icon: 'fa-brands fa-facebook',  href: 'https://www.facebook.com/AlloAppart.sn/',    label: 'Facebook', color: 'hover:text-blue-600 dark:hover:text-blue-400  hover:border-blue-600'  },
   { icon: 'fa-brands fa-instagram', href: 'https://www.instagram.com/alloappart.sn',    label: 'Instagram',color: 'hover:text-pink-500  hover:border-pink-500'  },
   { icon: 'fa-brands fa-x-twitter', href: 'https://x.com/alloappartsn',                  label: 'X',        color: 'hover:text-text      hover:border-text'      },
@@ -126,17 +127,6 @@ export default async function Footer() {
                 </a>
               </li>
               <li className="flex items-center gap-2">
-                <i className="fa-brands fa-whatsapp text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <a
-                  href="https://wa.me/221781321595"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-gold-dark transition-colors"
-                >
-                  +221 78 132 15 95
-                </a>
-              </li>
-              <li className="flex items-center gap-2">
                 <i className="fa-solid fa-envelope text-gold-dark shrink-0" />
                 <a href="mailto:alloappart221@gmail.com" className="hover:text-gold-dark transition-colors">
                   alloappart221@gmail.com
@@ -156,6 +146,7 @@ export default async function Footer() {
           <p>© {new Date().getFullYear()} AlloAppart. {t('rights')}</p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link href="/a-propos"        className="hover:text-gold-dark transition-colors">{t('navAbout')}</Link>
+            <Link href="/aide"            className="hover:text-gold-dark transition-colors">{t('navFaq')}</Link>
             <Link href="/plan-du-site"    className="hover:text-gold-dark transition-colors">{t('navSitemap')}</Link>
             <Link href="/confidentialite" className="hover:text-gold-dark transition-colors">{t('privacy')}</Link>
             <Link href="/cgu"             className="hover:text-gold-dark transition-colors">{t('terms')}</Link>

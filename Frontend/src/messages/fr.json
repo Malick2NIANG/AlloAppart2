@@ -28,6 +28,10 @@
     "bottomNavLabel": "Navigation principale",
     "selectLanguage": "Sélectionner une langue"
   },
+  "backButton": {
+    "back": "Retour",
+    "backToAide": "Retour à l'aide"
+  },
   "theme": {
     "toDark": "Passer en mode sombre",
     "toLight": "Passer en mode clair"
@@ -172,6 +176,7 @@
     "terms": "CGU",
     "cookies": "Cookies",
     "navAbout": "À propos",
+    "navFaq": "FAQ",
     "navSitemap": "Plan du site",
     "miloAskTitle": "Vous n'avez pas trouvé votre bien ?",
     "miloAskSub": "Dites à Milo AI ce que vous cherchez : lieu, budget, type de bien, louer ou acheter…"

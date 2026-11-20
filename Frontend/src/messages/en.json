@@ -28,6 +28,10 @@
     "bottomNavLabel": "Main navigation",
     "selectLanguage": "Select a language"
   },
+  "backButton": {
+    "back": "Back",
+    "backToAide": "Back to help"
+  },
   "theme": {
     "toDark": "Switch to dark mode",
     "toLight": "Switch to light mode"
@@ -172,6 +176,7 @@
     "terms": "Terms",
     "cookies": "Cookies",
     "navAbout": "About",
+    "navFaq": "FAQ",
     "navSitemap": "Sitemap",
     "miloAskTitle": "Didn't find your place?",
     "miloAskSub": "Tell Milo AI what you're looking for: location, budget, property type, rent or buy…"
