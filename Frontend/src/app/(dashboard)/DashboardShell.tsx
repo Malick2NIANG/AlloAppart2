@@ -9,6 +9,7 @@ import Pusher from 'pusher-js';
 import { useClerk, useAuth, useUser } from '@clerk/nextjs';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
+import { unsubscribeFromPush } from '@/lib/push';
 import type { MessageRoom } from '@/types';
 import SubscriptionAlert from '@/components/ui/SubscriptionAlert';
 import NotificationBell from '@/components/ui/NotificationBell';
@@ -206,6 +207,14 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
   const { signOut } = useClerk();
   const { getToken } = useAuth();
   const { user } = useUser();
+
+  // Téléphone partagé (lot « notifications push ») : désabonne CET appareil
+  // AVANT de signer out (le jeton n'est plus valide une fois déconnecté).
+  const handleSignOut = async () => {
+    const token = await getToken().catch(() => undefined);
+    await unsubscribeFromPush(token ?? undefined);
+    await signOut({ redirectUrl: '/sign-in' });
+  };
   const { pending: localePending, setHasCustomOverlay } = useLocaleTransition();
 
   /* ── Déclare un skeleton dédié (sidebar+header+contenu) auprès du
@@ -679,7 +688,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
             {!collapsed && td('backToSite')}
           </Link>
           <button
-            onClick={() => void signOut({ redirectUrl: '/sign-in' })}
+            onClick={() => void handleSignOut()}
             title={collapsed ? td('signOut') : undefined}
             onMouseEnter={(e) => {
               if (!collapsed) return;

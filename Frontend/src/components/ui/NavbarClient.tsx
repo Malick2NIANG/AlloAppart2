@@ -13,6 +13,7 @@ import BottomSheet from './BottomSheet';
 import MiloSearchBar from '@/components/milo/MiloSearchBar';
 import type { Locale } from '@/i18n/config';
 import { api } from '@/lib/api';
+import { unsubscribeFromPush } from '@/lib/push';
 import { classifyMiloQuery } from '@/lib/milo';
 import MiloFaqCard from '@/components/milo/MiloFaqCard';
 import type { MiloFaqResult } from '@/components/milo/types';
@@ -341,6 +342,10 @@ export default function NavbarClient({ locale, labels }: Props) {
       router.push('/');
       return;
     }
+    // Téléphone partagé (lot « notifications push ») : désabonne CET appareil
+    // AVANT de signer out (le jeton n'est plus valide une fois déconnecté).
+    const token = await getToken().catch(() => undefined);
+    await unsubscribeFromPush(token ?? undefined);
     await signOut({ redirectUrl: '/' });
   };
 

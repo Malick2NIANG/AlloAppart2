@@ -10,6 +10,7 @@ import ConnectivityWatcher from '@/components/ui/ConnectivityWatcher';
 import { LocaleTransitionProvider } from '@/components/ui/LocaleTransition';
 import LocaleTransitionOverlay from '@/components/ui/LocaleTransitionOverlay';
 import ServiceWorkerRegister from '@/components/ui/ServiceWorkerRegister';
+import PushAutoResubscribe from '@/components/ui/PushAutoResubscribe';
 import { NearMeProvider } from '@/components/listings/NearMeContext';
 import './globals.css';
 
@@ -115,6 +116,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <CookieConsentBanner />
                   <LocaleTransitionOverlay />
                   <ServiceWorkerRegister />
+                  <PushAutoResubscribe />
                 </NearMeProvider>
               </ToastProvider>
             </LocaleTransitionProvider>

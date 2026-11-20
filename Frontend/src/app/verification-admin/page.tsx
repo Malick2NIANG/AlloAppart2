@@ -6,6 +6,7 @@ import { useAuth, useClerk, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
+import { unsubscribeFromPush } from '@/lib/push';
 
 const RESEND_COOLDOWN_S = 60;
 
@@ -98,7 +99,11 @@ export default function VerificationAdminPage() {
           <div className="relative rounded-2xl border border-line bg-card p-6 shadow-lg max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none">
             <button
               type="button"
-              onClick={() => void signOut({ redirectUrl: '/sign-in' })}
+              onClick={() => void (async () => {
+                const token = await getToken().catch(() => undefined);
+                await unsubscribeFromPush(token ?? undefined);
+                await signOut({ redirectUrl: '/sign-in' });
+              })()}
               aria-label={t('close')}
               title={t('close')}
               className="tap-target absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full text-sub hover:bg-bg hover:text-text transition"

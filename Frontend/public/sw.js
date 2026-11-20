@@ -53,11 +53,51 @@ function getCacheStrategy(request, selfOrigin) {
   return 'network-only';
 }
 
+/**
+ * Lot « notifications push » — la cloche (Soketi, app ouverte) suffit déjà
+ * quand une fenêtre de l'app est visible au premier plan : jamais de
+ * doublon. Fonction PURE — `clientsList` est le résultat déjà résolu de
+ * `clients.matchAll()`, jamais appelé ici.
+ *
+ * @param {Array<{ visibilityState?: string }>} clientsList
+ * @returns {boolean}
+ */
+function shouldShowPushNotification(clientsList) {
+  return !clientsList.some((c) => c.visibilityState === 'visible');
+}
+
+/**
+ * Chemin interne UNIQUEMENT — jamais une URL absolue/externe, même si la
+ * charge utile est corrompue ou falsifiée. Repli sur `/` si invalide, absent,
+ * ou résolu vers une autre origine. Fonction PURE (testable sans `self`).
+ *
+ * @param {unknown} url
+ * @param {string} selfOrigin
+ * @returns {string}
+ */
+function resolvePushNotificationUrl(url, selfOrigin) {
+  if (typeof url !== 'string' || !url) return '/';
+  try {
+    const resolved = new URL(url, selfOrigin);
+    if (resolved.origin !== selfOrigin) return '/';
+    return resolved.pathname + resolved.search + resolved.hash;
+  } catch {
+    return '/';
+  }
+}
+
 // Exposé pour Vitest (environnement Node — pas de `self` de service worker).
 // Ignoré par le navigateur, qui charge ce fichier comme un script classique
 // sans système de modules (pas de `module` global dans ce contexte).
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { getCacheStrategy, CACHE_VERSION, STATIC_CACHE, OFFLINE_URL };
+  module.exports = {
+    getCacheStrategy,
+    shouldShowPushNotification,
+    resolvePushNotificationUrl,
+    CACHE_VERSION,
+    STATIC_CACHE,
+    OFFLINE_URL,
+  };
 }
 
 // ── Cycle de vie du service worker — ignoré hors contexte SW (ex. tests). ──
@@ -110,6 +150,63 @@ if (typeof self !== 'undefined' && typeof self.addEventListener === 'function') 
           return response;
         });
       }),
+    );
+  });
+
+  // Lot « notifications push » — charge utile neutre JSON { title, body, url,
+  // tag } (jamais de contenu de message, de montant ni d'adresse — cf.
+  // PushService côté Backend, seule source de ces notifications). Une
+  // fenêtre de l'app déjà visible/au premier plan a déjà la cloche (Soketi) :
+  // jamais de doublon ici.
+  self.addEventListener('push', (event) => {
+    if (!event.data) return;
+    let payload;
+    try {
+      payload = event.data.json();
+    } catch {
+      return;
+    }
+    if (!payload || typeof payload.title !== 'string') return;
+
+    const url = resolvePushNotificationUrl(payload.url, self.location.origin);
+
+    event.waitUntil(
+      self.clients
+        .matchAll({ type: 'window', includeUncontrolled: true })
+        .then((clientsList) => {
+          if (!shouldShowPushNotification(clientsList)) return;
+          return self.registration.showNotification(payload.title, {
+            body: typeof payload.body === 'string' ? payload.body : '',
+            tag: typeof payload.tag === 'string' ? payload.tag : undefined,
+            icon: '/icons/icon-192.png',
+            badge: '/icons/icon-monochrome-512.png',
+            data: { url },
+          });
+        }),
+    );
+  });
+
+  self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const url = resolvePushNotificationUrl(
+      event.notification.data && event.notification.data.url,
+      self.location.origin,
+    );
+
+    event.waitUntil(
+      self.clients
+        .matchAll({ type: 'window', includeUncontrolled: true })
+        .then((clientsList) => {
+          const target = new URL(url, self.location.origin).href;
+          const already = clientsList.find((c) => c.url === target);
+          if (already && 'focus' in already) return already.focus();
+
+          const anyClient = clientsList[0];
+          if (anyClient && 'navigate' in anyClient && 'focus' in anyClient) {
+            return anyClient.focus().then(() => anyClient.navigate(url));
+          }
+          return self.clients.openWindow(url);
+        }),
     );
   });
 }
