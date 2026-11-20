@@ -55,10 +55,13 @@ describe('AideContent', () => {
 
   it('affiche exactement un bouton « question courante » + un en-tête d\'accordéon par sujet FAQ activé, aucun sujet désactivé/inventé', () => {
     render(<AideContent />);
+    const topicButtonNames = screen.getAllByRole('button')
+      .map((el) => el.textContent)
+      .filter((text): text is string => !!text && text.startsWith('miloFaqQuestions.'));
     for (const id of FAQ_TOPIC_IDS) {
-      expect(screen.getAllByRole('button', { name: `miloFaqQuestions.${id}` })).toHaveLength(2);
+      expect(topicButtonNames.filter((text) => text === `miloFaqQuestions.${id}`)).toHaveLength(2);
     }
-    expect(screen.queryByRole('button', { name: 'miloFaqQuestions.sujet_invente' })).not.toBeInTheDocument();
+    expect(topicButtonNames).not.toContain('miloFaqQuestions.sujet_invente');
   });
 
   it('accordéon : un clic révèle la réponse (mêmes clés i18n que la carte)', async () => {

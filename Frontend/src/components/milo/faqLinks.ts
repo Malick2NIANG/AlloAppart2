@@ -11,7 +11,10 @@ export const FAQ_LINKS: Record<string, string> = {
   remboursement: '/cgu',
   frais_commission: '/cgu',
   contrat_caution: '/cgu',
-  verification_bailleur: '/cgu',
+  // Lot « montants des phrases » : la réponse ne cite plus de montant
+  // (Backend, sans accès à la config) — renvoie vers /tarifs, seule
+  // source à jour du prix et de la durée de validité AlloVérifié.
+  verification_bailleur: '/tarifs',
   conditions_utilisation: '/cgu',
   confidentialite: '/confidentialite',
   devenir_bailleur: '/become-bailleur',

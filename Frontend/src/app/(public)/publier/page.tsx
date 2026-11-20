@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import { apiErrorDetail } from '@/lib/apiError';
+import { fetchPublicPricing, formatFcfa, type PublicPricing } from '@/lib/pricing';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
 import LocationPicker, { type MapFocus } from '@/components/map/LocationPicker';
 import MobileStepperBar from '@/components/ui/MobileStepperBar';
@@ -194,6 +195,12 @@ export default function PublierPage() {
   const [step,          setStep]          = useState(0);
   const [demoRole,      setDemoRole]      = useState<DemoRole>('visitor');
   const [mounted,       setMounted]       = useState(false);
+  // Prix AlloVérifié/boost affichés dans l'encart « commission » (même
+  // source que /tarifs) — jamais écrits en dur dans les phrases i18n.
+  const [pricing,       setPricing]       = useState<PublicPricing | null>(null);
+  useEffect(() => { void fetchPublicPricing().then(setPricing); }, []);
+  const auditPriceFmt = pricing ? formatFcfa(pricing.auditBasicPriceFcfa, locale) : null;
+  const boostPriceFmt = pricing ? formatFcfa(pricing.boostPriceFcfa, locale) : null;
   const [success,       setSuccess]       = useState<'published' | 'draft' | false>(false);
   const [apiError,      setApiError]      = useState<string | null>(null);
   // Plafond de 10 annonces actives atteint (compte particulier, sans
@@ -468,14 +475,18 @@ export default function PublierPage() {
                 <i className="fa-solid fa-shield-halved mt-0.5 shrink-0 text-gold-dark" />
                 <div>
                   <p className="text-sm font-semibold text-text">{t('verifiedBadgeTitle')}</p>
-                  <p className="mt-0.5 text-xs text-sub">{t('verifiedBadgeDesc')}</p>
+                  <p className="mt-0.5 text-xs text-sub">
+                    {auditPriceFmt ? t('verifiedBadgeDesc', { price: auditPriceFmt }) : t('verifiedBadgeDescUnavailable')}
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <i className="fa-solid fa-bolt mt-0.5 shrink-0 text-gold-dark" />
                 <div>
                   <p className="text-sm font-semibold text-text">{t('boostTitle')}</p>
-                  <p className="mt-0.5 text-xs text-sub">{t('boostDesc')}</p>
+                  <p className="mt-0.5 text-xs text-sub">
+                    {boostPriceFmt ? t('boostDesc', { price: boostPriceFmt }) : t('boostDescUnavailable')}
+                  </p>
                 </div>
               </div>
             </div>
