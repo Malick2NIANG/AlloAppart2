@@ -103,6 +103,7 @@ export interface PublicPricing {
   nightlyCommissionRate: number;
   monthlyCommissionMonths: number;
   auditBasicPriceFcfa: number;
+  boostPriceFcfa: number;
 }
 
 /**
@@ -220,7 +221,12 @@ export class PlatformConfigService {
     };
   }
 
-  /** Version publique (sans authentification) de getPricing() — voir PublicPricing. */
+  /** Version publique (sans authentification) de getPricing() — voir
+   * PublicPricing. `boostPriceFcfa` inclus (lot « prix en dur ») : même
+   * valeur publique que les autres, nécessaire aux pages bailleur
+   * (boost, listings, publier) pour ne jamais l'écrire en dur côté
+   * Frontend — /tarifs ne l'affiche pas pour autant, hors contenu de
+   * cette page. */
   async getPublicPricing(): Promise<PublicPricing> {
     const row = await this.getOrCreateRow();
     return {
@@ -229,6 +235,7 @@ export class PlatformConfigService {
       nightlyCommissionRate: row.nightlyCommissionRate,
       monthlyCommissionMonths: row.monthlyCommissionMonths,
       auditBasicPriceFcfa: row.auditBasicPriceFcfa,
+      boostPriceFcfa: row.boostPriceFcfa,
     };
   }
 

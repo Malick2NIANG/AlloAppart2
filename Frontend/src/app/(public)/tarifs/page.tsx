@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { fetchPublicPricing } from './pricing';
+import { fetchPublicPricing } from '@/lib/pricing';
 import TarifsContent from './TarifsContent';
 
 export async function generateMetadata(): Promise<Metadata> {

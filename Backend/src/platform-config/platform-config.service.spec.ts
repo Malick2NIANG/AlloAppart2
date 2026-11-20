@@ -4,8 +4,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
-// getPublicPricing() (lot « page /tarifs ») : sous-ensemble public de
-// getPricing(), jamais boostPriceFcfa (hors scope de la page publique).
+// getPublicPricing() (lot « page /tarifs », étendu au lot « prix en dur ») :
+// sous-ensemble public de getPricing(), boostPriceFcfa inclus depuis le lot
+// « prix en dur » (consommé par bailleur/boost, bailleur/listings, publier).
 describe('PlatformConfigService — getPublicPricing', () => {
   let service: PlatformConfigService;
   let prismaMock: {
@@ -49,7 +50,7 @@ describe('PlatformConfigService — getPublicPricing', () => {
     service = module.get(PlatformConfigService);
   });
 
-  it('renvoie exactement les champs affichés sur /bailleur/abonnement, jamais boostPriceFcfa', async () => {
+  it('renvoie les champs affichés sur /bailleur/abonnement et /tarifs, plus boostPriceFcfa (pages bailleur boost/listings/publier)', async () => {
     const result = await service.getPublicPricing();
     expect(result).toEqual({
       starterPriceFcfa: 75000,
@@ -57,8 +58,8 @@ describe('PlatformConfigService — getPublicPricing', () => {
       nightlyCommissionRate: 0.1,
       monthlyCommissionMonths: 1,
       auditBasicPriceFcfa: 25000,
+      boostPriceFcfa: 5000,
     });
-    expect(result).not.toHaveProperty('boostPriceFcfa');
   });
 
   it('reflète un changement de tarif (pas de valeur figée) — même ligne, autre montant', async () => {

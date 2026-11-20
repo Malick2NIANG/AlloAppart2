@@ -8,6 +8,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
+import { fetchPublicPricing, formatFcfa, type PublicPricing } from '@/lib/pricing';
 import { type Listing, type PaginatedResponse, getListingPriceAmounts } from '@/types';
 import { useToast } from '@/components/ui/Toast';
 import { StatFilterCard } from '@/components/bookings/StatFilterCard';
@@ -96,7 +97,9 @@ export default function BoostPage() {
   // /subscriptions/me est réservé PRO_AGENCE/ADMIN : un simple BAILLEUR reçoit un 403, traité
   // ici comme "pas PRO" (même schéma défensif que bailleur/listings).
   const [isProActive, setIsProActive] = useState(false);
+  const [pricing, setPricing] = useState<PublicPricing | null>(null);
   const confirmTitleId = useId();
+  const boostPrice = pricing ? formatFcfa(pricing.boostPriceFcfa, locale) : '—';
 
   useEffect(() => {
     void getToken().then((token) => {
@@ -106,6 +109,9 @@ export default function BoostPage() {
         .catch(() => setIsProActive(false));
     });
   }, [getToken]);
+
+  // Prix du boost (même source que /tarifs) — public, indépendant de l'auth.
+  useEffect(() => { void fetchPublicPricing().then(setPricing); }, []);
 
   // Handle PayDunya return ?status=boost_success|boost_cancel
   useEffect(() => {
@@ -339,7 +345,7 @@ export default function BoostPage() {
                     {isProActive ? (
                       <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{t('boostFreePro')}</p>
                     ) : (
-                      <p className="text-3xl font-extrabold text-text mt-0.5">5 000 <span className="text-lg font-semibold">FCFA</span></p>
+                      <p className="text-3xl font-extrabold text-text mt-0.5">{boostPrice} <span className="text-lg font-semibold">FCFA</span></p>
                     )}
                   </div>
                   <div className="text-right">
@@ -384,7 +390,7 @@ export default function BoostPage() {
                   >
                     {boosting === confirmId
                       ? <i className="fa-solid fa-spinner fa-spin" />
-                      : <><i className={`fa-solid ${isProActive ? 'fa-rocket' : 'fa-lock'} text-xs`} />{isProActive ? t('boostListActivateFree') : t('boostListPay')}</>
+                      : <><i className={`fa-solid ${isProActive ? 'fa-rocket' : 'fa-lock'} text-xs`} />{isProActive ? t('boostListActivateFree') : t('boostListPay', { amount: boostPrice })}</>
                     }
                   </button>
                 </div>

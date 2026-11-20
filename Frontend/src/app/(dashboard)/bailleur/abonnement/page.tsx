@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
+import { fetchPublicPricing, formatFcfa, type PublicPricing } from '@/lib/pricing';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { SkeletonContainer } from '@/components/ui/Skeleton';
 
@@ -28,12 +29,16 @@ function AbonnementContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const t            = useTranslations('bailleur');
+  const tTarifs      = useTranslations('tarifs');
   const tSkeleton    = useTranslations('skeleton');
   const locale       = useLocale();
   const numLocale    = locale === 'en' ? 'en-US' : 'fr-FR';
+  const fmt          = (n: number) => formatFcfa(n, locale);
 
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading]           = useState(true);
+  const [pricing, setPricing]           = useState<PublicPricing | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(true);
   const [initiating, setInitiating]     = useState<string | null>(null);
   const [confirmPlan, setConfirmPlan]   = useState<typeof PLANS[number] | null>(null);
   const [toast, setToast]              = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -43,24 +48,28 @@ function AbonnementContent() {
 
   const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
-  // Plans defined with translations — must be inside the component
-  const PLANS = [
-    {
-      key: 'STARTER' as const,
-      name: 'Starter',
-      price: '75 000',
-      listings: t('planStarterListings'),
-      features: [t('planStarterFeature1'), t('planStarterFeature2'), t('planStarterFeature3'), t('planStarterFeature4')],
-    },
-    {
-      key: 'PRO' as const,
-      name: 'Pro',
-      price: '150 000',
-      listings: t('planProListings'),
-      features: [t('planProFeature1'), t('planProFeature2'), t('planProFeature3'), t('planProFeature4'), t('planProFeature5')],
-      highlighted: true,
-    },
-  ];
+  // Plans defined with translations — montants lus depuis la config
+  // (/tarifs, source unique — jamais écrits en dur), aucune carte affichée
+  // tant que `pricing` n'est pas résolu (voir rendu plus bas).
+  const PLANS = pricing
+    ? [
+        {
+          key: 'STARTER' as const,
+          name: 'Starter',
+          price: fmt(pricing.starterPriceFcfa),
+          listings: t('planStarterListings'),
+          features: [t('planStarterFeature1'), t('planStarterFeature2'), t('planStarterFeature3'), t('planStarterFeature4')],
+        },
+        {
+          key: 'PRO' as const,
+          name: 'Pro',
+          price: fmt(pricing.proPriceFcfaMonthly),
+          listings: t('planProListings'),
+          features: [t('planProFeature1'), t('planProFeature2'), t('planProFeature3'), t('planProFeature4'), t('planProFeature5')],
+          highlighted: true,
+        },
+      ]
+    : [];
 
   const showToast = (type: 'success' | 'error', msg: string) => {
     setToast({ type, msg });
@@ -96,6 +105,15 @@ function AbonnementContent() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch initial, setState après résolution async
   useEffect(() => { void fetchSubscription(); }, [fetchSubscription]);
+
+  // Tarifs publics (même source que /tarifs) — indépendant de l'auth,
+  // chargé en parallèle de l'abonnement courant.
+  useEffect(() => {
+    void fetchPublicPricing().then((p) => {
+      setPricing(p);
+      setPricingLoading(false);
+    });
+  }, []);
 
   useEffect(() => {
     const status = searchParams.get('status');
@@ -246,7 +264,7 @@ function AbonnementContent() {
         </div>
       )}
 
-      {loading && (
+      {(loading || pricingLoading) && (
         <SkeletonContainer label={tSkeleton('loading')} className="space-y-8">
           <div className="h-28 animate-pulse rounded-2xl border border-line bg-card" />
           <div className="grid gap-6 md:grid-cols-2">
@@ -256,8 +274,15 @@ function AbonnementContent() {
         </SkeletonContainer>
       )}
 
-      {/* Plans */}
-      {!loading && (
+      {/* Plans — repli lisible si les tarifs publics sont indisponibles
+          (même traitement que /tarifs), jamais de montant à 0/inventé. */}
+      {!loading && !pricingLoading && !pricing && (
+        <div role="status" className="rounded-2xl border border-line bg-card p-8 text-center text-sm text-sub">
+          <i className="fa-solid fa-circle-exclamation mb-2 block text-lg text-gold-dark" />
+          {tTarifs('unavailable')}
+        </div>
+      )}
+      {!loading && !pricingLoading && pricing && (
         <div className="grid gap-6 md:grid-cols-2">
           {PLANS.map((plan) => {
             const isActive      = subscription?.plan === plan.key && subscription.status === 'ACTIVE';

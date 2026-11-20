@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import TarifsContent from './TarifsContent';
-import type { PublicPricing } from './pricing';
+import type { PublicPricing } from '@/lib/pricing';
 
 vi.mock('next-intl', () => ({
   useTranslations: (ns: string) => (key: string, params?: Record<string, unknown>) =>
@@ -15,6 +15,7 @@ const PRICING: PublicPricing = {
   nightlyCommissionRate: 0.1,
   monthlyCommissionMonths: 1,
   auditBasicPriceFcfa: 25000,
+  boostPriceFcfa: 5000,
 };
 
 describe('TarifsContent', () => {

@@ -1743,7 +1743,7 @@
     "boostListBenefit2": "Priority in search results",
     "boostListBenefit3": "Maximum visibility on the home page and lists",
     "boostListBenefit4": "Boost score +10 pts (cumulative)",
-    "boostListPay": "Pay 5,000 FCFA",
+    "boostListPay": "Pay {amount} FCFA",
     "boostListActivateFree": "Activate for free",
     "boostListPayNote": "Secure payment via PayDunya · No commitment",
     "boostFreePro": "Free",

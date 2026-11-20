@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
-import type { PublicPricing } from './pricing';
+import { formatFcfa, type PublicPricing } from '@/lib/pricing';
 
 interface Props {
   pricing: PublicPricing | null;
@@ -23,9 +23,8 @@ export default function TarifsContent({ pricing }: Props) {
   const t      = useTranslations('tarifs');
   const tb     = useTranslations('bailleur');
   const locale = useLocale();
-  const numLocale = locale === 'en' ? 'en-US' : 'fr-FR';
 
-  const fmt = (n: number) => n.toLocaleString(numLocale);
+  const fmt = (n: number) => formatFcfa(n, locale);
 
   const PLANS = pricing
     ? [

@@ -3,20 +3,18 @@
 import { Suspense, useEffect, useState, useCallback, useRef, useMemo, useId } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Listing, PaginatedResponse, ListingStatus } from '@/types';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice, openPaymentTab, redirectPaymentTab, closePaymentTab } from '@/lib/utils';
+import { fetchPublicPricing, formatFcfa, type PublicPricing } from '@/lib/pricing';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { revalidateListingsCache } from './actions';
-
-// Doit rester synchronisé avec AUDIT_PRICE_XOF côté backend (verifications.service.ts)
-const AUDIT_PRICE_XOF = 25_000;
 
 interface VerifModal { listingId: string; title: string; }
 interface AgentOption { id: string; firstName: string; lastName: string; completedMissions: number; }
@@ -51,6 +49,7 @@ function BailleurListingsContent() {
   const { getToken } = useAuth();
   const { toast } = useToast();
   const t = useTranslations('bailleur');
+  const locale = useLocale();
   // Modal "upgrade" réutilisé tel quel depuis /publier (même clés i18n, même
   // design) — évite de dupliquer le texte entre les deux endroits qui peuvent
   // déclencher ACTIVE_LISTING_LIMIT.
@@ -86,6 +85,13 @@ function BailleurListingsContent() {
   // /subscriptions/me est réservé PRO_AGENCE/ADMIN : un simple BAILLEUR reçoit un 403, traité
   // ici comme "pas PRO" (même schéma défensif que fetchSubscription() dans bailleur/abonnement).
   const [isProActive, setIsProActive] = useState(false);
+  // Prix AlloVérifié et boost (même source que /tarifs) — public, indépendant
+  // de l'auth, jamais écrits en dur (remplace l'ancienne constante locale
+  // AUDIT_PRICE_XOF qui pouvait se désynchroniser de la config).
+  const [pricing, setPricing] = useState<PublicPricing | null>(null);
+  useEffect(() => { void fetchPublicPricing().then(setPricing); }, []);
+  const auditPrice = pricing ? formatFcfa(pricing.auditBasicPriceFcfa, locale) : '—';
+  const boostPrice = pricing ? formatFcfa(pricing.boostPriceFcfa, locale) : '—';
   // Un bailleur particulier (pas PRO_AGENCE) est plafonné à 10 annonces actives
   // (cf. assertCanPublish() backend) — la bannière ne concerne que lui, jamais
   // une agence (abonnée, elle n'a aucune limite de nombre d'annonces).
@@ -548,7 +554,7 @@ function BailleurListingsContent() {
                   <p className="text-xs text-sub mt-0.5">{t('verifAuditBasicDesc')}</p>
                 </div>
                 <p className="text-sm font-semibold text-gold-dark shrink-0">
-                  {isProActive ? t('verifFreeBadge') : `${AUDIT_PRICE_XOF.toLocaleString('fr-FR')} FCFA`}
+                  {isProActive ? t('verifFreeBadge') : `${auditPrice} FCFA`}
                 </p>
               </div>
               <div>
@@ -585,7 +591,7 @@ function BailleurListingsContent() {
               <button onClick={requestVerif} disabled={!verifForm.scheduledAt || verifLoading} className="btn-gold text-sm disabled:opacity-50">
                 {verifLoading
                   ? <i className="fa-solid fa-spinner fa-spin" />
-                  : (isProActive ? t('verifSubmit') : t('verifSubmitPay', { amount: AUDIT_PRICE_XOF.toLocaleString('fr-FR') }))}
+                  : (isProActive ? t('verifSubmit') : t('verifSubmitPay', { amount: auditPrice }))}
               </button>
             </div>
           </>
@@ -612,7 +618,7 @@ function BailleurListingsContent() {
                   {isProActive ? (
                     <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{t('boostFreePro')}</p>
                   ) : (
-                    <p className="text-3xl font-extrabold text-text mt-0.5">5 000 <span className="text-lg font-semibold">FCFA</span></p>
+                    <p className="text-3xl font-extrabold text-text mt-0.5">{boostPrice} <span className="text-lg font-semibold">FCFA</span></p>
                   )}
                 </div>
                 <div className="text-right">
@@ -654,7 +660,7 @@ function BailleurListingsContent() {
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gold-dark hover:bg-gold-dark/90 text-white font-semibold py-3 text-sm transition-colors"
                 >
                   <i className={`fa-solid ${isProActive ? 'fa-rocket' : 'fa-lock'} text-xs`} />
-                  {isProActive ? t('boostListActivateFree') : t('boostListPay')}
+                  {isProActive ? t('boostListActivateFree') : t('boostListPay', { amount: boostPrice })}
                 </button>
               </div>
               {!isProActive && (
