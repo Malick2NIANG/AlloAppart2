@@ -120,8 +120,19 @@ export default async function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <i className="fa-solid fa-phone text-gold-dark shrink-0" />
-                <a href="tel:+221338326972" className="hover:text-gold-dark transition-colors">
-                  +221 33 832 69 72
+                <a href="tel:+221781321595" className="hover:text-gold-dark transition-colors">
+                  +221 78 132 15 95
+                </a>
+              </li>
+              <li className="flex items-center gap-2">
+                <i className="fa-brands fa-whatsapp text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <a
+                  href="https://wa.me/221781321595"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-gold-dark transition-colors"
+                >
+                  +221 78 132 15 95
                 </a>
               </li>
               <li className="flex items-center gap-2">
