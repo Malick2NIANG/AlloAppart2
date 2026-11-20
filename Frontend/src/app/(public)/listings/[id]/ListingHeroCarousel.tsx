@@ -14,9 +14,14 @@ interface Props {
   city: string;
   price: string;
   listingId: string;
+  /** Lot « raccourci » (partage) : bouton Partager masqué pour une annonce
+   * non publique (brouillon, suspendue) — jamais d'aperçu ni de lien à
+   * partager pour un contenu que personne d'autre que le propriétaire ne
+   * peut voir. */
+  isPublic: boolean;
 }
 
-export default function ListingHeroCarousel({ images, title, city, price }: Props) {
+export default function ListingHeroCarousel({ images, title, city, price, listingId, isPublic }: Props) {
   const t        = useTranslations('detail');
   const imgs     = images.length > 0 ? images : [PLACEHOLDER];
   const hasVideo = imgs.some(isVideo);
@@ -27,6 +32,21 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied]       = useState(false);
   const shareRef                  = useRef<HTMLDivElement>(null);
+  // Détection de support (lot « raccourci ») : lue après montage, jamais au
+  // premier rendu serveur (`navigator` n'existe pas côté serveur) — si le
+  // navigateur ne sait pas partager nativement, le menu existant (WhatsApp/
+  // Facebook/e-mail/copier) prend le relais, le bouton ne disparaît jamais.
+  const [canShareNatively, setCanShareNatively] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture d'une API navigateur (jamais côté serveur), setState après résolution
+    setCanShareNatively(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+  }, []);
+  // URL canonique (lot « raccourci ») : construite depuis listingId, jamais
+  // depuis window.location.href — exclut tout paramètre de session/tracking
+  // qui pourrait s'être glissé dans l'URL actuelle.
+  const canonicalUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/listings/${listingId}`
+    : '';
 
   // ── Lot 2b : galerie mobile défilante (snap) ─────────────────────────
   // Sous 768px uniquement : conteneur à part, avec son propre bouton de
@@ -68,26 +88,67 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
   }, []);
 
   const copyLink = async () => {
-    await navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1400);
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('clipboard API unavailable');
+      await navigator.clipboard.writeText(canonicalUrl);
+      setCopied(true);
+    } catch {
+      // Repli de secours : zone de texte temporaire + commande historique,
+      // pour les contextes sans Clipboard API (jamais d'erreur visible).
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = canonicalUrl;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        setCopied(true);
+      } catch {
+        setCopied(false);
+      }
+    } finally {
+      setTimeout(() => setCopied(false), 1400);
+    }
+  };
+
+  // navigator.share natif (lot « raccourci ») : ouvre la liste d'apps du
+  // téléphone (WhatsApp, SMS…) — tenté AVANT le menu ci-dessous, lui-même
+  // conservé comme repli pour les navigateurs sans Web Share API (PC
+  // essentiellement). Une annulation par l'utilisateur n'est jamais une
+  // erreur visible.
+  const nativeShare = async () => {
+    try {
+      await navigator.share({ title, text: `${city} · ${price}`, url: canonicalUrl });
+    } catch { /* annulé par l'utilisateur ou partage impossible — silencieux */ }
   };
 
   const shareWhatsapp = () => {
-    const url = encodeURIComponent(window.location.href);
+    const url = encodeURIComponent(canonicalUrl);
     window.open(`https://wa.me/?text=${url}`, '_blank', 'noopener');
   };
 
   const shareFacebook = () => {
-    const url = encodeURIComponent(window.location.href);
+    const url = encodeURIComponent(canonicalUrl);
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank', 'noopener,width=600,height=400');
   };
 
   const shareEmail = () => {
-    const url = window.location.href;
     const subject = encodeURIComponent(`${title} – AlloAppart`);
-    const body = encodeURIComponent(t('shareEmailBody', { url }));
+    const body = encodeURIComponent(t('shareEmailBody', { url: canonicalUrl }));
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  // Bouton « Partager » (lot « raccourci ») : natif si disponible, sinon
+  // ouvre le menu de repli existant — jamais les deux à la fois.
+  const handleShareClick = () => {
+    if (canShareNatively) { void nativeShare(); return; }
+    setShareOpen((o) => !o);
+  };
+  const handleShareClickMobile = () => {
+    if (canShareNatively) { void nativeShare(); return; }
+    setShareOpenMobile((o) => !o);
   };
 
   return (
@@ -166,30 +227,32 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
             </span>
           )}
 
-          {/* Share */}
-          <div className="relative" ref={shareRef}>
-            <button onClick={() => setShareOpen(!shareOpen)}
-              className="h-9 w-9 grid place-items-center rounded-full bg-black/40 hover:bg-black/60 text-white transition"
-              aria-label={t('shareBtn')}>
-              <i className="fa-solid fa-share-nodes text-sm" />
-            </button>
-            {shareOpen && (
-              <div className="absolute right-0 mt-2 w-52 bg-card border border-line rounded-xl shadow-lg p-2 z-20">
-                {[
-                  { icon: 'fa-brands fa-whatsapp', color: 'text-green-600 dark:text-green-400', label: t('shareWhatsapp'), action: shareWhatsapp },
-                  { icon: 'fa-brands fa-facebook', color: 'text-blue-600 dark:text-blue-400',  label: t('shareFacebook'), action: shareFacebook },
-                  { icon: 'fa-regular fa-envelope', color: 'text-text',     label: t('shareEmail'),    action: shareEmail    },
-                  { icon: 'fa-regular fa-copy',     color: 'text-text',     label: copied ? t('shareCopied') : t('shareCopy'), action: copyLink },
-                ].map((item) => (
-                  <button key={item.label} onClick={item.action}
-                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-gold-pale text-sm text-text transition-colors">
-                    <i className={`${item.icon} ${item.color} w-4`} />
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Share — masqué pour une annonce non publique (lot « raccourci »). */}
+          {isPublic && (
+            <div className="relative" ref={shareRef}>
+              <button onClick={handleShareClick}
+                className="h-9 w-9 grid place-items-center rounded-full bg-black/40 hover:bg-black/60 text-white transition"
+                aria-label={t('shareBtn')}>
+                <i className="fa-solid fa-share-nodes text-sm" />
+              </button>
+              {shareOpen && (
+                <div className="absolute right-0 mt-2 w-52 bg-card border border-line rounded-xl shadow-lg p-2 z-20">
+                  {[
+                    { icon: 'fa-brands fa-whatsapp', color: 'text-green-600 dark:text-green-400', label: t('shareWhatsapp'), action: shareWhatsapp },
+                    { icon: 'fa-brands fa-facebook', color: 'text-blue-600 dark:text-blue-400',  label: t('shareFacebook'), action: shareFacebook },
+                    { icon: 'fa-regular fa-envelope', color: 'text-text',     label: t('shareEmail'),    action: shareEmail    },
+                    { icon: 'fa-regular fa-copy',     color: 'text-text',     label: copied ? t('shareCopied') : t('shareCopy'), action: copyLink },
+                  ].map((item) => (
+                    <button key={item.label} onClick={item.action}
+                      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-gold-pale text-sm text-text transition-colors">
+                      <i className={`${item.icon} ${item.color} w-4`} />
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Title overlay — bottom left */}
@@ -274,29 +337,32 @@ export default function ListingHeroCarousel({ images, title, city, price }: Prop
               {current + 1} / {imgs.length}
             </span>
           )}
-          <div className="relative" ref={shareRefMobile}>
-            <button onClick={() => setShareOpenMobile((o) => !o)}
-              className="tap-target rounded-full bg-black/40 hover:bg-black/60 text-white transition"
-              aria-label={t('shareBtn')}>
-              <i className="fa-solid fa-share-nodes text-sm" />
-            </button>
-            {shareOpenMobile && (
-              <div className="absolute right-0 mt-2 w-52 bg-card border border-line rounded-xl shadow-lg p-2 z-20">
-                {[
-                  { icon: 'fa-brands fa-whatsapp', color: 'text-green-600 dark:text-green-400', label: t('shareWhatsapp'), action: shareWhatsapp },
-                  { icon: 'fa-brands fa-facebook', color: 'text-blue-600 dark:text-blue-400',  label: t('shareFacebook'), action: shareFacebook },
-                  { icon: 'fa-regular fa-envelope', color: 'text-text',     label: t('shareEmail'),    action: shareEmail    },
-                  { icon: 'fa-regular fa-copy',     color: 'text-text',     label: copied ? t('shareCopied') : t('shareCopy'), action: copyLink },
-                ].map((item) => (
-                  <button key={item.label} onClick={() => { item.action(); setShareOpenMobile(false); }}
-                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-gold-pale text-sm text-text transition-colors">
-                    <i className={`${item.icon} ${item.color} w-4`} />
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Masqué pour une annonce non publique (lot « raccourci »). */}
+          {isPublic && (
+            <div className="relative" ref={shareRefMobile}>
+              <button onClick={handleShareClickMobile}
+                className="tap-target rounded-full bg-black/40 hover:bg-black/60 text-white transition"
+                aria-label={t('shareBtn')}>
+                <i className="fa-solid fa-share-nodes text-sm" />
+              </button>
+              {shareOpenMobile && (
+                <div className="absolute right-0 mt-2 w-52 bg-card border border-line rounded-xl shadow-lg p-2 z-20">
+                  {[
+                    { icon: 'fa-brands fa-whatsapp', color: 'text-green-600 dark:text-green-400', label: t('shareWhatsapp'), action: shareWhatsapp },
+                    { icon: 'fa-brands fa-facebook', color: 'text-blue-600 dark:text-blue-400',  label: t('shareFacebook'), action: shareFacebook },
+                    { icon: 'fa-regular fa-envelope', color: 'text-text',     label: t('shareEmail'),    action: shareEmail    },
+                    { icon: 'fa-regular fa-copy',     color: 'text-text',     label: copied ? t('shareCopied') : t('shareCopy'), action: copyLink },
+                  ].map((item) => (
+                    <button key={item.label} onClick={() => { item.action(); setShareOpenMobile(false); }}
+                      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg hover:bg-gold-pale text-sm text-text transition-colors">
+                      <i className={`${item.icon} ${item.color} w-4`} />
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Titre + prix — overlay bas gauche */}

@@ -14,6 +14,7 @@ import MapView from '@/components/map/MapView';
 import AlloVerifieBadge from '@/components/ui/AlloVerifieBadge';
 import { type Listing, priceToNumber, ownerFullName, getListingPriceAmounts } from '@/types/listing';
 import { getListingProfile, TERRAIN_AMENITY_ICONS } from '@/lib/listingProfile';
+import { buildListingMetadata, NO_INDEX_METADATA } from './shareMetadata';
 
 const AMENITY_ICONS: Record<string, string> = {
   wifi: 'fa-wifi', clim: 'fa-snowflake', tv: 'fa-tv',
@@ -47,25 +48,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   try {
     const { api } = await import('@/lib/api');
     const listing = await api.get<Listing>(`/listings/${id}`);
-    const image = listing.images?.[0];
-    return {
-      title: `${listing.title} — AlloAppart`,
-      description: listing.description?.slice(0, 155) ?? `${listing.type} · ${listing.city}`,
-      openGraph: {
-        title: listing.title,
-        description: listing.description?.slice(0, 155) ?? `${listing.type} · ${listing.city}`,
-        images: image ? [{ url: image, width: 1200, height: 630, alt: listing.title }] : [],
-        type: 'website',
-      },
-      twitter: {
-        card: 'summary_large_image',
-        title: listing.title,
-        description: listing.description?.slice(0, 155) ?? `${listing.type} · ${listing.city}`,
-        images: image ? [image] : [],
-      },
-    };
+    return buildListingMetadata(listing) ?? NO_INDEX_METADATA;
   } catch {
-    return { title: 'Annonce — AlloAppart' };
+    return NO_INDEX_METADATA;
   }
 }
 
@@ -143,6 +128,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           city={listing.city}
           price={price}
           listingId={id}
+          isPublic={listing.status === 'ACTIVE'}
         />
       </div>
 
