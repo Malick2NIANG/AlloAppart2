@@ -138,6 +138,11 @@ const DEMO_USERS: Record<Exclude<DemoRole, 'visitor'>, { name: string; initials:
 
 export default function NavbarClient({ locale, labels }: Props) {
   const tListings  = useTranslations('listings');
+  // Lot « footer mobile limité » — section « Informations » du tiroir :
+  // réutilise telles quelles les clés i18n déjà traduites pour le pied de
+  // page, jamais de nouveau libellé dupliqué.
+  const tFooter    = useTranslations('footer');
+  const tNav       = useTranslations('nav');
   const typeLabels = tListings.raw('typeLabels') as Record<string, string>;
 
   const { isSignedIn, getToken } = useAuth();
@@ -672,6 +677,46 @@ export default function NavbarClient({ locale, labels }: Props) {
               className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sub hover:bg-card hover:text-text transition">
               <i className="fa-solid fa-circle-info text-gold-dark w-4" /> {labels.about}
             </Link>
+
+            {/* Lot « footer mobile limité » — section « Informations » :
+                les liens du footer utiles même quand celui-ci disparaît sous
+                768px. /a-propos et /agences restent au-dessus (déjà présents,
+                jamais doublés ici). */}
+            <p className="mt-2 px-4 pb-1 text-xs font-semibold uppercase tracking-widest text-sub">
+              {tNav('infoSection')}
+            </p>
+            <Link href="/aide" onClick={() => setMobileOpen(false)}
+              className="tap-target flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sub hover:bg-card hover:text-text transition">
+              <i className="fa-solid fa-circle-question text-gold-dark w-4" /> {tFooter('navFaq')}
+            </Link>
+            <Link href="/tarifs" onClick={() => setMobileOpen(false)}
+              className="tap-target flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sub hover:bg-card hover:text-text transition">
+              <i className="fa-solid fa-tag text-gold-dark w-4" /> {tFooter('navTarifs')}
+            </Link>
+            <Link href="/plan-du-site" onClick={() => setMobileOpen(false)}
+              className="tap-target flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sub hover:bg-card hover:text-text transition">
+              <i className="fa-solid fa-sitemap text-gold-dark w-4" /> {tFooter('navSitemap')}
+            </Link>
+            <Link href="/confidentialite" onClick={() => setMobileOpen(false)}
+              className="tap-target flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sub hover:bg-card hover:text-text transition">
+              <i className="fa-solid fa-shield-halved text-gold-dark w-4" /> {tFooter('privacy')}
+            </Link>
+            <Link href="/cgu" onClick={() => setMobileOpen(false)}
+              className="tap-target flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sub hover:bg-card hover:text-text transition">
+              <i className="fa-solid fa-file-contract text-gold-dark w-4" /> {tFooter('terms')}
+            </Link>
+            <Link href="/cookies" onClick={() => setMobileOpen(false)}
+              className="tap-target flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sub hover:bg-card hover:text-text transition">
+              <i className="fa-solid fa-cookie-bite text-gold-dark w-4" /> {tFooter('cookies')}
+            </Link>
+            <a href="tel:+221781321595" onClick={() => setMobileOpen(false)}
+              className="tap-target flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sub hover:bg-card hover:text-text transition">
+              <i className="fa-solid fa-phone text-gold-dark w-4" aria-hidden /> +221 78 132 15 95
+            </a>
+            <a href="mailto:alloappart221@gmail.com" onClick={() => setMobileOpen(false)}
+              className="tap-target flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-sub hover:bg-card hover:text-text transition">
+              <i className="fa-solid fa-envelope text-gold-dark w-4" aria-hidden /> alloappart221@gmail.com
+            </a>
           </div>
 
           {/* Auth mobile */}

@@ -158,4 +158,41 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
     await user.click(screen.getAllByRole('button', { name: 'Fermer la recherche' })[0]);
     await waitFor(() => expect(screen.queryByRole('search')).not.toBeInTheDocument());
   });
+
+  describe('lot « footer mobile limité » — section « Informations » du tiroir', () => {
+    it('le tiroir mobile contient les liens FAQ/Tarifs/Plan du site/Confidentialité/CGU/Cookies/Contact, sans doubler Agences/À propos', async () => {
+      const user = userEvent.setup();
+      render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
+      await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+
+      expect(screen.getByRole('link', { name: /navFaq/ })).toHaveAttribute('href', '/aide');
+      expect(screen.getByRole('link', { name: /navTarifs/ })).toHaveAttribute('href', '/tarifs');
+      expect(screen.getByRole('link', { name: /navSitemap/ })).toHaveAttribute('href', '/plan-du-site');
+      expect(screen.getByRole('link', { name: /privacy/ })).toHaveAttribute('href', '/confidentialite');
+      expect(screen.getByRole('link', { name: /terms/ })).toHaveAttribute('href', '/cgu');
+      expect(screen.getByRole('link', { name: /cookies/ })).toHaveAttribute('href', '/cookies');
+      expect(screen.getByRole('link', { name: 'Agences' })).toHaveAttribute('href', '/agences');
+      expect(screen.getByRole('link', { name: 'À propos' })).toHaveAttribute('href', '/a-propos');
+      // Un seul lien par destination : aucun doublon de /agences ou /a-propos.
+      expect(screen.getAllByRole('link', { name: 'Agences' })).toHaveLength(1);
+      expect(screen.getAllByRole('link', { name: 'À propos' })).toHaveLength(1);
+    });
+
+    it('les liens tel:/mailto: reprennent les coordonnées du footer', async () => {
+      const user = userEvent.setup();
+      render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
+      await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+
+      expect(screen.getByRole('link', { name: /\+221 78 132 15 95/ })).toHaveAttribute('href', 'tel:+221781321595');
+      expect(screen.getByRole('link', { name: /alloappart221@gmail\.com/ })).toHaveAttribute('href', 'mailto:alloappart221@gmail.com');
+    });
+
+    it('un clic sur un lien d\'information referme le tiroir', async () => {
+      const user = userEvent.setup();
+      render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
+      await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+      await user.click(screen.getByRole('link', { name: /navFaq/ }));
+      expect(screen.queryByRole('link', { name: /navFaq/ })).not.toBeInTheDocument();
+    });
+  });
 });

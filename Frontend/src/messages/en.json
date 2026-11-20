@@ -26,7 +26,8 @@
     "home": "Home",
     "account": "Account",
     "bottomNavLabel": "Main navigation",
-    "selectLanguage": "Select a language"
+    "selectLanguage": "Select a language",
+    "infoSection": "Information"
   },
   "backButton": {
     "back": "Back",
