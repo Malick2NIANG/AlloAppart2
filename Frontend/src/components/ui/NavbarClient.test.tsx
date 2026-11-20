@@ -27,7 +27,8 @@ vi.mock('@clerk/nextjs', () => ({
 vi.mock('@/lib/api', () => ({ api: { get: vi.fn() } }));
 vi.mock('./NotificationBell', () => ({ default: () => null }));
 vi.mock('./ThemeToggle', () => ({ default: () => null }));
-vi.mock('./LanguageSwitcher', () => ({ default: () => null }));
+vi.mock('./LanguageSwitcher', () => ({ default: () => null, FlagIcon: () => null }));
+vi.mock('./LanguageToggle', () => ({ default: () => null }));
 
 const classifyMiloQuery = vi.fn();
 vi.mock('@/lib/milo', async () => {

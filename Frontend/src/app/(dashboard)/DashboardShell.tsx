@@ -14,6 +14,7 @@ import SubscriptionAlert from '@/components/ui/SubscriptionAlert';
 import NotificationBell from '@/components/ui/NotificationBell';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import LanguageToggle from '@/components/ui/LanguageToggle';
 import { useLocaleTransition } from '@/components/ui/LocaleTransition';
 import { SkeletonStatCard } from '@/components/ui/Skeleton';
 import type { Locale } from '@/i18n/config';
@@ -714,7 +715,10 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
             <Image src="/images/LOGO.png" alt="AlloAppart" width={120} height={34} className="h-8 w-auto" />
           </Link>
           <div className="flex items-center gap-2">
-            <LanguageSwitcher currentLocale={locale as Locale} />
+            {/* Mobile (< 768 px) : interrupteur FR | EN ; ≥ 768 px : liste
+                déroulante inchangée. */}
+            <LanguageToggle currentLocale={locale as Locale} className="md:hidden" />
+            <div className="max-md:hidden"><LanguageSwitcher currentLocale={locale as Locale} /></div>
             <ThemeToggle />
             <NotificationBell userId={userId} />
           </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, Check } from 'lucide-react';
 import { setLocale } from '@/i18n/actions';
+import { writeLocaleCookie } from '@/i18n/clientLocale';
 import { locales, localeLabels, type Locale } from '@/i18n/config';
 import { useLocaleTransition } from './LocaleTransition';
 
@@ -12,7 +13,7 @@ interface Props {
   currentLocale: Locale;
 }
 
-function FlagIcon({ countryCode }: { countryCode: string }) {
+export function FlagIcon({ countryCode }: { countryCode: string }) {
   const style: React.CSSProperties = { borderRadius: '2px', flexShrink: 0, display: 'block' };
 
   if (countryCode === 'fr') return (
@@ -57,8 +58,15 @@ export default function LanguageSwitcher({ currentLocale }: Props) {
   const handleSelect = (locale: Locale) => {
     if (locale === currentLocale) { setOpen(false); return; }
     setOpen(false);
+    // Cookie écrit côté navigateur d'abord (fiable même si la Server Action
+    // est refusée, ex. tunnel de dev), puis synchro serveur non bloquante.
+    writeLocaleCookie(locale);
     run(async () => {
-      await setLocale(locale);
+      try {
+        await setLocale(locale);
+      } catch {
+        // La langue de l'interface est déjà changée via le cookie.
+      }
       router.refresh();
     });
   };

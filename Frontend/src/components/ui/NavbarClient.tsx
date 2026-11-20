@@ -7,6 +7,7 @@ import { useAuth, useClerk, useUser } from '@clerk/nextjs';
 import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import ThemeToggle from './ThemeToggle';
 import LanguageSwitcher from './LanguageSwitcher';
+import LanguageToggle from './LanguageToggle';
 import NotificationBell from './NotificationBell';
 import BottomSheet from './BottomSheet';
 import MiloSearchBar from '@/components/milo/MiloSearchBar';
@@ -666,7 +667,7 @@ export default function NavbarClient({ locale, labels }: Props) {
               avant (ce bloc n'apparaît pas), sans effet à partir de 768px. */}
           <div className="md:hidden mt-2 flex flex-col gap-1 border-t border-line pt-3">
             <div className="flex items-center gap-2 px-4 pb-1">
-              <LanguageSwitcher currentLocale={locale} />
+              <LanguageToggle currentLocale={locale} />
               <ThemeToggle />
             </div>
             <Link href="/agences" onClick={() => setMobileOpen(false)}
