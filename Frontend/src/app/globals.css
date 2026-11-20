@@ -46,6 +46,10 @@
   --aa-text: #1C1C1C;
   --aa-sub:  #6B7280;
   --aa-line: #E5E7EB;
+  /* Fond « doré pâle » des cadres et pastilles : beige clair en thème clair,
+     voile doré translucide en thème sombre (voir .dark) — sinon les cadres
+     restent beiges sur fond sombre avec un texte clair illisible. */
+  --aa-gold-pale: #fff5d6;
   /* Piloté par CookieConsentBanner.tsx tant que la bannière est visible —
      voir la règle `.dashboard-viewport` juste en dessous. */
   --cookie-banner-h: 0px;
@@ -74,6 +78,7 @@
   --aa-text: #e2e8f0;
   --aa-sub:  #94a3b8;
   --aa-line: #334155;
+  --aa-gold-pale: rgba(250, 204, 21, 0.12);
 }
 
 /* ── Tailwind @theme inline ────────────────────────────────────────── */
@@ -87,7 +92,7 @@
   --color-gold:       #facc15;
   --color-gold-dark:  #b58900;
   --color-gold-light: #F9E4B7;
-  --color-gold-pale:  #fff5d6;
+  --color-gold-pale:  var(--aa-gold-pale);
   --color-dark:       #0f172a;
 
   --font-sans:    var(--font-inter);
