@@ -41,6 +41,7 @@ const TYPE_ICON: Record<string, { icon: string; color: string }> = {
 export default function NotificationBell({ userId }: { userId: string }) {
   const t             = useTranslations('notifications');
   const tSkeleton     = useTranslations('skeleton');
+  const tPush         = useTranslations('pushSettings');
   const { getToken }  = useAuth();
   const [notifs,      setNotifs]      = useState<Notif[]>([]);
   const [unread,      setUnread]      = useState(0);
@@ -282,13 +283,23 @@ export default function NotificationBell({ userId }: { userId: string }) {
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 border-t border-line px-4 py-2.5 text-center max-md:pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))]">
+        <div className="shrink-0 border-t border-line px-4 py-2.5 flex items-center justify-center gap-4 max-md:pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))]">
           <Link
             href="/notifications"
             onClick={() => setOpen(false)}
             className="text-xs font-medium text-gold-dark hover:underline max-md:flex max-md:h-11 max-md:items-center max-md:justify-center max-md:text-sm"
           >
             {t('seeAll')} <i className="fa-solid fa-arrow-right text-[10px] ml-1" />
+          </Link>
+          {/* Lot « notifications push » — lien discret vers les réglages. */}
+          <Link
+            href="/profil/notifications"
+            onClick={() => setOpen(false)}
+            aria-label={tPush('bellLink')}
+            title={tPush('bellLink')}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-sub hover:text-gold-dark hover:bg-bg transition-colors md:h-8 md:w-8"
+          >
+            <i className="fa-solid fa-gear text-xs" />
           </Link>
         </div>
       </>
