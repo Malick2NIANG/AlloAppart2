@@ -10,6 +10,9 @@ const isVideo = (url: string) => /\.(mp4|webm|mov|avi)(\?|$)/i.test(url);
 
 interface Props {
   images: string[];
+  /** Photo cadrée → photo d'origine : la visionneuse plein écran montre
+   * l'original (entier) quand il existe, jamais le cadre de publication. */
+  originals?: Record<string, string>;
   title: string;
   city: string;
   price: string;
@@ -21,9 +24,12 @@ interface Props {
   isPublic: boolean;
 }
 
-export default function ListingHeroCarousel({ images, title, city, price, listingId, isPublic }: Props) {
+export default function ListingHeroCarousel({ images, originals, title, city, price, listingId, isPublic }: Props) {
   const t        = useTranslations('detail');
   const imgs     = images.length > 0 ? images : [PLACEHOLDER];
+  // URL à afficher en plein écran : l'original si on l'a, sinon la photo telle
+  // que publiée (anciennes annonces, vidéos).
+  const fullSrc  = (url: string) => originals?.[url] ?? url;
   const hasVideo = imgs.some(isVideo);
 
   const [current, setCurrent]     = useState(0);
@@ -446,7 +452,7 @@ export default function ListingHeroCarousel({ images, title, city, price, listin
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={img}
+                        src={fullSrc(img)}
                         alt={`${title} — photo ${i + 1}`}
                         loading="lazy"
                         className="w-full h-auto block group-hover:scale-[1.02] transition-transform duration-300"
@@ -487,7 +493,7 @@ export default function ListingHeroCarousel({ images, title, city, price, listin
                         className="max-h-full max-w-full rounded-xl"
                       />
                     ) : (
-                      <Image src={imgs[current]} alt={title} fill className="object-contain" />
+                      <Image src={fullSrc(imgs[current])} alt={title} fill className="object-contain" sizes="100vw" />
                     )}
                   </div>
                 </div>

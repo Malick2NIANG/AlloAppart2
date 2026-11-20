@@ -111,6 +111,8 @@ function makeSchema(t: ReturnType<typeof useTranslations<'publish'>>) {
     // forcer un vrai choix — voir superRefine ci-dessous).
     furnished:   z.boolean().optional(),
     images:      z.array(z.string()).min(1, t('zPhotoRequired')),
+    // Photo cadrée → photo d'origine (visionneuse plein écran).
+    imageOriginals: z.record(z.string(), z.string()).optional(),
   }).superRefine((data, ctx) => {
     // Région choisie et point sur la carte doivent concorder (contours embarqués,
     // marge près des frontières — cf. lib/senegalRegions.ts). Erreur affichée sur le champ région.
@@ -1067,6 +1069,8 @@ export default function PublierPage() {
                 <ImageUploadZone
                   images={values.images || []}
                   onChange={(imgs) => setValue('images', imgs, { shouldValidate: true })}
+                  originals={values.imageOriginals}
+                  onOriginalsChange={(o) => setValue('imageOriginals', o)}
                   getToken={getToken}
                 />
                 {errors.images && (

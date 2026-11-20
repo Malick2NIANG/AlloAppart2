@@ -124,6 +124,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
       <div className="aa-container">
         <ListingHeroCarousel
           images={listing.images}
+          originals={listing.imageOriginals}
           title={listing.title}
           city={listing.city}
           price={price}

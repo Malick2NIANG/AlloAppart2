@@ -27,6 +27,11 @@ interface Props {
   // défaut (photos d'annonce) ; désactivé explicitement pour les usages où
   // rogner l'image serait indésirable (ex. preuves jointes à un litige).
   enableCrop?: boolean;
+  // Table « URL de la photo cadrée → URL de la photo d'origine ». Quand
+  // fournie avec `onOriginalsChange`, l'original (non recadré) est aussi
+  // téléversé à chaque ajout, pour l'afficher entier dans la visionneuse.
+  originals?: Record<string, string>;
+  onOriginalsChange?: (originals: Record<string, string>) => void;
 }
 
 function genId(): string {
@@ -60,11 +65,14 @@ async function compressImage(file: File, maxDim = 1920, quality = 0.82): Promise
   }
 }
 
-export default function ImageUploadZone({ images, onChange, getToken, enableCrop = true }: Props) {
+export default function ImageUploadZone({ images, onChange, getToken, enableCrop = true, originals, onOriginalsChange }: Props) {
   const t = useTranslations('upload');
   const [items, setItems] = useState<UploadItem[]>(
     () => images.map((url) => ({ id: genId(), url, status: 'done' as const, name: url.split('/').pop() ?? 'photo' }))
   );
+  // Photo cadrée (URL) → photo d'origine (URL). N'existe que pour les photos
+  // ajoutées avec cette fonction ; les anciennes n'ont pas d'original.
+  const [originalsMap, setOriginalsMap] = useState<Record<string, string>>(() => originals ?? {});
   const [dragging, setDragging] = useState(false);
   const [sizeError, setSizeError] = useState(false);
   const [adjustError, setAdjustError] = useState(false);
@@ -92,6 +100,17 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
     onChangeRef.current(items.filter((it) => it.status === 'done').map((it) => it.url));
   }, [items]);
 
+  // Même principe pour la table des originaux, élaguée aux seules photos
+  // encore présentes (une photo retirée emporte son original avec elle).
+  const onOriginalsChangeRef = useRef(onOriginalsChange);
+  useEffect(() => { onOriginalsChangeRef.current = onOriginalsChange; });
+  useEffect(() => {
+    if (!onOriginalsChangeRef.current) return;
+    const present = new Set(items.filter((it) => it.status === 'done').map((it) => it.url));
+    const pruned = Object.fromEntries(Object.entries(originalsMap).filter(([url]) => present.has(url)));
+    onOriginalsChangeRef.current(pruned);
+  }, [items, originalsMap]);
+
   // File d'attente de recadrage : chaque photo (pas vidéo) fraîchement
   // sélectionnée/déposée passe par PhotoCropper avant d'être compressée et
   // envoyée — un seul cadre affiché à la fois, les suivants s'enchaînent.
@@ -101,25 +120,33 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
 
   // Envoie un fichier déjà prêt (compressé ou issu d'un recadrage) vers l'API
   // et met à jour le slot correspondant par son ID.
-  const uploadOne = async (file: File, itemId: string) => {
+  const postFile = async (file: File): Promise<string> => {
     const token = await getToken();
     const fd = new FormData();
     fd.append('file', file);
+    const res = await fetch(`${getApiBaseUrl()}/upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const { url } = await res.json() as { url: string };
+    return url;
+  };
+
+  // Retourne l'URL obtenue (ou null en cas d'échec).
+  const uploadOne = async (file: File, itemId: string): Promise<string | null> => {
     try {
-      const res = await fetch(`${getApiBaseUrl()}/upload`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: fd,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const { url } = await res.json() as { url: string };
+      const url = await postFile(file);
       setItems((prev) =>
         prev.map((it) => it.id === itemId ? { ...it, url, status: 'done' as const } : it)
       );
+      return url;
     } catch {
       setItems((prev) =>
         prev.map((it) => it.id === itemId ? { ...it, status: 'error' as const } : it)
       );
+      return null;
     }
   };
 
@@ -173,7 +200,15 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
     URL.revokeObjectURL(previewUrl);
     setCropQueue((prev) => prev.slice(1));
     const cropped = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' });
-    await uploadOne(cropped, id);
+    // L'original (non recadré) part en parallèle pour la visionneuse plein
+    // écran ; son échec n'empêche jamais la publication de la photo cadrée.
+    const originalUpload = onOriginalsChange
+      ? compressImage(file).then(postFile).catch(() => null)
+      : Promise.resolve<string | null>(null);
+    const [croppedUrl, originalUrl] = await Promise.all([uploadOne(cropped, id), originalUpload]);
+    if (croppedUrl && originalUrl) {
+      setOriginalsMap((prev) => ({ ...prev, [croppedUrl]: originalUrl }));
+    }
   };
 
   const handleCropCancel = () => {
@@ -185,12 +220,18 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
 
   const openAdjust = (item: UploadItem) => {
     if (item.status !== 'done' || isVideoUrl(item.url)) return;
-    setAdjustTarget({ id: item.id, url: item.url, oldUrl: item.url });
+    // On re-cadre depuis l'original quand il existe : sinon on rognerait une
+    // image déjà rognée et l'espace perdu ne reviendrait jamais.
+    setAdjustTarget({ id: item.id, url: originalsMap[item.url] ?? item.url, oldUrl: item.url });
   };
 
   const handleAdjustConfirm = async (blob: Blob) => {
     if (!adjustTarget) return;
-    const { id, oldUrl } = adjustTarget;
+    // `url` = la source utilisée pour CE recadrage (l'original si on en avait
+    // un, sinon oldUrl lui-même — cf. openAdjust) : c'est elle qu'il faut
+    // reporter sur la nouvelle URL cadrée, sinon « Ajuster » perd le lien
+    // vers l'original à chaque réglage ultérieur.
+    const { id, url: sourceUrl, oldUrl } = adjustTarget;
     setAdjustTarget(null);
     setItems((prev) =>
       prev.map((it) => it.id === id ? { ...it, status: 'uploading' as const } : it)
@@ -209,6 +250,14 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
       setItems((prev) =>
         prev.map((it) => it.id === id ? { ...it, url, status: 'done' as const } : it)
       );
+      if (sourceUrl !== oldUrl) {
+        setOriginalsMap((prev) => {
+          const next = { ...prev };
+          delete next[oldUrl];
+          next[url] = sourceUrl;
+          return next;
+        });
+      }
     } catch {
       // On garde la photo d'origine plutôt que de la marquer en erreur.
       setItems((prev) =>

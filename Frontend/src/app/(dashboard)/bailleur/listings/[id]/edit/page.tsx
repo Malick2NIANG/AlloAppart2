@@ -120,6 +120,8 @@ export default function EditListingPage() {
     baths:         z.number().int(t('zBathsInt')).min(0, t('zBathsMin')).optional(),
     amenities:     z.array(z.string()).default([]),
     images:        z.array(z.string()).min(1, t('zImageRequired')),
+    // Photo cadrée → photo d'origine (visionneuse plein écran).
+    imageOriginals: z.record(z.string(), z.string()).optional(),
   }).superRefine((data, ctx) => {
     // Région choisie et point sur la carte doivent concorder (contours embarqués,
     // marge près des frontières — cf. lib/senegalRegions.ts). Erreur affichée sur le champ région.
@@ -303,6 +305,7 @@ export default function EditListingPage() {
           baths:         listing.baths ?? undefined,
           amenities:     listing.amenities ?? [],
           images:        listing.images ?? [],
+          imageOriginals: listing.imageOriginals ?? {},
         });
         setMapReady(true);
         setLoadingData(false);
@@ -820,6 +823,8 @@ export default function EditListingPage() {
               <ImageUploadZone
                 images={images}
                 onChange={(imgs) => setValue('images', imgs, { shouldValidate: true })}
+                originals={watch('imageOriginals')}
+                onOriginalsChange={(o) => setValue('imageOriginals', o)}
                 getToken={getToken}
               />
               {errors.images && (

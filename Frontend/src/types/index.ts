@@ -91,6 +91,8 @@ export interface Listing {
   boostUntil?: string | null;
   boostScore: number;
   images: string[];
+  /** URL de la photo cadrée → URL de la photo d'origine (absent sur les anciennes annonces). */
+  imageOriginals?: Record<string, string>;
   amenities: string[];
   ownerId: string;
   owner?: Pick<User, 'id' | 'firstName' | 'lastName' | 'agencyName' | 'agencySlug' | 'avatar' | 'roles' | 'phone' | 'agencyPhone' | 'agencyWhatsapp'>;
