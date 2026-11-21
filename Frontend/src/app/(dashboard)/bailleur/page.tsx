@@ -628,8 +628,8 @@ function KpiCard({ label, sub, value, icon, href, badge }: {
       </div>
       <div className="mt-3">
         <p className="text-xl font-bold text-gold-dark">{value ?? '—'}</p>
-        <p className="mt-0.5 text-xs font-semibold text-gray-800">{label}</p>
-        <p className="text-[10px] text-gray-500 mt-0.5">{sub}</p>
+        <p className="mt-0.5 text-xs font-semibold text-text">{label}</p>
+        <p className="text-[10px] text-sub mt-0.5">{sub}</p>
       </div>
     </Link>
   );
