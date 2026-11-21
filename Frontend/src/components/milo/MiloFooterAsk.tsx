@@ -35,7 +35,7 @@ export default function MiloFooterAsk({ title, subtitle }: Props) {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="tap-target flex h-10 shrink-0 items-center justify-center gap-2 self-start rounded-full border border-gold/40 bg-card px-4 text-sm font-medium text-gold-dark transition-colors hover:bg-gold/20 md:self-auto"
+            className="tap-target flex h-10 shrink-0 items-center justify-center gap-2 self-start rounded-full border border-gold/40 bg-card px-4 text-sm font-medium text-gold-text transition-colors hover:bg-gold/20 md:self-auto"
           >
             <i className="fa-solid fa-wand-magic-sparkles text-xs" aria-hidden />
             {t('askMiloButton')}

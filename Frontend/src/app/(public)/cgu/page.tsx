@@ -50,7 +50,7 @@ export default async function CGUPage() {
 
         {/* En-tête */}
         <div className="mb-10">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/50 bg-gold-pale px-3 py-1 text-xs font-semibold text-gold-dark">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/50 bg-gold-pale px-3 py-1 text-xs font-semibold text-gold-text">
             <i className="fa-solid fa-shield-halved" /> {t('badge')}
           </span>
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-text md:text-4xl">

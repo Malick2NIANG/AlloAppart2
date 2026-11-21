@@ -133,7 +133,7 @@ export default async function Footer() {
                 </a>
               </li>
             </ul>
-            <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-gold/50 bg-gold-pale px-3 py-1.5 text-xs font-semibold text-gold-dark">
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-gold/50 bg-gold-pale px-3 py-1.5 text-xs font-semibold text-gold-text">
               <i className="fa-solid fa-shield-halved" />
               {t('badge')}
             </div>

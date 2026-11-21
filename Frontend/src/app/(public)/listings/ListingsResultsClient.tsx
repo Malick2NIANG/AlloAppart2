@@ -170,7 +170,7 @@ export default function ListingsResultsClient({
                   </div>
                   <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
                     {getListingPriceAmounts(listing).map((e) => (
-                      <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
+                      <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-text">
                         {e.amount.toLocaleString(numLocale)} FCFA{e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}
                       </span>
                     ))}

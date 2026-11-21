@@ -50,6 +50,16 @@
      voile doré translucide en thème sombre (voir .dark) — sinon les cadres
      restent beiges sur fond sombre avec un texte clair illisible. */
   --aa-gold-pale: #fff5d6;
+  /* Token dédié au TEXTE or (lot « recette » — accessibilité AA) :
+     --color-gold-dark (#b58900) ne contraste qu'à 2,9:1 sur fond blanc/clair
+     (norme AA : 4,5:1 texte normal) — il reste inchangé pour tout usage non
+     textuel (fonds, bordures, icônes). Teinte plus foncée, même famille de
+     couleur, ≥4,5:1 sur blanc (#FFFFFF, 5,07:1) et sur le fond de page clair
+     (--aa-bg #FAFAFA, 4,86:1). En sombre : l'or (--color-gold-dark) contraste
+     déjà bien sur le fond sombre (#0f172a) — ce token y reprend donc la même
+     valeur que --color-gold-dark (voir règle .dark plus bas), aucun
+     changement visuel en mode sombre. */
+  --aa-gold-text: #8a6a00;
   /* Piloté par CookieConsentBanner.tsx tant que la bannière est visible —
      voir la règle `.dashboard-viewport` juste en dessous. */
   --cookie-banner-h: 0px;
@@ -79,6 +89,8 @@
   --aa-sub:  #94a3b8;
   --aa-line: #334155;
   --aa-gold-pale: rgba(250, 204, 21, 0.12);
+  /* Inchangé en sombre : l'or (#b58900) y contraste déjà bien, voir plus haut. */
+  --aa-gold-text: #b58900;
 }
 
 /* ── Tailwind @theme inline ────────────────────────────────────────── */
@@ -93,6 +105,7 @@
   --color-gold-dark:  #b58900;
   --color-gold-light: #F9E4B7;
   --color-gold-pale:  var(--aa-gold-pale);
+  --color-gold-text:  var(--aa-gold-text);
   --color-dark:       #0f172a;
 
   --font-sans:    var(--font-inter);

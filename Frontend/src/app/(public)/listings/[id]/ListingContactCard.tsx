@@ -272,7 +272,7 @@ export default function ListingContactCard({
           {isAgency && agencySlug && (
             <Link
               href={`/agences/${agencySlug}`}
-              className="mt-3 text-sm text-gold-dark hover:text-gold transition-colors flex items-center gap-1"
+              className="mt-3 text-sm text-gold-text hover:text-gold transition-colors flex items-center gap-1"
             >
               {t('viewAgencyShowcase')} <i className="fa-solid fa-arrow-right text-xs" />
             </Link>

@@ -442,7 +442,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
           <button
             type="button"
             onClick={() => setMiloOpen(true)}
-            className="tap-target flex h-10 items-center gap-2 rounded-full border border-gold/40 bg-gold-pale px-4 text-sm font-medium text-gold-dark transition-colors hover:bg-gold/20"
+            className="tap-target flex h-10 items-center gap-2 rounded-full border border-gold/40 bg-gold-pale px-4 text-sm font-medium text-gold-text transition-colors hover:bg-gold/20"
           >
             <i className="fa-solid fa-wand-magic-sparkles text-xs" />
             {t('askMiloButton')}

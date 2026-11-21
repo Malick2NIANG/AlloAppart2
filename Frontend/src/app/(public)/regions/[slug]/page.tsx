@@ -100,7 +100,7 @@ export default async function RegionPage({
                 <Link
                   key={h}
                   href={`/listings?city=${encodeURIComponent(h)}`}
-                  className="rounded-full border border-gold/40 bg-gold-pale px-3 py-1 text-xs font-medium text-gold-dark hover:bg-gold/20 transition"
+                  className="rounded-full border border-gold/40 bg-gold-pale px-3 py-1 text-xs font-medium text-gold-text hover:bg-gold/20 transition"
                 >
                   {h}
                 </Link>
@@ -144,7 +144,7 @@ export default async function RegionPage({
                       {/* Badge prix — 1 pastille (NIGHTLY/MONTHLY) ou 2 empilées (MIXED) */}
                       <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
                         {getListingPriceAmounts(listing).map((e) => (
-                          <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
+                          <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-text">
                             {e.amount.toLocaleString(numLocale)} FCFA{e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}
                           </span>
                         ))}

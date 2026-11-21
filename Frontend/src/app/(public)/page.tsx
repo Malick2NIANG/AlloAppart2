@@ -481,7 +481,7 @@ export default async function HomePage() {
             {/* En-tête */}
             <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
               <div>
-                <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold-pale px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-gold-dark mb-3">
+                <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold-pale px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-gold-text mb-3">
                   <i className="fa-solid fa-building text-[9px]" /> {t('agenciesBadge')}
                 </span>
                 <h2 className="text-3xl font-bold text-text md:text-4xl">

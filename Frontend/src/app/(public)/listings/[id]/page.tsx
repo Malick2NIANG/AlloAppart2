@@ -351,7 +351,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                     <div className="p-3">
                       <p className="font-medium text-text truncate text-sm">{s.title}</p>
                       <p className="text-xs text-sub">{s.city}</p>
-                      <p className="text-gold-dark font-semibold mt-1 text-sm">
+                      <p className="text-gold-text font-semibold mt-1 text-sm">
                         {getListingPriceAmounts(s)
                           .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA${e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}`)
                           .join(' · ')}
@@ -373,7 +373,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                     <div className="p-3">
                       <p className="font-medium text-text truncate text-sm">{s.title}</p>
                       <p className="text-xs text-sub">{s.city}</p>
-                      <p className="text-gold-dark font-semibold mt-1 text-sm">
+                      <p className="text-gold-text font-semibold mt-1 text-sm">
                         {getListingPriceAmounts(s)
                           .map((e) => `${e.amount.toLocaleString(numLocale)} FCFA${e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}`)
                           .join(' · ')}
