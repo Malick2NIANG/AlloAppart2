@@ -115,3 +115,68 @@ describe('verifyDescription — contrôle anti-invention', () => {
     expect(result.reasons.some((r) => r.includes('150000'))).toBe(true);
   });
 });
+
+describe('verifyDescription — interdits ajoutés en relecture (expressions non fondées sur les champs)', () => {
+  it.each([
+    [
+      'entièrement',
+      'Cet appartement est à louer à Dakar. Il est entièrement meublé.',
+    ],
+    [
+      'prêt à vivre',
+      'Cet appartement est à louer à Dakar. Vous emménagez meublé, prêt à vivre.',
+    ],
+    [
+      'répond à vos besoins',
+      'Cet appartement est à louer à Dakar. Avec 90 m², ce bien répond à vos besoins.',
+    ],
+  ])('FR — rejette « %s »', (_label, text) => {
+    const input: WriterInput = {
+      locale: 'fr',
+      type: 'APPARTEMENT',
+      city: 'Dakar',
+      surface: 90,
+      furnished: true,
+    };
+    expect(verifyDescription(text, input).ok).toBe(false);
+  });
+
+  it.each([
+    [
+      'fully',
+      'This apartment is available for rent in Dakar. It comes fully furnished.',
+    ],
+    [
+      'ready to live',
+      'This apartment is available for rent in Dakar. You move in furnished, ready to live.',
+    ],
+    [
+      'meets your needs',
+      'This apartment is available for rent in Dakar. With 90 sqm, this property meets your needs.',
+    ],
+  ])('EN — rejects "%s"', (_label, text) => {
+    const input: WriterInput = {
+      locale: 'en',
+      type: 'APPARTEMENT',
+      city: 'Dakar',
+      surface: 90,
+      furnished: true,
+    };
+    expect(verifyDescription(text, input).ok).toBe(false);
+  });
+});
+
+describe('verifyDescription — nombres groupés par virgule (EN) reconnus comme un seul nombre', () => {
+  it('ne scinde pas « 35,000,000 » en fragments non reconnus', () => {
+    const input: WriterInput = {
+      locale: 'en',
+      type: 'VILLA',
+      transactionType: 'VENTE',
+      city: 'Dakar',
+      price: 35000000,
+    };
+    const text =
+      'This villa is for sale in Dakar. Sale price: 35,000,000 FCFA.';
+    expect(verifyDescription(text, input).ok).toBe(true);
+  });
+});

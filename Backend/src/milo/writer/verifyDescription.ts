@@ -35,6 +35,9 @@ const BANNED_FR: Array<{
   { pattern: 'ideal pour' },
   { pattern: 'ideale pour' },
   { pattern: 'sans frais' },
+  { pattern: 'entierement' },
+  { pattern: 'pret a vivre' },
+  { pattern: 'repond a vos besoins' },
   {
     pattern: 'titre foncier',
     allowedIf: (i) => (i.amenities ?? []).includes('titre_foncier'),
@@ -70,6 +73,9 @@ const BANNED_EN: Array<{
   { pattern: 'ideal for' },
   { pattern: 'free of charge' },
   { pattern: 'no fees' },
+  { pattern: 'fully' },
+  { pattern: 'ready to live' },
+  { pattern: 'meets your needs' },
   {
     pattern: 'land title',
     allowedIf: (i) => (i.amenities ?? []).includes('titre_foncier'),
@@ -131,8 +137,11 @@ function allowedNumbers(input: WriterInput): Set<number> {
 }
 
 function extractNumbers(text: string): number[] {
-  const matches = text.match(/\d[\d \u00A0]*\d|\d/g) ?? [];
-  return matches.map((m) => Number(m.replace(/[ \u00A0]/g, '')));
+  // Les montants sont group\u00E9s par espace en FR ("35 000 000") et par
+  // virgule en EN ("35,000,000") \u2014 les deux formes doivent \u00EAtre reconnues
+  // comme UN seul nombre, jamais des fragments s\u00E9par\u00E9s.
+  const matches = text.match(/\d[\d \u00A0,]*\d|\d/g) ?? [];
+  return matches.map((m) => Number(m.replace(/[ \u00A0,]/g, '')));
 }
 
 export function verifyDescription(

@@ -117,10 +117,25 @@ export function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** Sépare les milliers par un espace simple — "150000" → "150 000". */
+/** Sépare les milliers par un espace simple — "150000" → "150 000" (convention FR). */
 export function formatAmount(n: number): string {
   const rounded = Math.round(n);
   return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+/** Sépare les milliers par une virgule — "150000" → "150,000" (convention EN). */
+export function formatAmountEn(n: number): string {
+  const rounded = Math.round(n);
+  return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+/**
+ * Libellé d'équipement en minuscules au milieu d'une phrase — sauf « Wi-Fi »
+ * (seule exception demandée : ni un nom propre, ni une vraie règle de casse
+ * à appliquer mécaniquement, donc traité comme un cas fixe).
+ */
+export function proseAmenityLabel(label: string): string {
+  return label === 'Wi-Fi' ? label : label.toLowerCase();
 }
 
 export function joinList(items: string[], and: string): string {

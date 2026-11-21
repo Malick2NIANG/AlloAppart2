@@ -10,8 +10,13 @@ import {
   TYPE_PRONOUN_FR,
   capitalize,
   formatAmount,
+  formatAmountEn,
   joinList,
+  proseAmenityLabel,
 } from './dictionaries/labels';
+
+/** Types pour lesquels « Il dispose de 1 salle de bain » sonne faux (pas de vie résidentielle) — intitulé neutre à la place. */
+const SANITARY_HEADING_TYPES = ['BUREAU', 'LOCAL_COMMERCIAL'];
 
 /** Clé stable qui identifie la combinaison de champs — sert de graine au choix de variante. */
 function seedOf(input: WriterInput): string {
@@ -75,38 +80,56 @@ function openingFr(input: WriterInput): string {
 function characteristicsFr(input: WriterInput): string | null {
   const fragments: string[] = [];
   if (input.surface !== undefined)
-    fragments.push(`${Math.round(input.surface)} m²`);
+    fragments.push(`${formatAmount(input.surface)} m²`);
   if (input.rooms !== undefined)
     fragments.push(`${input.rooms} ${pluralFr(input.rooms, 'pièce')}`);
-  if (input.beds !== undefined)
+  // Type CHAMBRE : le nombre de chambres est redondant avec le type lui-même
+  // (une annonce de type « chambre » n'a pas de sous-chambres à compter).
+  if (input.beds !== undefined && input.type !== 'CHAMBRE')
     fragments.push(`${input.beds} ${pluralFr(input.beds, 'chambre')}`);
-  if (input.baths !== undefined)
-    fragments.push(
-      `${input.baths} ${pluralFr(input.baths, 'salle', 'salles')} de bain`,
-    );
+  const bathsFragment =
+    input.baths !== undefined
+      ? `${input.baths} ${pluralFr(input.baths, 'salle', 'salles')} de bain`
+      : undefined;
+  if (bathsFragment !== undefined) fragments.push(bathsFragment);
   if (fragments.length === 0) return null;
+
+  // Bureau/local commercial, seule caractéristique = la salle de bain :
+  // éviter « Il dispose de 1 salle de bain », trop résidentiel pour ces types.
+  if (
+    fragments.length === 1 &&
+    bathsFragment !== undefined &&
+    SANITARY_HEADING_TYPES.includes(input.type)
+  ) {
+    return `Sanitaires : ${bathsFragment}.`;
+  }
+
   const joined = joinList(fragments, 'et');
   const pronoun = TYPE_PRONOUN_FR[input.type];
   const variants = [
     `${capitalize(pronoun)} dispose de ${joined}.`,
     `Caractéristiques : ${joined}.`,
-    `Avec ${joined}, ce bien répond à vos besoins.`,
+    `Détails : ${joined}.`,
   ];
   return pick(input, 'characteristics', variants);
 }
 
 function furnishedFr(input: WriterInput): string | null {
   if (input.furnished === undefined) return null;
+  // Accord en genre : « il »/« elle » + l'adjectif « meublé »/« meublée ».
+  const pronoun = TYPE_PRONOUN_FR[input.type];
+  const fem = pronoun === 'elle';
+  const agr = fem ? 'e' : '';
   const variants = input.furnished
     ? [
         'Le bien est meublé.',
-        'Il est proposé entièrement meublé.',
-        'Vous emménagez meublé, prêt à vivre.',
+        `${capitalize(pronoun)} est proposé${agr} meublé${agr}.`,
+        'Meublé.',
       ]
     : [
         'Le bien est non meublé.',
-        'Il est proposé non meublé.',
-        "Vous apportez votre propre mobilier : le bien n'est pas meublé.",
+        `${capitalize(pronoun)} est proposé${agr} non meublé${agr}.`,
+        'Non meublé.',
       ];
   return pick(input, 'furnished', variants);
 }
@@ -116,14 +139,21 @@ function amenitiesFr(input: WriterInput): string | null {
     (input.amenities ?? []).includes(k),
   );
   if (selected.length === 0) return null;
-  const labels = selected.map((k) => AMENITY_LABEL_FR[k]);
+  const labels = selected.map((k) => proseAmenityLabel(AMENITY_LABEL_FR[k]));
   const joined = joinList(labels, 'et');
   const pronoun = TYPE_PRONOUN_FR[input.type];
-  const variants = [
-    `Équipements disponibles : ${joined}.`,
-    `${capitalize(pronoun)} bénéficie de : ${joined}.`,
-    `Vous profiterez de : ${joined}.`,
-  ];
+  const variants =
+    input.type === 'TERRAIN'
+      ? [
+          `Atouts du terrain : ${joined}.`,
+          `Caractéristiques du terrain : ${joined}.`,
+          `Ce terrain dispose de : ${joined}.`,
+        ]
+      : [
+          `Équipements : ${joined}.`,
+          `Équipements disponibles : ${joined}.`,
+          `${capitalize(pronoun)} dispose de : ${joined}.`,
+        ];
   return pick(input, 'amenities', variants);
 }
 
@@ -184,19 +214,14 @@ function pricingFr(input: WriterInput): string[] {
     }
   }
 
-  if (mode === 'MIXED' && input.minLeaseMonths !== undefined) {
-    out.push(
-      pick(input, 'mixed-threshold', [
-        `Au-delà de ${input.minLeaseMonths} mois, le tarif mensuel s'applique.`,
-        `À partir de ${input.minLeaseMonths} mois, la location bascule au tarif mensuel.`,
-        `Séjour de plus de ${input.minLeaseMonths} mois : tarif mensuel applicable.`,
-      ]),
-    );
-  } else if (mode === 'MONTHLY' && input.minLeaseMonths !== undefined) {
+  // Reprend fidèlement le champ, quel que soit le mode — jamais de règle de
+  // tarif déduite (en mode MIXED, les deux tarifs sont déjà présentés tels
+  // quels ci-dessus, sans condition de seuil inventée).
+  if (input.minLeaseMonths !== undefined) {
     out.push(
       pick(input, 'min-lease', [
+        `Durée minimale : ${input.minLeaseMonths} mois.`,
         `Durée minimale de bail : ${input.minLeaseMonths} mois.`,
-        `Bail d'une durée minimale de ${input.minLeaseMonths} mois.`,
         `Engagement minimum : ${input.minLeaseMonths} mois.`,
       ]),
     );
@@ -301,19 +326,32 @@ function openingEn(input: WriterInput): string {
 function characteristicsEn(input: WriterInput): string | null {
   const fragments: string[] = [];
   if (input.surface !== undefined)
-    fragments.push(`${Math.round(input.surface)} sqm`);
+    fragments.push(`${formatAmountEn(input.surface)} m²`);
   if (input.rooms !== undefined)
     fragments.push(`${input.rooms} ${pluralEn(input.rooms, 'room')}`);
-  if (input.beds !== undefined)
+  // Type CHAMBRE : the bedroom count is redundant with the type itself.
+  if (input.beds !== undefined && input.type !== 'CHAMBRE')
     fragments.push(`${input.beds} ${pluralEn(input.beds, 'bedroom')}`);
-  if (input.baths !== undefined)
-    fragments.push(`${input.baths} ${pluralEn(input.baths, 'bathroom')}`);
+  const bathsFragment =
+    input.baths !== undefined
+      ? `${input.baths} ${pluralEn(input.baths, 'bathroom')}`
+      : undefined;
+  if (bathsFragment !== undefined) fragments.push(bathsFragment);
   if (fragments.length === 0) return null;
+
+  if (
+    fragments.length === 1 &&
+    bathsFragment !== undefined &&
+    SANITARY_HEADING_TYPES.includes(input.type)
+  ) {
+    return `Facilities: ${bathsFragment}.`;
+  }
+
   const joined = joinList(fragments, 'and');
   const variants = [
     `It offers ${joined}.`,
     `Key features: ${joined}.`,
-    `With ${joined}, this property meets your needs.`,
+    `Details: ${joined}.`,
   ];
   return pick(input, 'characteristics', variants);
 }
@@ -321,16 +359,8 @@ function characteristicsEn(input: WriterInput): string | null {
 function furnishedEn(input: WriterInput): string | null {
   if (input.furnished === undefined) return null;
   const variants = input.furnished
-    ? [
-        'The property is furnished.',
-        'It comes fully furnished.',
-        'You move in furnished, ready to live.',
-      ]
-    : [
-        'The property is unfurnished.',
-        'It is offered unfurnished.',
-        'You bring your own furniture: the property is unfurnished.',
-      ];
+    ? ['The property is furnished.', 'It is furnished.', 'Furnished.']
+    : ['The property is unfurnished.', 'It is unfurnished.', 'Unfurnished.'];
   return pick(input, 'furnished', variants);
 }
 
@@ -339,13 +369,20 @@ function amenitiesEn(input: WriterInput): string | null {
     (input.amenities ?? []).includes(k),
   );
   if (selected.length === 0) return null;
-  const labels = selected.map((k) => AMENITY_LABEL_EN[k]);
+  const labels = selected.map((k) => proseAmenityLabel(AMENITY_LABEL_EN[k]));
   const joined = joinList(labels, 'and');
-  const variants = [
-    `Available amenities: ${joined}.`,
-    `It comes with: ${joined}.`,
-    `You will enjoy: ${joined}.`,
-  ];
+  const variants =
+    input.type === 'TERRAIN'
+      ? [
+          `Plot features: ${joined}.`,
+          `Land features: ${joined}.`,
+          `This plot offers: ${joined}.`,
+        ]
+      : [
+          `Amenities: ${joined}.`,
+          `Available amenities: ${joined}.`,
+          `It offers: ${joined}.`,
+        ];
   return pick(input, 'amenities', variants);
 }
 
@@ -357,9 +394,9 @@ function pricingEn(input: WriterInput): string[] {
     if (input.price !== undefined) {
       out.push(
         pick(input, 'price-vente', [
-          `Sale price: ${formatAmount(input.price)} FCFA.`,
-          `This property is listed for sale at ${formatAmount(input.price)} FCFA.`,
-          `Asking price: ${formatAmount(input.price)} FCFA.`,
+          `Sale price: ${formatAmountEn(input.price)} FCFA.`,
+          `This property is listed for sale at ${formatAmountEn(input.price)} FCFA.`,
+          `Asking price: ${formatAmountEn(input.price)} FCFA.`,
         ]),
       );
     }
@@ -375,18 +412,18 @@ function pricingEn(input: WriterInput): string[] {
   ) {
     out.push(
       pick(input, 'price-mixed', [
-        `Available nightly (${formatAmount(input.pricePerNight)} FCFA/night) or monthly (${formatAmount(input.price)} FCFA/month).`,
-        `Flexible option: ${formatAmount(input.pricePerNight)} FCFA per night, or ${formatAmount(input.price)} FCFA for a month.`,
-        `Two options available: nightly at ${formatAmount(input.pricePerNight)} FCFA, or monthly rental at ${formatAmount(input.price)} FCFA.`,
+        `Available nightly (${formatAmountEn(input.pricePerNight)} FCFA/night) or monthly (${formatAmountEn(input.price)} FCFA/month).`,
+        `Flexible option: ${formatAmountEn(input.pricePerNight)} FCFA per night, or ${formatAmountEn(input.price)} FCFA for a month.`,
+        `Two options available: nightly at ${formatAmountEn(input.pricePerNight)} FCFA, or monthly rental at ${formatAmountEn(input.price)} FCFA.`,
       ]),
     );
   } else {
     if ((mode === 'MONTHLY' || mode === 'MIXED') && input.price !== undefined) {
       out.push(
         pick(input, 'price-monthly', [
-          `Monthly rent: ${formatAmount(input.price)} FCFA.`,
-          `This property rents for ${formatAmount(input.price)} FCFA per month.`,
-          `Monthly rate: ${formatAmount(input.price)} FCFA.`,
+          `Monthly rent: ${formatAmountEn(input.price)} FCFA.`,
+          `This property rents for ${formatAmountEn(input.price)} FCFA per month.`,
+          `Monthly rate: ${formatAmountEn(input.price)} FCFA.`,
         ]),
       );
     }
@@ -396,27 +433,21 @@ function pricingEn(input: WriterInput): string[] {
     ) {
       out.push(
         pick(input, 'price-nightly', [
-          `Rate: ${formatAmount(input.pricePerNight)} FCFA per night.`,
-          `This property rents for ${formatAmount(input.pricePerNight)} FCFA per night.`,
-          `Nightly rate: ${formatAmount(input.pricePerNight)} FCFA.`,
+          `Rate: ${formatAmountEn(input.pricePerNight)} FCFA per night.`,
+          `This property rents for ${formatAmountEn(input.pricePerNight)} FCFA per night.`,
+          `Nightly rate: ${formatAmountEn(input.pricePerNight)} FCFA.`,
         ]),
       );
     }
   }
 
-  if (mode === 'MIXED' && input.minLeaseMonths !== undefined) {
-    out.push(
-      pick(input, 'mixed-threshold', [
-        `Beyond ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}, the monthly rate applies.`,
-        `From ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')} onward, the stay switches to the monthly rate.`,
-        `Stays longer than ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}: monthly rate applies.`,
-      ]),
-    );
-  } else if (mode === 'MONTHLY' && input.minLeaseMonths !== undefined) {
+  // Reprend fidèlement le champ, quel que soit le mode — jamais de règle de
+  // tarif déduite.
+  if (input.minLeaseMonths !== undefined) {
     out.push(
       pick(input, 'min-lease', [
+        `Minimum term: ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
         `Minimum lease term: ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
-        `Lease with a minimum term of ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
         `Minimum commitment: ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
       ]),
     );
@@ -475,9 +506,9 @@ function pricingEn(input: WriterInput): string[] {
   if (input.cleaningFee !== undefined) {
     out.push(
       pick(input, 'cleaning-fee', [
-        `Cleaning fee: ${formatAmount(input.cleaningFee)} FCFA.`,
-        `A cleaning fee of ${formatAmount(input.cleaningFee)} FCFA applies.`,
-        `Cleaning surcharge: ${formatAmount(input.cleaningFee)} FCFA.`,
+        `Cleaning fee: ${formatAmountEn(input.cleaningFee)} FCFA.`,
+        `A cleaning fee of ${formatAmountEn(input.cleaningFee)} FCFA applies.`,
+        `Cleaning surcharge: ${formatAmountEn(input.cleaningFee)} FCFA.`,
       ]),
     );
   }
