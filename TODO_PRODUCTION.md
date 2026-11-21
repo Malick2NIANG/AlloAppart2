@@ -11,15 +11,16 @@ Seul ce qui reste à faire est listé ici (mis à jour le 2026-10-13). Le code, 
 - [ ] Réserver le nom de domaine `alloappart.sn` (bureau accrédité NIC Sénégal).
 - [ ] Créer le VPS Hetzner (CPX41, décidé le 2026-09-26) et pointer le DNS.
 - [ ] Remplir `.env.prod` à partir de `.env.prod.example` et lancer `docker compose -f docker-compose.prod.yml up -d --build`.
-- [ ] Appliquer les migrations Prisma en prod : `docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy` (47 migrations, dont `add_listing_sale_mode` et `add_boost_payment_amount`).
-- [ ] Vérifier l'obtention du certificat HTTPS (Caddy / Let's Encrypt).
-- [ ] Reconfigurer les webhooks externes vers les URLs de prod (Clerk, PayDunya, et tout callback Cloudinary/OneSignal/Twilio existant).
+- [ ] Appliquer les migrations Prisma en prod : `docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy` (47 migrations, dont `add_listing_sale_mode` et `add_boost_payment_amount`), **plus 2 nouvelles migrations du lot « mobile/push » à inclure dans ce même `migrate deploy`** : `20261120140303_add_push_subscriptions` et `20261120160000_add_listing_image_originals`.
+- [ ] Vérifier l'obtention du certificat HTTPS (Caddy / Let's Encrypt) — **obligatoire pour les notifications push** : l'API Web Push (`navigator.serviceWorker` + `PushManager.subscribe`) est indisponible dans un navigateur hors contexte sécurisé (HTTPS), le push ne fonctionnera pas tant que le certificat n'est pas actif.
+- [ ] Définir les variables d'environnement du push natif (Web Push/VAPID) dans `.env.prod` (noms seulement, valeurs générées séparément — voir `DEPLOY.md`) : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
+- [ ] Reconfigurer les webhooks externes vers les URLs de prod (Clerk, PayDunya, et tout callback Cloudinary/Twilio existant).
 
 ## Bascule en mode production
 
 - [ ] Basculer Clerk en clés **Live** (`sk_live_...`, `pk_live_...`) au lieu des clés de test.
 - [ ] Basculer PayDunya en clés **Live** au lieu du sandbox.
-- [ ] Créer/renseigner les comptes tiers manquants dans `.env.prod` : Cloudinary (photos), OneSignal (push), Twilio (WhatsApp), SMTP.
+- [ ] Créer/renseigner les comptes tiers manquants dans `.env.prod` : Cloudinary (photos), Twilio (WhatsApp), SMTP.
 - [ ] Remplacer l'expéditeur e-mail actuel (compte Gmail de dev) par `noreply@alloappart.sn` (`SMTP_FROM` et config SMTP dans `.env.prod`). L'envoi réel avec nodemailer 10.1.0 a été validé le 2026-10-13.
 - [ ] **Controlled Live session** — une fois basculé en Live, session de test contrôlée avant l'ouverture publique : un vrai petit paiement PayDunya de bout en bout (webhook/callback inclus), un compte de chaque rôle (locataire, bailleur, agence, agent terrain, admin), les flux critiques (réservation, messagerie, AlloVérifié, notifications, vente directe : publication d'un terrain en brouillon puis publié, modification, page détail avec Appeler/SMS/WhatsApp, cohérence région ↔ carte à la publication).
 
@@ -49,6 +50,8 @@ Seul ce qui reste à faire est listé ici (mis à jour le 2026-10-13). Le code, 
 
 - [ ] **Supprimer les données de test du chantier mobile** (état après les lots 6a/6b — les tests en session réelle de ces deux lots ont été nettoyés après coup, rien à ajouter à la liste ci-dessous ; reste à compléter après le lot 7) :
   - 4 comptes Clerk de dev (`aa-test-locataire`, `aa-test-bailleur`, `aa-test-agence`, `aa-test-agent` `+clerk_test@example.com`) — à supprimer côté Clerk (dashboard dev) et leur ligne `users` correspondante en base de dev.
+  - 1 compte Clerk ADMIN de dev (`nmalick166+admin-test@gmail.com`, ajouté au lot 7 — audit « style application mobile ») — à supprimer côté Clerk et sa ligne `users` correspondante. `ADMIN_TEST_EMAIL` (Backend/.env) à retirer en même temps.
+  - 4 comptes Clerk ADMIN orphelins trouvés en base pendant le lot 7, `aa.admin.<timestamp>+clerk_test@example.com` (rôles `{LOCATAIRE,ADMIN}`), restes d'une tentative antérieure — leur domaine `@example.com` ne peut recevoir le code 2FA, donc inutilisables en l'état ; à supprimer (Clerk + base) ou à garder sciemment, à trancher.
   - 2 annonces de test : `a4c4b7be-a3e5-4493-a879-d0b0a67d9b93` (« TEST QA — Appartement de test », compte BAILLEUR) et `b10922c2-adc1-46ea-827d-2f6c3d4539cc` (« TEST QA — Studio agence », compte PRO_AGENCE) — leur suppression entraîne en cascade réservations/vérifications/rooms liées.
   - 6 réservations de test sur `a4c4b7be…` (statuts PENDING/CONFIRMED/COMPLETED/CANCELLED/DISPUTED), avec 1 avis (review) et des reçus PDF associés.
   - 3 vérifications AlloVérifié de test sur `b10922c2…` (une DONE historique, deux menées en conditions réelles jusqu'à DONE).
