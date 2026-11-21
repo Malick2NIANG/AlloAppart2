@@ -252,7 +252,6 @@ const fr = {
   pushNewMessageBody: '{senderName} vous a envoyé un message.',
   pushContactFilterAlertBody:
     '{senderName} a tenté de partager des coordonnées de contact hors plateforme {count} fois au cours des dernières 24h (conversation {roomId}).',
-  pushBookingRequestOneSignal: '{tenantName} — {listingTitle}',
   pushDisputeReportedLandlordBody:
     'Le locataire a signalé une non-conformité pour « {listingTitle} ». Les fonds sont gelés le temps de l’examen.',
   pushDisputeReportedAdminBody:
@@ -525,7 +524,6 @@ const en: Record<MessageKey, string> = {
   pushNewMessageBody: '{senderName} sent you a message.',
   pushContactFilterAlertBody:
     '{senderName} attempted to share off-platform contact info {count} times over the last 24h (conversation {roomId}).',
-  pushBookingRequestOneSignal: '{tenantName} — {listingTitle}',
   pushDisputeReportedLandlordBody:
     'The tenant has reported a non-conformity for “{listingTitle}”. Funds are frozen pending review.',
   pushDisputeReportedAdminBody:

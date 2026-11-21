@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import * as nodemailer from 'nodemailer';
 import { Prisma, Role } from '@prisma/client';
-import { OnesignalService } from '../onesignal/onesignal.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PusherService } from '../pusher/pusher.service';
 import { PushService } from '../push/push.service';
@@ -82,7 +81,6 @@ export class NotificationsService {
 
   constructor(
     private readonly config: ConfigService,
-    private readonly onesignal: OnesignalService,
     private readonly prisma: PrismaService,
     private readonly pusher: PusherService,
     private readonly push: PushService,
@@ -269,21 +267,6 @@ export class NotificationsService {
         this.signature(landlordLoc),
     );
 
-    /* Push OneSignal : un seul texte pour le lot, dans la langue du bailleur
-     * (destinataire principal de l'action attendue). */
-    const ids = [data.tenantId, data.landlordId].filter(Boolean) as string[];
-    if (ids.length) {
-      void this.onesignal.sendToExternalIds(
-        ids,
-        t(landlordLoc, 'pushNewBookingTitle'),
-        t(landlordLoc, 'pushBookingRequestOneSignal', {
-          tenantName: tenant,
-          listingTitle: data.listingTitle,
-        }),
-        { bookingId: data.bookingId },
-      );
-    }
-
     if (data.landlordId) {
       void this.pushInApp(
         data.landlordId,
@@ -319,15 +302,6 @@ export class NotificationsService {
     );
 
     if (data.tenantId) {
-      void this.onesignal.sendToExternalIds(
-        [data.tenantId],
-        t(tenantLoc, 'pushBookingConfirmedTitle'),
-        t(tenantLoc, 'pushBookingConfirmedBody', {
-          listingTitle: data.listingTitle,
-        }),
-        { bookingId: data.bookingId },
-      );
-
       void this.pushInApp(
         data.tenantId,
         'BOOKING_CONFIRMED',
@@ -362,15 +336,6 @@ export class NotificationsService {
     );
 
     if (data.tenantId) {
-      void this.onesignal.sendToExternalIds(
-        [data.tenantId],
-        t(tenantLoc, 'pushBookingCancelledTitle'),
-        t(tenantLoc, 'pushBookingCancelledBody', {
-          listingTitle: data.listingTitle,
-        }),
-        { bookingId: data.bookingId },
-      );
-
       void this.pushInApp(
         data.tenantId,
         'BOOKING_CANCELLED',
@@ -424,15 +389,6 @@ export class NotificationsService {
     );
 
     if (data.tenantId) {
-      void this.onesignal.sendToExternalIds(
-        [data.tenantId],
-        t(tenantLoc, 'pushBookingCompletedTenantTitle'),
-        t(tenantLoc, 'pushBookingCompletedTenantBody', {
-          listingTitle: data.listingTitle,
-        }),
-        { bookingId: data.bookingId },
-      );
-
       void this.pushInApp(
         data.tenantId,
         'BOOKING_COMPLETED',
@@ -483,15 +439,6 @@ export class NotificationsService {
     );
 
     if (data.landlordId) {
-      void this.onesignal.sendToExternalIds(
-        [data.landlordId],
-        t(landlordLoc, 'pushMonthlyRequestTitle'),
-        t(landlordLoc, 'pushMonthlyRequestBody', {
-          tenantName: data.tenantName,
-          listingTitle: data.listingTitle,
-        }),
-        { bookingId: data.bookingId },
-      );
       void this.pushInApp(
         data.landlordId,
         'MONTHLY_REQUEST_CREATED',
@@ -529,14 +476,6 @@ export class NotificationsService {
     );
 
     if (data.tenantId) {
-      void this.onesignal.sendToExternalIds(
-        [data.tenantId],
-        t(tenantLoc, 'pushMonthlyApprovedTitle'),
-        t(tenantLoc, 'pushMonthlyApprovedBody', {
-          listingTitle: data.listingTitle,
-        }),
-        { bookingId: data.bookingId },
-      );
       void this.pushInApp(
         data.tenantId,
         'MONTHLY_REQUEST_APPROVED',
@@ -822,9 +761,6 @@ export class NotificationsService {
     void this.localeOf({ userId: recipientId }).then((loc) => {
       const title = t(loc, 'pushNewMessageTitle');
       const body = t(loc, 'pushNewMessageBody', { senderName });
-      void this.onesignal.sendToExternalIds([recipientId], title, body, {
-        roomId,
-      });
       // Lot « notifications push » (20/11/2026) — seul événement de la liste
       // de Malick sans notification interne (pas de pushInApp pour les
       // messages, cf. commentaire ci-dessous) : push Web Push direct, sans
@@ -838,7 +774,7 @@ export class NotificationsService {
     });
     /* Signal léger pour le badge Messages de la sidebar (DashboardShell) —
      * pas d'écriture en base ni d'entrée dans la cloche (déjà couvert par le
-     * push OneSignal + la messagerie elle-même) : juste de quoi déclencher un
+     * push Web Push + la messagerie elle-même) : juste de quoi déclencher un
      * refetch du compteur non-lus, même si /messages n'est pas ouvert. */
     void this.pusher.trigger(`user-${recipientId}`, 'unread-badge', {});
   }
@@ -1268,21 +1204,21 @@ export class NotificationsService {
   }
 
   /* Broadcast admin : le titre et le message sont saisis à la main par
-   * l'administrateur, donc envoyés tels quels sans traduction.
+   * l'administrateur, donc envoyés tels quels sans traduction, et stockés
+   * bruts (pas de préfixe) en base.
    *
    * Contrairement aux autres notifications (transactionnelles, déclenchées
    * par un événement), un broadcast doit être immédiatement identifiable
    * comme venant de la Direction et non de la plateforme elle-même — d'où le
-   * préfixe "De la part d'AlloAppart" sur le push OneSignal, et le type
-   * dédié ADMIN_BROADCAST côté cloche in-app (NotificationBell lui applique
-   * un style doré + icône couronne distinct des notifications automatiques).
+   * type dédié ADMIN_BROADCAST côté cloche in-app (NotificationBell lui
+   * applique un style doré + icône couronne distinct des notifications
+   * automatiques).
    *
-   * Jusqu'ici seul le push OneSignal était envoyé (rien dans la cloche) : on
-   * a donc désormais besoin des ids de chaque destinataire — y compris pour
-   * le segment ALL, qui se contentait auparavant d'un count() — pour créer
-   * la ligne Notification correspondante. `createMany` + ids générés côté
-   * code (plutôt que laissés au défaut Prisma) permet un insert en lot tout
-   * en gardant un id stable à transmettre immédiatement via Pusher. */
+   * Besoin des ids de chaque destinataire — y compris pour le segment ALL,
+   * qui se contentait auparavant d'un count() — pour créer la ligne
+   * Notification correspondante. `createMany` + ids générés côté code
+   * (plutôt que laissés au défaut Prisma) permet un insert en lot tout en
+   * gardant un id stable à transmettre immédiatement via Pusher. */
   async broadcastPush(
     title: string,
     message: string,
@@ -1305,15 +1241,7 @@ export class NotificationsService {
             select: { id: true, clerkId: true },
           });
 
-    const externalIds = users.map((u) => u.clerkId);
     const recipients = users.length;
-
-    const brandedTitle = `De la part d'AlloAppart — ${title}`;
-    await this.onesignal.sendBroadcast(
-      brandedTitle,
-      message,
-      segment === 'ALL' ? undefined : externalIds,
-    );
 
     if (recipients > 0) {
       const rows = users.map((u) => ({
@@ -1440,13 +1368,6 @@ export class NotificationsService {
           ),
         );
 
-        const externalIds = group.map((u) => u.clerkId).filter(Boolean);
-        if (externalIds.length) {
-          void this.onesignal.sendToExternalIds(externalIds, title, body, {
-            type: 'PLATFORM_CONFIG_CHANGED',
-          });
-        }
-
         // Email — requis par les CGU (Article 7 : préavis communiqué par
         // e-mail). Un email par destinataire réel (send() ignore déjà les
         // comptes sans adresse réelle, ex. inscription par téléphone seul).
@@ -1536,13 +1457,6 @@ export class NotificationsService {
               }),
           ),
         );
-
-        const externalIds = group.map((u) => u.clerkId).filter(Boolean);
-        if (externalIds.length) {
-          void this.onesignal.sendToExternalIds(externalIds, title, body, {
-            type: 'PLATFORM_CONFIG_CHANGE_CANCELLED',
-          });
-        }
 
         const emailSubject = t(loc, 'mailConfigCancelledSubject');
         const emailBody =

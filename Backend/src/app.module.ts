@@ -17,7 +17,6 @@ import { SearchModule } from './search/search.module';
 import { UploadModule } from './upload/upload.module';
 import { PusherModule } from './pusher/pusher.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
-import { OnesignalModule } from './onesignal/onesignal.module';
 import { PdfModule } from './pdf/pdf.module';
 import { MailModule } from './mail/mail.module';
 import { SmsModule } from './sms/sms.module';
@@ -44,7 +43,6 @@ import { MiloModule } from './milo/milo.module';
     UploadModule,
     PusherModule,
     SubscriptionsModule,
-    OnesignalModule,
     PdfModule,
     MailModule,
     SmsModule,

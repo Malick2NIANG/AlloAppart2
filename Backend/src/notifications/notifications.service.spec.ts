@@ -3,15 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
 import { NotificationsService } from './notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { OnesignalService } from '../onesignal/onesignal.service';
 import { PusherService } from '../pusher/pusher.service';
 import { PushService } from '../push/push.service';
 
 // Ce fichier couvre broadcastPush() — le chemin exact emprunté par la page
 // admin espace/communications (POST /notifications/broadcast) : ciblage des
-// destinataires par segment de rôle, transmission à OneSignal avec le
-// préfixe "De la part d'AlloAppart", et création d'une notification
-// cloche (type ADMIN_BROADCAST) par destinataire. Les autres méthodes
+// destinataires par segment de rôle et création d'une notification cloche
+// (type ADMIN_BROADCAST) par destinataire. Les autres méthodes
 // (emails/push transactionnels par événement) ne sont pas couvertes ici.
 describe('NotificationsService.broadcastPush', () => {
   let service: NotificationsService;
@@ -19,7 +17,6 @@ describe('NotificationsService.broadcastPush', () => {
     user: { findMany: jest.Mock };
     notification: { createMany: jest.Mock };
   };
-  let onesignalMock: { sendBroadcast: jest.Mock };
   let pusherMock: { trigger: jest.Mock };
   let pushMock: { categoryForType: jest.Mock; sendToUser: jest.Mock };
 
@@ -28,7 +25,6 @@ describe('NotificationsService.broadcastPush', () => {
       user: { findMany: jest.fn() },
       notification: { createMany: jest.fn().mockResolvedValue({ count: 0 }) },
     };
-    onesignalMock = { sendBroadcast: jest.fn().mockResolvedValue(undefined) };
     pusherMock = { trigger: jest.fn().mockResolvedValue(undefined) };
     pushMock = {
       categoryForType: jest.fn().mockReturnValue(null),
@@ -39,7 +35,6 @@ describe('NotificationsService.broadcastPush', () => {
       providers: [
         NotificationsService,
         { provide: PrismaService, useValue: prismaMock },
-        { provide: OnesignalService, useValue: onesignalMock },
         { provide: PusherService, useValue: pusherMock },
         { provide: PushService, useValue: pushMock },
         { provide: ConfigService, useValue: { get: jest.fn() } },
@@ -49,7 +44,7 @@ describe('NotificationsService.broadcastPush', () => {
     service = module.get(NotificationsService);
   });
 
-  it('segment ALL : cible tous les utilisateurs et diffuse sans filtre externalIds', async () => {
+  it('segment ALL : cible tous les utilisateurs et diffuse sans filtre', async () => {
     prismaMock.user.findMany.mockResolvedValue([
       { id: 'u1', clerkId: 'clerk_1' },
       { id: 'u2', clerkId: 'clerk_2' },
@@ -60,11 +55,6 @@ describe('NotificationsService.broadcastPush', () => {
     expect(prismaMock.user.findMany).toHaveBeenCalledWith({
       select: { id: true, clerkId: true },
     });
-    expect(onesignalMock.sendBroadcast).toHaveBeenCalledWith(
-      "De la part d'AlloAppart — Titre",
-      'Message',
-      undefined,
-    );
     // Une notification cloche par destinataire, type ADMIN_BROADCAST — le
     // titre/corps stockés restent bruts (pas de préfixe), seul le type
     // dédié pilote le style doré côté NotificationBell.
@@ -93,7 +83,7 @@ describe('NotificationsService.broadcastPush', () => {
     expect(result).toEqual({ sent: true, recipients: 2 });
   });
 
-  it('segment BAILLEURS : filtre par rôle et transmet les clerkId correspondants', async () => {
+  it('segment BAILLEURS : filtre par rôle', async () => {
     prismaMock.user.findMany.mockResolvedValue([
       { id: 'u1', clerkId: 'clerk_1' },
       { id: 'u2', clerkId: 'clerk_2' },
@@ -105,11 +95,6 @@ describe('NotificationsService.broadcastPush', () => {
       where: { roles: { has: Role.BAILLEUR } },
       select: { id: true, clerkId: true },
     });
-    expect(onesignalMock.sendBroadcast).toHaveBeenCalledWith(
-      "De la part d'AlloAppart — Titre",
-      'Message',
-      ['clerk_1', 'clerk_2'],
-    );
     expect(result).toEqual({ sent: true, recipients: 2 });
   });
 
@@ -135,9 +120,8 @@ describe('NotificationsService.broadcastPush', () => {
       where: { roles: { has: Role.PRO_AGENCE } },
       select: { id: true, clerkId: true },
     });
-    // Segment ciblé sans aucun destinataire : recipients=0, sendBroadcast
-    // reste appelé (tableau vide — onesignal.service l'ignore en interne),
-    // mais aucune notification cloche n'est créée.
+    // Segment ciblé sans aucun destinataire : recipients=0, aucune
+    // notification cloche n'est créée.
     expect(prismaMock.notification.createMany).not.toHaveBeenCalled();
     expect(result).toEqual({ sent: true, recipients: 0 });
   });
