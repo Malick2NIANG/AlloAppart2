@@ -548,7 +548,11 @@ describe('generateDescription — minLeaseMonths repris fidèlement, sans règle
     const text = generateDescription(input);
     expect(text).toContain('40 000');
     expect(text).toContain('900 000');
-    expect(text).toMatch(/durée minimale.*3 mois/i);
+    // Rattaché explicitement à la formule mensuelle (jamais une condition
+    // générale qui s'appliquerait aussi à la nuitée).
+    expect(text).toMatch(
+      /formule mensuelle.*(engagement minimum|minimum).*3 mois/i,
+    );
     expect(text).not.toMatch(
       /au-delà|bascule|tarif mensuel s'applique|séjour de plus de/i,
     );
@@ -735,5 +739,239 @@ describe('generateDescription — typographie (casse des équipements, séparate
     const text = generateDescription(input);
     expect(text).toContain('35,000,000 FCFA');
     expect(verifyDescription(text, input).ok).toBe(true);
+  });
+});
+
+describe('generateDescription — accord de « meublé » en phrase isolée (FR, dernière relecture)', () => {
+  // « Le logement »/« Le bien » sont des noms masculins fixes (corrects pour
+  // N'IMPORTE quel type) : seule la variante à pronom doit s'accorder au
+  // genre du type. Les erreurs à exclure sont donc précisément « Elle est
+  // meublé(e manquant) » et « Il est meublée (e en trop) ».
+  const FEMININE: ListingType[] = ['CHAMBRE', 'VILLA', 'MAISON'];
+  const MASCULINE: ListingType[] = [
+    'APPARTEMENT',
+    'STUDIO',
+    'BUREAU',
+    'LOCAL_COMMERCIAL',
+  ];
+
+  it.each(FEMININE)(
+    '%s — jamais « Elle est meublé »/« Elle est non meublé » (accord manquant)',
+    (type) => {
+      for (let i = 0; i < 15; i++) {
+        for (const furnished of [true, false]) {
+          const input: WriterInput = {
+            locale: 'fr',
+            type,
+            city: 'Dakar',
+            region: `R${i}`,
+            furnished,
+          };
+          const text = generateDescription(input);
+          expect(text).not.toMatch(/Elle est (non )?meublé[^e]/);
+          expect(text).not.toMatch(/Elle est (non )?meublé$/m);
+          expect(text).not.toBe('Meublé.');
+          expect(text).not.toBe('Non meublé.');
+          expect(verifyDescription(text, input).ok).toBe(true);
+        }
+      }
+    },
+  );
+
+  it.each(MASCULINE)(
+    '%s — jamais « Il est meublée »/« Il est non meublée » (accord en trop)',
+    (type) => {
+      for (let i = 0; i < 15; i++) {
+        for (const furnished of [true, false]) {
+          const input: WriterInput = {
+            locale: 'fr',
+            type,
+            city: 'Dakar',
+            region: `R${i}`,
+            furnished,
+          };
+          const text = generateDescription(input);
+          expect(text).not.toMatch(/Il est (non )?meublée/);
+          expect(text).not.toBe('Meublé.');
+          expect(text).not.toBe('Non meublé.');
+          expect(verifyDescription(text, input).ok).toBe(true);
+        }
+      }
+    },
+  );
+
+  it("produit bien une vraie phrase (jamais une ellipse d'un seul mot)", () => {
+    const input: WriterInput = {
+      locale: 'fr',
+      type: 'VILLA',
+      city: 'Dakar',
+      furnished: true,
+    };
+    const text = generateDescription(input);
+    expect(text).toMatch(/est meublée|logement est meublé|bien est meublé/i);
+  });
+});
+
+describe('generateDescription — terrain : intitulé unique, jamais de doublon « terrain »', () => {
+  const ALL_TERRAIN_AMENITIES = [
+    'viabilise',
+    'eau',
+    'electricite',
+    'titre_foncier',
+    'cloture',
+    'acces_route',
+  ];
+
+  it('FR — toujours « Caractéristiques du terrain », jamais « dispose de »/« profitez de »', () => {
+    for (let i = 0; i < 15; i++) {
+      const input: WriterInput = {
+        locale: 'fr',
+        type: 'TERRAIN',
+        transactionType: 'VENTE',
+        city: 'Dakar',
+        region: `R${i}`,
+        amenities: ALL_TERRAIN_AMENITIES,
+        price: 9000000,
+      };
+      const text = generateDescription(input);
+      expect(text).toContain('Caractéristiques du terrain :');
+      expect(text).not.toMatch(
+        /dispose de\s*:|profitez de|vous profiterez|atouts du terrain/i,
+      );
+      expect(verifyDescription(text, input).ok).toBe(true);
+    }
+  });
+
+  it("FR — « viabilisé » seul, jamais « terrain viabilisé » (répétition avec l'intitulé)", () => {
+    const input: WriterInput = {
+      locale: 'fr',
+      type: 'TERRAIN',
+      transactionType: 'VENTE',
+      city: 'Dakar',
+      amenities: ['viabilise'],
+      price: 9000000,
+    };
+    const text = generateDescription(input);
+    expect(text).toContain('viabilisé');
+    expect(text).not.toContain('terrain viabilisé');
+  });
+
+  it('EN — always "Plot features", never "offers"/"enjoy"', () => {
+    for (let i = 0; i < 15; i++) {
+      const input: WriterInput = {
+        locale: 'en',
+        type: 'TERRAIN',
+        transactionType: 'VENTE',
+        city: 'Dakar',
+        region: `R${i}`,
+        amenities: ALL_TERRAIN_AMENITIES,
+        price: 9000000,
+      };
+      const text = generateDescription(input);
+      expect(text).toContain('Plot features:');
+      expect(text).not.toMatch(/\boffers\b|enjoy|land features/i);
+      expect(verifyDescription(text, input).ok).toBe(true);
+    }
+  });
+
+  it('EN — "serviced" alone, never "serviced plot" (repeats "plot")', () => {
+    const input: WriterInput = {
+      locale: 'en',
+      type: 'TERRAIN',
+      transactionType: 'VENTE',
+      city: 'Dakar',
+      amenities: ['viabilise'],
+      price: 9000000,
+    };
+    const text = generateDescription(input);
+    expect(text).toContain('serviced');
+    expect(text).not.toContain('serviced plot');
+  });
+});
+
+describe('generateDescription — minLeaseMonths en mode MIXED rattaché à la formule mensuelle', () => {
+  it('FR — « Formule mensuelle : engagement minimum de N mois »', () => {
+    const input: WriterInput = {
+      locale: 'fr',
+      type: 'VILLA',
+      transactionType: 'LOCATION',
+      rentalMode: 'MIXED',
+      city: 'Dakar',
+      price: 900000,
+      pricePerNight: 40000,
+      minLeaseMonths: 4,
+    };
+    const text = generateDescription(input);
+    expect(text).toMatch(/formule mensuelle/i);
+    expect(text).toMatch(/4 mois/);
+    expect(verifyDescription(text, input).ok).toBe(true);
+  });
+
+  it('EN — "Monthly plan: minimum term of N months"', () => {
+    const input: WriterInput = {
+      locale: 'en',
+      type: 'VILLA',
+      transactionType: 'LOCATION',
+      rentalMode: 'MIXED',
+      city: 'Dakar',
+      price: 900000,
+      pricePerNight: 40000,
+      minLeaseMonths: 4,
+    };
+    const text = generateDescription(input);
+    expect(text).toMatch(/monthly plan/i);
+    expect(text).toMatch(/4 months/);
+    expect(verifyDescription(text, input).ok).toBe(true);
+  });
+
+  it('FR — mode MONTHLY (sans tarif nuitée) : pas rattaché à « formule mensuelle » (inutile, un seul tarif)', () => {
+    const input: WriterInput = {
+      locale: 'fr',
+      type: 'APPARTEMENT',
+      transactionType: 'LOCATION',
+      rentalMode: 'MONTHLY',
+      city: 'Dakar',
+      price: 150000,
+      minLeaseMonths: 6,
+    };
+    const text = generateDescription(input);
+    expect(text).not.toMatch(/formule mensuelle/i);
+    expect(text).toMatch(/durée minimale/i);
+  });
+});
+
+describe('generateDescription — jamais deux phrases consécutives sur le même verbe (style)', () => {
+  it('FR — la phrase équipements ne commence jamais par « {pronom} dispose de »', () => {
+    for (let i = 0; i < 20; i++) {
+      const input: WriterInput = {
+        locale: 'fr',
+        type: 'VILLA',
+        city: 'Dakar',
+        region: `R${i}`,
+        surface: 200,
+        amenities: ['wifi', 'clim'],
+      };
+      const text = generateDescription(input);
+      const paragraphs = text.split('\n\n');
+      const amenitiesParagraph = paragraphs.find((p) => p.includes('Wi-Fi'));
+      expect(amenitiesParagraph).not.toMatch(/^(il|elle) dispose de\s*:/i);
+    }
+  });
+
+  it('EN — the amenities paragraph never starts with "It offers:"', () => {
+    for (let i = 0; i < 20; i++) {
+      const input: WriterInput = {
+        locale: 'en',
+        type: 'VILLA',
+        city: 'Dakar',
+        region: `R${i}`,
+        surface: 200,
+        amenities: ['wifi', 'clim'],
+      };
+      const text = generateDescription(input);
+      const paragraphs = text.split('\n\n');
+      const amenitiesParagraph = paragraphs.find((p) => p.includes('Wi-Fi'));
+      expect(amenitiesParagraph).not.toMatch(/^It offers:/i);
+    }
   });
 });

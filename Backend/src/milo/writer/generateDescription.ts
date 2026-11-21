@@ -18,6 +18,18 @@ import {
 /** Types pour lesquels « Il dispose de 1 salle de bain » sonne faux (pas de vie résidentielle) — intitulé neutre à la place. */
 const SANITARY_HEADING_TYPES = ['BUREAU', 'LOCAL_COMMERCIAL'];
 
+/**
+ * Libellé d'équipement propre au contexte terrain — sous l'intitulé
+ * « Caractéristiques du terrain », répéter « terrain »/« plot » dans
+ * l'équipement lui-même est redondant (« terrain viabilisé » → « viabilisé »).
+ */
+const TERRAIN_AMENITY_LABEL_FR: Record<string, string> = {
+  viabilise: 'viabilisé',
+};
+const TERRAIN_AMENITY_LABEL_EN: Record<string, string> = {
+  viabilise: 'serviced',
+};
+
 /** Clé stable qui identifie la combinaison de champs — sert de graine au choix de variante. */
 function seedOf(input: WriterInput): string {
   return JSON.stringify(input, Object.keys(input).sort());
@@ -117,19 +129,22 @@ function characteristicsFr(input: WriterInput): string | null {
 function furnishedFr(input: WriterInput): string | null {
   if (input.furnished === undefined) return null;
   // Accord en genre : « il »/« elle » + l'adjectif « meublé »/« meublée ».
+  // Jamais de phrase isolée non accordée (« Meublé. » seul) — toujours une
+  // vraie phrase, avec un nom neutre (« logement »/« bien », masculins) ou
+  // le pronom accordé au type.
   const pronoun = TYPE_PRONOUN_FR[input.type];
   const fem = pronoun === 'elle';
   const agr = fem ? 'e' : '';
   const variants = input.furnished
     ? [
+        'Le logement est meublé.',
+        `${capitalize(pronoun)} est meublé${agr}.`,
         'Le bien est meublé.',
-        `${capitalize(pronoun)} est proposé${agr} meublé${agr}.`,
-        'Meublé.',
       ]
     : [
+        'Le logement est non meublé.',
+        `${capitalize(pronoun)} est non meublé${agr}.`,
         'Le bien est non meublé.',
-        `${capitalize(pronoun)} est proposé${agr} non meublé${agr}.`,
-        'Non meublé.',
       ];
   return pick(input, 'furnished', variants);
 }
@@ -139,21 +154,24 @@ function amenitiesFr(input: WriterInput): string | null {
     (input.amenities ?? []).includes(k),
   );
   if (selected.length === 0) return null;
-  const labels = selected.map((k) => proseAmenityLabel(AMENITY_LABEL_FR[k]));
+  const isTerrain = input.type === 'TERRAIN';
+  const labels = selected.map((k) =>
+    proseAmenityLabel(
+      isTerrain && TERRAIN_AMENITY_LABEL_FR[k]
+        ? TERRAIN_AMENITY_LABEL_FR[k]
+        : AMENITY_LABEL_FR[k],
+    ),
+  );
   const joined = joinList(labels, 'et');
-  const pronoun = TYPE_PRONOUN_FR[input.type];
-  const variants =
-    input.type === 'TERRAIN'
-      ? [
-          `Atouts du terrain : ${joined}.`,
-          `Caractéristiques du terrain : ${joined}.`,
-          `Ce terrain dispose de : ${joined}.`,
-        ]
-      : [
-          `Équipements : ${joined}.`,
-          `Équipements disponibles : ${joined}.`,
-          `${capitalize(pronoun)} dispose de : ${joined}.`,
-        ];
+  // Terrain : un seul intitulé partout (jamais « dispose de »/« profitez
+  // de »). Autres types : jamais de verbe « dispose » — déjà utilisé par la
+  // phrase de caractéristiques juste avant, ça produirait une répétition
+  // (« Elle dispose… Elle dispose de : »).
+  if (isTerrain) return `Caractéristiques du terrain : ${joined}.`;
+  const variants = [
+    `Équipements : ${joined}.`,
+    `Équipements disponibles : ${joined}.`,
+  ];
   return pick(input, 'amenities', variants);
 }
 
@@ -215,15 +233,23 @@ function pricingFr(input: WriterInput): string[] {
   }
 
   // Reprend fidèlement le champ, quel que soit le mode — jamais de règle de
-  // tarif déduite (en mode MIXED, les deux tarifs sont déjà présentés tels
-  // quels ci-dessus, sans condition de seuil inventée).
+  // tarif déduite. En mode MIXED, un tarif nuitée existe aussi : la durée
+  // minimale doit être rattachée explicitement à la formule MENSUELLE
+  // (jamais présentée comme une condition générale qui s'appliquerait aussi
+  // à la nuitée).
   if (input.minLeaseMonths !== undefined) {
     out.push(
-      pick(input, 'min-lease', [
-        `Durée minimale : ${input.minLeaseMonths} mois.`,
-        `Durée minimale de bail : ${input.minLeaseMonths} mois.`,
-        `Engagement minimum : ${input.minLeaseMonths} mois.`,
-      ]),
+      mode === 'MIXED'
+        ? pick(input, 'min-lease-mixed', [
+            `Formule mensuelle : engagement minimum de ${input.minLeaseMonths} mois.`,
+            `Pour la formule mensuelle, engagement minimum de ${input.minLeaseMonths} mois.`,
+            `La formule mensuelle demande un engagement minimum de ${input.minLeaseMonths} mois.`,
+          ])
+        : pick(input, 'min-lease', [
+            `Durée minimale : ${input.minLeaseMonths} mois.`,
+            `Durée minimale de bail : ${input.minLeaseMonths} mois.`,
+            `Engagement minimum : ${input.minLeaseMonths} mois.`,
+          ]),
     );
   }
 
@@ -369,20 +395,20 @@ function amenitiesEn(input: WriterInput): string | null {
     (input.amenities ?? []).includes(k),
   );
   if (selected.length === 0) return null;
-  const labels = selected.map((k) => proseAmenityLabel(AMENITY_LABEL_EN[k]));
+  const isTerrain = input.type === 'TERRAIN';
+  const labels = selected.map((k) =>
+    proseAmenityLabel(
+      isTerrain && TERRAIN_AMENITY_LABEL_EN[k]
+        ? TERRAIN_AMENITY_LABEL_EN[k]
+        : AMENITY_LABEL_EN[k],
+    ),
+  );
   const joined = joinList(labels, 'and');
-  const variants =
-    input.type === 'TERRAIN'
-      ? [
-          `Plot features: ${joined}.`,
-          `Land features: ${joined}.`,
-          `This plot offers: ${joined}.`,
-        ]
-      : [
-          `Amenities: ${joined}.`,
-          `Available amenities: ${joined}.`,
-          `It offers: ${joined}.`,
-        ];
+  // Plot: single heading everywhere (never "offers"/"enjoy"). Other types:
+  // never the verb "offers" — already used by the characteristics sentence
+  // just before, which would read as a repetition ("It offers… It offers:").
+  if (isTerrain) return `Plot features: ${joined}.`;
+  const variants = [`Amenities: ${joined}.`, `Available amenities: ${joined}.`];
   return pick(input, 'amenities', variants);
 }
 
@@ -442,14 +468,21 @@ function pricingEn(input: WriterInput): string[] {
   }
 
   // Reprend fidèlement le champ, quel que soit le mode — jamais de règle de
-  // tarif déduite.
+  // tarif déduite. En mode MIXED, rattache explicitement la durée au plan
+  // MENSUEL (jamais une condition générale qui s'appliquerait aussi à la nuitée).
   if (input.minLeaseMonths !== undefined) {
     out.push(
-      pick(input, 'min-lease', [
-        `Minimum term: ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
-        `Minimum lease term: ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
-        `Minimum commitment: ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
-      ]),
+      mode === 'MIXED'
+        ? pick(input, 'min-lease-mixed', [
+            `Monthly plan: minimum term of ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
+            `For the monthly plan, minimum term of ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
+            `The monthly plan requires a minimum term of ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
+          ])
+        : pick(input, 'min-lease', [
+            `Minimum term: ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
+            `Minimum lease term: ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
+            `Minimum commitment: ${input.minLeaseMonths} ${pluralEn(input.minLeaseMonths, 'month')}.`,
+          ]),
     );
   }
 
