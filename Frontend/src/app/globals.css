@@ -289,6 +289,13 @@ h1, h2, h3, h4, h5 {
           quand même être affichée en même temps : ListingContactCard ajoute
           `--cookie-banner-h` à son propre `bottom` pour se décaler au-dessus
           d'elle plutôt que de passer dessous, cf. lot « recette »)
+     80   en-tête (NavbarClient) UNIQUEMENT pendant que le tiroir du menu
+          mobile (burger, <1024px) est ouvert — son tiroir vit dans le
+          <header> (pas de portail), donc capé par le z-index de celui-ci ;
+          sans ce passage ponctuel à 80, la bannière cookies (60) et la
+          barre de contact (70) s'affichaient par-dessus le bas du tiroir
+          (téléphone/e-mail/bouton inatteignables), cf. lot « recette ».
+          Revient à 50 à la fermeture du menu. Sans effet >=1024px.
      100  feuilles/modales (BottomSheet, lot 0c) — doit couvrir la barre du
           bas et la bannière cookies, toujours au premier plan quand ouverte
      200  toasts (ToastProvider) — inchangé

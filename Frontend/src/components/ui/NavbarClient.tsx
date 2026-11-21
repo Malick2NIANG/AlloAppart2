@@ -355,9 +355,15 @@ export default function NavbarClient({ locale, labels }: Props) {
   /* ── RENDER ──────────────────────────────────────────────── */
   return (
     <>
+    {/* max-lg:z-[80] (<1024px) tant que le tiroir est ouvert : le tiroir vit
+        dans ce <header> (pas de portail), donc capé par son propre z-index —
+        sans ce passage ponctuel à 80, la bannière cookies (z-60) et la barre
+        de contact (z-70) s'affichaient par-dessus son bas, cf. échelle de
+        z-index dans globals.css et lot « recette ». Revient à 50 à la
+        fermeture. Sans effet >=1024px (le burger n'existe pas). */}
     <header className={`sticky top-0 z-50 transition-all duration-300 glass ${
       scrolled ? 'shadow-[0_10px_25px_-20px_rgba(0,0,0,0.35)] border-b border-line' : 'border-b border-transparent'
-    }`}>
+    } ${mobileOpen ? 'max-lg:z-[80]' : ''}`}>
 
       {/* Ligne dorée au scroll */}
       <div aria-hidden

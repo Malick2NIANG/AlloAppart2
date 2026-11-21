@@ -196,4 +196,32 @@ describe('NavbarClient — recherche du header (lot « loupe du header »)', () 
       expect(screen.queryByRole('link', { name: /navFaq/ })).not.toBeInTheDocument();
     });
   });
+
+  describe('lot « recette » — en-tête au-dessus de la bannière cookies/barre de contact quand le menu est ouvert', () => {
+    it("menu fermé : l'en-tête reste à z-50, pas de z-[80]", () => {
+      const { container } = render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
+      const header = container.querySelector('header');
+      expect(header?.className).toContain('z-50');
+      expect(header?.className).not.toContain('z-[80]');
+    });
+
+    it('menu ouvert : le z-[80] est appliqué (passe au-dessus de la bannière cookies z-60 et de la barre de contact z-70)', async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
+      await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+
+      const header = container.querySelector('header');
+      expect(header?.className).toContain('z-[80]');
+    });
+
+    it('menu refermé : le z-[80] est retiré, retour à z-50 seul', async () => {
+      const user = userEvent.setup();
+      const { container } = render(<NearMeProvider><NavbarClient locale="fr" labels={LABELS} /></NearMeProvider>);
+      await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+      expect(container.querySelector('header')?.className).toContain('z-[80]');
+
+      await user.click(screen.getByRole('button', { name: 'Fermer le menu' }));
+      expect(container.querySelector('header')?.className).not.toContain('z-[80]');
+    });
+  });
 });
