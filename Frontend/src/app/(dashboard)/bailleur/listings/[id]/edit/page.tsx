@@ -6,10 +6,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter, useParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { api } from '@/lib/api';
 import type { Listing } from '@/types';
 import ImageUploadZone from '@/components/ui/ImageUploadZone';
+import MiloWriterButton from '@/components/milo/MiloWriterButton';
 import LocationPicker, { type MapFocus } from '@/components/map/LocationPicker';
 import MobileStepperBar from '@/components/ui/MobileStepperBar';
 import StickyStepActions from '@/components/ui/StickyStepActions';
@@ -71,6 +72,7 @@ export default function EditListingPage() {
   const { id } = useParams<{ id: string }>();
   const { getToken } = useAuth();
   const router = useRouter();
+  const locale = useLocale();
   const t = useTranslations('bailleur');
   // "Étape X sur Y" / "Précédent" réutilisés tels quels depuis /publier (même
   // stepper, même clés i18n) — évite de dupliquer le texte, même pattern que
@@ -254,6 +256,18 @@ export default function EditListingPage() {
   const priceWatch  = watch('price');
   const depositMonthsWatch = watch('depositMonths');
   const minLeaseMonthsWatch = watch('minLeaseMonths');
+  // Milo Writer (bouton « Proposer une description », étape 0) seulement.
+  const cityWatch = watch('city');
+  const regionWatch = watch('region');
+  const surfaceWatch = watch('surface');
+  const roomsWatch = watch('rooms');
+  const bedsWatch = watch('beds');
+  const bathsWatch = watch('baths');
+  const pricePerNightWatch = watch('pricePerNight');
+  const cleaningFeeWatch = watch('cleaningFee');
+  const chargesIncludedWatch = watch('chargesIncluded');
+  const minimumNightsWatch = watch('minimumNights');
+  const maximumNightsWatch = watch('maximumNights');
   // Snapshot complet du formulaire — uniquement pour l'étape Récapitulatif
   // (les watch() ciblés ci-dessus restent la source pour le reste du form).
   const allValues = watch();
@@ -449,6 +463,34 @@ export default function EditListingPage() {
             </Field>
 
             <Field label={t('fieldDescription')} error={errors.description?.message}>
+              <MiloWriterButton
+                className="mb-2"
+                fields={{
+                  type,
+                  transactionType,
+                  rentalMode,
+                  city: cityWatch,
+                  region: regionWatch,
+                  surface: surfaceWatch,
+                  rooms: roomsWatch,
+                  beds: bedsWatch,
+                  baths: bathsWatch,
+                  amenities,
+                  furnished,
+                  price: priceWatch,
+                  pricePerNight: pricePerNightWatch,
+                  depositMonths: depositMonthsWatch,
+                  minLeaseMonths: minLeaseMonthsWatch,
+                  cleaningFee: cleaningFeeWatch,
+                  chargesIncluded: chargesIncludedWatch,
+                  minimumNights: minimumNightsWatch,
+                  maximumNights: maximumNightsWatch,
+                }}
+                currentDescription={description}
+                onApply={(txt) => setValue('description', txt)}
+                getToken={getToken}
+                defaultLocale={locale as 'fr' | 'en'}
+              />
               <textarea {...register('description')} rows={4} placeholder={t('fieldDescPh')} className="input-field resize-none" />
               <p className="mt-1 text-right text-xs text-sub">{t('fieldCharCount', { count: description.length })}</p>
             </Field>

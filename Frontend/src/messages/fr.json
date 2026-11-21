@@ -3147,6 +3147,24 @@
     "annonce_validation": "Votre annonce est publiée immédiatement dès que vous la soumettez comme active (bouton « Publier »). Elle peut ensuite être suspendue a posteriori par notre équipe en cas de non-conformité à nos CGU.",
     "unknown": "Je n'ai pas la réponse à cette question. Contactez le support au +221 78 132 15 95 ou alloappart221@gmail.com."
   },
+  "miloWriter": {
+    "button": "Proposer une description",
+    "buttonLoading": "Milo rédige…",
+    "languageLabel": "Langue de la description",
+    "languageFr": "FR",
+    "languageEn": "EN",
+    "missingFields": "Renseigne au moins le type de bien et la ville (étape Localisation) pour activer cette proposition.",
+    "errorTitle": "La proposition n'a pas pu être générée.",
+    "errorRetry": "Réessayer",
+    "proposalLabel": "Proposition de Milo — à relire",
+    "proposalApplied": "Proposition de Milo ajoutée — à relire avant publication.",
+    "overwriteTitle": "Remplacer la description ?",
+    "overwriteBody": "Une description est déjà saisie. Que veux-tu faire de la proposition de Milo ?",
+    "overwriteReplace": "Remplacer",
+    "overwriteAppend": "Ajouter à la suite",
+    "overwriteCancel": "Annuler",
+    "previewLabel": "Aperçu de la proposition"
+  },
   "miloFaqQuestions": {
     "tarifs_abonnements": "Combien coûte l'abonnement ?",
     "moyens_paiement": "Quels sont les moyens de paiement ?",

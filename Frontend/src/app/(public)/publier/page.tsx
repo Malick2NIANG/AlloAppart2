@@ -17,6 +17,7 @@ import MobileStepperBar from '@/components/ui/MobileStepperBar';
 import StickyStepActions from '@/components/ui/StickyStepActions';
 import BottomSheet from '@/components/ui/BottomSheet';
 import BackButton from '@/components/ui/BackButton';
+import MiloWriterButton from '@/components/milo/MiloWriterButton';
 import { getListingProfile, sanitizeForType, TERRAIN_AMENITY_ICONS } from '@/lib/listingProfile';
 import { REGION_CENTERS, checkRegionConsistency, findRegionAt, getRegionFeature } from '@/lib/senegalRegions';
 
@@ -737,6 +738,34 @@ export default function PublierPage() {
                 </Field>
 
                 <Field label={t('fieldDescLabel')} error={errors.description?.message} required>
+                  <MiloWriterButton
+                    className="mb-2"
+                    fields={{
+                      type: values.type,
+                      transactionType: values.transactionType,
+                      rentalMode: values.rentalMode,
+                      city: values.city,
+                      region: values.region,
+                      surface: values.surface,
+                      rooms: values.rooms,
+                      beds: values.beds,
+                      baths: values.baths,
+                      amenities: values.amenities,
+                      furnished: values.furnished,
+                      price: values.price,
+                      pricePerNight: values.pricePerNight,
+                      depositMonths: values.depositMonths,
+                      minLeaseMonths: values.minLeaseMonths,
+                      cleaningFee: values.cleaningFee,
+                      chargesIncluded: values.chargesIncluded,
+                      minimumNights: values.minimumNights,
+                      maximumNights: values.maximumNights,
+                    }}
+                    currentDescription={values.description || ''}
+                    onApply={(txt) => setValue('description', txt)}
+                    getToken={getToken}
+                    defaultLocale={locale as 'fr' | 'en'}
+                  />
                   <textarea {...register('description')} rows={5}
                     placeholder={t('fieldDescPh')}
                     className="input-field resize-none" />

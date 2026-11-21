@@ -3147,6 +3147,24 @@
     "annonce_validation": "Your listing is published immediately as soon as you submit it as active (the \"Publish\" button). It can later be suspended by our team if it doesn't comply with our Terms of Use.",
     "unknown": "I don't have an answer to that question. Contact support at +221 78 132 15 95 or alloappart221@gmail.com."
   },
+  "miloWriter": {
+    "button": "Suggest a description",
+    "buttonLoading": "Milo is writing…",
+    "languageLabel": "Description language",
+    "languageFr": "FR",
+    "languageEn": "EN",
+    "missingFields": "Fill in at least the property type and the city (Location step) to enable this suggestion.",
+    "errorTitle": "The suggestion could not be generated.",
+    "errorRetry": "Retry",
+    "proposalLabel": "Milo's suggestion — please review",
+    "proposalApplied": "Milo's suggestion added — please review before publishing.",
+    "overwriteTitle": "Replace the description?",
+    "overwriteBody": "A description is already filled in. What should we do with Milo's suggestion?",
+    "overwriteReplace": "Replace",
+    "overwriteAppend": "Add after",
+    "overwriteCancel": "Cancel",
+    "previewLabel": "Suggestion preview"
+  },
   "miloFaqQuestions": {
     "tarifs_abonnements": "How much does the subscription cost?",
     "moyens_paiement": "What payment methods are available?",
