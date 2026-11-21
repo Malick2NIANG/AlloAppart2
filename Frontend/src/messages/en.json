@@ -2945,7 +2945,7 @@
     "title": "Privacy Policy",
     "subtitle": "In accordance with Senegalese Law No. 2008-12 on the protection of personal data.",
     "lastUpdated": "Last updated:",
-    "lastUpdatedDate": "12 September 2026",
+    "lastUpdatedDate": "21 November 2026",
     "footnote": "This policy may be updated. Users will be notified of significant changes by email. It is complementary to our Terms of Service and our Cookie Policy.",
     "prevalence": "The French version is the legally binding text. This English translation is provided for convenience only; in the event of any discrepancy in interpretation, the French version prevails.",
     "sections": {
@@ -2955,11 +2955,11 @@
       },
       "donnees": {
         "title": "2. Data collected",
-        "body": "We collect the following categories of data:\n• Identity data: surname, first name, date of birth.\n• Contact data: email address, phone number.\n• Browsing data: IP address, cookies, pages visited, session duration.\n• Payment data: information required for the transaction, processed by PayDunya, our payment partner (Orange Money, Wave, Mixx by Yas, credit/debit card) — never retained by AlloAppart.\n• Listing and agency page data: photos, descriptions and location of properties published by landlords, as well as any professional address an agency chooses to make public on its storefront page."
+        "body": "We collect the following categories of data:\n• Identity data: surname, first name, date of birth.\n• Contact data: email address, phone number.\n• Browsing data: IP address, cookies, pages visited, session duration.\n• Payment data: information required for the transaction, processed by PayDunya, our payment partner (Orange Money, Wave, Mixx by Yas, credit/debit card) — never retained by AlloAppart.\n• Listing and agency page data: photos, descriptions and location of properties published by landlords, as well as any professional address an agency chooses to make public on its storefront page.\n• Geolocated position (\"near me\" feature): only if you explicitly allow it in your browser, and only for the duration of your search — never saved on our servers, never included in the page address or in a shared link.\n• Push notification subscription data: if you enable notifications, your browser generates an endpoint and encryption keys specific to that device, which we store so we can send you notifications."
       },
       "finalites": {
         "title": "3. Purposes of processing",
-        "body": "Your data is processed for the following purposes:\n• Connecting landlords and tenants through the platform.\n• Improving our services and the user experience.\n• Communication regarding your account, your listings or your searches.\n• Compliance with our legal and regulatory obligations."
+        "body": "Your data is processed for the following purposes:\n• Connecting landlords and tenants through the platform.\n• Improving our services and the user experience.\n• Communication regarding your account, your listings or your searches.\n• Finding properties near your position (\"near me\"), only when you request it.\n• Sending notifications (new message, booking update, payment) to the device where you enabled them.\n• Compliance with our legal and regulatory obligations."
       },
       "baselegale": {
         "title": "4. Legal basis for processing",
@@ -2967,11 +2967,11 @@
       },
       "conservation": {
         "title": "5. Retention period",
-        "body": "• Account data: retained for the lifetime of the account, then 3 years after deletion for legal archiving purposes.\n• Login and browsing logs: rolling 12 months.\n• Payment data: periods imposed by the applicable financial regulations."
+        "body": "• Account data: retained for the lifetime of the account, then 3 years after deletion for legal archiving purposes.\n• Login and browsing logs: rolling 12 months.\n• Payment data: periods imposed by the applicable financial regulations.\n• Geolocated position (\"near me\"): not retained — used only for the duration of your search, then discarded.\n• Push notification subscription: kept while the device stays subscribed; deleted as soon as you disable notifications in your profile, or automatically if your browser reports the subscription is no longer valid."
       },
       "destinataires": {
         "title": "6. Data recipients",
-        "body": "Your data may be shared with:\n• AlloVerified™ agents responsible for on-site property inspections.\n• PayDunya, our approved payment partner, which processes transactions made via Orange Money, Wave, Mixx by Yas or credit/debit card.\n• Clerk, our authentication provider, which hosts your login credentials (AlloAppart never stores your password — see Section 9).\n• Cloudinary, our storage provider, for hosting listing photos and documents (lease contracts).\n• Twilio, our messaging provider, to deliver WhatsApp notifications to the phone number you provide (new message, booking update).\n• OneSignal, our push notification provider, to deliver notifications to your device (device token only — no other personal data is shared).\n• Our hosting provider and other technical subcontractors, bound by strict confidentiality obligations.\nWe never sell your data to third parties for commercial purposes."
+        "body": "Your data may be shared with:\n• AlloVerified™ agents responsible for on-site property inspections.\n• PayDunya, our approved payment partner, which processes transactions made via Orange Money, Wave, Mixx by Yas or credit/debit card.\n• Clerk, our authentication provider, which hosts your login credentials (AlloAppart never stores your password — see Section 9).\n• Cloudinary, our storage provider, for hosting listing photos and documents (lease contracts).\n• Twilio, our messaging provider, to deliver WhatsApp notifications to the phone number you provide (new message, booking update).\n• For push notifications, no third-party provider: your subscription (endpoint and encryption keys) is stored directly on our servers, and the notification is delivered through the push infrastructure built into your browser (Google, Mozilla or Apple, depending on the browser), a standard mechanism shared by every site using this feature.\n• Our hosting provider and other technical subcontractors, bound by strict confidentiality obligations.\nWe never sell your data to third parties for commercial purposes."
       },
       "droits": {
         "title": "7. User rights",
