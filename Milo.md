@@ -163,3 +163,46 @@ Mesure indépendante série 3 non conforme (2 erreurs/20 requêtes) : direction 
 - **Classe 4 — cohérence « total de séjour »** (`extractors/price.ts`, `STAY_DURATION_WORDS`) : « semaine(s) »/« week(s) » ajoutés (« 2 semaines, budget 600k total » → ambiguïté `stayTotal`, aucun filtre) ; « mois »/« month » restent volontairement absents (décision de portée confirmée : une durée en mois n'empêche jamais un prix mensuel, son unité par défaut).
 - **Validation** : 90 cas (60 dev + 30 tenus à part, classes 1-2), 58 % de pièges négatifs (classe 1 : 50 %, classe 2 : 71 %) — 100 %/100 % dev vs tenu à part. `sorties_brutes_serie3_v2.json` régénéré sans interprétation.
 - **Ambiguïtés** : `MiloSpanCategory` étendu avec `'phone'` (nouvelle catégorie de span, pas une ambiguïté).
+
+## 9. Avancement — Writer v0 (mis à jour le 2026-11-21)
+
+Milo Search et Milo FAQ étant terminés, Milo Writer est développé en dernier,
+conformément à l'ordre proposé (§ 5). **Décision** : génération déclenchée
+uniquement au clic sur un bouton « Proposer une description », jamais
+automatique.
+
+**Architecture** (cohérente avec § 3.4 bis) : module déterministe
+`Backend/src/milo/writer/` (gabarits de phrases + variantes choisies par hash
+stable des champs, jamais d'aléatoire non reproductible), **aucun modèle de
+langage, aucune API externe, coût zéro strict**. Endpoint authentifié
+`POST /milo/write-description` (même limite de débit que Search : 30/min),
+ajouté au `MiloModule` existant. Interface : `MiloWriterButton`
+(`Frontend/src/components/milo/`), branchée à l'étape « Type & Titre » de
+`/publier` et de l'édition d'annonce.
+
+**Garde-fou (contrôle anti-invention)** : chaque texte généré est recontrôlé
+après coup contre les champs — tout nombre, équipement, lieu ou type de bien
+mentionné doit exister dans les données fournies ; liste de mots/expressions
+interdits (superlatifs, promesses légales, approximations factuelles) sauf
+exception explicitement justifiée par un champ coché (ex. « titre foncier »
+seulement si l'équipement correspondant est coché). Échec du contrôle → repli
+automatique sur une version minimale (sans équipements/ameublement), puis sur
+une version ultime (type + lieu seuls, qui ne peut structurellement pas
+échouer) ; l'échec est journalisé côté serveur sans aucune donnée
+personnelle.
+
+**Seuils de réussite** (fixés avant les tests finaux, cf. § 6) :
+- 100 % des textes générés passent le contrôle anti-invention.
+- 0 mention d'un champ vide (numéro, équipement, type ou lieu absent des données).
+- 0 mot/expression de la liste interdite sans justification par un champ.
+- Textes FR et EN grammaticalement valides (accords singulier/pluriel) sur les 8 types de bien et les 2 transactions (location/vente), modes nuitée/mensuel/mixte inclus.
+
+**Résultats mesurés** :
+- Tests unitaires : un cas par type de bien (8/8), par transaction/mode de location, champs partiels/vides, terrains (jamais de pièces/chambres/sdb), meublé/non meublé, FR/EN, accords singulier-pluriel (pièce/chambre/salle de bain, room/bedroom/bathroom, nuit/night, « mois » invariable), caractères spéciaux dans la ville — tous verts.
+- Tests de propriété : **500/500** combinaisons générées automatiquement (graine fixe, mulberry32) passent le contrôle anti-invention ; toujours 2 à 4 paragraphes non vides, jamais deux paragraphes identiques, déterminisme vérifié.
+- Tests du contrôle : rejet vérifié pour un nombre inventé, un équipement non coché, un type de bien incohérent, un ameublement non renseigné, un mot interdit sans justification, une phrase référençant un champ vide — et absence de faux positif sur les collisions de vocabulaire repérées en cours de route (ex. « room »/« chambre » du type CHAMBRE vs les mots de décompte des pièces/chambres).
+- Tests frontend (Vitest) : bouton désactivé/activé selon champs minimaux, description vide → application directe, description déjà remplie → confirmation (remplacer/ajouter/annuler) avant toute écriture, erreur réseau → message clair sans perte du texte existant, langue de génération FR/EN.
+- Jeu de test indépendant : 20 jeux de champs réalistes (14 FR, 6 EN, dont 4 terrains et 3 chambres) dans `Milo_TEST_INDEPENDANT/writer/entrees.json` — sorties brutes non interprétées dans `Milo_TEST_INDEPENDANT/writer/sorties.md`, 20/20 passent le contrôle anti-invention (aucun repli nécessaire) ; qualité rédactionnelle à relire et juger par Malick.
+- Deux bugs réels trouvés et corrigés pendant l'écriture des tests : une phrase du gabarit « charges non comprises » citait littéralement « eau, électricité », entrant en collision avec les libellés d'équipements du même nom ; le contrôle de cohérence du type de bien confondait le mot « room »/« chambre » du type CHAMBRE avec son usage légitime dans la phrase de décompte des pièces/chambres (ex. « 4 bedrooms », « 1 chambre ») — corrigés par retrait des mots ambigus du gabarit et par une comparaison sur mots entiers avec retrait préalable des mentions chiffrées légitimes.
+
+**Restant** : lecture de `sorties.md` par Malick (qualité rédactionnelle) avant tout push ; captures 390/1440 clair/sombre de l'étape description disponibles pour relecture.
