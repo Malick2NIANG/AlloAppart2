@@ -114,7 +114,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
       {/* ── Breadcrumb ─────────────────────────────────────────────── */}
       <div className="aa-container mt-6 mb-5">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-gold-dark transition-colors">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-gold-text transition-colors">
           <i className="fa-solid fa-arrow-left text-xs" />
           {t('backToCatalogue')}
         </Link>
@@ -140,8 +140,8 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             <div className="flex items-center gap-2.5 px-5 py-3 border-b border-line">
               <i className="fa-solid fa-cube text-gold-dark text-sm" aria-hidden="true" />
               <span className="text-sm font-semibold text-text">{t('tour3D')}</span>
-              <span className="ml-0.5 text-xs font-semibold text-gold-dark">AlloVérifié™</span>
-              <span className="ml-auto text-[10px] bg-gold-pale text-gold-dark px-2 py-0.5 rounded-full font-medium">
+              <span className="ml-0.5 text-xs font-semibold text-gold-text">AlloVérifié™</span>
+              <span className="ml-auto text-[10px] bg-gold-pale text-gold-text px-2 py-0.5 rounded-full font-medium">
                 {t('newBadge')}
               </span>
             </div>
@@ -176,7 +176,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               <h2 className="text-xl md:text-2xl font-semibold text-text">{t('about')}</h2>
               <div className="flex gap-2 flex-wrap">
                 {isNew && (
-                  <span className="bg-gold-pale text-gold-dark border border-gold/50 px-2.5 py-1 text-xs rounded-full font-medium">
+                  <span className="bg-gold-pale text-gold-text border border-gold/50 px-2.5 py-1 text-xs rounded-full font-medium">
                     {t('newBadge')}
                   </span>
                 )}
@@ -198,7 +198,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 { icon: 'fa-house',          value: listing.type.charAt(0) + listing.type.slice(1).toLowerCase().replace(/_/g, ' '), label: t('type'), show: true },
               ].filter((item) => item.show && item.value != null).map((item, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <span className="h-8 w-8 rounded-full bg-gold-pale text-gold-dark inline-grid place-items-center shrink-0">
+                  <span className="h-8 w-8 rounded-full bg-gold-pale text-gold-text inline-grid place-items-center shrink-0">
                     <i className={`fa-solid ${item.icon} text-xs`} />
                   </span>
                   <div>
@@ -289,7 +289,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               <a
                 href={`https://maps.google.com/?q=${encodeURIComponent(`${listing.address} ${listing.city}`)}`}
                 target="_blank" rel="noopener noreferrer"
-                className="text-sm text-gold-dark hover:text-gold transition-colors flex items-center gap-1">
+                className="text-sm text-gold-text hover:text-gold transition-colors flex items-center gap-1">
                 {t('openMaps')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
               </a>
             </div>
@@ -456,7 +456,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
       {/* ── Back button ────────────────────────────────────────────── */}
       <div className="aa-container mt-16 mb-10 text-center">
         <Link href="/listings"
-          className="group inline-flex items-center gap-2 rounded-full border border-gold/40 bg-card/80 backdrop-blur-md text-text font-medium text-sm px-5 py-2.5 shadow-md hover:shadow-lg hover:bg-gold-pale hover:text-gold-dark transition-all duration-300">
+          className="group inline-flex items-center gap-2 rounded-full border border-gold/40 bg-card/80 backdrop-blur-md text-text font-medium text-sm px-5 py-2.5 shadow-md hover:shadow-lg hover:bg-gold-pale hover:text-gold-text transition-all duration-300">
           <i className="fa-solid fa-arrow-left text-gold-dark group-hover:-translate-x-1 transition-transform duration-300" />
           {t('seeOtherListings')}
         </Link>

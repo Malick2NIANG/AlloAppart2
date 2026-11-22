@@ -162,11 +162,11 @@ export default function SignUpForm() {
                 className="mt-0.5 h-4 w-4 shrink-0 accent-(--color-gold)" />
               <span>
                 {ts('acceptTermsLabel')}{' '}
-                <Link href="/cgu" target="_blank" className="font-semibold text-gold-dark hover:underline">
+                <Link href="/cgu" target="_blank" className="font-semibold text-gold-text hover:underline">
                   {ts('acceptTermsLink')}
                 </Link>{' '}
                 {ts('acceptTermsAnd')}{' '}
-                <Link href="/confidentialite" target="_blank" className="font-semibold text-gold-dark hover:underline">
+                <Link href="/confidentialite" target="_blank" className="font-semibold text-gold-text hover:underline">
                   {ts('acceptPrivacyLink')}
                 </Link>{' '}
                 {ts('acceptTermsSuffix')}
@@ -183,7 +183,7 @@ export default function SignUpForm() {
 
           <p className="text-center text-sm text-sub">
             {ts('hasAccount')}{' '}
-            <Link href="/sign-in" className="font-semibold text-gold-dark hover:underline">{ts('login')}</Link>
+            <Link href="/sign-in" className="font-semibold text-gold-text hover:underline">{ts('login')}</Link>
           </p>
         </motion.div>
       )}
@@ -221,7 +221,7 @@ export default function SignUpForm() {
 
           <p className="text-center text-sm text-sub">
             {ts('noCode')}{' '}
-            <button onClick={handleResend} className="tap-target font-semibold text-gold-dark hover:underline">
+            <button onClick={handleResend} className="tap-target font-semibold text-gold-text hover:underline">
               {ts('resend')}
             </button>
           </p>
@@ -317,7 +317,7 @@ function Separator({ label }: { label: string }) {
 function GoogleBtn({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button onClick={onClick} type="button"
-      className="flex w-full items-center justify-center gap-3 rounded-xl border border-line bg-card py-2 text-sm font-medium text-text transition hover:bg-gold-pale hover:text-gold-dark hover:border-gold/50">
+      className="flex w-full items-center justify-center gap-3 rounded-xl border border-line bg-card py-2 text-sm font-medium text-text transition hover:bg-gold-pale hover:text-gold-text hover:border-gold/50">
       <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden>
         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>

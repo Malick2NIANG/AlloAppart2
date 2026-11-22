@@ -35,7 +35,7 @@ const TYPE_ICON: Record<string, { icon: string; color: string }> = {
   VERIF_DECLINE_REQUEST: { icon: 'fa-person-circle-question', color: 'text-amber-500' },
   LISTING_REPORTED:      { icon: 'fa-flag',                color: 'text-amber-500' },
   BOOKING_DISPUTED:      { icon: 'fa-triangle-exclamation', color: 'text-red-500'  },
-  ADMIN_BROADCAST:       { icon: 'fa-crown',                color: 'text-gold-dark' },
+  ADMIN_BROADCAST:       { icon: 'fa-crown',                color: 'text-gold-text' },
 };
 
 export default function NotificationBell({ userId }: { userId: string }) {
@@ -194,7 +194,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
                     setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })));
                   }
                 }}
-                className="text-[10px] text-sub hover:text-gold-dark transition-colors max-md:flex max-md:h-11 max-md:items-center max-md:px-2 max-md:text-xs max-md:font-medium"
+                className="text-[10px] text-sub hover:text-gold-text transition-colors max-md:flex max-md:h-11 max-md:items-center max-md:px-2 max-md:text-xs max-md:font-medium"
               >
                 {t('markAllRead')}
               </button>
@@ -249,7 +249,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     {isBroadcast && (
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-gold-dark leading-none mb-1">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-gold-text leading-none mb-1">
                         {t('directionBadge')}
                       </p>
                     )}
@@ -265,7 +265,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
                           e.stopPropagation();
                           setExpanded((prev) => ({ ...prev, [n.id]: !prev[n.id] }));
                         }}
-                        className="mt-0.5 text-[10px] max-md:text-xs max-md:py-1 font-semibold text-gold-dark hover:underline"
+                        className="mt-0.5 text-[10px] max-md:text-xs max-md:py-1 font-semibold text-gold-text hover:underline"
                       >
                         {isExpanded ? t('seeLessText') : t('seeMoreText')}
                         <i className={`fa-solid fa-chevron-down text-[8px] ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -287,7 +287,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
           <Link
             href="/notifications"
             onClick={() => setOpen(false)}
-            className="text-xs font-medium text-gold-dark hover:underline max-md:flex max-md:h-11 max-md:items-center max-md:justify-center max-md:text-sm"
+            className="text-xs font-medium text-gold-text hover:underline max-md:flex max-md:h-11 max-md:items-center max-md:justify-center max-md:text-sm"
           >
             {t('seeAll')} <i className="fa-solid fa-arrow-right text-[10px] ml-1" />
           </Link>
@@ -297,7 +297,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
             onClick={() => setOpen(false)}
             aria-label={tPush('bellLink')}
             title={tPush('bellLink')}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-sub hover:text-gold-dark hover:bg-bg transition-colors md:h-8 md:w-8"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-sub hover:text-gold-text hover:bg-bg transition-colors md:h-8 md:w-8"
           >
             <i className="fa-solid fa-gear text-xs" />
           </Link>

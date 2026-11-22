@@ -22,7 +22,7 @@ type RatingFilter = 'ALL' | '5' | '4' | '3' | '2' | '1';
 const RATING_FILTERS: RatingFilter[] = ['ALL', '5', '4', '3', '2', '1'];
 
 const STAT_CARD_COLORS: Record<RatingFilter, { color: string; bg: string }> = {
-  ALL: { color: 'text-gold-dark',                                bg: 'bg-gold-pale' },
+  ALL: { color: 'text-gold-text',                                bg: 'bg-gold-pale' },
   '5': { color: 'text-emerald-600 dark:text-emerald-400',        bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
   '4': { color: 'text-blue-600 dark:text-blue-400',              bg: 'bg-blue-50 dark:bg-blue-950/30' },
   '3': { color: 'text-amber-600 dark:text-amber-400',            bg: 'bg-amber-50 dark:bg-amber-950/30' },
@@ -207,7 +207,7 @@ export default function AdminReviewsPage() {
 
               {review.listing && (
                 <Link href={`/listings/${review.listingId}`} target="_blank"
-                  className="text-xs text-gold-dark hover:underline truncate">
+                  className="text-xs text-gold-text hover:underline truncate">
                   <i className="fa-solid fa-house text-xs mr-1" />
                   {review.listing.title} — {review.listing.city}
                 </Link>
@@ -280,7 +280,7 @@ function Stars({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((s) => (
         <i
           key={s}
-          className={`fa-${s <= rating ? 'solid' : 'regular'} fa-star text-xs ${s <= rating ? 'text-gold-dark' : 'text-sub'}`}
+          className={`fa-${s <= rating ? 'solid' : 'regular'} fa-star text-xs ${s <= rating ? 'text-gold-text' : 'text-sub'}`}
         />
       ))}
     </div>

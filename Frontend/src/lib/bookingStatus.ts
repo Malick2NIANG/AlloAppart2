@@ -24,11 +24,11 @@ export function bookingStatusGroup(status: BookingStatus): BookingStatusGroup {
 // REJECTED/ACTIVE/TERMINATED) — un admin voyait alors un badge brut non
 // traduit et sans couleur pour toute réservation mensuelle.
 export const BOOKING_STATUS_STYLES: Record<BookingStatus, string> = {
-  PENDING:    'bg-gold-pale text-gold-dark',
+  PENDING:    'bg-gold-pale text-gold-text',
   CONFIRMED:  'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
   CANCELLED:  'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
   COMPLETED:  'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
-  REQUESTED:  'bg-gold-pale text-gold-dark',
+  REQUESTED:  'bg-gold-pale text-gold-text',
   APPROVED:   'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
   REJECTED:   'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
   ACTIVE:     'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',

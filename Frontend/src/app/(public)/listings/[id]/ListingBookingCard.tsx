@@ -401,7 +401,7 @@ function MixedTabs({
         aria-selected={active === 'nightly'}
         onClick={() => onChange('nightly')}
         className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-2 text-xs font-semibold transition-colors ${
-          active === 'nightly' ? 'bg-gold-pale text-gold-dark shadow-sm' : 'text-sub hover:text-text'
+          active === 'nightly' ? 'bg-gold-pale text-gold-text shadow-sm' : 'text-sub hover:text-text'
         }`}
       >
         <i className="fa-solid fa-moon text-[11px]" />
@@ -413,7 +413,7 @@ function MixedTabs({
         aria-selected={active === 'monthly'}
         onClick={() => onChange('monthly')}
         className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-2 text-xs font-semibold transition-colors ${
-          active === 'monthly' ? 'bg-gold-pale text-gold-dark shadow-sm' : 'text-sub hover:text-text'
+          active === 'monthly' ? 'bg-gold-pale text-gold-text shadow-sm' : 'text-sub hover:text-text'
         }`}
       >
         <i className="fa-solid fa-key text-[11px]" />
@@ -588,7 +588,7 @@ function NightlyBookingSection({
           <button
             type="button"
             onClick={onClearDates}
-            className="text-xs text-gold-dark hover:underline"
+            className="text-xs text-gold-text hover:underline"
           >
             {t('bookingClearDates')}
           </button>
@@ -642,7 +642,7 @@ function NightlyBookingSection({
             <div className="mt-4 rounded-xl bg-gold-pale px-4 py-3 space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-sub">{t('pricingNights', { count: days })}</span>
-                <span className="font-bold text-gold-dark">
+                <span className="font-bold text-gold-text">
                   {pricing.amount.toLocaleString(numLocale)} FCFA
                 </span>
               </div>

@@ -182,9 +182,9 @@ export default function ProfilPage() {
 
         {/* Breadcrumb */}
         <nav className="mb-6 flex items-center gap-1.5 text-xs text-sub">
-          <Link href="/bailleur" className="hover:text-gold-dark transition-colors">{t('mySpace')}</Link>
+          <Link href="/bailleur" className="hover:text-gold-text transition-colors">{t('mySpace')}</Link>
           <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
-          <span className="text-gold-dark font-medium">{t('title')}</span>
+          <span className="text-gold-text font-medium">{t('title')}</span>
         </nav>
 
         {/* Header — avatar */}
@@ -195,7 +195,7 @@ export default function ProfilPage() {
                 <Image src={avatar} alt="Photo de profil" fill className="object-cover" />
               </div>
             ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gold-pale text-2xl font-extrabold text-gold-dark ring-4 ring-gold/20">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gold-pale text-2xl font-extrabold text-gold-text ring-4 ring-gold/20">
                 {initials}
               </div>
             )}
@@ -226,7 +226,7 @@ export default function ProfilPage() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="mt-1 text-xs text-gold-dark hover:underline"
+              className="mt-1 text-xs text-gold-text hover:underline"
             >
               <i className="fa-solid fa-camera text-[10px] mr-1" />
               {avatar ? t('changePhoto') : t('addPhoto')}

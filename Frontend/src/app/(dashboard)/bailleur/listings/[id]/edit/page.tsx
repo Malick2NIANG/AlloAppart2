@@ -513,7 +513,7 @@ export default function EditListingPage() {
                         }`}>
                         <span className="flex items-center gap-2">
                           <i className={`fa-solid ${meta.icon} ${active ? 'text-gold-dark' : 'text-sub'}`} />
-                          <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>{meta.label}</span>
+                          <span className={`text-sm font-semibold ${active ? 'text-gold-text' : 'text-text'}`}>{meta.label}</span>
                         </span>
                         <span className="text-[11px] text-sub">{meta.desc}</span>
                       </button>
@@ -535,7 +535,7 @@ export default function EditListingPage() {
                         active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
                       }`}>
                       <i className={`fa-solid ${TYPE_ICONS[tp]} text-xl ${active ? 'text-gold-dark' : 'text-sub'}`} />
-                      <span className={`text-[11px] font-semibold ${active ? 'text-gold-dark' : 'text-sub'}`}>
+                      <span className={`text-[11px] font-semibold ${active ? 'text-gold-text' : 'text-sub'}`}>
                         {meta.label}
                       </span>
                     </button>
@@ -590,7 +590,7 @@ export default function EditListingPage() {
                       }
                       className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all ${
                         active
-                          ? 'border-gold bg-gold-pale text-gold-dark'
+                          ? 'border-gold bg-gold-pale text-gold-text'
                           : 'border-line bg-bg text-sub hover:border-gold/40'
                       }`}
                     >
@@ -704,7 +704,7 @@ export default function EditListingPage() {
                       }`}>
                       <span className="flex items-center gap-2">
                         <i className={`fa-solid ${optionIcon} ${active ? 'text-gold-dark' : 'text-sub'}`} />
-                        <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>{optionLabel}</span>
+                        <span className={`text-sm font-semibold ${active ? 'text-gold-text' : 'text-text'}`}>{optionLabel}</span>
                       </span>
                     </button>
                   );
@@ -730,7 +730,7 @@ export default function EditListingPage() {
                       }`}>
                       <span className="flex items-center gap-2">
                         <i className={`fa-solid ${meta.icon} ${active ? 'text-gold-dark' : 'text-sub'}`} />
-                        <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>{meta.label}</span>
+                        <span className={`text-sm font-semibold ${active ? 'text-gold-text' : 'text-text'}`}>{meta.label}</span>
                       </span>
                       <span className="text-[11px] text-sub">{meta.desc}</span>
                     </button>
@@ -1088,7 +1088,7 @@ function RecapCard({
         <span className="text-right">
           {values.transactionType === 'VENTE' ? (
             Number(values.price) > 0 && (
-              <span className="block text-xl font-extrabold text-gold-dark">
+              <span className="block text-xl font-extrabold text-gold-text">
                 {Number(values.price).toLocaleString('fr-FR')}
                 <span className="ml-1 text-sm font-semibold text-sub"> FCFA</span>
               </span>
@@ -1096,7 +1096,7 @@ function RecapCard({
           ) : (
             <>
               {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && Number(values.price) > 0 && (
-                <span className="block text-xl font-extrabold text-gold-dark">
+                <span className="block text-xl font-extrabold text-gold-text">
                   {Number(values.price).toLocaleString('fr-FR')}
                   <span className="ml-1 text-sm font-semibold text-sub"> {t('fcfaPerMonth')}</span>
                 </span>
@@ -1142,7 +1142,7 @@ function RecapCard({
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-sub">{t('fieldAmenities')}</p>
           <div className="flex flex-wrap gap-1.5">
             {amenityLabels.map((a) => (
-              <span key={a} className="rounded-full bg-gold-pale px-2.5 py-1 text-xs font-medium text-gold-dark">
+              <span key={a} className="rounded-full bg-gold-pale px-2.5 py-1 text-xs font-medium text-gold-text">
                 {a}
               </span>
             ))}

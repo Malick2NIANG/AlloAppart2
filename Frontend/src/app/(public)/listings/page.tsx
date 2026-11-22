@@ -168,7 +168,7 @@ export default async function ListingsPage({
               href="/listings"
               className={`flex max-md:min-h-11 items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 !isFavorisTab
-                  ? 'border-gold-dark text-gold-dark'
+                  ? 'border-gold-dark text-gold-text'
                   : 'border-transparent text-sub hover:text-text'
               }`}
             >

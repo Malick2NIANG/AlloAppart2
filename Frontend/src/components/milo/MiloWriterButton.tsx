@@ -139,7 +139,7 @@ export default function MiloWriterButton({ fields, currentDescription, onApply, 
           onClick={() => void handleClick()}
           disabled={!canGenerate || loading}
           title={!canGenerate ? t('missingFields') : undefined}
-          className="flex min-h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-full border border-gold/50 bg-gold-pale px-4 py-2 text-sm font-semibold text-gold-dark transition-all hover:border-gold disabled:cursor-not-allowed disabled:opacity-50 max-md:w-full sm:flex-none"
+          className="flex min-h-11 flex-1 touch-manipulation items-center justify-center gap-2 rounded-full border border-gold/50 bg-gold-pale px-4 py-2 text-sm font-semibold text-gold-text transition-all hover:border-gold disabled:cursor-not-allowed disabled:opacity-50 max-md:w-full sm:flex-none"
         >
           <i className={`fa-solid ${loading ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'} text-xs`} />
           {loading ? t('buttonLoading') : t('button')}
@@ -177,7 +177,7 @@ export default function MiloWriterButton({ fields, currentDescription, onApply, 
 
         {pendingText && (
           <div className="mt-4">
-            <p className="mb-1 text-xs font-semibold text-gold-dark">{t('proposalLabel')}</p>
+            <p className="mb-1 text-xs font-semibold text-gold-text">{t('proposalLabel')}</p>
             <div className="max-h-40 overflow-y-auto rounded-xl border border-line bg-bg p-3 text-sm text-text whitespace-pre-line">
               {pendingText}
             </div>
@@ -203,7 +203,7 @@ export default function MiloWriterButton({ fields, currentDescription, onApply, 
               }
               closeSheet();
             }}
-            className="min-h-11 touch-manipulation rounded-full border border-gold/50 px-4 py-2.5 text-sm font-semibold text-gold-dark transition hover:border-gold"
+            className="min-h-11 touch-manipulation rounded-full border border-gold/50 px-4 py-2.5 text-sm font-semibold text-gold-text transition hover:border-gold"
           >
             {t('overwriteAppend')}
           </button>

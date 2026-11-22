@@ -23,7 +23,7 @@ const LIMIT_OPTIONS = [10, 20, 50, 100];
 
 const ROLE_COLORS: Record<string, string> = {
   LOCATAIRE: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
-  BAILLEUR: 'bg-gold-pale text-gold-dark',
+  BAILLEUR: 'bg-gold-pale text-gold-text',
   PRO_AGENCE: 'bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400',
   AGENT_TERRAIN: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400',
   ADMIN: 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400',
@@ -343,7 +343,7 @@ export default function AdminUsersPage() {
                       </button>
                       {user.roles.includes('BAILLEUR') && (
                         <button onClick={() => setRemoveBailleurModal(user)} disabled={actionId !== null} title={t('titleRemoveBailleur')}
-                          className="tap-target rounded-lg border border-gold/30 bg-gold-pale px-2.5 py-1.5 text-xs font-medium text-gold-dark hover:bg-gold/20 disabled:opacity-50 transition-colors">
+                          className="tap-target rounded-lg border border-gold/30 bg-gold-pale px-2.5 py-1.5 text-xs font-medium text-gold-text hover:bg-gold/20 disabled:opacity-50 transition-colors">
                           {actionId === user.id + 'bailleur' ? <i className="fa-solid fa-spinner fa-spin" /> : <><i className="fa-solid fa-user-minus text-xs mr-1" />BAI</>}
                         </button>
                       )}

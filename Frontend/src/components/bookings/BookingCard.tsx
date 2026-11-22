@@ -53,7 +53,7 @@ export function BookingCard({
 
         {/* Bien + dates + prix (+ infos propres au rôle) */}
         <div className={onClick ? 'p-4 cursor-pointer' : 'p-4'} onClick={onClick}>
-          <p className="font-semibold text-text truncate group-hover:text-gold-dark transition-colors">
+          <p className="font-semibold text-text truncate group-hover:text-gold-text transition-colors">
             {booking.listing?.title ?? booking.listingId}
           </p>
           <p className="text-sm text-sub mt-1 flex items-center gap-1.5">

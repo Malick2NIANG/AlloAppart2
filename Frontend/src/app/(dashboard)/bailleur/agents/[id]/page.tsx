@@ -99,7 +99,7 @@ export default function AgentProfilePage() {
       <div className="max-w-2xl mx-auto text-center py-20">
         <i className="fa-solid fa-user-slash text-4xl text-line mb-4" />
         <p className="text-sub">{error || t('agentNotFoundTitle')}</p>
-        <Link href="/bailleur/agents" className="mt-4 inline-block text-sm text-gold-dark hover:underline">
+        <Link href="/bailleur/agents" className="mt-4 inline-block text-sm text-gold-text hover:underline">
           {t('agentBackToList')}
         </Link>
       </div>
@@ -132,7 +132,7 @@ export default function AgentProfilePage() {
               className="h-20 w-20 rounded-2xl object-cover border border-line shrink-0"
             />
           ) : (
-            <div className="h-20 w-20 rounded-2xl bg-gold-pale flex items-center justify-center text-2xl font-bold text-gold-dark shrink-0">
+            <div className="h-20 w-20 rounded-2xl bg-gold-pale flex items-center justify-center text-2xl font-bold text-gold-text shrink-0">
               {initials}
             </div>
           )}
@@ -189,7 +189,7 @@ export default function AgentProfilePage() {
         {/* AlloVerified badge */}
         <div className="mt-4 flex items-center gap-2 rounded-xl bg-gold-pale px-4 py-2.5">
           <i className="fa-solid fa-shield-halved text-gold-dark text-sm" />
-          <p className="text-xs font-semibold text-gold-dark">{t('agentCertifiedBadge')}</p>
+          <p className="text-xs font-semibold text-gold-text">{t('agentCertifiedBadge')}</p>
           <i className="fa-solid fa-circle-check text-emerald-500 text-xs ml-auto" />
         </div>
       </div>

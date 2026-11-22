@@ -66,9 +66,9 @@ export default function SecuritePage() {
 
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1.5 text-xs text-sub">
-          <Link href="/profil" className="hover:text-gold-dark transition-colors">{t('profile')}</Link>
+          <Link href="/profil" className="hover:text-gold-text transition-colors">{t('profile')}</Link>
           <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
-          <span className="text-gold-dark font-medium">{t('title')}</span>
+          <span className="text-gold-text font-medium">{t('title')}</span>
         </nav>
 
         <h1 className="text-xl font-extrabold text-text flex items-center gap-2">

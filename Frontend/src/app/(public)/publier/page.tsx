@@ -470,7 +470,7 @@ export default function PublierPage() {
           </div>
 
           <div className="mb-5 rounded-2xl border border-gold/30 bg-gold-pale p-5">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gold-dark">{t('commissionTitle')}</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gold-text">{t('commissionTitle')}</p>
             <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <i className="fa-solid fa-handshake mt-0.5 shrink-0 text-gold-dark" />
@@ -506,7 +506,7 @@ export default function PublierPage() {
           </Link>
           <p className="mt-3 text-center text-xs text-sub">{t('commissionNote')}</p>
           <div className="mt-4 text-center">
-            <Link href="/espace" className="inline-flex items-center gap-1.5 text-xs text-sub hover:text-gold-dark transition-colors">
+            <Link href="/espace" className="inline-flex items-center gap-1.5 text-xs text-sub hover:text-gold-text transition-colors">
               <i className="fa-solid fa-arrow-left text-[10px]" /> {t('backToSpace')}
             </Link>
           </div>
@@ -541,7 +541,7 @@ export default function PublierPage() {
             </Link>
             <button
               onClick={() => { localStorage.removeItem(DRAFT_KEY); setSuccess(false); setStep(0); }}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-text transition-all"
             >
               <i className="fa-solid fa-plus" /> {t('publishAnother')}
             </button>
@@ -622,9 +622,9 @@ export default function PublierPage() {
         {/* Breadcrumb + titre — remplacés sous 768px par MobileStepperBar */}
         <div className="max-md:hidden">
           <nav className="mb-6 flex items-center gap-1.5 text-xs text-sub">
-            <Link href="/bailleur" className="hover:text-gold-dark transition-colors">{t('breadcrumbSpace')}</Link>
+            <Link href="/bailleur" className="hover:text-gold-text transition-colors">{t('breadcrumbSpace')}</Link>
             <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
-            <span className="text-gold-dark font-medium">{t('pageTitle')}</span>
+            <span className="text-gold-text font-medium">{t('pageTitle')}</span>
           </nav>
 
           <h1 className="mb-6 flex items-center gap-2 text-xl font-extrabold text-text">
@@ -700,7 +700,7 @@ export default function PublierPage() {
                             }`}>
                             <span className="flex items-center gap-2">
                               <i className={`fa-solid ${meta.icon} ${active ? 'text-gold-dark' : 'text-sub'}`} />
-                              <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>{meta.label}</span>
+                              <span className={`text-sm font-semibold ${active ? 'text-gold-text' : 'text-text'}`}>{meta.label}</span>
                             </span>
                             <span className="text-[11px] text-sub">{meta.desc}</span>
                           </button>
@@ -722,7 +722,7 @@ export default function PublierPage() {
                             active ? 'border-gold bg-gold-pale ring-2 ring-gold/30' : 'border-line bg-bg hover:border-gold/40'
                           }`}>
                           <i className={`fa-solid ${TYPE_ICONS[type]} text-xl ${active ? 'text-gold-dark' : 'text-sub'}`} />
-                          <span className={`text-[11px] font-semibold ${active ? 'text-gold-dark' : 'text-sub'}`}>
+                          <span className={`text-[11px] font-semibold ${active ? 'text-gold-text' : 'text-sub'}`}>
                             {meta.label}
                           </span>
                         </button>
@@ -811,7 +811,7 @@ export default function PublierPage() {
                             setValue('amenities', active ? cur.filter((a) => a !== key) : [...cur, key]);
                           }}
                           className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all max-md:min-h-11 ${
-                            active ? 'border-gold bg-gold-pale text-gold-dark' : 'border-line bg-bg text-sub hover:border-gold/40'
+                            active ? 'border-gold bg-gold-pale text-gold-text' : 'border-line bg-bg text-sub hover:border-gold/40'
                           }`}>
                           <i className={`fa-solid ${icon} text-sm shrink-0`} />
                           <span className="font-medium">{label}</span>
@@ -904,7 +904,7 @@ export default function PublierPage() {
                 {Number(values.price) > 0 && (
                   <div className="rounded-2xl border border-gold/30 bg-gold-pale px-5 py-4">
                     <p className="text-xs text-sub mb-1">{t('pricePreviewLabel')}</p>
-                    <p className="text-3xl font-extrabold text-gold-dark">
+                    <p className="text-3xl font-extrabold text-gold-text">
                       {Number(values.price).toLocaleString(numLocale)}
                       <span className="ml-2 text-base font-semibold text-sub">FCFA</span>
                     </p>
@@ -933,7 +933,7 @@ export default function PublierPage() {
                           }`}>
                           <span className="flex items-center gap-2">
                             <i className={`fa-solid ${option ? 'fa-couch' : 'fa-box-open'} ${active ? 'text-gold-dark' : 'text-sub'}`} />
-                            <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>
+                            <span className={`text-sm font-semibold ${active ? 'text-gold-text' : 'text-text'}`}>
                               {option ? t('furnishedYes') : t('furnishedNo')}
                             </span>
                           </span>
@@ -959,7 +959,7 @@ export default function PublierPage() {
                           }`}>
                           <span className="flex items-center gap-2">
                             <i className={`fa-solid ${meta.icon} ${active ? 'text-gold-dark' : 'text-sub'}`} />
-                            <span className={`text-sm font-semibold ${active ? 'text-gold-dark' : 'text-text'}`}>{meta.label}</span>
+                            <span className={`text-sm font-semibold ${active ? 'text-gold-text' : 'text-text'}`}>{meta.label}</span>
                           </span>
                           <span className="text-[11px] text-sub">{meta.desc}</span>
                         </button>
@@ -996,7 +996,7 @@ export default function PublierPage() {
                     {Number(values.price) > 0 && (
                       <div className="rounded-2xl border border-gold/30 bg-gold-pale px-5 py-4">
                         <p className="text-xs text-sub mb-1">{t('pricePreviewLabel')}</p>
-                        <p className="text-3xl font-extrabold text-gold-dark">
+                        <p className="text-3xl font-extrabold text-gold-text">
                           {Number(values.price).toLocaleString(numLocale)}
                           <span className="ml-2 text-base font-semibold text-sub">{t('fieldRentUnit')}</span>
                         </p>
@@ -1128,12 +1128,12 @@ export default function PublierPage() {
           <div className="mt-6 flex items-center justify-between max-md:hidden">
             {step > 0 ? (
               <button type="button" onClick={() => setStep((s) => s - 1)}
-                className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all">
+                className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-text transition-all">
                 <i className="fa-solid fa-arrow-left text-xs" /> {t('backBtn')}
               </button>
             ) : (
               <Link href="/espace"
-                className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all">
+                className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-text transition-all">
                 <i className="fa-solid fa-arrow-left text-xs" /> {t('cancelBtn')}
               </Link>
             )}
@@ -1149,7 +1149,7 @@ export default function PublierPage() {
                   type="button"
                   disabled={manualSubmitting}
                   onClick={() => void submitListing('draft')}
-                  className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-text transition-all disabled:opacity-50"
                 >
                   {manualSubmitting && submitMode === 'draft'
                     ? <><i className="fa-solid fa-spinner fa-spin" /> {t('savingDraft')}</>
@@ -1237,7 +1237,7 @@ export default function PublierPage() {
               <div className="space-y-2.5 mb-6">
                 {UPGRADE_BENEFITS.map((item) => (
                   <div key={item.icon} className="flex items-center gap-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line text-gold-dark">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line text-gold-text">
                       <i className={`fa-solid ${item.icon} text-xs`} />
                     </span>
                     <p className="text-sm text-text">{item.text}</p>
@@ -1283,7 +1283,7 @@ export default function PublierPage() {
                 <div className="space-y-2.5 mb-6">
                   {UPGRADE_BENEFITS.map((item) => (
                     <div key={item.icon} className="flex items-center gap-3">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line text-gold-dark">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line text-gold-text">
                         <i className={`fa-solid ${item.icon} text-xs`} />
                       </span>
                       <p className="text-sm text-text">{item.text}</p>
@@ -1402,7 +1402,7 @@ function RecapCard({
         <span className="text-right">
           {values.transactionType === 'VENTE' ? (
             Number(values.price) > 0 && (
-              <span className="block text-xl font-extrabold text-gold-dark">
+              <span className="block text-xl font-extrabold text-gold-text">
                 {Number(values.price).toLocaleString(numLocale)}
                 <span className="ml-1 text-sm font-semibold text-sub"> FCFA</span>
               </span>
@@ -1410,7 +1410,7 @@ function RecapCard({
           ) : (
             <>
               {(values.rentalMode === 'MONTHLY' || values.rentalMode === 'MIXED') && Number(values.price) > 0 && (
-                <span className="block text-xl font-extrabold text-gold-dark">
+                <span className="block text-xl font-extrabold text-gold-text">
                   {Number(values.price).toLocaleString(numLocale)}
                   <span className="ml-1 text-sm font-semibold text-sub"> {t('fieldRentUnit')}</span>
                 </span>
@@ -1456,7 +1456,7 @@ function RecapCard({
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-sub">{t('recapEquipements')}</p>
           <div className="flex flex-wrap gap-1.5">
             {amenityLabels.map((a) => (
-              <span key={a} className="rounded-full bg-gold-pale px-2.5 py-1 text-xs font-medium text-gold-dark">
+              <span key={a} className="rounded-full bg-gold-pale px-2.5 py-1 text-xs font-medium text-gold-text">
                 {a}
               </span>
             ))}

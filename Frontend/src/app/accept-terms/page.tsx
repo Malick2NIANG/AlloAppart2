@@ -83,7 +83,7 @@ export default function AcceptTermsPage() {
                 className="mt-0.5 h-4 w-4 shrink-0 accent-(--color-gold)" />
               <span className="text-sm text-text">
                 {t('acceptLabel')}{' '}
-                <Link href="/cgu" target="_blank" className="font-semibold text-gold-dark hover:underline">
+                <Link href="/cgu" target="_blank" className="font-semibold text-gold-text hover:underline">
                   {t('acceptTermsLink')}
                 </Link>{' '}
                 {t('acceptSuffix')}

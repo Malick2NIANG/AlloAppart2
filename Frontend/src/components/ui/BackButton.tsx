@@ -61,7 +61,7 @@ export default function BackButton({ fallbackHref = '/', mobileAlways = true }: 
   // l'écran (bug constaté : les deux boutons restaient visibles ensemble
   // en mobile tant que le socle contenait lui-même `inline-flex`).
   const pillClassName =
-    'tap-target mb-8 items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-dark transition-all';
+    'tap-target mb-8 items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-text transition-all';
 
   if (!mobileAlways && !fromAide) return null;
 

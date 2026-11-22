@@ -163,7 +163,7 @@ export default function ListingsResultsClient({
                       </span>
                     )}
                     {!isBoosted && !isProAgence && isNew && (
-                      <span className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-0.5 text-[10px] font-semibold text-gold-dark">
+                      <span className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-0.5 text-[10px] font-semibold text-gold-text">
                         {t('newBadge')}
                       </span>
                     )}
@@ -180,7 +180,7 @@ export default function ListingsResultsClient({
 
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">
+                    <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-text transition-colors duration-300">
                       {listing.title}
                     </h3>
                     {listing.isVerified && <AlloVerifieBadge size="sm" className="shrink-0 mt-0.5" />}
@@ -188,7 +188,7 @@ export default function ListingsResultsClient({
                   <p className="mt-1 flex items-center gap-1 text-sm text-sub">
                     <i className="fa-solid fa-location-dot text-gold-dark text-xs" />{listing.city}
                     {listing.distanceKm != null && (
-                      <span className="ml-1 text-xs text-gold-dark font-medium">
+                      <span className="ml-1 text-xs text-gold-text font-medium">
                         · {t('nearMeDistance', { km: listing.distanceKm.toLocaleString(numLocale, { maximumFractionDigits: 1 }) })}
                       </span>
                     )}
@@ -218,7 +218,7 @@ export default function ListingsResultsClient({
                       </span>
                     )}
                   </div>
-                  <div className="mt-3 flex items-center gap-1 text-xs text-gold-dark/80 group-hover:text-gold-dark transition-colors duration-300">
+                  <div className="mt-3 flex items-center gap-1 text-xs text-gold-text/80 group-hover:text-gold-text transition-colors duration-300">
                     {t('viewMore')}
                     <svg className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -230,7 +230,7 @@ export default function ListingsResultsClient({
                 <div className="px-4 pb-4 -mt-1">
                   <Link
                     href={`/agences/${listing.owner!.agencySlug!}`}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold-pale px-2.5 py-0.5 text-[11px] font-semibold text-gold-dark hover:bg-gold/20 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold-pale px-2.5 py-0.5 text-[11px] font-semibold text-gold-text hover:bg-gold/20 transition-colors"
                   >
                     {listing.owner!.avatar && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -257,7 +257,7 @@ export default function ListingsResultsClient({
                   key={n}
                   href={perPageUrl(n)}
                   className={`tap-target flex h-7 w-9 items-center justify-center rounded-full text-xs font-semibold transition-all duration-200 ${
-                    perPage === n ? 'bg-gold text-gray-900 shadow-sm' : 'text-sub hover:text-gold-dark'
+                    perPage === n ? 'bg-gold text-gray-900 shadow-sm' : 'text-sub hover:text-gold-text'
                   }`}
                 >
                   {n}
@@ -271,7 +271,7 @@ export default function ListingsResultsClient({
           <div className="flex items-center justify-center gap-2 max-lg:order-1 max-lg:flex-wrap">
             {currentPage > 1 ? (
               <Link href={pageUrl(currentPage - 1)}
-                className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
+                className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-text transition">
                 <i className="fa-solid fa-chevron-left text-xs" />
               </Link>
             ) : (
@@ -283,7 +283,7 @@ export default function ListingsResultsClient({
             <div className="contents max-sm:hidden">
               {start > 1 && (
                 <>
-                  <Link href={pageUrl(1)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">1</Link>
+                  <Link href={pageUrl(1)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-text transition">1</Link>
                   {start > 2 && <span className="text-sub px-1">…</span>}
                 </>
               )}
@@ -292,7 +292,7 @@ export default function ListingsResultsClient({
                   className={`flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border text-sm font-medium transition ${
                     p === currentPage
                       ? 'border-gold bg-gold text-gray-900 shadow-sm'
-                      : 'border-line bg-card/80 text-text hover:bg-gold-pale hover:text-gold-dark'
+                      : 'border-line bg-card/80 text-text hover:bg-gold-pale hover:text-gold-text'
                   }`}>
                   {p}
                 </Link>
@@ -300,18 +300,18 @@ export default function ListingsResultsClient({
               {end < totalPages && (
                 <>
                   {end < totalPages - 1 && <span className="text-sub px-1">…</span>}
-                  <Link href={pageUrl(totalPages)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">{totalPages}</Link>
+                  <Link href={pageUrl(totalPages)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-text transition">{totalPages}</Link>
                 </>
               )}
             </div>
 
-            <span aria-live="polite" className="sm:hidden flex h-11 min-w-24 items-center justify-center rounded-full border border-gold/40 bg-gold-pale px-4 text-sm font-semibold text-gold-dark">
+            <span aria-live="polite" className="sm:hidden flex h-11 min-w-24 items-center justify-center rounded-full border border-gold/40 bg-gold-pale px-4 text-sm font-semibold text-gold-text">
               {currentPage} / {totalPages}
             </span>
 
             {currentPage < totalPages ? (
               <Link href={pageUrl(currentPage + 1)}
-                className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
+                className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-text transition">
                 <i className="fa-solid fa-chevron-right text-xs" />
               </Link>
             ) : (

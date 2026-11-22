@@ -82,7 +82,7 @@ export default function LanguageSwitcher({ currentLocale }: Props) {
         aria-expanded={open}
         aria-label="Changer de langue"
         disabled={pending}
-        className="flex h-9 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-sm font-semibold text-sub transition hover:border-gold/50 hover:text-gold-dark disabled:opacity-50"
+        className="flex h-9 items-center gap-1.5 rounded-full border border-line bg-card px-3 text-sm font-semibold text-sub transition hover:border-gold/50 hover:text-gold-text disabled:opacity-50"
       >
         <FlagIcon countryCode={current.countryCode} />
         <span>{current.label}</span>
@@ -105,12 +105,12 @@ export default function LanguageSwitcher({ currentLocale }: Props) {
                 aria-selected={active}
                 onClick={() => handleSelect(locale)}
                 className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm transition hover:bg-gold-pale ${
-                  active ? 'font-semibold text-gold-dark' : 'font-medium text-sub hover:text-text'
+                  active ? 'font-semibold text-gold-text' : 'font-medium text-sub hover:text-text'
                 }`}
               >
                 <FlagIcon countryCode={info.countryCode} />
                 <span className="flex-1 text-left">{info.name}</span>
-                {active && <Check size={14} className="text-gold-dark" />}
+                {active && <Check size={14} className="text-gold-text" />}
               </button>
             );
           })}

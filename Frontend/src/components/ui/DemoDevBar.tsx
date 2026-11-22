@@ -42,7 +42,7 @@ export default function DemoDevBar() {
       {collapsed ? (
         <button
           onClick={() => setCollapsed(false)}
-          className="flex items-center gap-2 rounded-full border border-gold/60 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl px-4 py-2 text-xs font-bold text-gold-dark"
+          className="flex items-center gap-2 rounded-full border border-gold/60 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl px-4 py-2 text-xs font-bold text-gold-text"
         >
           <i className="fa-solid fa-flask text-[11px]" /> {t('badge')}
         </button>

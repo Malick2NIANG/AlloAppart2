@@ -106,7 +106,7 @@ export default function BailleurBookingsPage() {
           <p className="mt-1 text-sm text-sub">
             {t('bookingsCount', { count: bookings.length })}
             {pending.length > 0 && (
-              <span className="ml-2 inline-flex items-center gap-1 text-gold-dark font-medium">
+              <span className="ml-2 inline-flex items-center gap-1 text-gold-text font-medium">
                 <i className="fa-solid fa-circle text-[8px]" />
                 {t('bookingsPending', { count: pending.length })}
               </span>
@@ -251,7 +251,7 @@ function LandlordBookingCard({
           />
           <button
             onClick={() => void contactTenant()}
-            className="tap-target text-xs font-medium text-gold-dark hover:underline inline-flex items-center gap-1"
+            className="tap-target text-xs font-medium text-gold-text hover:underline inline-flex items-center gap-1"
           >
             <i className="fa-solid fa-comment-dots text-xs" />
             {t('contactTenant')}

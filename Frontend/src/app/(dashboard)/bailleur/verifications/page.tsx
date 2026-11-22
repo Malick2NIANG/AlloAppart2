@@ -341,7 +341,7 @@ function VerifCard({ v, expanded, onToggle, onRate, isProActive, onRequestAgain,
                     <img src={agent.avatar} alt={`${agent.firstName} ${agent.lastName}`}
                       className="h-12 w-12 rounded-full object-cover border border-line shrink-0" />
                   ) : (
-                    <div className="h-12 w-12 rounded-full bg-gold-pale flex items-center justify-center text-sm font-bold text-gold-dark shrink-0">{initials}</div>
+                    <div className="h-12 w-12 rounded-full bg-gold-pale flex items-center justify-center text-sm font-bold text-gold-text shrink-0">{initials}</div>
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-text">{agent.firstName} {agent.lastName}</p>
@@ -388,7 +388,7 @@ function VerifCard({ v, expanded, onToggle, onRate, isProActive, onRequestAgain,
               )}
               {v.reportUrl && (
                 <a href={v.reportUrl} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-gold-dark hover:border-gold/40 transition-colors">
+                  className="flex items-center gap-2 rounded-xl border border-line bg-bg px-4 py-2.5 text-sm text-gold-text hover:border-gold/40 transition-colors">
                   <i className="fa-solid fa-file-pdf text-red-500" />{t('verifDownloadReport')}
                   <i className="fa-solid fa-arrow-down-to-line ml-auto text-xs" />
                 </a>
@@ -416,7 +416,7 @@ function VerifCard({ v, expanded, onToggle, onRate, isProActive, onRequestAgain,
                         <p className="text-[10px] font-semibold text-sub uppercase tracking-wide flex items-center gap-1.5">
                           <i className="fa-solid fa-star text-amber-400" />{t('verifYourReview')}
                         </p>
-                        <button onClick={onRate} className="text-[10px] text-gold-dark hover:underline">{t('verifEditReview')}</button>
+                        <button onClick={onRate} className="text-[10px] text-gold-text hover:underline">{t('verifEditReview')}</button>
                       </div>
                       <Stars value={v.rating.rating} />
                       {v.rating.comment && <p className="text-xs text-text mt-1 italic">&ldquo;{v.rating.comment}&rdquo;</p>}
@@ -474,7 +474,7 @@ function VerifCard({ v, expanded, onToggle, onRate, isProActive, onRequestAgain,
                     city: v.listing?.city,
                     images: v.listing?.images,
                   })}
-                  className="tap-target w-full flex items-center justify-center gap-2 rounded-xl border border-gold-dark/30 bg-gold-pale/30 dark:bg-gold-dark/10 px-4 py-2.5 text-sm font-semibold text-gold-dark hover:bg-gold-pale/50 dark:hover:bg-gold-dark/20 transition-colors"
+                  className="tap-target w-full flex items-center justify-center gap-2 rounded-xl border border-gold-dark/30 bg-gold-pale/30 dark:bg-gold-dark/10 px-4 py-2.5 text-sm font-semibold text-gold-text hover:bg-gold-pale/50 dark:hover:bg-gold-dark/20 transition-colors"
                 >
                   <i className="fa-solid fa-rotate-right text-xs" />
                   {t('verifRequestAgain')}
@@ -517,7 +517,7 @@ function VerifCard({ v, expanded, onToggle, onRate, isProActive, onRequestAgain,
 
           {v.listing && (
             <Link href={`/bailleur/listings/${v.listingId}/edit`}
-              className="mt-4 flex items-center gap-2 text-xs text-gold-dark hover:underline">
+              className="mt-4 flex items-center gap-2 text-xs text-gold-text hover:underline">
               <i className="fa-solid fa-house text-[10px]" />{t('verifEditListing')}
             </Link>
           )}
@@ -683,8 +683,8 @@ function DateTimePicker({ value, onChange }: { value: string; onChange: (v: stri
                     className={`h-8 max-md:h-11 w-full rounded-lg text-xs font-medium transition-all ${
                       isSelected ? 'bg-gold text-gray-900 font-bold shadow-sm'
                       : isPast   ? 'text-line cursor-not-allowed'
-                      : isToday  ? 'border border-gold/50 text-gold-dark hover:bg-gold-pale'
-                                 : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+                      : isToday  ? 'border border-gold/50 text-gold-text hover:bg-gold-pale'
+                                 : 'text-text hover:bg-gold-pale hover:text-gold-text'
                     }`}>
                     {d.getDate()}
                   </button>
@@ -704,7 +704,7 @@ function DateTimePicker({ value, onChange }: { value: string; onChange: (v: stri
                       {HOURS.map((h) => (
                         <button key={h} type="button" onClick={() => changeTime(h, selMin)}
                           className={`shrink-0 py-1.5 max-md:min-h-11 text-sm text-center transition-colors ${
-                            h === selHour ? 'bg-gold text-gray-900 font-bold' : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+                            h === selHour ? 'bg-gold text-gray-900 font-bold' : 'text-text hover:bg-gold-pale hover:text-gold-text'
                           }`}>
                           {h}
                         </button>
@@ -718,7 +718,7 @@ function DateTimePicker({ value, onChange }: { value: string; onChange: (v: stri
                       {MINUTES.map((m) => (
                         <button key={m} type="button" onClick={() => changeTime(selHour, m)}
                           className={`py-1.5 max-md:min-h-11 text-sm text-center transition-colors ${
-                            m === selMin ? 'bg-gold text-gray-900 font-bold' : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+                            m === selMin ? 'bg-gold text-gray-900 font-bold' : 'text-text hover:bg-gold-pale hover:text-gold-text'
                           }`}>
                           {m}
                         </button>
@@ -944,7 +944,7 @@ function NewVerifModal({ onClose, onSent, initialListing, editingVerif }: {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={selected.avatar} alt={`${selected.firstName} ${selected.lastName}`} className="h-8 w-8 rounded-full object-cover shrink-0" />
                       ) : (
-                        <div className="h-8 w-8 rounded-full bg-gold-pale flex items-center justify-center text-[10px] font-bold text-gold-dark shrink-0">
+                        <div className="h-8 w-8 rounded-full bg-gold-pale flex items-center justify-center text-[10px] font-bold text-gold-text shrink-0">
                           {initials}
                         </div>
                       )}
@@ -1100,7 +1100,7 @@ function AgentPickerModal({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={a.avatar} alt={`${a.firstName} ${a.lastName}`} className="h-10 w-10 rounded-full object-cover shrink-0" />
                   ) : (
-                    <div className="h-10 w-10 rounded-full bg-gold-pale flex items-center justify-center text-xs font-bold text-gold-dark shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-gold-pale flex items-center justify-center text-xs font-bold text-gold-text shrink-0">
                       {initials}
                     </div>
                   )}
@@ -1127,7 +1127,7 @@ function AgentPickerModal({
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <i className="fa-solid fa-magnifying-glass text-2xl text-line mb-2" />
               <p className="text-sm text-sub">{t('noResultsFor', { search })}</p>
-              <button onClick={() => setSearch('')} className="text-xs text-gold-dark hover:underline mt-1">{t('clearSearch')}</button>
+              <button onClick={() => setSearch('')} className="text-xs text-gold-text hover:underline mt-1">{t('clearSearch')}</button>
             </div>
           )}
         </div>
@@ -1243,7 +1243,7 @@ function ListingPickerModal({
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <i className="fa-solid fa-magnifying-glass text-2xl text-line mb-2" />
               <p className="text-sm text-sub">{t('noResultsFor', { search })}</p>
-              <button onClick={() => setSearch('')} className="text-xs text-gold-dark hover:underline mt-1">{t('clearSearch')}</button>
+              <button onClick={() => setSearch('')} className="text-xs text-gold-text hover:underline mt-1">{t('clearSearch')}</button>
             </div>
           )}
         </div>
@@ -1321,7 +1321,7 @@ function MesDemandesTab({
           icon="fa-layer-group"
           label={t('verifFilterAll')}
           value={verifs.length}
-          color="text-gold-dark"
+          color="text-gold-text"
           bg="bg-gold-pale/40 dark:bg-gold-dark/10"
           active={subFilter === 'ALL'}
           onClick={() => setSubFilter('ALL')}
@@ -1366,7 +1366,7 @@ function MesDemandesTab({
             {q ? t('noResultsFor', { search }) : verifs.length === 0 ? t('verifEmptyHint') : t('verifFilterEmpty')}
           </p>
           {q && (
-            <button onClick={() => setSearch('')} className="mt-3 text-sm text-gold-dark hover:underline">
+            <button onClick={() => setSearch('')} className="mt-3 text-sm text-gold-text hover:underline">
               {t('clearSearch')}
             </button>
           )}

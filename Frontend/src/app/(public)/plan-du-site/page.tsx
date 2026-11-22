@@ -16,7 +16,7 @@ interface SitemapSectionProps {
 function SitemapSection({ title, icon, links }: SitemapSectionProps) {
   return (
     <div className="rounded-2xl border border-line bg-card p-5">
-      <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-gold-dark">
+      <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-gold-text">
         <i className={`${icon} text-xs`} />
         {title}
       </h2>
@@ -25,7 +25,7 @@ function SitemapSection({ title, icon, links }: SitemapSectionProps) {
           <li key={l.href}>
             <Link
               href={l.href}
-              className="flex items-center gap-2 text-sm text-sub transition-colors hover:text-gold-dark group"
+              className="flex items-center gap-2 text-sm text-sub transition-colors hover:text-gold-text group"
             >
               <i className="fa-solid fa-chevron-right text-[9px] text-gold-dark/40 group-hover:text-gold-dark transition-colors" />
               {l.label}
@@ -56,17 +56,17 @@ export default async function PlanDuSitePage() {
 
         {/* Fil d'ariane */}
         <nav aria-label="Fil d'ariane" className="mb-6 flex items-center gap-1.5 text-xs text-sub">
-          <Link href="/" className="hover:text-gold-dark transition-colors">
+          <Link href="/" className="hover:text-gold-text transition-colors">
             {t('breadcrumbHome')}
           </Link>
           <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
-          <span className="text-gold-dark font-medium">{t('breadcrumbSitemap')}</span>
+          <span className="text-gold-text font-medium">{t('breadcrumbSitemap')}</span>
         </nav>
 
         {/* Bouton retour */}
         <Link
           href="/"
-          className="tap-target mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+          className="tap-target mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-text transition-all"
         >
           <i className="fa-solid fa-arrow-left text-[10px]" />
           {t('back')}
@@ -74,7 +74,7 @@ export default async function PlanDuSitePage() {
 
         {/* En-tête */}
         <div className="mb-10">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/50 bg-gold-pale px-3 py-1 text-xs font-semibold text-gold-dark">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/50 bg-gold-pale px-3 py-1 text-xs font-semibold text-gold-text">
             <i className="fa-solid fa-sitemap" /> {t('badge')}
           </span>
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-text md:text-4xl">
@@ -105,7 +105,7 @@ export default async function PlanDuSitePage() {
 
         {/* Régions du Sénégal — section large */}
         <div className="mt-5 rounded-2xl border border-line bg-card p-5">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-gold-dark">
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-gold-text">
             <i className="fa-solid fa-map-location-dot text-xs" />
             {t('sectionRegions')}
           </h2>
@@ -114,7 +114,7 @@ export default async function PlanDuSitePage() {
               <Link
                 key={r.href}
                 href={r.href}
-                className="flex items-center gap-1.5 text-sm text-sub transition-colors hover:text-gold-dark group"
+                className="flex items-center gap-1.5 text-sm text-sub transition-colors hover:text-gold-text group"
               >
                 <i className="fa-solid fa-chevron-right text-[9px] text-gold-dark/40 group-hover:text-gold-dark transition-colors" />
                 {r.label}

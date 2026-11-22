@@ -28,17 +28,17 @@ export default async function ConfidentialitePage() {
 
         {/* Fil d'ariane */}
         <nav aria-label={t('breadcrumbCurrent')} className="mb-6 flex items-center gap-1.5 text-xs text-sub">
-          <Link href="/" className="hover:text-gold-dark transition-colors">
+          <Link href="/" className="hover:text-gold-text transition-colors">
             {t('breadcrumbHome')}
           </Link>
           <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
-          <span className="text-gold-dark font-medium">{t('breadcrumbCurrent')}</span>
+          <span className="text-gold-text font-medium">{t('breadcrumbCurrent')}</span>
         </nav>
 
         {/* Bouton retour */}
         <Link
           href="/"
-          className="tap-target mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+          className="tap-target mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-text transition-all"
         >
           <i className="fa-solid fa-arrow-left text-[10px]" />
           {t('back')}
@@ -64,7 +64,7 @@ export default async function ConfidentialitePage() {
           if (!s) return null;
           return (
             <div key={key}>
-              <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-dark flex items-center gap-2">
+              <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-text flex items-center gap-2">
                 <i className={`${icon} text-xs`} />
                 {s.title}
               </h2>

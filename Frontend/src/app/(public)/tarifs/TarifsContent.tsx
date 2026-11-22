@@ -66,12 +66,12 @@ export default function TarifsContent({ pricing }: Props) {
         {/* Particuliers — gratuit */}
         <section className="mb-8 rounded-2xl border border-line bg-card p-6 text-center">
           <h2 className="text-lg font-bold text-text">{t('individualTitle')}</h2>
-          <p className="mt-1 text-3xl font-extrabold text-gold-dark">{t('individualPrice')}</p>
+          <p className="mt-1 text-3xl font-extrabold text-gold-text">{t('individualPrice')}</p>
           <p className="mt-2 text-sm text-sub">{tb('listingLimitBannerText')}</p>
         </section>
 
         {/* Agences — plans */}
-        <h2 className="mb-4 text-center text-sm font-semibold uppercase tracking-widest text-gold-dark">
+        <h2 className="mb-4 text-center text-sm font-semibold uppercase tracking-widest text-gold-text">
           {t('agencyTitle')}
         </h2>
         {pricing ? (
@@ -150,7 +150,7 @@ export default function TarifsContent({ pricing }: Props) {
           </Link>
           <a
             href="mailto:alloappart221@gmail.com"
-            className="tap-target inline-flex items-center justify-center gap-2 rounded-full border border-line bg-card px-6 py-3 text-sm font-semibold text-text hover:border-gold/50 hover:text-gold-dark transition-colors"
+            className="tap-target inline-flex items-center justify-center gap-2 rounded-full border border-line bg-card px-6 py-3 text-sm font-semibold text-text hover:border-gold/50 hover:text-gold-text transition-colors"
           >
             <i className="fa-solid fa-envelope" /> {t('ctaContact')}
           </a>

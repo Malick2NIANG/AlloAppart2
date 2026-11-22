@@ -107,7 +107,7 @@ function HomeListingCard({ l, favoriteIds, numLocale, t }: {
               </span>
             )}
             {!isBoosted && !isProAgence && isNewListing(l.createdAt) && (
-              <span className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-0.5 text-[10px] font-semibold text-gold-dark">
+              <span className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-0.5 text-[10px] font-semibold text-gold-text">
                 {t('newBadge')}
               </span>
             )}
@@ -115,7 +115,7 @@ function HomeListingCard({ l, favoriteIds, numLocale, t }: {
           {/* Badge prix — 1 pastille (NIGHTLY/MONTHLY) ou 2 empilées (MIXED) */}
           <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
             {getListingPriceAmounts(l).map((e) => (
-              <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
+              <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-text">
                 {e.amount.toLocaleString(numLocale)} FCFA{e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}
               </span>
             ))}
@@ -127,7 +127,7 @@ function HomeListingCard({ l, favoriteIds, numLocale, t }: {
         {/* Corps */}
         <div className="p-4">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">{l.title}</h3>
+            <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-text transition-colors duration-300">{l.title}</h3>
             {l.isVerified && <AlloVerifieBadge size="sm" className="shrink-0 mt-0.5" />}
           </div>
           <p className="mt-1 flex items-center gap-1 text-sm text-sub">
@@ -162,7 +162,7 @@ function HomeListingCard({ l, favoriteIds, numLocale, t }: {
             )}
           </div>
           {/* Voir plus */}
-          <div className="mt-3 flex items-center gap-1 text-xs text-gold-dark/80 group-hover:text-gold-dark transition-colors duration-300">
+          <div className="mt-3 flex items-center gap-1 text-xs text-gold-text/80 group-hover:text-gold-text transition-colors duration-300">
             {t('seeMore')}
             <svg className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -175,7 +175,7 @@ function HomeListingCard({ l, favoriteIds, numLocale, t }: {
         <div className="px-4 pb-4 -mt-1">
           <Link
             href={`/agences/${l.owner!.agencySlug!}`}
-            className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold-pale px-2.5 py-0.5 text-[11px] font-semibold text-gold-dark hover:bg-gold/20 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-gold-pale px-2.5 py-0.5 text-[11px] font-semibold text-gold-text hover:bg-gold/20 transition-colors"
           >
             {l.owner!.avatar && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -429,7 +429,7 @@ export default async function HomePage() {
         <div className="aa-container">
           <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold-pale px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-gold-dark mb-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold-pale px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-gold-text mb-3">
                 <i className="fa-solid fa-user text-[9px]" /> {t('individualsBadge')}
               </span>
               <h2 className="text-3xl font-bold text-text md:text-4xl">
@@ -525,20 +525,20 @@ export default async function HomePage() {
                             <img src={agency.avatar} alt={name}
                               className="h-14 w-14 rounded-xl object-cover border border-line" />
                           ) : (
-                            <div className={`h-14 w-14 rounded-xl flex items-center justify-center text-xl font-extrabold border ${isPro ? 'bg-gold/10 border-gold/30 text-gold-dark' : 'bg-gold-pale border-line text-gold-dark'}`}>
+                            <div className={`h-14 w-14 rounded-xl flex items-center justify-center text-xl font-extrabold border ${isPro ? 'bg-gold/10 border-gold/30 text-gold-text' : 'bg-gold-pale border-line text-gold-text'}`}>
                               {name[0]?.toUpperCase()}
                             </div>
                           )}
                         </div>
                         {isPro && (
-                          <span className="flex items-center gap-1 bg-gold/10 border border-gold/30 text-gold-dark text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          <span className="flex items-center gap-1 bg-gold/10 border border-gold/30 text-gold-text text-[10px] font-bold px-2 py-0.5 rounded-full">
                             <i className="fa-solid fa-crown text-[8px]" /> PRO
                           </span>
                         )}
                       </div>
 
                       {/* Nom */}
-                      <h3 className="font-extrabold text-text text-sm leading-tight line-clamp-1 group-hover:text-gold-dark transition-colors mb-1">
+                      <h3 className="font-extrabold text-text text-sm leading-tight line-clamp-1 group-hover:text-gold-text transition-colors mb-1">
                         {name}
                       </h3>
 
@@ -556,7 +556,7 @@ export default async function HomePage() {
                       {/* CTA */}
                       {href ? (
                         <Link href={href}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-gold/40 bg-gold-pale hover:bg-gold/20 text-gold-dark text-xs font-semibold py-2 transition-colors">
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-gold/40 bg-gold-pale hover:bg-gold/20 text-gold-text text-xs font-semibold py-2 transition-colors">
                           <i className="fa-solid fa-store text-[10px]" /> {t('viewVitrine')}
                         </Link>
                       ) : (
@@ -595,7 +595,7 @@ export default async function HomePage() {
                 href={`/listings?region=${encodeURIComponent(r.slug)}&limit=6&page=1`}
                 className="group flex h-32 flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-bg hover:border-gold-dark/50 hover:bg-gold-pale/30 dark:hover:bg-gold-dark/10 transition-all duration-300"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-dark transition-transform duration-300 group-hover:scale-110">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-text transition-transform duration-300 group-hover:scale-110">
                   <i className="fa-solid fa-location-dot text-sm" />
                 </span>
                 <span className="text-sm font-bold text-text">{r.name}</span>
@@ -620,7 +620,7 @@ export default async function HomePage() {
                 href={`/listings?region=${encodeURIComponent(r.slug)}&limit=6&page=1`}
                 className="group flex h-28 w-28 shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-bg transition-all duration-300 hover:border-gold-dark/50 hover:bg-gold-pale/30 dark:hover:bg-gold-dark/10"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-dark transition-transform duration-300 group-hover:scale-110">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-text transition-transform duration-300 group-hover:scale-110">
                   <i className="fa-solid fa-location-dot text-sm" />
                 </span>
                 <span className="text-sm font-bold text-text">{r.name}</span>

@@ -131,7 +131,7 @@ export default function FavoritesPage() {
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             <StatFilterCard
               icon="fa-heart" label={t('favoritesFilterAll')} value={counts.ALL}
-              color="text-gold-dark" bg="bg-gold-pale"
+              color="text-gold-text" bg="bg-gold-pale"
               active={filter === 'ALL'} onClick={() => setFilter('ALL')}
               selectedLabel={t('filterSelected')}
             />
@@ -204,7 +204,7 @@ export default function FavoritesPage() {
                           )}
                           <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
                             {getListingPriceAmounts(listing).map((e) => (
-                              <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
+                              <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-text">
                                 {e.amount.toLocaleString('fr-FR')} FCFA{e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}
                               </span>
                             ))}
@@ -225,7 +225,7 @@ export default function FavoritesPage() {
 
                         <div className="p-4">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">
+                            <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-text transition-colors duration-300">
                               {listing.title}
                             </h3>
                             {listing.isVerified && <AlloVerifieBadge size="sm" className="shrink-0 mt-0.5" />}
@@ -238,7 +238,7 @@ export default function FavoritesPage() {
                             {listing.baths   && <span className="flex items-center gap-1"><i className="fa-solid fa-bath text-gold-dark text-xs" />{listing.baths}</span>}
                             {listing.surface && <span className="flex items-center gap-1"><i className="fa-solid fa-ruler-combined text-gold-dark text-xs" />{listing.surface} m²</span>}
                           </div>
-                          <div className="mt-3 flex items-center gap-1 text-xs text-gold-dark/80 group-hover:text-gold-dark transition-colors duration-300">
+                          <div className="mt-3 flex items-center gap-1 text-xs text-gold-text/80 group-hover:text-gold-text transition-colors duration-300">
                             {t('viewBtn')}
                             <svg className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

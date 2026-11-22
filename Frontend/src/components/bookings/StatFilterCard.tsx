@@ -40,7 +40,7 @@ export function StatFilterCard({
             en plein mot (« À… », « Annonces si… ») ; sans effet sur les
             pages à 2 colonnes, où le libellé tenait déjà sur une ligne. */}
         <p className="text-xs text-sub line-clamp-2 leading-snug">{label}</p>
-        {active && <p className="text-[11px] text-gold-dark font-medium mt-0.5">{selectedLabel}</p>}
+        {active && <p className="text-[11px] text-gold-text font-medium mt-0.5">{selectedLabel}</p>}
       </div>
     </button>
   );

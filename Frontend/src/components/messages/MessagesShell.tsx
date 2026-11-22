@@ -91,10 +91,10 @@ function AudioPlayer({ src, isMine }: { src: string; isMine: boolean }) {
   const textClass  = isMine ? 'text-white/60' : 'text-sub';
   const btnClass   = isMine
     ? 'bg-white/20 hover:bg-white/30 text-white'
-    : 'bg-gold-pale hover:bg-gold/30 text-gold-dark';
+    : 'bg-gold-pale hover:bg-gold/30 text-gold-text';
   const speedClass = isMine
     ? 'text-white/70 hover:text-white bg-white/10 hover:bg-white/20'
-    : 'text-gold-dark hover:text-gold-dark bg-gold-pale hover:bg-gold/30';
+    : 'text-gold-text hover:text-gold-text bg-gold-pale hover:bg-gold/30';
 
   /* Afficher la durée totale au repos, le temps courant pendant la lecture */
   const timeDisplay = playing ? formatAudioTime(current) : (duration > 0 ? formatAudioTime(duration) : '—');
@@ -157,7 +157,7 @@ interface Props {
 }
 
 const SPACE_BADGE_CLS = {
-  bailleur:  { icon: 'fa-house-chimney-user', cls: 'bg-gold-pale text-gold-dark'      },
+  bailleur:  { icon: 'fa-house-chimney-user', cls: 'bg-gold-pale text-gold-text'      },
   locataire: { icon: 'fa-user',               cls: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'         },
   agent:     { icon: 'fa-shield-halved',      cls: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'   },
 };
@@ -666,7 +666,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
               <button
                 type="button"
                 onClick={() => setShowArchived(false)}
-                className="inline-flex items-center gap-1.5 text-sm font-bold text-text hover:text-gold-dark transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm font-bold text-text hover:text-gold-text transition-colors"
               >
                 <i className="fa-solid fa-arrow-left text-xs" />
                 {t('archivedTitle')}
@@ -674,7 +674,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
             ) : (
               <>
                 <h1 className="text-lg font-bold text-text">Messages</h1>
-                <span className="text-xs font-medium bg-gold-pale text-gold-dark px-2.5 py-1 rounded-full">
+                <span className="text-xs font-medium bg-gold-pale text-gold-text px-2.5 py-1 rounded-full">
                   {t('convCount', { count: rooms.length - archivedCount })}
                 </span>
               </>
@@ -693,7 +693,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
             <button
               type="button"
               onClick={() => setShowArchived(true)}
-              className="flex items-center gap-2 w-full text-left px-1 py-1.5 mb-1 text-xs text-sub hover:text-gold-dark transition-colors"
+              className="flex items-center gap-2 w-full text-left px-1 py-1.5 mb-1 text-xs text-sub hover:text-gold-text transition-colors"
             >
               <i className="fa-solid fa-box-archive text-[11px]" />
               <span className="font-medium">{t('archivedPill')}</span>
@@ -781,7 +781,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                         <img src={otherAvatar} alt={name} className="h-11 w-11 rounded-full object-cover" />
                       ) : (
                         <div className={`h-11 w-11 rounded-full flex items-center justify-center text-sm font-bold ${
-                          isActive ? 'bg-gold-dark text-white' : 'bg-gold-pale text-gold-dark'
+                          isActive ? 'bg-gold-dark text-white' : 'bg-gold-pale text-gold-text'
                         }`}>
                           {initials}
                         </div>
@@ -823,7 +823,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                       onClick={(e) => { e.stopPropagation(); void toggleArchive(room.id, !room.archived); }}
                       disabled={archivingId === room.id}
                       title={room.archived ? t('unarchiveAction') : t('archiveAction')}
-                      className="tap-target shrink-0 h-7 w-7 rounded-full flex items-center justify-center text-sub hover:text-gold-dark hover:bg-gold-pale transition-colors disabled:opacity-40"
+                      className="tap-target shrink-0 h-7 w-7 rounded-full flex items-center justify-center text-sub hover:text-gold-text hover:bg-gold-pale transition-colors disabled:opacity-40"
                     >
                       {archivingId === room.id
                         ? <i className="fa-solid fa-spinner fa-spin text-[11px]" />
@@ -861,7 +861,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
             <button
               onClick={closeRoom}
               aria-label={t('backToConversations')}
-              className="tap-target md:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-gold-pale text-sub hover:text-gold-dark transition-colors -ml-1.5"
+              className="tap-target md:hidden flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-gold-pale text-sub hover:text-gold-text transition-colors -ml-1.5"
             >
               <i className="fa-solid fa-arrow-left text-sm" />
             </button>
@@ -873,7 +873,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                 className="h-9 w-9 shrink-0 rounded-full object-cover"
               />
             ) : (
-              <div className="h-9 w-9 shrink-0 rounded-full bg-gold-pale flex items-center justify-center text-sm font-bold text-gold-dark">
+              <div className="h-9 w-9 shrink-0 rounded-full bg-gold-pale flex items-center justify-center text-sm font-bold text-gold-text">
                 {getInitials(otherName)}
               </div>
             )}
@@ -907,7 +907,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                       ? `/bailleur/agents/${otherParticipants[0].id}`
                       : `/bailleur/profil/${otherParticipants[0].id}`
                 }
-                className="shrink-0 text-xs text-gold-dark hover:underline hidden md:block"
+                className="shrink-0 text-xs text-gold-text hover:underline hidden md:block"
               >
                 {t('viewProfile')} <i className="fa-solid fa-arrow-up-right-from-square text-[10px] ml-0.5" />
               </Link>
@@ -919,7 +919,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                 onClick={() => setHeaderMenuOpen((o) => !o)}
                 aria-label={t('moreActions')}
                 aria-expanded={headerMenuOpen}
-                className="tap-target flex h-10 w-10 items-center justify-center rounded-full text-sub hover:bg-gold-pale hover:text-gold-dark transition-colors"
+                className="tap-target flex h-10 w-10 items-center justify-center rounded-full text-sub hover:bg-gold-pale hover:text-gold-text transition-colors"
               >
                 <i className="fa-solid fa-ellipsis-vertical text-sm" />
               </button>
@@ -1018,7 +1018,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                               : 'bg-card border border-line text-text rounded-bl-sm'
                         }`}>
                           {!isMine && msg.sender && !isDeleted && !isGrouped && (
-                            <p className="text-[10px] font-bold text-gold-dark mb-0.5">{getDisplayName(msg.sender, userFallback)}</p>
+                            <p className="text-[10px] font-bold text-gold-text mb-0.5">{getDisplayName(msg.sender, userFallback)}</p>
                           )}
 
                           {/* Citation du message répondu */}
@@ -1031,7 +1031,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                                 el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                               }}
                             >
-                              <p className={`font-semibold text-[10px] mb-0.5 ${isMine ? 'text-white/70' : 'text-gold-dark'}`}>
+                              <p className={`font-semibold text-[10px] mb-0.5 ${isMine ? 'text-white/70' : 'text-gold-text'}`}>
                                 {msg.replyTo.sender ? getDisplayName(msg.replyTo.sender, userFallback) : t('messageFallback')}
                               </p>
                               {msg.replyTo.deletedAt ? (
@@ -1113,7 +1113,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
             <div className="mx-4 flex items-center gap-2 bg-gold-pale border border-gold-dark/20 rounded-xl px-3 py-2">
               <i className="fa-solid fa-reply text-gold-dark text-xs shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-gold-dark">{replyingTo.sender ? getDisplayName(replyingTo.sender, userFallback) : t('messageFallback')}</p>
+                <p className="text-[10px] font-bold text-gold-text">{replyingTo.sender ? getDisplayName(replyingTo.sender, userFallback) : t('messageFallback')}</p>
                 <p className="text-xs text-sub truncate">
                   {isAudioMessage(replyingTo.content)
                     ? <><i className="fa-solid fa-microphone text-[9px] mr-1" />{t('voiceMessage')}</>
@@ -1220,7 +1220,7 @@ export default function MessagesShell({ emptyHint, space }: Props) {
                     type="button"
                     onClick={() => void startRecording()}
                     disabled={!activeRoomId || sending}
-                    className="tap-target flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-dark hover:bg-gold/30 transition-colors disabled:opacity-40 shrink-0"
+                    className="tap-target flex h-10 w-10 items-center justify-center rounded-full bg-gold-pale text-gold-text hover:bg-gold/30 transition-colors disabled:opacity-40 shrink-0"
                     title={t('recordVoiceTitle')}
                   >
                     <i className="fa-solid fa-microphone text-sm" />

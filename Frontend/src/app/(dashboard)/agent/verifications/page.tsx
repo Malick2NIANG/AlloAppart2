@@ -359,7 +359,7 @@ export default function AgentVerificationsPage() {
                   type="button"
                   onClick={() => photoInputRef.current?.click()}
                   disabled={uploadingPhotos}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-bg py-3 text-sm text-sub hover:border-gold/40 hover:text-gold-dark transition-colors"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-bg py-3 text-sm text-sub hover:border-gold/40 hover:text-gold-text transition-colors"
                 >
                   {uploadingPhotos
                     ? <><i className="fa-solid fa-spinner fa-spin" /> {t('uploading')}</>
@@ -493,7 +493,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
           {/* Contact bailleur */}
           {v.listing?.owner && (
             <div className="rounded-xl bg-bg border border-line p-3 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-gold-pale flex items-center justify-center text-xs font-bold text-gold-dark shrink-0">
+              <div className="h-9 w-9 rounded-full bg-gold-pale flex items-center justify-center text-xs font-bold text-gold-text shrink-0">
                 {`${v.listing.owner.firstName?.[0] ?? ''}${v.listing.owner.lastName?.[0] ?? ''}`.toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
@@ -521,7 +521,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
                   type="button"
                   onClick={onContact}
                   disabled={openingChat !== null}
-                  className="tap-target h-8 w-8 rounded-full bg-gold-pale flex items-center justify-center text-gold-dark hover:bg-gold/20 transition-colors disabled:opacity-50"
+                  className="tap-target h-8 w-8 rounded-full bg-gold-pale flex items-center justify-center text-gold-text hover:bg-gold/20 transition-colors disabled:opacity-50"
                   title={t('internalChat')}
                 >
                   {openingChat === v.id
@@ -628,7 +628,7 @@ function MissionCard({ v, expanded, onToggle, acting, openingChat, onStart, onCo
           {/* Lien vers la page détail */}
           <div className="pt-1 flex justify-end">
             <Link href={`/agent/verifications/${v.id}`}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-dark hover:underline">
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-text hover:underline">
               <i className="fa-solid fa-arrow-up-right-from-square text-[10px]" /> {t('seeFullDetail')}
             </Link>
           </div>

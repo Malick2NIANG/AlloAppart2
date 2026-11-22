@@ -82,13 +82,13 @@ export default async function Footer() {
 
           {/* Col 2 — Navigation */}
           <div>
-            <h4 className="mb-4 text-sm font-semibold uppercase tracking-widest text-gold-dark">
+            <h4 className="mb-4 text-sm font-semibold uppercase tracking-widest text-gold-text">
               {t('nav')}
             </h4>
             <ul className="space-y-2">
               {COL2.map((l) => (
                 <li key={l.href}>
-                  <Link href={l.href} className="text-sm text-sub transition-colors hover:text-gold-dark">
+                  <Link href={l.href} className="text-sm text-sub transition-colors hover:text-gold-text">
                     {l.label}
                   </Link>
                 </li>
@@ -98,7 +98,7 @@ export default async function Footer() {
 
           {/* Col 3 — Services */}
           <div>
-            <h4 className="mb-4 text-sm font-semibold uppercase tracking-widest text-gold-dark">
+            <h4 className="mb-4 text-sm font-semibold uppercase tracking-widest text-gold-text">
               {t('services')}
             </h4>
             <ul className="space-y-2">
@@ -112,7 +112,7 @@ export default async function Footer() {
 
           {/* Col 4 — Contact */}
           <div>
-            <h4 className="mb-4 text-sm font-semibold uppercase tracking-widest text-gold-dark">
+            <h4 className="mb-4 text-sm font-semibold uppercase tracking-widest text-gold-text">
               {t('contact')}
             </h4>
             <ul className="space-y-3 text-sm text-sub">
@@ -122,13 +122,13 @@ export default async function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <i className="fa-solid fa-phone text-gold-dark shrink-0" />
-                <a href="tel:+221781321595" className="hover:text-gold-dark transition-colors">
+                <a href="tel:+221781321595" className="hover:text-gold-text transition-colors">
                   +221 78 132 15 95
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <i className="fa-solid fa-envelope text-gold-dark shrink-0" />
-                <a href="mailto:alloappart221@gmail.com" className="hover:text-gold-dark transition-colors">
+                <a href="mailto:alloappart221@gmail.com" className="hover:text-gold-text transition-colors">
                   alloappart221@gmail.com
                 </a>
               </li>
@@ -145,12 +145,12 @@ export default async function Footer() {
         <div className="mt-10 border-t border-line pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-sub">
           <p>© {new Date().getFullYear()} AlloAppart. {t('rights')}</p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/a-propos"        className="hover:text-gold-dark transition-colors">{t('navAbout')}</Link>
-            <Link href="/aide"            className="hover:text-gold-dark transition-colors">{t('navFaq')}</Link>
-            <Link href="/plan-du-site"    className="hover:text-gold-dark transition-colors">{t('navSitemap')}</Link>
-            <Link href="/confidentialite" className="hover:text-gold-dark transition-colors">{t('privacy')}</Link>
-            <Link href="/cgu"             className="hover:text-gold-dark transition-colors">{t('terms')}</Link>
-            <Link href="/cookies"         className="hover:text-gold-dark transition-colors">{t('cookies')}</Link>
+            <Link href="/a-propos"        className="hover:text-gold-text transition-colors">{t('navAbout')}</Link>
+            <Link href="/aide"            className="hover:text-gold-text transition-colors">{t('navFaq')}</Link>
+            <Link href="/plan-du-site"    className="hover:text-gold-text transition-colors">{t('navSitemap')}</Link>
+            <Link href="/confidentialite" className="hover:text-gold-text transition-colors">{t('privacy')}</Link>
+            <Link href="/cgu"             className="hover:text-gold-text transition-colors">{t('terms')}</Link>
+            <Link href="/cookies"         className="hover:text-gold-text transition-colors">{t('cookies')}</Link>
           </div>
         </div>
       </div>

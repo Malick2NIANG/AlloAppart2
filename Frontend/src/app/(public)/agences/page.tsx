@@ -90,20 +90,20 @@ export default async function AgencesPage() {
                           <img src={agency.avatar} alt={name}
                             className="h-16 w-16 rounded-2xl object-cover border border-line shadow-sm" />
                         ) : (
-                          <div className={`h-16 w-16 rounded-2xl flex items-center justify-center text-2xl font-extrabold border ${isPro ? 'bg-gold/10 border-gold/30 text-gold-dark' : 'bg-gold-pale border-line text-gold-dark'}`}>
+                          <div className={`h-16 w-16 rounded-2xl flex items-center justify-center text-2xl font-extrabold border ${isPro ? 'bg-gold/10 border-gold/30 text-gold-text' : 'bg-gold-pale border-line text-gold-text'}`}>
                             {name[0]?.toUpperCase()}
                           </div>
                         )}
                       </div>
                       {isPro && (
-                        <span className="flex items-center gap-1 bg-gold/10 border border-gold/30 text-gold-dark text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <span className="flex items-center gap-1 bg-gold/10 border border-gold/30 text-gold-text text-[10px] font-bold px-2 py-0.5 rounded-full">
                           <i className="fa-solid fa-crown text-[8px]" /> PRO
                         </span>
                       )}
                     </div>
 
                     {/* Nom */}
-                    <h2 className="font-extrabold text-text text-sm leading-tight line-clamp-1 mb-1 group-hover:text-gold-dark transition-colors">
+                    <h2 className="font-extrabold text-text text-sm leading-tight line-clamp-1 mb-1 group-hover:text-gold-text transition-colors">
                       {name}
                     </h2>
 
@@ -133,7 +133,7 @@ export default async function AgencesPage() {
                     {/* CTA */}
                     {href ? (
                       <Link href={href}
-                        className="tap-target flex w-full items-center justify-center gap-1.5 rounded-xl border border-gold/40 bg-gold-pale hover:bg-gold/20 text-gold-dark text-xs font-semibold py-2.5 transition-colors">
+                        className="tap-target flex w-full items-center justify-center gap-1.5 rounded-xl border border-gold/40 bg-gold-pale hover:bg-gold/20 text-gold-text text-xs font-semibold py-2.5 transition-colors">
                         <i className="fa-solid fa-store text-[10px]" /> {t('viewVitrine')}
                       </Link>
                     ) : (

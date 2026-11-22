@@ -162,11 +162,11 @@ export default function NotificationsSettings() {
     <main className="py-10 px-4 bg-bg min-h-screen max-md:min-h-dvh max-md:py-6">
       <div className="aa-container max-w-2xl space-y-6">
         <nav className="flex items-center gap-1.5 text-xs text-sub">
-          <Link href="/profil" className="hover:text-gold-dark transition-colors">
+          <Link href="/profil" className="hover:text-gold-text transition-colors">
             {t('profile')}
           </Link>
           <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
-          <span className="text-gold-dark font-medium">{t('breadcrumbLink')}</span>
+          <span className="text-gold-text font-medium">{t('breadcrumbLink')}</span>
         </nav>
 
         <h1 className="text-xl font-extrabold text-text flex items-center gap-2">

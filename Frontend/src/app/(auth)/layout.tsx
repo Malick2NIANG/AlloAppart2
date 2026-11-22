@@ -36,7 +36,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
             « Se connecter » / « conditions générales »). Sans effet à partir
             de 768px. */}
         <div className="shrink-0 px-4 pt-4 md:px-10">
-          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors max-md:text-gold-dark max-md:font-semibold max-md:hover:text-gold-dark">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-text transition-colors max-md:text-gold-text max-md:font-semibold max-md:hover:text-gold-text">
             <i className="fa-solid fa-arrow-left text-xs" />
             {t('backToSite')}
           </Link>
@@ -63,9 +63,9 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
             effet à partir de 768px. */}
         <p className="shrink-0 pb-3 text-center text-xs text-sub max-md:pb-[calc(0.75rem+var(--safe-bottom,0px))]">
           © {new Date().getFullYear()} AlloAppart ·{' '}
-          <Link href="/confidentialite" className="hover:text-gold-dark transition-colors">{t('privacy')}</Link>
+          <Link href="/confidentialite" className="hover:text-gold-text transition-colors">{t('privacy')}</Link>
           {' · '}
-          <Link href="/cgu" className="hover:text-gold-dark transition-colors">{t('terms')}</Link>
+          <Link href="/cgu" className="hover:text-gold-text transition-colors">{t('terms')}</Link>
         </p>
       </div>
 

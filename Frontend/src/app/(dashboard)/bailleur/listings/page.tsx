@@ -446,7 +446,7 @@ function BailleurListingsContent() {
                 <span className="text-2xl font-bold text-text">{counts[key]}</span>
               </div>
               <p className="text-sm font-medium text-text">{FILTER_LABELS[key]}</p>
-              {isActive && <p className="text-xs text-gold-dark mt-0.5 font-medium">{t('filterSelected')}</p>}
+              {isActive && <p className="text-xs text-gold-text mt-0.5 font-medium">{t('filterSelected')}</p>}
             </button>
           );
         })}
@@ -487,7 +487,7 @@ function BailleurListingsContent() {
             </Link>
           )}
           {q && (
-            <button onClick={() => setSearch('')} className="mt-3 text-sm text-gold-dark hover:underline">
+            <button onClick={() => setSearch('')} className="mt-3 text-sm text-gold-text hover:underline">
               {t('clearSearch')}
             </button>
           )}
@@ -557,7 +557,7 @@ function BailleurListingsContent() {
                   <p className="text-sm font-medium text-text">{t('verifAuditType')}</p>
                   <p className="text-xs text-sub mt-0.5">{t('verifAuditBasicDesc')}</p>
                 </div>
-                <p className="text-sm font-semibold text-gold-dark shrink-0">
+                <p className="text-sm font-semibold text-gold-text shrink-0">
                   {isProActive ? t('verifFreeBadge') : `${auditPrice} FCFA`}
                 </p>
               </div>
@@ -627,7 +627,7 @@ function BailleurListingsContent() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-bold text-sub uppercase tracking-wider">{t('boostDurationLabel')}</p>
-                  <p className="text-3xl font-extrabold text-gold-dark mt-0.5">7 <span className="text-lg font-semibold">{t('boostDurationDays')}</span></p>
+                  <p className="text-3xl font-extrabold text-gold-text mt-0.5">7 <span className="text-lg font-semibold">{t('boostDurationDays')}</span></p>
                 </div>
               </div>
               {isProActive && (
@@ -638,7 +638,7 @@ function BailleurListingsContent() {
 
               <div className="space-y-2.5 mb-6">
                 {[
-                  { icon: 'fa-bolt',       color: 'text-gold-dark',   text: t('boostListBenefit1') },
+                  { icon: 'fa-bolt',       color: 'text-gold-text',   text: t('boostListBenefit1') },
                   { icon: 'fa-arrow-up',   color: 'text-emerald-600 dark:text-emerald-400', text: t('boostListBenefit2') },
                   { icon: 'fa-eye',        color: 'text-blue-500 dark:text-blue-400',        text: t('boostListBenefit3') },
                   { icon: 'fa-chart-line', color: 'text-purple-500 dark:text-purple-400',    text: t('boostListBenefit4') },
@@ -750,7 +750,7 @@ function BailleurListingsContent() {
                   { icon: 'fa-headset',       text: tUpgrade('upgradeBenefitSupport') },
                 ].map((item) => (
                   <div key={item.icon} className="flex items-center gap-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line text-gold-dark">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-bg border border-line text-gold-text">
                       <i className={`fa-solid ${item.icon} text-xs`} />
                     </span>
                     <p className="text-sm text-text">{item.text}</p>
@@ -887,7 +887,7 @@ function ListingCard({
             </span>
           )}
           {boosted && (
-            <span className="text-xs bg-gold-pale text-gold-dark px-2.5 py-1 rounded-full font-medium">
+            <span className="text-xs bg-gold-pale text-gold-text px-2.5 py-1 rounded-full font-medium">
               <i className="fa-solid fa-rocket text-xs mr-1" />{t('badgeBoosted')}
             </span>
           )}
@@ -901,7 +901,7 @@ function ListingCard({
 
         {listing.status === 'ACTIVE' && (
           <>
-            <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-dark hover:underline">
+            <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-text hover:underline">
               {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
             </Link>
             <div className="contents max-md:hidden">
@@ -911,7 +911,7 @@ function ListingCard({
             </button>
             {!boosted && (
               <button onClick={() => onBoost(listing.id, listing.title)} disabled={boosting !== null}
-                className="tap-target text-xs font-medium text-sub hover:text-gold-dark border border-line hover:border-gold-dark rounded-lg py-1 px-2.5 transition-colors disabled:opacity-50">
+                className="tap-target text-xs font-medium text-sub hover:text-gold-text border border-line hover:border-gold-dark rounded-lg py-1 px-2.5 transition-colors disabled:opacity-50">
                 {boosting === listing.id
                   ? <i className="fa-solid fa-spinner fa-spin text-xs" />
                   : <><i className="fa-solid fa-rocket text-xs mr-1" />{t('actionBoost')}</>
@@ -920,7 +920,7 @@ function ListingCard({
             )}
             {boosted && (
               <button onClick={() => onBoost(listing.id, listing.title)} disabled={boosting !== null}
-                className="tap-target text-xs font-medium text-sub hover:text-gold-dark border border-line hover:border-gold-dark rounded-lg py-1 px-2.5 transition-colors disabled:opacity-50">
+                className="tap-target text-xs font-medium text-sub hover:text-gold-text border border-line hover:border-gold-dark rounded-lg py-1 px-2.5 transition-colors disabled:opacity-50">
                 {boosting === listing.id
                   ? <i className="fa-solid fa-spinner fa-spin text-xs" />
                   : <><i className="fa-solid fa-rocket text-xs mr-1" />{t('actionBoostRenew')}</>
@@ -929,7 +929,7 @@ function ListingCard({
             )}
             {!listing.isVerified && (
               <button onClick={() => onVerify(listing.id, listing.title)}
-                className="tap-target text-xs font-medium text-gold-dark hover:text-gold-600 border border-gold-dark hover:bg-gold-pale rounded-lg py-1 px-2.5 transition-colors">
+                className="tap-target text-xs font-medium text-gold-text hover:text-gold-600 border border-gold-dark hover:bg-gold-pale rounded-lg py-1 px-2.5 transition-colors">
                 <i className="fa-solid fa-shield-halved text-xs mr-1" /> {t('actionAlloVerifie')}
               </button>
             )}
@@ -947,7 +947,7 @@ function ListingCard({
 
         {listing.status === 'DRAFT' && (
           <>
-            <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-dark hover:underline">
+            <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-text hover:underline">
               {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
             </Link>
             <div className="contents max-md:hidden">
@@ -971,14 +971,14 @@ function ListingCard({
         )}
 
         {listing.status === 'RENTED' && (
-          <Link href={`/listings/${listing.id}`} className="text-sm font-medium text-gold-dark hover:underline">
+          <Link href={`/listings/${listing.id}`} className="text-sm font-medium text-gold-text hover:underline">
             {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
           </Link>
         )}
 
         {listing.status === 'SUSPENDED' && (
           <>
-            <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-dark hover:underline">
+            <Link href={`/listings/${listing.id}`} className="tap-target text-sm font-medium text-gold-text hover:underline">
               {t('actionView')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
             </Link>
             <div className="contents max-md:hidden">
@@ -1051,7 +1051,7 @@ function SheetAction({ icon, label, onClick, href, accent, danger }: {
 }) {
   const className = `tap-target flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors ${
     danger ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30'
-    : accent ? 'text-gold-dark hover:bg-gold-pale'
+    : accent ? 'text-gold-text hover:bg-gold-pale'
     : 'text-text hover:bg-bg'
   }`;
   const content = <><i className={`fa-solid ${icon} w-4 text-xs`} />{label}</>;

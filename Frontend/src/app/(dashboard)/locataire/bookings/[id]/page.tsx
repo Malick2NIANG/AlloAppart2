@@ -18,14 +18,14 @@ interface MyReview {
 }
 
 const STATUS_CLS: Record<string, string> = {
-  PENDING:   'bg-gold-pale text-gold-dark border-gold/30',
+  PENDING:   'bg-gold-pale text-gold-text border-gold/30',
   CONFIRMED: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900/40',
   CANCELLED: 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40',
   COMPLETED: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40',
 };
 
 const ESCROW_CLS: Record<string, string> = {
-  AWAITING_PAYMENT: 'bg-gold-pale text-gold-dark border-gold/30',
+  AWAITING_PAYMENT: 'bg-gold-pale text-gold-text border-gold/30',
   HELD:             'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900/40',
   RELEASED:         'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40',
   REFUNDED:         'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40',
@@ -204,7 +204,7 @@ export default function BookingDetailPage() {
 
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-xs text-sub">
-        <Link href="/locataire/bookings" className="hover:text-gold-dark transition-colors">
+        <Link href="/locataire/bookings" className="hover:text-gold-text transition-colors">
           {t('breadcrumbBookings')}
         </Link>
         <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
@@ -266,7 +266,7 @@ export default function BookingDetailPage() {
             </div>
             <Link
               href={`/listings/${listing.id}`}
-              className="ml-auto shrink-0 text-xs text-gold-dark hover:underline"
+              className="ml-auto shrink-0 text-xs text-gold-text hover:underline"
             >
               {t('viewListingLink')} <i className="fa-solid fa-arrow-right text-[10px]" />
             </Link>
@@ -282,7 +282,7 @@ export default function BookingDetailPage() {
         </h2>
         <div className="flex items-center justify-between text-sm">
           <span className="text-sub">{t('totalAmountLabel')}</span>
-          <span className="font-bold text-gold-dark text-base">{formatPrice(booking.totalAmount)}</span>
+          <span className="font-bold text-gold-text text-base">{formatPrice(booking.totalAmount)}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-sub">{t('paymentStatusLabel')}</span>
@@ -302,7 +302,7 @@ export default function BookingDetailPage() {
             type="button"
             onClick={() => void downloadReceipt()}
             disabled={downloadingReceipt}
-            className="text-xs text-gold-dark hover:underline flex items-center gap-1 disabled:opacity-50"
+            className="text-xs text-gold-text hover:underline flex items-center gap-1 disabled:opacity-50"
           >
             {downloadingReceipt
               ? <i className="fa-solid fa-spinner fa-spin text-[11px]" />
@@ -321,7 +321,7 @@ export default function BookingDetailPage() {
           </h2>
           <div className="flex items-center gap-1 mb-1">
             {[1,2,3,4,5].map((s) => (
-              <i key={s} className={`fa-solid fa-star text-sm ${s <= myReview.rating ? 'text-gold-dark' : 'text-emerald-200'}`} />
+              <i key={s} className={`fa-solid fa-star text-sm ${s <= myReview.rating ? 'text-gold-text' : 'text-emerald-200'}`} />
             ))}
           </div>
           {myReview.comment && (
@@ -373,14 +373,14 @@ export default function BookingDetailPage() {
       {/* Formulaire avis inline */}
       {showReview && (
         <div className="rounded-2xl border border-gold/30 bg-gold-pale p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gold-dark flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-gold-text flex items-center gap-2">
             <i className="fa-solid fa-star text-xs" />
             {t('reviewFormTitle')}
           </h2>
           <div className="flex items-center gap-2">
             {[1,2,3,4,5].map((s) => (
               <button key={s} onClick={() => setReviewRating(s)} type="button" className="tap-target">
-                <i className={`fa-solid fa-star text-2xl transition ${s <= reviewRating ? 'text-gold-dark' : 'text-gold/30 hover:text-gold'}`} />
+                <i className={`fa-solid fa-star text-2xl transition ${s <= reviewRating ? 'text-gold-text' : 'text-gold/30 hover:text-gold'}`} />
               </button>
             ))}
           </div>

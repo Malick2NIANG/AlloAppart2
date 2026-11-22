@@ -139,7 +139,7 @@ export default function PaiementConfirmationPage() {
               )}
               <div className="flex justify-between text-sm border-t border-line pt-2 mt-2">
                 <span className="font-semibold text-text">{t('totalPaid')}</span>
-                <span className="font-bold text-gold-dark">
+                <span className="font-bold text-gold-text">
                   {Number(booking.totalAmount).toLocaleString(numLocale)} FCFA
                 </span>
               </div>
@@ -154,7 +154,7 @@ export default function PaiementConfirmationPage() {
               </Link>
               <Link
                 href="/listings"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all max-md:min-h-12"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-text transition-all max-md:min-h-12"
               >
                 {t('continueExploring')}
               </Link>
@@ -180,7 +180,7 @@ export default function PaiementConfirmationPage() {
               </Link>
               <button
                 onClick={() => { setStatus('loading'); window.location.reload(); }}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all max-md:min-h-12"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-text transition-all max-md:min-h-12"
               >
                 <i className="fa-solid fa-rotate-right" /> {t('retryBtn')}
               </button>
@@ -205,7 +205,7 @@ export default function PaiementConfirmationPage() {
               </Link>
               <Link
                 href="/listings"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-dark transition-all max-md:min-h-12"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-6 py-2.5 text-sm font-semibold text-sub hover:border-gold/50 hover:text-gold-text transition-all max-md:min-h-12"
               >
                 {t('continueExploring')}
               </Link>

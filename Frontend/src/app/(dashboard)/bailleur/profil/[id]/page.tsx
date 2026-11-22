@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 
 const ROLE_COLORS: Record<string, string> = {
   LOCATAIRE:     'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
-  BAILLEUR:      'bg-gold-pale text-gold-dark',
+  BAILLEUR:      'bg-gold-pale text-gold-text',
   PRO_AGENCE:    'bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400',
   AGENT_TERRAIN: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400',
   ADMIN:         'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400',
@@ -76,7 +76,7 @@ export default function ProfilPage() {
       <div className="max-w-2xl mx-auto text-center py-20">
         <i className="fa-solid fa-user-slash text-4xl text-line mb-4" />
         <p className="text-sub">{error || t('profilNotFound')}</p>
-        <button onClick={() => router.back()} className="mt-4 inline-flex items-center gap-1.5 text-sm text-gold-dark hover:underline">
+        <button onClick={() => router.back()} className="mt-4 inline-flex items-center gap-1.5 text-sm text-gold-text hover:underline">
           <i className="fa-solid fa-arrow-left text-xs" />
           {t('profilBack')}
         </button>
@@ -111,7 +111,7 @@ export default function ProfilPage() {
               className="h-20 w-20 rounded-2xl object-cover border border-line shrink-0"
             />
           ) : (
-            <div className="h-20 w-20 rounded-2xl bg-gold-pale flex items-center justify-center text-2xl font-bold text-gold-dark shrink-0">
+            <div className="h-20 w-20 rounded-2xl bg-gold-pale flex items-center justify-center text-2xl font-bold text-gold-text shrink-0">
               {initials}
             </div>
           )}
@@ -179,7 +179,7 @@ export default function ProfilPage() {
           <div className="mt-4">
             <Link
               href={`/bailleur/agents/${user.id}`}
-              className="flex items-center justify-center gap-2 w-full rounded-xl bg-gold-pale text-gold-dark text-sm font-semibold py-2.5 hover:bg-gold/20 transition-colors"
+              className="flex items-center justify-center gap-2 w-full rounded-xl bg-gold-pale text-gold-text text-sm font-semibold py-2.5 hover:bg-gold/20 transition-colors"
             >
               <i className="fa-solid fa-shield-halved text-xs" />
               {t('profilAgentCta')}

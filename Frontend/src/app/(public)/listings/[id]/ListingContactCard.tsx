@@ -123,7 +123,7 @@ export default function ListingContactCard({
             disabled={likeLoading}
             title={liked ? t('removeFavorite') : t('addFavorite')}
             className={`h-10 w-10 max-md:h-11 max-md:w-11 rounded-full border grid place-items-center transition ${
-              liked ? 'border-red-300 bg-red-50 dark:bg-red-950/30 text-red-400' : 'border-line hover:bg-gold-pale text-sub hover:text-gold-dark'
+              liked ? 'border-red-300 bg-red-50 dark:bg-red-950/30 text-red-400' : 'border-line hover:bg-gold-pale text-sub hover:text-gold-text'
             }`}>
             {likeLoading
               ? <i className="fa-solid fa-spinner fa-spin text-sm" />
@@ -140,7 +140,7 @@ export default function ListingContactCard({
             interne (pas de mise en relation via l'app pour une vente). */}
         <div className="mt-4">
           {isOwner ? (
-            <div className="flex items-center gap-2.5 rounded-xl border border-gold/30 bg-gold-pale px-4 py-3 text-sm text-gold-dark">
+            <div className="flex items-center gap-2.5 rounded-xl border border-gold/30 bg-gold-pale px-4 py-3 text-sm text-gold-text">
               <i className="fa-solid fa-house-chimney-user shrink-0" />
               <span className="font-medium">{t('yourListing')}</span>
             </div>
@@ -236,7 +236,7 @@ export default function ListingContactCard({
                 />
               ) : (
                 <div className={`h-10 w-10 rounded-full grid place-items-center text-sm font-bold ${
-                  isAgency ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400' : 'bg-gold-pale text-gold-dark'
+                  isAgency ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400' : 'bg-gold-pale text-gold-text'
                 }`}>
                   {isAgency
                     ? <i className="fa-solid fa-building text-xs" />

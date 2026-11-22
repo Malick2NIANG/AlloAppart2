@@ -119,7 +119,7 @@ function BookingResultContent() {
           </p>
           <div className="mt-3 flex items-center justify-between">
             <span className="text-sm text-sub">{t('amountLabel')}</span>
-            <span className="font-bold text-gold-dark">{formatPrice(booking.totalAmount)}</span>
+            <span className="font-bold text-gold-text">{formatPrice(booking.totalAmount)}</span>
           </div>
           <div className="mt-2 flex items-center justify-between">
             <span className="text-sm text-sub">{t('bookingLabel')}</span>
@@ -168,7 +168,7 @@ function StatusBadge({ status }: { status: string }) {
   const t = useTranslations('bookingResult');
   const styles: Record<string, string> = {
     CONFIRMED: 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
-    PENDING:   'bg-gold-pale text-gold-dark',
+    PENDING:   'bg-gold-pale text-gold-text',
     CANCELLED: 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
     COMPLETED: 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
   };
@@ -188,7 +188,7 @@ function StatusBadge({ status }: { status: string }) {
 function EscrowBadge({ status }: { status: string }) {
   const t = useTranslations('bookingResult');
   const styles: Record<string, string> = {
-    AWAITING_PAYMENT: 'bg-gold-pale text-gold-dark',
+    AWAITING_PAYMENT: 'bg-gold-pale text-gold-text',
     HELD:             'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
     RELEASED:         'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
     REFUNDED:         'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',

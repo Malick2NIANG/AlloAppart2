@@ -150,7 +150,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
           même si l'utilisateur y arrive sans historique de navigation
           (lien partagé, onglet direct, etc.) ── */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-gold-dark transition-colors">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-sub hover:text-gold-text transition-colors">
           <i className="fa-solid fa-arrow-left text-xs" />
           {t('backToHome')}
         </Link>
@@ -239,7 +239,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
         {/* Barre recherche + compteur */}
         <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
           <h2 className="text-lg font-extrabold text-text">
-            <span className="text-gold-dark">{t('catalogueAvailableCount', { count: listings.length })}</span>
+            <span className="text-gold-text">{t('catalogueAvailableCount', { count: listings.length })}</span>
           </h2>
           <div className="relative">
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sub text-xs" />
@@ -363,14 +363,14 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
                             <i className="fa-solid fa-bolt text-[9px]" /> {t('featuredBadge')}
                           </span>
                         )}
-                        <span className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-0.5 text-[10px] font-semibold text-gold-dark">
+                        <span className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-0.5 text-[10px] font-semibold text-gold-text">
                           {typeLabels[listing.type] ?? listing.type}
                         </span>
                       </div>
                       {/* Prix — 1 pastille (NIGHTLY/MONTHLY) ou 2 empilées (MIXED) */}
                       <div className="absolute bottom-3 left-3 flex flex-col items-start gap-1">
                         {getListingPriceAmounts(listing).map((e) => (
-                          <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
+                          <span key={e.unit} className="rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-text">
                             {fmtPrice(e.amount)} FCFA{e.unit === 'sale' ? '' : `/${t(e.unit === 'night' ? 'perNight' : 'perMonth')}`}
                           </span>
                         ))}
@@ -379,7 +379,7 @@ export default function AgenceClientShell({ agency }: { agency: Agency }) {
 
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">
+                        <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-text transition-colors duration-300">
                           {listing.title}
                         </h3>
                         {listing.isVerified && <AlloVerifieBadge size="sm" className="shrink-0 mt-0.5" />}

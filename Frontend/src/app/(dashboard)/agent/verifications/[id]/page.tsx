@@ -157,7 +157,7 @@ export default function MissionDetailPage() {
     <div className="space-y-5">
 
       {/* ── Retour ── */}
-      <Link href="/agent/verifications" className="inline-flex items-center gap-2 text-sm text-sub hover:text-gold-dark transition-colors">
+      <Link href="/agent/verifications" className="inline-flex items-center gap-2 text-sm text-sub hover:text-gold-text transition-colors">
         <i className="fa-solid fa-arrow-left text-xs" /> {t('backToMissions')}
       </Link>
 
@@ -254,7 +254,7 @@ export default function MissionDetailPage() {
           </div>
           {mapsUrl && (
             <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-              className="tap-target shrink-0 flex items-center gap-1.5 rounded-xl bg-gold-pale text-gold-dark text-xs font-semibold px-3 py-2 hover:bg-gold/20 transition-colors">
+              className="tap-target shrink-0 flex items-center gap-1.5 rounded-xl bg-gold-pale text-gold-text text-xs font-semibold px-3 py-2 hover:bg-gold/20 transition-colors">
               <i className="fa-solid fa-map-location-dot text-sm" /> {t('itinerary')}
             </a>
           )}
@@ -267,7 +267,7 @@ export default function MissionDetailPage() {
           <h2 className="text-xs font-bold text-sub uppercase tracking-wider mb-3">{t('ownerLabel')}</h2>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-gold-pale flex items-center justify-center text-sm font-bold text-gold-dark shrink-0">
+              <div className="h-10 w-10 rounded-full bg-gold-pale flex items-center justify-center text-sm font-bold text-gold-text shrink-0">
                 {v.listing.owner.firstName[0]}{v.listing.owner.lastName[0]}
               </div>
               <div>
@@ -284,7 +284,7 @@ export default function MissionDetailPage() {
                 </a>
               )}
               <Link href={`/agent/messages?listing=${v.listingId}`}
-                className="tap-target h-9 w-9 rounded-full bg-gold-pale flex items-center justify-center text-gold-dark hover:bg-gold/20 transition-colors"
+                className="tap-target h-9 w-9 rounded-full bg-gold-pale flex items-center justify-center text-gold-text hover:bg-gold/20 transition-colors"
                 title={t('chatTitle')}>
                 <i className="fa-solid fa-comment-dots text-sm" />
               </Link>
@@ -313,7 +313,7 @@ export default function MissionDetailPage() {
           {v.notes && <p className="text-sm text-text leading-relaxed">{v.notes}</p>}
           {v.reportUrl && (
             <a href={v.reportUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-gold-dark text-sm hover:underline">
+              className="inline-flex items-center gap-2 text-gold-text text-sm hover:underline">
               <i className="fa-solid fa-file-lines" /> {t('seeFullReport')}
             </a>
           )}
@@ -396,7 +396,7 @@ export default function MissionDetailPage() {
                   </div>
                 )}
                 <button type="button" onClick={() => photoRef.current?.click()} disabled={uploadingPhotos}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-bg py-2.5 text-sm text-sub hover:border-gold/40 hover:text-gold-dark transition-colors">
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-bg py-2.5 text-sm text-sub hover:border-gold/40 hover:text-gold-text transition-colors">
                   {uploadingPhotos ? <><i className="fa-solid fa-spinner fa-spin" /> {t('uploading')}</> : <><i className="fa-solid fa-camera" /> {t('addPhotos')}</>}
                 </button>
                 <input ref={photoRef} type="file" accept="image/*" multiple capture="environment" className="hidden" onChange={handlePhotoUpload} />

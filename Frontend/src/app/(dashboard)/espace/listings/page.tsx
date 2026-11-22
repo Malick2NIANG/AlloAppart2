@@ -36,7 +36,7 @@ const STATUS_ICONS: Record<StatusFilter, string> = {
 // (badges) mais en version "chip clair" (bg-*-50/950 + texte 600/400) pour
 // rester lisible sur un fond de carte plutôt qu'en overlay sur une photo.
 const STAT_CARD_COLORS: Record<StatusFilter, { color: string; bg: string }> = {
-  ALL:       { color: 'text-gold-dark',                          bg: 'bg-gold-pale' },
+  ALL:       { color: 'text-gold-text',                          bg: 'bg-gold-pale' },
   ACTIVE:    { color: 'text-green-600 dark:text-green-400',      bg: 'bg-green-50 dark:bg-green-950/30' },
   DRAFT:     { color: 'text-amber-600 dark:text-amber-400',      bg: 'bg-amber-50 dark:bg-amber-950/30' },
   RENTED:    { color: 'text-blue-600 dark:text-blue-400',        bg: 'bg-blue-50 dark:bg-blue-950/30' },
@@ -407,7 +407,7 @@ function AdminListingCard({
       {/* Actions — même gabarit que BookingCard */}
       <div className="border-t border-line p-4 pt-3 flex items-center gap-2 flex-wrap">
         <Link href={`/listings/${listing.id}`} target="_blank" rel="noopener noreferrer"
-          className="tap-target text-xs font-medium text-gold-dark hover:underline">
+          className="tap-target text-xs font-medium text-gold-text hover:underline">
           {t('view')} <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
         </Link>
         <div className="contents max-md:hidden">

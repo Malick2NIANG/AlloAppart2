@@ -105,7 +105,7 @@ export default function VerifyBookingPage() {
                   />
                 </div>
               ) : (
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-line bg-gold-pale text-lg font-bold text-gold-dark">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-line bg-gold-pale text-lg font-bold text-gold-text">
                   {result.tenant.firstName.charAt(0)}
                   {result.tenant.lastName.charAt(0)}
                 </div>

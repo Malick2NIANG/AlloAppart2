@@ -60,14 +60,14 @@ function ListingsDropdown({ allListings, byType, typeLabels, onClose }: Listings
   return (
     <div className="absolute top-full left-0 mt-2 w-56 bg-card border border-line rounded-2xl shadow-xl p-2 z-50">
       <Link href="/listings" onClick={onClose}
-        className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-text hover:bg-gold-pale hover:text-gold-dark transition">
+        className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-text hover:bg-gold-pale hover:text-gold-text transition">
         <i className="fa-solid fa-list text-gold-dark text-xs w-4" />{allListings}
       </Link>
       <div className="border-t border-line my-1.5" />
       <p className="px-3 py-1 text-[11px] text-sub font-medium uppercase tracking-wide">{byType}</p>
       {LISTING_TYPES.map((type) => (
         <Link key={type.key} href={`/listings?type=${type.key}`} onClick={onClose}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-text hover:bg-gold-pale hover:text-gold-text transition">
           <i className={`fa-solid ${type.icon} text-gold-dark text-xs w-4`} />
           {typeLabels[type.key]}
         </Link>
@@ -109,7 +109,7 @@ function ProfileDropdown({ userName, userEmail, isDemo, demoMode, profileLabel, 
         { href: '/profil/securite', icon: 'fa-solid fa-shield-halved', label: security     },
       ].map((item) => (
         <Link key={item.href} href={item.href} onClick={onClose}
-          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
+          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text hover:bg-gold-pale hover:text-gold-text transition">
           <i className={`${item.icon} text-gold-dark text-xs w-4 text-center`} />
           {item.label}
         </Link>
@@ -435,7 +435,7 @@ export default function NavbarClient({ locale, labels }: Props) {
             {/* Découvrir */}
             <div className="relative">
               <button onClick={() => toggleDropdown('listings')}
-                className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 ${pathname.startsWith('/listings') ? 'text-gold-dark' : 'text-text/85 hover:text-gold-dark'}`}>
+                className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 ${pathname.startsWith('/listings') ? 'text-gold-text' : 'text-text/85 hover:text-gold-text'}`}>
                 {labels.discover}
                 <i className={`fa-solid fa-chevron-down text-[10px] transition-transform duration-200 ${openDropdown === 'listings' ? 'rotate-180' : ''}`} />
               </button>
@@ -447,8 +447,8 @@ export default function NavbarClient({ locale, labels }: Props) {
               <Link href={spaceHref}
                 className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 ${
                   pathname.startsWith('/espace') || pathname.startsWith('/onboarding')
-                    ? 'text-gold-dark'
-                    : 'text-text/85 hover:text-gold-dark'
+                    ? 'text-gold-text'
+                    : 'text-text/85 hover:text-gold-text'
                 }`}>
                 <i className="fa-solid fa-grip-vertical text-[11px]" />
                 {labels.mySpace}
@@ -471,7 +471,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                 {/* Messages — hidden for ADMIN/AGENT_TERRAIN (null href) */}
                 {messagesHref !== null && (
                   <Link href={messagesHref}
-                    className="relative flex h-9 w-9 items-center justify-center rounded-full text-text/70 hover:bg-card hover:text-gold-dark transition">
+                    className="relative flex h-9 w-9 items-center justify-center rounded-full text-text/70 hover:bg-card hover:text-gold-text transition">
                     <i className="fa-solid fa-comment-dots text-[17px]" />
                     {unreadCount > 0 && (
                       <span className="absolute -top-0.5 -right-0.5 flex h-4.25 w-4.25 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
@@ -498,7 +498,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                     {userAvatar ? (
                       <Image src={userAvatar} alt="Photo de profil" width={36} height={36} className="h-full w-full object-cover" />
                     ) : (
-                      <span className={openDropdown === 'profile' ? 'bg-gold text-gray-900 flex h-full w-full items-center justify-center' : 'bg-gold-pale text-gold-dark flex h-full w-full items-center justify-center'}>
+                      <span className={openDropdown === 'profile' ? 'bg-gold text-gray-900 flex h-full w-full items-center justify-center' : 'bg-gold-pale text-gold-text flex h-full w-full items-center justify-center'}>
                         {userInitials}
                       </span>
                     )}
@@ -525,7 +525,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                 plus de navigation directe vers /search. Sans effet à partir
                 de 768px. */}
             <button type="button" onClick={() => setMobileSearchOpen(true)} aria-label={labels.search}
-              className="tap-target md:hidden rounded-full text-text/70 hover:bg-card hover:text-gold-dark transition">
+              className="tap-target md:hidden rounded-full text-text/70 hover:bg-card hover:text-gold-text transition">
               <i className="fa-solid fa-magnifying-glass text-base" />
             </button>
             {effectiveSignedIn && (
@@ -649,12 +649,12 @@ export default function NavbarClient({ locale, labels }: Props) {
               {mobileExpanded === 'listings' && (
                 <div className="ml-4 mt-1 flex flex-col gap-0.5">
                   <Link href="/listings" onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-text hover:bg-gold-pale hover:text-gold-dark transition">
+                    className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-text hover:bg-gold-pale hover:text-gold-text transition">
                     <i className="fa-solid fa-list text-gold-dark text-xs w-4" />{labels.allListings}
                   </Link>
                   {LISTING_TYPES.map((type) => (
                     <Link key={type.key} href={`/listings?type=${type.key}`} onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
+                      className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm text-text hover:bg-gold-pale hover:text-gold-text transition">
                       <i className={`fa-solid ${type.icon} text-gold-dark text-xs w-4`} />
                       {typeLabels[type.key]}
                     </Link>
@@ -737,7 +737,7 @@ export default function NavbarClient({ locale, labels }: Props) {
               <>
                 {/* User info */}
                 <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-card">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-gold/50 overflow-hidden text-xs font-bold text-gold-dark">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-gold/50 overflow-hidden text-xs font-bold text-gold-text">
                     {userAvatar
                       ? <Image src={userAvatar} alt="Photo de profil" width={36} height={36} className="h-full w-full object-cover" />
                       : <span className="bg-gold-pale flex h-full w-full items-center justify-center">{userInitials}</span>
@@ -777,7 +777,7 @@ export default function NavbarClient({ locale, labels }: Props) {
                     { href: '/profil/securite', icon: 'fa-solid fa-shield-halved', label: labels.security     },
                   ].map((item) => (
                     <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">
+                      className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-text hover:bg-gold-pale hover:text-gold-text transition">
                       <i className={`${item.icon} text-gold-dark text-xs w-4`} />{item.label}
                     </Link>
                   ))}

@@ -119,7 +119,7 @@ export default function MonthlyBookingRequestForm({
           <div className="border-t border-gold/20 my-1.5" />
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-text">{t('monthlyTotalDueLabel')}</span>
-            <span className="font-bold text-gold-dark">{dueToday.toLocaleString(numLocale)} FCFA</span>
+            <span className="font-bold text-gold-text">{dueToday.toLocaleString(numLocale)} FCFA</span>
           </div>
         </div>
       )}

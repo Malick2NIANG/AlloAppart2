@@ -108,7 +108,7 @@ export default function BottomNav({ items, showMore = false, onMoreClick, unread
             href={item.href}
             aria-current={active ? 'page' : undefined}
             className={`relative flex min-w-11 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${
-              active ? 'text-gold-dark' : 'text-sub'
+              active ? 'text-gold-text' : 'text-sub'
             }`}
           >
             <span className="relative flex h-6 w-6 items-center justify-center">

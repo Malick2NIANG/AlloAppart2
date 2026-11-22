@@ -58,7 +58,7 @@ function BoostStatusBadge({ boostUntil, t, numLocale }: {
   }
   const diffDays = Math.ceil((until.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-gold-pale border border-gold/30 px-2.5 py-0.5 text-[11px] font-bold text-gold-dark">
+    <span className="inline-flex items-center gap-1 rounded-full bg-gold-pale border border-gold/30 px-2.5 py-0.5 text-[11px] font-bold text-gold-text">
       <i className="fa-solid fa-bolt text-[9px]" /> {t('boostStatusActive', { days: diffDays })}
     </span>
   );
@@ -244,7 +244,7 @@ export default function BoostPage() {
               icon="fa-layer-group"
               label={t('boostFilterAll')}
               value={listings.length}
-              color="text-gold-dark"
+              color="text-gold-text"
               bg="bg-gold-pale/40 dark:bg-gold-dark/10"
               active={filter === 'ALL'}
               onClick={() => setFilter('ALL')}
@@ -254,7 +254,7 @@ export default function BoostPage() {
               icon="fa-bolt"
               label={t('boostFilterBoosted')}
               value={boosted.length}
-              color="text-gold-dark"
+              color="text-gold-text"
               bg="bg-gold-pale dark:bg-gold-dark/15"
               active={filter === 'BOOSTED'}
               onClick={() => setFilter('BOOSTED')}
@@ -288,7 +288,7 @@ export default function BoostPage() {
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-sm text-sub">{q ? t('noResultsFor', { search }) : t('boostFilterEmpty')}</p>
               {q && (
-                <button onClick={() => setSearch('')} className="mt-3 text-sm text-gold-dark hover:underline">
+                <button onClick={() => setSearch('')} className="mt-3 text-sm text-gold-text hover:underline">
                   {t('clearSearch')}
                 </button>
               )}
@@ -350,7 +350,7 @@ export default function BoostPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs font-bold text-sub uppercase tracking-wider">{t('boostDurationLabel')}</p>
-                    <p className="text-3xl font-extrabold text-gold-dark mt-0.5">7 <span className="text-lg font-semibold">{t('boostDurationDays')}</span></p>
+                    <p className="text-3xl font-extrabold text-gold-text mt-0.5">7 <span className="text-lg font-semibold">{t('boostDurationDays')}</span></p>
                   </div>
                 </div>
                 {isProActive && (
@@ -361,7 +361,7 @@ export default function BoostPage() {
 
                 <div className="space-y-2.5 mb-6">
                   {[
-                    { icon: 'fa-bolt',       color: 'text-gold-dark',   text: t('boostListBenefit1') },
+                    { icon: 'fa-bolt',       color: 'text-gold-text',   text: t('boostListBenefit1') },
                     { icon: 'fa-arrow-up',   color: 'text-emerald-600 dark:text-emerald-400', text: t('boostListBenefit2') },
                     { icon: 'fa-eye',        color: 'text-blue-500 dark:text-blue-400',        text: t('boostListBenefit3') },
                     { icon: 'fa-chart-line', color: 'text-purple-500 dark:text-purple-400',    text: t('boostListBenefit4') },
@@ -443,7 +443,7 @@ function ListingBoostCard({
       <div className="flex-1 p-4">
         <Link
           href={`/listings/${listing.id}`}
-          className="text-sm font-semibold text-text hover:text-gold-dark transition-colors truncate block"
+          className="text-sm font-semibold text-text hover:text-gold-text transition-colors truncate block"
         >
           {listing.title}
         </Link>
@@ -470,7 +470,7 @@ function ListingBoostCard({
           disabled={boosting !== null}
           className={`tap-target w-full flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition disabled:opacity-60 ${
             isBoosted
-              ? 'border border-gold/40 bg-white dark:bg-white/10 text-gold-dark hover:bg-gold-pale dark:hover:bg-gold-dark/20'
+              ? 'border border-gold/40 bg-white dark:bg-white/10 text-gold-text hover:bg-gold-pale dark:hover:bg-gold-dark/20'
               : 'bg-gold text-gray-900 hover:bg-gold-dark'
           }`}
         >

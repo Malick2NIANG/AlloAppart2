@@ -29,7 +29,7 @@ interface AssignModal {
 
 const STATUS_STYLES: Record<string, string> = {
   REQUESTED:       'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400',
-  SCHEDULED:       'bg-gold-pale text-gold-dark',
+  SCHEDULED:       'bg-gold-pale text-gold-text',
   IN_PROGRESS:     'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
   DONE:            'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
   REJECTED:        'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
@@ -51,7 +51,7 @@ const FALLBACK_IMG = 'https://via.placeholder.com/600x400?text=AlloAppart';
 // sémantiques que STATUS_STYLES (badges), sauf SCHEDULED réassigné au violet
 // pour ne pas se confondre visuellement avec le doré réservé à "Tous".
 const STAT_CARD_COLORS: Record<StatusFilter, { color: string; bg: string }> = {
-  ALL:         { color: 'text-gold-dark',                        bg: 'bg-gold-pale' },
+  ALL:         { color: 'text-gold-text',                        bg: 'bg-gold-pale' },
   REQUESTED:   { color: 'text-amber-600 dark:text-amber-400',    bg: 'bg-amber-50 dark:bg-amber-950/30' },
   SCHEDULED:   { color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-50 dark:bg-purple-950/30' },
   IN_PROGRESS: { color: 'text-blue-600 dark:text-blue-400',      bg: 'bg-blue-50 dark:bg-blue-950/30' },
@@ -288,7 +288,7 @@ export default function AdminVerificationsPage() {
           icon="fa-list"
           label={t('tabAll')}
           value={allCount}
-          color="text-gold-dark"
+          color="text-gold-text"
           bg="bg-gold-pale"
           active={tab === 'all'}
           onClick={() => { setTab('all'); setPage(1); }}
@@ -451,7 +451,7 @@ export default function AdminVerificationsPage() {
                         <i className="fa-solid fa-user-shield text-gold-dark text-xs" />
                       </div>
                       <div className="min-w-0">
-                        <p className={`text-sm font-medium ${selectedAgent === agent.id ? 'text-gold-dark' : 'text-text'}`}>
+                        <p className={`text-sm font-medium ${selectedAgent === agent.id ? 'text-gold-text' : 'text-text'}`}>
                           {agent.firstName} {agent.lastName}
                         </p>
                         <p className="text-xs text-sub truncate">{agent.email}</p>
@@ -602,7 +602,7 @@ function AdminVerificationCard({
             const preferred = (v as any).preferredAgent as { firstName: string; lastName: string } | undefined;
             if (!preferred) return null;
             return (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-gold-pale text-gold-dark font-medium border border-gold/30">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-gold-pale text-gold-text font-medium border border-gold/30">
                 <i className="fa-solid fa-star text-[9px] mr-1" />
                 {t('verifRequestedAgent', { name: `${preferred.firstName} ${preferred.lastName}` })}
               </span>
@@ -620,13 +620,13 @@ function AdminVerificationCard({
               <span className="font-medium text-text truncate">{owner.firstName} {owner.lastName}</span>
               {owner.phone && (
                 <a href={`tel:${owner.phone}`} onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1 hover:text-gold-dark transition-colors">
+                  className="flex items-center gap-1 hover:text-gold-text transition-colors">
                   <i className="fa-solid fa-phone text-[10px]" />{owner.phone}
                 </a>
               )}
               {owner.email && (
                 <a href={`mailto:${owner.email}`} onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1 hover:text-gold-dark transition-colors truncate max-w-[160px]">
+                  className="flex items-center gap-1 hover:text-gold-text transition-colors truncate max-w-[160px]">
                   <i className="fa-solid fa-envelope text-[10px]" />{owner.email}
                 </a>
               )}

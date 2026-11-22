@@ -102,7 +102,7 @@ function AgentCard({ agent }: { agent: Agent }) {
         )}
         <Link
           href={`/bailleur/agents/${agent.id}`}
-          className="text-[11px] text-gold-dark hover:underline flex items-center gap-1 shrink-0"
+          className="text-[11px] text-gold-text hover:underline flex items-center gap-1 shrink-0"
         >
           {t('agentViewProfile')}
           <i className="fa-solid fa-arrow-right text-[9px]" />

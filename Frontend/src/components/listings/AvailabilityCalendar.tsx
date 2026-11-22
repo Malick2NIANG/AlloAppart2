@@ -148,9 +148,9 @@ export default function AvailabilityCalendar({ ranges, loading, selectedStart, s
                         : isStart || isEnd
                           ? 'bg-gold text-gray-900 font-bold ring-2 ring-gold-dark'
                           : inRange
-                            ? 'bg-gold-pale text-gold-dark'
+                            ? 'bg-gold-pale text-gold-text'
                             : isToday
-                              ? 'border border-gold text-gold-dark font-bold'
+                              ? 'border border-gold text-gold-text font-bold'
                               : 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-950/40'
                   }`}
                 >

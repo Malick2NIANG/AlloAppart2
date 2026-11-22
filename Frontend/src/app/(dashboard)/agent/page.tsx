@@ -32,7 +32,7 @@ type ViewMode = 'month' | 'week';
 
 const STATUS_COLOR: Record<string, { bg: string; text: string; dot: string }> = {
   REQUESTED:      { bg: 'bg-blue-50 dark:bg-blue-950/30',    text: 'text-blue-600 dark:text-blue-400',   dot: 'bg-blue-500' },
-  SCHEDULED:      { bg: 'bg-gold-pale',  text: 'text-gold-dark',  dot: 'bg-gold' },
+  SCHEDULED:      { bg: 'bg-gold-pale',  text: 'text-gold-text',  dot: 'bg-gold' },
   IN_PROGRESS:    { bg: 'bg-purple-50 dark:bg-purple-950/30',  text: 'text-purple-600 dark:text-purple-400', dot: 'bg-purple-500' },
   DONE:           { bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-600 dark:text-emerald-400',dot: 'bg-emerald-500' },
   REJECTED:       { bg: 'bg-red-50 dark:bg-red-950/30',     text: 'text-red-600 dark:text-red-400',    dot: 'bg-red-500' },
@@ -162,7 +162,7 @@ export default function AgentDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-extrabold text-text">
-          {greeting}, <span className="text-gold-dark">{t('roleAgent')}</span>
+          {greeting}, <span className="text-gold-text">{t('roleAgent')}</span>
         </h1>
         <p className="text-sm text-sub mt-0.5">
           {now.toLocaleDateString(numLocale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -204,7 +204,7 @@ export default function AgentDashboard() {
           <StatCard
             icon="fa-trophy"
             iconBg="bg-gold-pale"
-            iconColor="text-gold-dark"
+            iconColor="text-gold-text"
             label={t('statTotalCertified')}
             value={stats.doneTotal}
           />
@@ -227,7 +227,7 @@ export default function AgentDashboard() {
             <i className="fa-solid fa-sun text-gold-dark text-xs" />
             {t('todayMissions')}
           </h2>
-          <Link href="/agent/verifications" className="text-xs text-gold-dark hover:underline">
+          <Link href="/agent/verifications" className="text-xs text-gold-text hover:underline">
             {t('allMissionsLink')}
           </Link>
         </div>
@@ -262,7 +262,7 @@ export default function AgentDashboard() {
             {t('calendarTitle')}
           </h2>
           <div className="flex items-center gap-2">
-            <Link href="/agent/verifications" className="text-xs text-gold-dark hover:underline">
+            <Link href="/agent/verifications" className="text-xs text-gold-text hover:underline">
               {t('allMissionsLink')}
             </Link>
             <div className="flex rounded-xl border border-line overflow-hidden">
@@ -394,7 +394,7 @@ export default function AgentDashboard() {
                         onClick={() => setSelected(isSameDay(d, selected ?? new Date(0)) ? null : d)}>
                         <div className={`text-center py-2 border-b border-line sticky top-0 ${isToday ? 'bg-gold-pale dark:bg-gold-dark/20' : 'bg-card'}`}>
                           <p className="text-[10px] font-semibold text-sub">{DAYS[i]}</p>
-                          <p className={`text-sm font-extrabold ${isToday ? 'text-gold-dark' : 'text-text'}`}>{d.getDate()}</p>
+                          <p className={`text-sm font-extrabold ${isToday ? 'text-gold-text' : 'text-text'}`}>{d.getDate()}</p>
                         </div>
                         <div className="p-1 space-y-1 cursor-pointer">
                           {dayMs.map((m) => {
@@ -542,7 +542,7 @@ export default function AgentDashboard() {
               <i className="fa-solid fa-comment-dots text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
-              <p className="font-semibold text-text text-sm group-hover:text-gold-dark transition-colors">{t('quickMessages')}</p>
+              <p className="font-semibold text-text text-sm group-hover:text-gold-text transition-colors">{t('quickMessages')}</p>
               <p className="text-xs text-sub">{t('quickMessagesDesc')}</p>
             </div>
             <i className="fa-solid fa-chevron-right text-sub text-xs ml-auto group-hover:text-gold-dark transition-colors" />
@@ -556,7 +556,7 @@ export default function AgentDashboard() {
               <i className="fa-solid fa-user text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="font-semibold text-text text-sm group-hover:text-gold-dark transition-colors">{t('quickProfile')}</p>
+              <p className="font-semibold text-text text-sm group-hover:text-gold-text transition-colors">{t('quickProfile')}</p>
               <p className="text-xs text-sub">{t('quickProfileDesc')}</p>
             </div>
             <i className="fa-solid fa-chevron-right text-sub text-xs ml-auto group-hover:text-gold-dark transition-colors" />
@@ -603,7 +603,7 @@ function MissionCard({ mission, featured = false }: { mission: Verification & { 
       >
         {/* Heure */}
         <div className="shrink-0 text-center w-12">
-          <p className="text-lg font-extrabold text-gold-dark leading-none">{time}</p>
+          <p className="text-lg font-extrabold text-gold-text leading-none">{time}</p>
           <p className="text-[9px] text-sub uppercase tracking-wide mt-0.5">{t('missionScheduledAbbr')}</p>
         </div>
 

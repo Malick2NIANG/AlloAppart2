@@ -173,7 +173,7 @@ export default function VitrineAnalyticsPage() {
           <p className="text-sm text-sub mt-0.5">
             {stats.agencyName ?? t('analyticsAgencyFallback')}
             {stats.agencySlug && (
-              <Link href={`/agences/${stats.agencySlug}`} className="ml-2 text-gold-dark hover:underline text-xs">
+              <Link href={`/agences/${stats.agencySlug}`} className="ml-2 text-gold-text hover:underline text-xs">
                 <i className="fa-solid fa-arrow-up-right-from-square text-[10px] mr-0.5" />
                 {t('analyticsVitrineSeeLink')}
               </Link>
@@ -210,7 +210,7 @@ export default function VitrineAnalyticsPage() {
           label={t('analyticsTotalRevenue')}
           value={formatPrice(stats.totalRevenue)}
           sub={t('analyticsTotalRevenueSub')}
-          accent="text-gold-dark"
+          accent="text-gold-text"
           bg="bg-gold-pale"
         />
         <KpiCard
@@ -341,14 +341,14 @@ export default function VitrineAnalyticsPage() {
               const pct = maxBookings > 0 ? (listing.totalBookings / maxBookings) * 100 : 0;
               return (
                 <div key={listing.id} className="flex items-center gap-3">
-                  <span className={`shrink-0 w-6 text-center text-sm font-bold ${i === 0 ? 'text-gold-dark' : 'text-sub'}`}>
+                  <span className={`shrink-0 w-6 text-center text-sm font-bold ${i === 0 ? 'text-gold-text' : 'text-sub'}`}>
                     {i + 1}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <Link
                         href={`/listings/${listing.id}`}
-                        className="text-sm font-medium text-text hover:text-gold-dark truncate transition-colors"
+                        className="text-sm font-medium text-text hover:text-gold-text truncate transition-colors"
                       >
                         {listing.title}
                       </Link>
@@ -511,7 +511,7 @@ export default function VitrineAnalyticsPage() {
           <div>
             <p className="text-sm font-semibold text-text">{t('analyticsVitrinePublicTitle')}</p>
             <p className="text-xs text-sub mt-0.5">
-              alloappart.sn/agences/<span className="text-gold-dark">{stats.agencySlug}</span>
+              alloappart.sn/agences/<span className="text-gold-text">{stats.agencySlug}</span>
             </p>
           </div>
           <div className="flex gap-2">

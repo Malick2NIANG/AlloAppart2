@@ -72,9 +72,9 @@ export default async function RegionPage({
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-sub mb-3">
-            <Link href="/" className="hover:text-gold-dark transition-colors">{locale === 'fr' ? 'Accueil' : 'Home'}</Link>
+            <Link href="/" className="hover:text-gold-text transition-colors">{locale === 'fr' ? 'Accueil' : 'Home'}</Link>
             <i className="fa-solid fa-chevron-right text-xs" />
-            <Link href="/listings" className="hover:text-gold-dark transition-colors">
+            <Link href="/listings" className="hover:text-gold-text transition-colors">
               {locale === 'fr' ? 'Annonces' : 'Listings'}
             </Link>
             <i className="fa-solid fa-chevron-right text-xs" />
@@ -150,7 +150,7 @@ export default async function RegionPage({
                         ))}
                       </div>
                       {isNew && (
-                        <span className="absolute top-3 left-3 rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-dark">
+                        <span className="absolute top-3 left-3 rounded-full border border-gold/50 bg-gold-pale px-2.5 py-1 text-xs font-semibold text-gold-text">
                           {locale === 'fr' ? 'Nouveau' : 'New'}
                         </span>
                       )}
@@ -158,7 +158,7 @@ export default async function RegionPage({
                     </div>
 
                     <div className="p-4">
-                      <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-dark transition-colors duration-300">
+                      <h3 className="font-semibold text-text line-clamp-1 group-hover:text-gold-text transition-colors duration-300">
                         {listing.title}
                       </h3>
                       <p className="mt-1 flex items-center gap-1 text-sm text-sub">
@@ -181,7 +181,7 @@ export default async function RegionPage({
                         {listing.baths != null && <span className="flex items-center gap-1"><i className="fa-solid fa-bath text-gold-dark text-xs" />{listing.baths}</span>}
                         {listing.surface != null && <span className="flex items-center gap-1"><i className="fa-solid fa-ruler-combined text-gold-dark text-xs" />{listing.surface} m²</span>}
                       </div>
-                      <div className="mt-3 flex items-center gap-1 text-xs text-gold-dark/80 group-hover:text-gold-dark transition-colors duration-300">
+                      <div className="mt-3 flex items-center gap-1 text-xs text-gold-text/80 group-hover:text-gold-text transition-colors duration-300">
                         {locale === 'fr' ? 'Voir plus' : 'View more'}
                         <svg className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -199,7 +199,7 @@ export default async function RegionPage({
 
                 {currentPage > 1 ? (
                   <Link href={pageUrl(currentPage - 1)}
-                    className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
+                    className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-text transition">
                     <i className="fa-solid fa-chevron-left text-xs" />
                   </Link>
                 ) : (
@@ -210,7 +210,7 @@ export default async function RegionPage({
 
                 {start > 1 && (
                   <>
-                    <Link href={pageUrl(1)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">1</Link>
+                    <Link href={pageUrl(1)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-text transition">1</Link>
                     {start > 2 && <span className="text-sub px-1">…</span>}
                   </>
                 )}
@@ -220,7 +220,7 @@ export default async function RegionPage({
                     className={`flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border text-sm font-medium transition ${
                       p === currentPage
                         ? 'border-gold bg-gold text-gray-900 shadow-sm'
-                        : 'border-line bg-card/80 text-text hover:bg-gold-pale hover:text-gold-dark'
+                        : 'border-line bg-card/80 text-text hover:bg-gold-pale hover:text-gold-text'
                     }`}>
                     {p}
                   </Link>
@@ -229,13 +229,13 @@ export default async function RegionPage({
                 {end < totalPages && (
                   <>
                     {end < totalPages - 1 && <span className="text-sub px-1">...</span>}
-                    <Link href={pageUrl(totalPages)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-dark transition">{totalPages}</Link>
+                    <Link href={pageUrl(totalPages)} className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sm text-text hover:bg-gold-pale hover:text-gold-text transition">{totalPages}</Link>
                   </>
                 )}
 
                 {currentPage < totalPages ? (
                   <Link href={pageUrl(currentPage + 1)}
-                    className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-dark transition">
+                    className="flex h-10 w-10 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-line bg-card/80 text-sub hover:bg-gold-pale hover:text-gold-text transition">
                     <i className="fa-solid fa-chevron-right text-xs" />
                   </Link>
                 ) : (

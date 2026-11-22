@@ -81,7 +81,7 @@ export default function CookieConsentBanner() {
         <i className="fa-solid fa-cookie-bite mt-0.5 shrink-0 text-lg text-gold-dark sm:mt-0" />
         <p className="flex-1 text-xs leading-relaxed text-sub sm:text-sm">
           {t('message')}{' '}
-          <Link href="/cookies" className="font-medium text-gold-dark hover:underline">
+          <Link href="/cookies" className="font-medium text-gold-text hover:underline">
             {t('learnMore')}
           </Link>
         </p>

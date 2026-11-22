@@ -338,7 +338,7 @@ function TenantBookingCard({
             {hasContract && (
               <button
                 onClick={() => setShowContract((s) => !s)}
-                className="flex items-center gap-1.5 text-xs font-medium text-gold-dark hover:text-gold transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-gold-text hover:text-gold transition-colors"
               >
                 <i className={`fa-solid fa-chevron-${showContract ? 'up' : 'down'} text-[10px]`} />
                 {showContract ? t('hideContractBtn') : t('viewContractBtn')}
@@ -347,7 +347,7 @@ function TenantBookingCard({
             {canShowQr && (
               <button
                 onClick={() => setShowQrModal(true)}
-                className="flex items-center gap-1.5 text-xs font-medium text-gold-dark hover:text-gold transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-gold-text hover:text-gold transition-colors"
               >
                 <i className="fa-solid fa-qrcode text-[10px]" />
                 {tVerif('qrButtonLabel')}
@@ -671,7 +671,7 @@ function LocataireBookingActions({
           <button
             onClick={() => void handleDownloadPdf()}
             disabled={pdfLoading}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-gold-dark bg-gold-pale border border-gold/30 hover:border-gold hover:bg-gold/10 rounded-lg py-1.5 px-3 transition-all disabled:opacity-50 max-md:min-h-11"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-gold-text bg-gold-pale border border-gold/30 hover:border-gold hover:bg-gold/10 rounded-lg py-1.5 px-3 transition-all disabled:opacity-50 max-md:min-h-11"
           >
             {pdfLoading
               ? <i className="fa-solid fa-spinner fa-spin" />
@@ -689,7 +689,7 @@ function LocataireBookingActions({
           ) : (
             <button
               onClick={() => onReview(booking)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-dark bg-gold-pale border border-gold/30 hover:border-gold hover:bg-gold/10 rounded-lg py-1.5 px-3 transition-all max-md:min-h-11"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-text bg-gold-pale border border-gold/30 hover:border-gold hover:bg-gold/10 rounded-lg py-1.5 px-3 transition-all max-md:min-h-11"
             >
               <i className="fa-solid fa-star text-[10px]" />
               {t('leaveReviewBtn')}
@@ -1032,7 +1032,7 @@ function ReviewModal({
           <div className="flex flex-col items-center gap-2 py-2">
             <StarRating value={rating} onChange={setRating} />
             {rating > 0 && (
-              <p className="text-sm font-semibold text-gold-dark">{RATING_LABELS[rating]}</p>
+              <p className="text-sm font-semibold text-gold-text">{RATING_LABELS[rating]}</p>
             )}
           </div>
 

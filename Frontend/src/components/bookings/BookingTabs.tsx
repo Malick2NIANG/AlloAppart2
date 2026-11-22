@@ -25,14 +25,14 @@ export function BookingTabs<K extends string>({
           key={tab.key}
           onClick={() => onChange(tab.key)}
           className={`relative flex shrink-0 items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
-            active === tab.key ? 'text-gold-dark' : 'text-sub hover:text-text'
+            active === tab.key ? 'text-gold-text' : 'text-sub hover:text-text'
           }`}
         >
           <i className={`fa-solid ${tab.icon} text-xs`} />
           {tab.label}
           {tab.count !== undefined && (
             <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
-              active === tab.key ? 'bg-gold-pale text-gold-dark' : 'bg-line text-sub'
+              active === tab.key ? 'bg-gold-pale text-gold-text' : 'bg-line text-sub'
             }`}>
               {tab.count}
             </span>

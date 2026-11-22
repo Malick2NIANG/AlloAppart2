@@ -7,7 +7,7 @@ export default async function NotFound() {
   return (
     <main className="flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center px-4 text-center">
       <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-gold-pale">
-        <span className="text-5xl font-black text-gold-dark leading-none">404</span>
+        <span className="text-5xl font-black text-gold-text leading-none">404</span>
       </div>
       <h1 className="text-3xl font-bold text-text">{t('title')}</h1>
       <p className="mt-3 max-w-sm text-sub">{t('description')}</p>

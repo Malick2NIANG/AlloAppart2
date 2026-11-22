@@ -316,7 +316,7 @@ export default function ImageUploadZone({ images, onChange, getToken, enableCrop
         </div>
         <div className="text-center">
           <p className="text-sm font-semibold text-text">{t('dropHere')}</p>
-          <p className="text-xs text-sub mt-0.5">{t('or')} <span className="text-gold-dark underline">{t('browse')}</span></p>
+          <p className="text-xs text-sub mt-0.5">{t('or')} <span className="text-gold-text underline">{t('browse')}</span></p>
         </div>
         <div className="text-center space-y-0.5">
           <p className="text-[11px] text-sub">{t('photoLimits')}</p>

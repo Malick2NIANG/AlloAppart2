@@ -233,7 +233,7 @@ export default function PhoneInput({
                   aria-selected={c.iso2 === iso2}
                   onClick={() => handleSelectCountry(c)}
                   className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs transition-colors hover:bg-gold-pale dark:hover:bg-gold-dark/15 ${
-                    c.iso2 === iso2 ? 'bg-gold-pale/50 dark:bg-gold-dark/15 font-semibold text-gold-dark' : 'text-text'
+                    c.iso2 === iso2 ? 'bg-gold-pale/50 dark:bg-gold-dark/15 font-semibold text-gold-text' : 'text-text'
                   }`}
                 >
                   <FlagImg iso2={c.iso2} />

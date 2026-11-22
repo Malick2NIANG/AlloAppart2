@@ -35,7 +35,7 @@ const STATUS_ICONS: Record<StatusFilter, string> = {
 // Couleurs des chips icône des StatFilterCard — mêmes teintes que STATUS_COLORS
 // (badges) mais en version "chip clair", même convention que espace/listings.
 const STAT_CARD_COLORS: Record<StatusFilter, { color: string; bg: string }> = {
-  ALL:       { color: 'text-gold-dark',                     bg: 'bg-gold-pale' },
+  ALL:       { color: 'text-gold-text',                     bg: 'bg-gold-pale' },
   ACTIVE:    { color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-950/30' },
   SUSPENDED: { color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/30' },
   CANCELLED: { color: 'text-sub',                           bg: 'bg-card' },

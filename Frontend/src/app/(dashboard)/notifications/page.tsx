@@ -143,7 +143,7 @@ export default function NotificationsPage() {
           <p className="text-sm text-sub mt-0.5">
             {t('count', { count: notifs.length })}
             {unreadCount > 0 && (
-              <span className="ml-2 font-semibold text-gold-dark">{t('unreadCount', { count: unreadCount })}</span>
+              <span className="ml-2 font-semibold text-gold-text">{t('unreadCount', { count: unreadCount })}</span>
             )}
           </p>
         </div>
@@ -151,7 +151,7 @@ export default function NotificationsPage() {
           <button
             onClick={() => void markAllRead()}
             disabled={marking}
-            className="tap-target text-sm font-medium text-gold-dark hover:underline disabled:opacity-50"
+            className="tap-target text-sm font-medium text-gold-text hover:underline disabled:opacity-50"
           >
             {marking ? <i className="fa-solid fa-spinner fa-spin" /> : t('markAllRead')}
           </button>
@@ -164,7 +164,7 @@ export default function NotificationsPage() {
           icon="fa-bell"
           label={t('filterAll')}
           value={notifs.length}
-          color="text-gold-dark"
+          color="text-gold-text"
           bg="bg-gold-pale dark:bg-gold-dark/20"
           active={filter === 'all'}
           onClick={() => { setFilter('all'); setPage(1); }}
@@ -214,7 +214,7 @@ export default function NotificationsPage() {
             </p>
           )}
           {!q && filter === 'unread' && (
-            <button onClick={() => { setFilter('all'); setPage(1); }} className="mt-4 text-sm font-medium text-gold-dark hover:underline">
+            <button onClick={() => { setFilter('all'); setPage(1); }} className="mt-4 text-sm font-medium text-gold-text hover:underline">
               {t('seeAll')}
             </button>
           )}
@@ -277,7 +277,7 @@ export default function NotificationsPage() {
                         e.stopPropagation();
                         setExpanded((prev) => ({ ...prev, [n.id]: !prev[n.id] }));
                       }}
-                      className="mt-1 text-xs font-semibold text-gold-dark hover:underline"
+                      className="mt-1 text-xs font-semibold text-gold-text hover:underline"
                     >
                       {isExpanded ? t('seeLessText') : t('seeMoreText')}
                       <i className={`fa-solid fa-chevron-down text-[9px] ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />

@@ -83,7 +83,7 @@ const FURNISHED_FILTERS = [
 
 const CHIP_BASE = 'flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200';
 const CHIP_ON   = 'border-gold bg-gold text-gray-900 shadow-sm';
-const CHIP_OFF  = 'border-line bg-card text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-dark';
+const CHIP_OFF  = 'border-line bg-card text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-text';
 
 export default function ListingsFilters({ type, region, q, city, minPrice, maxPrice, ownerType, limit, locale: _locale, rentalMode, furnished, minPricePerNight, maxPricePerNight, prefsMatched }: Props) {
   const t = useTranslations('listings');
@@ -476,7 +476,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
 
         {/* Bandeau « Milo a compris » (milo=1, lot 5b, parcours § 2.d #2). */}
         {isMilo && !miloOpen && (miloCriteriaCount > 0 || miloUnmatched.length > 0) && (
-          <div className="rounded-xl border border-gold/30 bg-gold-pale/60 px-4 py-2.5 text-sm text-gold-dark">
+          <div className="rounded-xl border border-gold/30 bg-gold-pale/60 px-4 py-2.5 text-sm text-gold-text">
             <p>
               <i className="fa-solid fa-wand-magic-sparkles mr-1.5 text-xs" />
               {miloLabels.understoodPrefix}{' '}
@@ -486,12 +486,12 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
               </span>
             </p>
             {miloUnmatched.length > 0 && (
-              <p className="mt-1 text-xs text-gold-dark/80">
+              <p className="mt-1 text-xs text-gold-text/80">
                 {miloLabels.unmatchedPrefix} « {miloUnmatched.join(' ')} »
               </p>
             )}
             {miloLangRaw === 'unsupported' && (
-              <p className="mt-1 text-xs italic text-gold-dark/80">
+              <p className="mt-1 text-xs italic text-gold-text/80">
                 {miloLabels.unsupportedNotice(getSiteLocaleName(miloLocale))}
               </p>
             )}
@@ -508,7 +508,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
               <i className="fa-solid fa-circle-question mr-1.5 text-xs" />
               {miloLabels.notUnderstood}
             </p>
-            <button type="button" onClick={() => setMiloOpen(true)} className="mt-1 text-xs font-semibold text-gold-dark underline underline-offset-2">
+            <button type="button" onClick={() => setMiloOpen(true)} className="mt-1 text-xs font-semibold text-gold-text underline underline-offset-2">
               {miloLabels.rephrase}
             </button>
           </div>
@@ -547,8 +547,8 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
             onClick={() => { setRegionOpen((o) => !o); setPanelOpen(false); }}
             className={`flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-all duration-200 ${
               region
-                ? 'border-gold/70 bg-gold-pale text-gold-dark'
-                : 'border-line bg-card text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-dark'
+                ? 'border-gold/70 bg-gold-pale text-gold-text'
+                : 'border-line bg-card text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-text'
             }`}
           >
             <i className="fa-solid fa-map-pin text-gold-dark text-xs" />
@@ -561,7 +561,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
               <button
                 onClick={() => { push({ region: undefined, page: '1' }); setRegionOpen(false); }}
                 className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition mb-1 ${
-                  !region ? 'bg-gold-pale text-gold-dark' : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+                  !region ? 'bg-gold-pale text-gold-text' : 'text-text hover:bg-gold-pale hover:text-gold-text'
                 }`}
               >
                 <i className="fa-solid fa-globe text-gold-dark text-xs w-4" />
@@ -577,8 +577,8 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
                     onClick={() => { push({ region: r, page: '1' }); setRegionOpen(false); }}
                     className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-sm transition ${
                       region === r
-                        ? 'bg-gold-pale text-gold-dark font-semibold'
-                        : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+                        ? 'bg-gold-pale text-gold-text font-semibold'
+                        : 'text-text hover:bg-gold-pale hover:text-gold-text'
                     }`}
                   >
                     <i className="fa-solid fa-map-pin text-gold-dark text-[10px] shrink-0" />
@@ -597,8 +597,8 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
             aria-expanded={panelOpen}
             className={`flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-all duration-200 ${
               panelCount > 0
-                ? 'border-gold/70 bg-gold-pale text-gold-dark'
-                : 'border-line bg-card text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-dark'
+                ? 'border-gold/70 bg-gold-pale text-gold-text'
+                : 'border-line bg-card text-text hover:border-gold/50 hover:bg-gold-pale hover:text-gold-text'
             }`}
           >
             <i className="fa-solid fa-sliders text-gold-dark text-xs" />
@@ -717,7 +717,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
           <button
             onClick={activateNearMe}
             disabled={geoLoading}
-            className="flex h-10 items-center gap-2 rounded-full border border-line bg-card px-4 text-sm font-medium text-text transition-all duration-200 hover:border-gold/50 hover:bg-gold-pale hover:text-gold-dark disabled:opacity-60"
+            className="flex h-10 items-center gap-2 rounded-full border border-line bg-card px-4 text-sm font-medium text-text transition-all duration-200 hover:border-gold/50 hover:bg-gold-pale hover:text-gold-text disabled:opacity-60"
           >
             <i className={`fa-solid ${geoLoading ? 'fa-spinner fa-spin' : 'fa-location-crosshairs'} text-gold-dark text-xs`} />
             {t('nearMeButton')}
@@ -766,7 +766,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
           {activeChips.map((c) => (
             <span
               key={c.key}
-              className="flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold-pale py-1 pl-3 pr-1.5 text-xs font-medium text-gold-dark"
+              className="flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold-pale py-1 pl-3 pr-1.5 text-xs font-medium text-gold-text"
             >
               <i className={`fa-solid ${c.icon} text-[10px]`} />
               {c.label}
@@ -864,7 +864,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
             {mobileChips.map((c) => (
               <span
                 key={c.key}
-                className="flex shrink-0 items-center gap-1.5 rounded-full border border-gold/40 bg-gold-pale py-1 pl-3 pr-1.5 text-xs font-medium text-gold-dark"
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-gold/40 bg-gold-pale py-1 pl-3 pr-1.5 text-xs font-medium text-gold-text"
               >
                 <i className={`fa-solid ${c.icon} text-[10px]`} />
                 {c.label}
@@ -984,7 +984,7 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
             <button
               onClick={() => setDraftRegion('')}
               className={`tap-target flex items-center gap-2 rounded-xl px-3 text-sm font-semibold transition ${
-                !draftRegion ? 'bg-gold-pale text-gold-dark' : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+                !draftRegion ? 'bg-gold-pale text-gold-text' : 'text-text hover:bg-gold-pale hover:text-gold-text'
               }`}
             >
               <i className="fa-solid fa-globe text-gold-dark text-xs w-4" />
@@ -996,8 +996,8 @@ export default function ListingsFilters({ type, region, q, city, minPrice, maxPr
                 onClick={() => setDraftRegion(r)}
                 className={`tap-target flex items-center gap-1.5 rounded-xl px-2.5 text-sm transition ${
                   draftRegion === r
-                    ? 'bg-gold-pale text-gold-dark font-semibold'
-                    : 'text-text hover:bg-gold-pale hover:text-gold-dark'
+                    ? 'bg-gold-pale text-gold-text font-semibold'
+                    : 'text-text hover:bg-gold-pale hover:text-gold-text'
                 }`}
               >
                 <i className="fa-solid fa-map-pin text-gold-dark text-[10px] shrink-0" />

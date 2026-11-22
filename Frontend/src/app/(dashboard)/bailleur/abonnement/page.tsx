@@ -335,7 +335,7 @@ function AbonnementContent() {
                         ? 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400 cursor-default'
                         : plan.highlighted
                           ? 'btn-gold'
-                          : 'border border-line bg-card text-text hover:bg-gold-pale hover:text-gold-dark'
+                          : 'border border-line bg-card text-text hover:bg-gold-pale hover:text-gold-text'
                     }`}
                   >
                     {isActive ? (

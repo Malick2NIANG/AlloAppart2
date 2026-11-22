@@ -15,7 +15,7 @@ const PER_PAGE_OPTIONS = [10, 20, 50] as const;
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
 const ESCROW_CLS: Record<string, string> = {
-  AWAITING_PAYMENT: 'bg-gold-pale text-gold-dark border-gold/30',
+  AWAITING_PAYMENT: 'bg-gold-pale text-gold-text border-gold/30',
   HELD:             'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900/40',
   RELEASED:         'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40',
   REFUNDED:         'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40',
@@ -165,9 +165,9 @@ export default function PaiementsPage() {
           <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">{t('transactionsCount', { count: paid.length })}</p>
         </div>
         <div className="rounded-2xl border border-gold/30 dark:border-gold-dark/20 bg-gold-pale dark:bg-gold-dark/10 p-4">
-          <p className="text-[10px] uppercase tracking-widest text-gold-dark font-semibold mb-1">{t('kpiPending')}</p>
-          <p className="text-2xl font-bold text-gold-dark">{formatPrice(totalPending)}</p>
-          <p className="text-xs text-gold-dark/70 mt-0.5">{t('transactionsCount', { count: pending.length })}</p>
+          <p className="text-[10px] uppercase tracking-widest text-gold-text font-semibold mb-1">{t('kpiPending')}</p>
+          <p className="text-2xl font-bold text-gold-text">{formatPrice(totalPending)}</p>
+          <p className="text-xs text-gold-text/70 mt-0.5">{t('transactionsCount', { count: pending.length })}</p>
         </div>
         <div className="rounded-2xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 p-4">
           <p className="text-[10px] uppercase tracking-widest text-red-600 dark:text-red-400 font-semibold mb-1">{t('kpiRefunded')}</p>
@@ -223,7 +223,7 @@ export default function PaiementsPage() {
 
                     {/* Infos */}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-text truncate group-hover:text-gold-dark transition-colors">
+                      <p className="text-sm font-medium text-text truncate group-hover:text-gold-text transition-colors">
                         {b.listing?.title ?? b.listingId}
                       </p>
                       <p className="text-xs text-sub mt-0.5">
@@ -280,7 +280,7 @@ export default function PaiementsPage() {
                             </div>
                             <Link
                               href={`/listings/${listing.id}`}
-                              className="ml-auto shrink-0 text-xs text-gold-dark hover:underline"
+                              className="ml-auto shrink-0 text-xs text-gold-text hover:underline"
                             >
                               {t('viewListingLink')} <i className="fa-solid fa-arrow-right text-[10px]" />
                             </Link>
@@ -296,7 +296,7 @@ export default function PaiementsPage() {
                         </h3>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-sub">{t('totalAmountLabel')}</span>
-                          <span className="font-bold text-gold-dark text-base">{formatPrice(b.totalAmount)}</span>
+                          <span className="font-bold text-gold-text text-base">{formatPrice(b.totalAmount)}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-sub">{t('paymentStatusLabel')}</span>
@@ -316,7 +316,7 @@ export default function PaiementsPage() {
                             type="button"
                             onClick={() => void downloadReceipt(b.id)}
                             disabled={downloadingReceipt === b.id}
-                            className="tap-target text-xs text-gold-dark hover:underline flex items-center gap-1 disabled:opacity-50"
+                            className="tap-target text-xs text-gold-text hover:underline flex items-center gap-1 disabled:opacity-50"
                           >
                             {downloadingReceipt === b.id
                               ? <i className="fa-solid fa-spinner fa-spin text-[11px]" />

@@ -81,12 +81,12 @@ interface DashboardData {
 }
 
 const BOOKING_STATUS_BADGE: Record<BookingStatus, string> = {
-  PENDING:    'bg-gold-pale text-gold-dark',
+  PENDING:    'bg-gold-pale text-gold-text',
   CONFIRMED:  'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
   CANCELLED:  'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
   COMPLETED:  'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
   // Cycle de vie du bail mensuel (location hybride)
-  REQUESTED:  'bg-gold-pale text-gold-dark',
+  REQUESTED:  'bg-gold-pale text-gold-text',
   APPROVED:   'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-400',
   REJECTED:   'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400',
   ACTIVE:     'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400',
@@ -263,7 +263,7 @@ export default function BailleurDashboardPage() {
       {isDual && (
         <div className="flex items-center gap-3">
           <div className="flex-1 border-t border-line" />
-          <span className="text-xs font-semibold uppercase tracking-widest text-gold-dark px-2">
+          <span className="text-xs font-semibold uppercase tracking-widest text-gold-text px-2">
             <i className="fa-solid fa-house-chimney-user mr-1.5" />{t('spaceBailleurLabel')}
           </span>
           <div className="flex-1 border-t border-line" />
@@ -278,7 +278,7 @@ export default function BailleurDashboardPage() {
               <i className="fa-solid fa-clock text-gold-dark mr-2" />
               {t('alertPending', { count: pendingCount })}
             </p>
-            <Link href="/bailleur/bookings" className="text-sm font-semibold text-gold-dark hover:underline shrink-0">
+            <Link href="/bailleur/bookings" className="text-sm font-semibold text-gold-text hover:underline shrink-0">
               {t('alertPendingSee')} <i className="fa-solid fa-arrow-right text-xs ml-1" />
             </Link>
           </div>
@@ -437,7 +437,7 @@ export default function BailleurDashboardPage() {
                       <img src={review.author.avatar} alt="" className="h-8 w-8 rounded-full object-cover shrink-0" />
                     ) : (
                       <div className="h-8 w-8 rounded-full bg-gold-pale flex items-center justify-center shrink-0">
-                        <span className="text-xs font-bold text-gold-dark">
+                        <span className="text-xs font-bold text-gold-text">
                           {review.author.firstName[0]}{review.author.lastName[0]}
                         </span>
                       </div>
@@ -491,7 +491,7 @@ export default function BailleurDashboardPage() {
               ))}
             </div>
             <div className="text-center mt-4">
-              <Link href="/bailleur/bookings" className="text-sm font-medium text-gold-dark hover:underline">
+              <Link href="/bailleur/bookings" className="text-sm font-medium text-gold-text hover:underline">
                 {t('activitySeeAll')} <i className="fa-solid fa-arrow-right text-xs ml-1" />
               </Link>
             </div>
@@ -627,7 +627,7 @@ function KpiCard({ label, sub, value, icon, href, badge }: {
         </div>
       </div>
       <div className="mt-3">
-        <p className="text-xl font-bold text-gold-dark">{value ?? '—'}</p>
+        <p className="text-xl font-bold text-gold-text">{value ?? '—'}</p>
         <p className="mt-0.5 text-xs font-semibold text-text">{label}</p>
         <p className="text-[10px] text-sub mt-0.5">{sub}</p>
       </div>

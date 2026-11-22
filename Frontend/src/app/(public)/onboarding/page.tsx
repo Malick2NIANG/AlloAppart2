@@ -64,7 +64,7 @@ export default function OnboardingPage() {
           <h1 className="text-2xl font-extrabold text-text">{t('title')}</h1>
           <p className="mt-2 text-sm text-sub">{t('subtitle')}</p>
           {clerkUser && (
-            <p className="mt-1 text-sm font-medium text-gold-dark">
+            <p className="mt-1 text-sm font-medium text-gold-text">
               {clerkUser.firstName} {clerkUser.lastName}
             </p>
           )}
@@ -121,7 +121,7 @@ export default function OnboardingPage() {
 
         <p className="mt-4 text-center text-xs text-sub">
           {t('note')}{' '}
-          <a href="/profil" className="text-gold-dark hover:underline">Profil</a>.
+          <a href="/profil" className="text-gold-text hover:underline">Profil</a>.
         </p>
       </div>
     </main>

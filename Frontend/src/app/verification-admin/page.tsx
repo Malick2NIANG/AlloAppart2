@@ -154,7 +154,7 @@ export default function VerificationAdminPage() {
                 type="button"
                 onClick={() => void sendCode(true)}
                 disabled={sending || cooldown > 0}
-                className="text-center text-sm text-gold-dark hover:underline disabled:text-sub disabled:no-underline disabled:opacity-60"
+                className="text-center text-sm text-gold-text hover:underline disabled:text-sub disabled:no-underline disabled:opacity-60"
               >
                 {sending
                   ? t('sending')

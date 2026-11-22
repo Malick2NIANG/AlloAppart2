@@ -311,7 +311,7 @@ export default function MaVitrinePage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={avatar} alt="Logo" className="h-20 w-20 rounded-2xl object-cover border border-line" />
                 ) : (
-                  <div className="h-20 w-20 rounded-2xl bg-gold-pale flex items-center justify-center text-2xl font-extrabold text-gold-dark border border-line">
+                  <div className="h-20 w-20 rounded-2xl bg-gold-pale flex items-center justify-center text-2xl font-extrabold text-gold-text border border-line">
                     {(agencyName || user?.agencyName || '?')[0]}
                   </div>
                 )}
@@ -322,7 +322,7 @@ export default function MaVitrinePage() {
                 {/* "Ajuster" — recadrer a posteriori le logo déjà envoyé, sans en choisir un nouveau */}
                 {avatar && !uploading && (
                   <button type="button" onClick={openAdjustAvatar}
-                    className="tap-target absolute -top-1.5 -right-1.5 h-7 w-7 rounded-xl bg-card border border-line text-sub flex items-center justify-center hover:text-gold-dark hover:border-gold/40 transition-colors shadow-sm">
+                    className="tap-target absolute -top-1.5 -right-1.5 h-7 w-7 rounded-xl bg-card border border-line text-sub flex items-center justify-center hover:text-gold-text hover:border-gold/40 transition-colors shadow-sm">
                     <i className="fa-solid fa-crop-simple text-[10px]" />
                   </button>
                 )}

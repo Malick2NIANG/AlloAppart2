@@ -48,7 +48,7 @@ export default function MiloNearMeCard({
       tabIndex={-1}
       role="status"
       aria-live="polite"
-      className={`rounded-xl border border-gold/30 bg-gold-pale/60 px-4 py-3 text-sm text-gold-dark outline-none dark:border-gold/20 dark:bg-gold-pale/10 ${className}`}
+      className={`rounded-xl border border-gold/30 bg-gold-pale/60 px-4 py-3 text-sm text-gold-text outline-none dark:border-gold/20 dark:bg-gold-pale/10 ${className}`}
     >
       <div className="flex items-start gap-2">
         <i className="fa-solid fa-location-crosshairs mt-0.5 shrink-0 text-xs" aria-hidden />
@@ -57,7 +57,7 @@ export default function MiloNearMeCard({
           type="button"
           onClick={onClose}
           aria-label={t('closeLabel')}
-          className="tap-target -mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gold-dark/70 transition-colors hover:text-gold-dark"
+          className="tap-target -mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gold-text/70 transition-colors hover:text-gold-text"
         >
           <i className="fa-solid fa-xmark text-sm" aria-hidden />
         </button>
@@ -77,7 +77,7 @@ export default function MiloNearMeCard({
         <button
           type="button"
           onClick={onSearchWithoutLocation}
-          className="tap-target text-xs font-semibold underline underline-offset-2 hover:text-gold-dark/80"
+          className="tap-target text-xs font-semibold underline underline-offset-2 hover:text-gold-text/80"
         >
           {t('searchInsteadLabel')}
         </button>

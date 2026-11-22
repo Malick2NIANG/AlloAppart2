@@ -78,17 +78,17 @@ export default async function RentalTermsCard({
 
       {/* Mode de location */}
       <div className="flex items-start gap-3 rounded-2xl border border-gold/30 dark:border-gold/20 bg-gold-pale/60 dark:bg-gold-dark/10 px-4 py-3">
-        <span className="h-9 w-9 rounded-full bg-gold-pale text-gold-dark inline-grid place-items-center shrink-0">
+        <span className="h-9 w-9 rounded-full bg-gold-pale text-gold-text inline-grid place-items-center shrink-0">
           <i className={`fa-solid ${MODE_ICON[rentalMode]} text-sm`} />
         </span>
         <div>
-          <p className="text-xs font-medium text-gold-dark/70 mb-0.5">{t('modeLabel')}</p>
-          <p className="font-semibold text-gold-dark">
+          <p className="text-xs font-medium text-gold-text/70 mb-0.5">{t('modeLabel')}</p>
+          <p className="font-semibold text-gold-text">
             {rentalMode === 'NIGHTLY' && t('modeNightly')}
             {rentalMode === 'MONTHLY' && t('modeMonthly')}
             {rentalMode === 'MIXED' && t('modeMixed')}
           </p>
-          <p className="text-xs text-gold-dark/80 mt-0.5">
+          <p className="text-xs text-gold-text/80 mt-0.5">
             {rentalMode === 'NIGHTLY' && t('modeNightlyDesc')}
             {rentalMode === 'MONTHLY' && t('modeMonthlyDesc')}
             {rentalMode === 'MIXED' && t('modeMixedDesc')}
@@ -111,7 +111,7 @@ export default async function RentalTermsCard({
           <div className="grid sm:grid-cols-2 gap-3 text-sm">
             {rules.map((r, i) => (
               <div key={i} className="flex items-center gap-2.5">
-                <span className="h-7 w-7 rounded-full bg-bg text-gold-dark border border-line inline-grid place-items-center shrink-0">
+                <span className="h-7 w-7 rounded-full bg-bg text-gold-text border border-line inline-grid place-items-center shrink-0">
                   <i className={`fa-solid ${r.icon} text-[11px]`} />
                 </span>
                 <div>
@@ -147,7 +147,7 @@ export default async function RentalTermsCard({
         </ul>
         <Link
           href="/cgu#tarifs"
-          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-gold-dark hover:text-gold underline underline-offset-2"
+          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-gold-text hover:text-gold underline underline-offset-2"
         >
           <i className="fa-solid fa-file-lines text-[10px]" />
           {t('viewFullTermsLink')}

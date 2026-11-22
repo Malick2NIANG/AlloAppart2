@@ -108,7 +108,7 @@ export interface NavItem {
 
 const ROLE_COLORS: Record<string, string> = {
   LOCATAIRE:     'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400',
-  BAILLEUR:      'bg-gold-pale text-gold-dark',
+  BAILLEUR:      'bg-gold-pale text-gold-text',
   PRO_AGENCE:    'bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400',
   AGENT_TERRAIN: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400',
   ADMIN:         'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400',
@@ -481,7 +481,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
                 const info = SPACE_LABEL[key] ?? { label: td('spaceFallback'), sub: '' };
                 return (
                   <>
-                    <p className="text-xs font-semibold text-gold-dark uppercase tracking-widest leading-none">
+                    <p className="text-xs font-semibold text-gold-text uppercase tracking-widest leading-none">
                       {info.label}
                     </p>
                     {info.sub && (
@@ -514,7 +514,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
                   </div>
                 ) : (
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-pale ring-2 ring-transparent group-hover:ring-gold/40 transition-all">
-                    <span className="text-xs font-bold text-gold-dark">{userInitials}</span>
+                    <span className="text-xs font-bold text-gold-text">{userInitials}</span>
                   </div>
                 )}
                 {/* Overlay crayon au hover */}
@@ -523,7 +523,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
                 </span>
               </Link>
               <div className="min-w-0">
-                <Link href="/profil" className="text-sm font-semibold text-text truncate hover:text-gold-dark transition-colors block">
+                <Link href="/profil" className="text-sm font-semibold text-text truncate hover:text-gold-text transition-colors block">
                   {userName}
                 </Link>
                 {userRole && (
@@ -551,7 +551,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
                   </div>
                 ) : (
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold-pale ring-2 ring-transparent group-hover:ring-gold/40 transition-all">
-                    <span className="text-xs font-bold text-gold-dark">{userInitials}</span>
+                    <span className="text-xs font-bold text-gold-text">{userInitials}</span>
                   </div>
                 )}
                 <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -565,7 +565,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
           <button
             onClick={() => setCollapsed((c) => !c)}
             title={collapsed ? td('expandMenu') : td('collapseMenu')}
-            className="hidden lg:flex absolute -right-3.5 top-1/2 -translate-y-1/2 z-10 h-7 w-7 items-center justify-center rounded-full border border-line bg-card shadow-md text-sub hover:border-gold/60 hover:text-gold-dark transition-all"
+            className="hidden lg:flex absolute -right-3.5 top-1/2 -translate-y-1/2 z-10 h-7 w-7 items-center justify-center rounded-full border border-line bg-card shadow-md text-sub hover:border-gold/60 hover:text-gold-text transition-all"
           >
             <i className={`fa-solid fa-chevron-${collapsed ? 'right' : 'left'} text-[10px]`} />
           </button>
@@ -616,7 +616,7 @@ export default function DashboardShell({ userName, userId, roles, navItems, isPr
                   <Link
                     href={item.href}
                     className={`flex items-center rounded-xl px-2.5 py-2 text-sm font-medium transition-colors
-                      ${active ? 'text-gold-dark' : 'text-sub hover:text-text'}
+                      ${active ? 'text-gold-text' : 'text-sub hover:text-text'}
                       ${collapsed ? 'justify-center gap-0' : 'gap-3'}
                     `}
                   >

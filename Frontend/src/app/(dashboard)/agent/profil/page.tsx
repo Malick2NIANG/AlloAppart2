@@ -133,7 +133,7 @@ export default function AgentProfilPage() {
     { key: 'progress',  icon: 'fa-person-walking', label: t('statInProgressLabel'),   val: stats?.inProgress    ?? 0, color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-50 dark:bg-purple-950/30' },
     { key: 'month',     icon: 'fa-shield-halved',   label: t('statThisMonth'),         val: stats?.doneThisMonth ?? 0, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
     { key: 'rating',    icon: 'fa-star',           label: t('statAvgRatingShort'),
-      val: stats?.averageRating != null ? stats.averageRating.toFixed(1) : '—', color: 'text-gold-dark', bg: 'bg-gold-pale' },
+      val: stats?.averageRating != null ? stats.averageRating.toFixed(1) : '—', color: 'text-gold-text', bg: 'bg-gold-pale' },
   ];
 
   const accountRows = [
@@ -176,7 +176,7 @@ export default function AgentProfilPage() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatar} alt={`${firstName} ${lastName}`} className="h-16 w-16 rounded-2xl object-cover" />
             ) : (
-              <div className="h-16 w-16 rounded-2xl bg-gold-pale flex items-center justify-center text-xl font-extrabold text-gold-dark">
+              <div className="h-16 w-16 rounded-2xl bg-gold-pale flex items-center justify-center text-xl font-extrabold text-gold-text">
                 {initials || <i className="fa-solid fa-user" />}
               </div>
             )}
@@ -200,7 +200,7 @@ export default function AgentProfilPage() {
           <div>
             <p className="font-bold text-text">{firstName} {lastName}</p>
             <p className="text-xs text-sub mt-0.5">{user.email}</p>
-            <p className="text-[11px] font-medium bg-gold-pale text-gold-dark rounded-full px-2.5 py-0.5 inline-block mt-1.5">
+            <p className="text-[11px] font-medium bg-gold-pale text-gold-text rounded-full px-2.5 py-0.5 inline-block mt-1.5">
               <i className="fa-solid fa-id-badge mr-1 text-[9px]" />{t('roleFieldAgent')}
             </p>
           </div>

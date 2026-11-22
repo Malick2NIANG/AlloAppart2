@@ -12,15 +12,15 @@ export default async function AboutPage() {
 
         {/* Fil d'ariane */}
         <nav aria-label="Fil d'ariane" className="mb-6 flex items-center gap-1.5 text-xs text-sub">
-          <Link href="/" className="hover:text-gold-dark transition-colors">{t('breadcrumbHome')}</Link>
+          <Link href="/" className="hover:text-gold-text transition-colors">{t('breadcrumbHome')}</Link>
           <i className="fa-solid fa-chevron-right text-[10px] opacity-50" />
-          <span className="text-gold-dark font-medium">{t('breadcrumbAbout')}</span>
+          <span className="text-gold-text font-medium">{t('breadcrumbAbout')}</span>
         </nav>
 
         {/* Bouton retour */}
         <Link
           href="/"
-          className="tap-target mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-dark transition-all"
+          className="tap-target mb-8 inline-flex items-center gap-2 rounded-full border border-line px-4 py-1.5 text-xs font-medium text-sub hover:border-gold/50 hover:text-gold-text transition-all"
         >
           <i className="fa-solid fa-arrow-left text-[10px]" />
           {t('back')}
@@ -40,7 +40,7 @@ export default async function AboutPage() {
         </div>
 
         {/* Mission */}
-        <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-dark flex items-center gap-2">
+        <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-text flex items-center gap-2">
           <i className="fa-solid fa-circle-dot text-xs" />
           {t('missionHead')}
         </h2>
@@ -49,7 +49,7 @@ export default async function AboutPage() {
         </p>
 
         {/* AlloVérifié™ */}
-        <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-dark flex items-center gap-2">
+        <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-text flex items-center gap-2">
           <i className="fa-solid fa-circle-dot text-xs" />
           {t('alloVerHead')}
         </h2>
@@ -61,14 +61,14 @@ export default async function AboutPage() {
         </div>
 
         {/* Nos valeurs */}
-        <h2 className="mt-10 mb-5 text-lg font-semibold text-gold-dark flex items-center gap-2">
+        <h2 className="mt-10 mb-5 text-lg font-semibold text-gold-text flex items-center gap-2">
           <i className="fa-solid fa-circle-dot text-xs" />
           {t('valuesHead')}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
           {values.map((v, i) => (
             <div key={v.label} className="rounded-2xl border border-line bg-card p-5 flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-gold-pale text-gold-dark">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/40 bg-gold-pale text-gold-text">
                 <i className={`${valIcons[i]} text-sm`} />
               </span>
               <div>
@@ -80,7 +80,7 @@ export default async function AboutPage() {
         </div>
 
         {/* Nous rejoindre */}
-        <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-dark flex items-center gap-2">
+        <h2 className="mt-10 mb-3 text-lg font-semibold text-gold-text flex items-center gap-2">
           <i className="fa-solid fa-circle-dot text-xs" />
           {t('joinHead')}
         </h2>
