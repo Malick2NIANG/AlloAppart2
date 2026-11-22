@@ -243,7 +243,7 @@ export default function BecomeBailleurPage() {
                 <ul className="space-y-3">
                   {ENGAGEMENTS.map((item, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm text-text">
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold-pale text-[10px] font-bold text-gold-dark">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold-pale text-[10px] font-bold text-gold-text">
                         {i + 1}
                       </span>
                       {item}
@@ -260,7 +260,7 @@ export default function BecomeBailleurPage() {
                   className="mt-0.5 h-4 w-4 shrink-0 accent-(--color-gold)" />
                 <span className="text-sm text-text">
                   {t('acceptLabel')}{' '}
-                  <span className="font-semibold text-gold-dark">{t('acceptTerms')}</span>{' '}
+                  <span className="font-semibold text-gold-text">{t('acceptTerms')}</span>{' '}
                   {t('acceptSuffix')}
                 </span>
               </label>
