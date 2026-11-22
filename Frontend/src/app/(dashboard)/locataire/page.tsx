@@ -242,7 +242,12 @@ function NavStatCard({ icon, label, sub, value, href }: {
       className="group relative flex flex-col justify-between rounded-2xl border border-blue-100 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-950/30 p-5 transition hover:border-blue-300 hover:shadow-sm"
     >
       <div className="flex items-start justify-between">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 shadow-sm">
+        {/* dark:bg-blue-900/40 (lot « recette » — tuiles sombres) : bg-white/80
+            seul restait gris clair sur le fond marine de la carte en mode
+            sombre (rupture visuelle) ; même teinte bleue que les bordures
+            déjà utilisées ailleurs (dark:border-blue-900/40), pas de couleur
+            en dur. Mode clair inchangé. */}
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 dark:bg-blue-900/40 shadow-sm">
           <i className={`fa-solid ${icon} text-sm text-blue-600 dark:text-blue-400`} />
         </div>
         <i className="fa-solid fa-arrow-right text-[10px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
